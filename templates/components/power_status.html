@@ -1,0 +1,47 @@
+{% load static %}
+<div class="widget power-widget">
+    <div class="widget-header">
+        <h3>스마트 전력 시스템 위험 현황</h3>
+        <a href="{% url 'power_detail' %}" class="widget-more-link">+ 상세 보기</a>
+    </div>
+
+    <!-- 현재 전체 전력 소비 -->
+    <div class="power-total-row">
+        <div>
+            <p class="power-total-label">현재 전체 스마트 파워 전력 사용량</p>
+            <p class="power-total-value" id="power-total-mw">{{ power.total_mw|floatformat:0 }} <span class="power-unit">MW</span></p>
+        </div>
+        <div class="power-vs-baseline">
+            <span class="baseline-label">기준 대비</span>
+            <span class="baseline-val {% if power.delta_pct > 0 %}val--up{% else %}val--down{% endif %}">
+                {% if power.delta_pct > 0 %}▲{{ power.delta_pct }}{% else %}▼{{ power.delta_pct|cut:"-" }}{% endif %}%
+            </span>
+        </div>
+    </div>
+
+    <!-- 설비별 테이블 -->
+    <div class="table-wrapper">
+        <table class="data-table" id="power-table">
+            <thead>
+                <tr>
+                    <th>설비명</th>
+                    <th>전력 사용량</th>
+                    <th>온도</th>
+                    <th>위험도</th>
+                </tr>
+            </thead>
+            <tbody id="power-tbody">
+                {% for equip in power.equipment_list %}
+                <tr class="row--{{ equip.level }}">
+                    <td>{{ equip.name }}</td>
+                    <td class="mono">{{ equip.power_mwh }} MWh</td>
+                    <td class="mono">{{ equip.temp }}°C</td>
+                    <td>
+                        <span class="level-badge level--{{ equip.level }}">{{ equip.level_display }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

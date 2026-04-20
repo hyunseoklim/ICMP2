@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - 산재 예방 통합 관제 플랫폼</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: #1a5fa8;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+        }
+
+        .login-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 320px;
+        }
+
+        .logo-area {
+            width: 240px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+        }
+
+        .platform-title {
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+
+        .form-group {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.95);
+            font-size: 14px;
+            color: #333;
+            outline: none;
+        }
+
+        .form-group input::placeholder {
+            color: #aaa;
+        }
+
+        .form-group input:focus {
+            border-color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 11px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 4px;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            transition: background 0.2s;
+        }
+
+        .btn-login:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        .error-message {
+            color: #ffcccc;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .contact-info {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 12px;
+            text-align: center;
+            margin-top: 4px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <!-- 로고 -->
+        <div class="logo-area">에어워드 로고</div>
+
+        <!-- 플랫폼명 -->
+        <div class="platform-title">산재 예방 통합 관제 플랫폼</div>
+
+        <!-- 로그인 폼 -->
+        <form method="post" style="width:100%">
+            {% csrf_token %}
+            <div class="form-group">
+                <input
+                    type="text"
+                    name="username"
+                    placeholder="아이디"
+                    value="{{ username|default:'' }}"
+                    autocomplete="username"
+                >
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="비밀번호"
+                    autocomplete="current-password"
+                >
+            </div>
+
+            {% if error %}
+            <div class="error-message" style="margin-top:8px;">{{ error }}</div>
+            {% endif %}
+
+            <button type="submit" class="btn-login" style="margin-top:12px;">로그인</button>
+        </form>
+
+        <!-- 문의 -->
+        <div class="contact-info">
+            로그인 관련 문의<br>
+            ㅇㅇ보서 ㅇㅇ실 전화 010-1234-5678
+        </div>
+    </div>
+</body>
+</html>

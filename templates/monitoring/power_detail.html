@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}전력 관리 — 산재 예방 통합 관제시스템{% endblock %}
+
+{% block page_content %}
+<main class="detail-layout">
+
+    <aside class="left">
+        {% include "components/mysafety.html" %}
+        {% include "components/worker_status.html" %}
+    </aside>
+
+    <div class="detail-main">
+
+        <!-- 상단: 전력 요약 카드 -->
+        <section class="detail-summary">
+            <div class="summary-card info">
+                <span class="summary-label">현재 전력 사용량</span>
+                <span class="summary-value mono" id="power-total">-- MW</span>
+            </div>
+            <div class="summary-card danger">
+                <span class="summary-label">위험 설비</span>
+                <span class="summary-value" id="power-danger-count">{{ power_stats.danger_count }}</span>
+            </div>
+            <div class="summary-card warning">
+                <span class="summary-label">과부하 예측 설비</span>
+                <span class="summary-value" id="power-overload-count">{{ power_stats.overload_count }}</span>
+            </div>
+            <div class="summary-card normal">
+                <span class="summary-label">기준 대비</span>
+                <span class="summary-value" id="power-vs-baseline">-- %</span>
+            </div>
+        </section>
+
+        <!-- 중앙: 전력 현황 + 설비 목록 -->
+        <section class="detail-body two-col">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>스마트 전력 시스템 현황</h2>
+                </div>
+                {% include "components/power_status.html" %}
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>시간대별 전력 소비 추이</h2>
+                    <select id="power-range" class="filter-select">
+                        <option value="1h">최근 1시간</option>
+                        <option value="6h" selected>최근 6시간</option>
+                        <option value="24h">최근 24시간</option>
+                    </select>
+                </div>
+                <canvas id="power-history-chart" height="200"></canvas>
+            </div>
+        </section>
+
+        <!-- 하단: AI 전력 예측 -->
+        <section class="detail-predict">
+            <div class="panel full-width">
+                <div class="panel-header">
+                    <h2>AI 예측 — 스마트 전력 시스템 위험 (24시간)</h2>
+                </div>
+                {% include "components/ai_power_predict.html" with full_view=True %}
+            </div>
+        </section>
+
+    </div>
+</main>
+{% endblock page_content %}
+
+#화면 틀만 확인하기 위해 주석처리함
+{% block script %}
+<script src="{% static 'js/power_detail.js' %}"></script>
+{% endblock %}
