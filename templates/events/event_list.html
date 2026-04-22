@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}이벤트 현황 — 산재 예방 통합 관제시스템{% endblock %}
+
+{% block page_content %}
+<main class="detail-layout">
+
+    <aside class="left">
+        {% include "components/mysafety.html" %}
+        {% include "components/worker_status.html" %}
+    </aside>
+
+    <div class="detail-main">
+
+        <!-- 24시간 요약 -->
+        <section class="detail-summary">
+            <div class="summary-card danger">
+                <span class="summary-label">위험 (24h)</span>
+                <span class="summary-value" id="ev-danger">{{ event_summary.danger }}</span>
+            </div>
+            <div class="summary-card warning">
+                <span class="summary-label">주의 (24h)</span>
+                <span class="summary-value" id="ev-warning">{{ event_summary.warning }}</span>
+            </div>
+            <div class="summary-card info">
+                <span class="summary-label">정보 (24h)</span>
+                <span class="summary-value" id="ev-info">{{ event_summary.info|default:0 }}</span>
+            </div>
+            <div class="summary-card normal">
+                <span class="summary-label">미확인</span>
+                <span class="summary-value" id="ev-unacked">
+                    {{ all_events|length }}
+                </span>
+            </div>
+        </section>
+
+        <!-- 필터 -->
+        <div class="panel" style="margin-top:8px;">
+            <div class="panel-header">
+                <h2>전체 이벤트</h2>
+                <div class="toolbar">
+                    <select id="ev-severity-filter" class="filter-select">
+                        <option value="">전체 심각도</option>
+                        <option value="danger">위험</option>
+                        <option value="warning">주의</option>
+                        <option value="info">정보</option>
+                    </select>
+                    <select id="ev-source-filter" class="filter-select">
+                        <option value="">전체 발생원</option>
+                        <option value="gas">유해가스</option>
+                        <option value="power">전력</option>
+                        <option value="worker">작업자</option>
+                        <option value="system">시스템</option>
+                    </select>
+                    <select id="ev-ack-filter" class="filter-select">
+                        <option value="">전체</option>
+                        <option value="0">미확인</option>
+                        <option value="1">확인됨</option>
+                    </select>
+                    <button class="btn-outline" id="ack-selected-btn">선택 확인 처리</button>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="data-table" id="event-table">
+                    <thead>
+                        <tr>
+                            <th style="width:28px">
+                                <input type="checkbox" id="ck-all" title="전체 선택">
+                            </th>
+                            <th>심각도</th>
+                            <th>제목</th>
+                            <th>설명</th>
+                            <th>발생원</th>
+                            <th>관련 설비/센서</th>
+                            <th>발생 시각</th>
+                            <th>경과</th>
+                            <th>상태</th>
+                        </tr>
+                    </thead>
+                    <tbody id="event-tbody">
+                        {% for ev in all_events %}
+                        <tr class="event-row row--{{ ev.severity }}"
+                            data-severity="{{ ev.severity }}"
+                            data-source="{{ ev.source }}"
+                            data-acked="{{ ev.is_acked|yesno:'1,0' }}"
+                            data-id="{{ ev.id }}">
+                            <td>
+                                {% if not ev.is_acked %}
+                                <input type="checkbox" class="ev-checkbox" value="{{ ev.id }}">
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="level-badge level--{{ ev.severity }}">
+                                    {{ ev.get_severity_display }}
+                                </span>
+                            </td>
+                            <td class="ev-title">{{ ev.title }}</td>
+                            <td style="max-width:240px;color:var(--text-secondary)">{{ ev.description }}</td>
+                            <td>
+                                <span class="source-badge source--{{ ev.source }}">
+                                    {{ ev.get_source_display }}
+                                </span>
+                            </td>
+                            <td class="text-muted" style="font-size:11px;">
+                                {% if ev.related_sensor %}{{ ev.related_sensor.name }}{% endif %}
+                                {% if ev.related_equipment %}{{ ev.related_equipment.name }}{% endif %}
+                                {% if ev.related_worker %}{{ ev.related_worker.user.get_full_name }}{% endif %}
+                                {% if not ev.related_sensor and not ev.related_equipment and not ev.related_worker %}—{% endif %}
+                            </td>
+                            <td class="mono" style="font-size:11px;white-space:nowrap;">
+                                {{ ev.started_at|date:"Y-m-d H:i:s" }}
+                            </td>
+                            <td class="mono elapsed-cell" data-start="{{ ev.started_at|date:'c' }}">
+                                {{ ev.elapsed }}
+                            </td>
+                            <td>
+                                {% if ev.is_acked %}
+                                <span class="level-badge level--normal">확인됨</span>
+                                {% else %}
+                                <button class="ack-btn btn-outline-sm" data-id="{{ ev.id }}">확인</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted);">
+                                이벤트가 없습니다.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 시간대별 이벤트 차트 -->
+        <div class="panel" style="margin-top:8px;height:180px;">
+            <div class="panel-header"><h2>24시간 이벤트 발생 추이</h2></div>
+            <div class="chart-wrapper">
+                <canvas id="eventTrendChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+</main>
+{% endblock page_content %}
+
+{% block extra_css %}
+<style>
+.toolbar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+
+.btn-outline {
+    padding:4px 12px; font-size:11px; font-weight:600;
+    background:transparent; border:1px solid var(--border);
+    border-radius:var(--radius-sm); color:var(--text-secondary);
+    transition:border-color 0.15s, color 0.15s;
+}
+.btn-outline:hover { border-color:var(--accent-cyan); color:var(--accent-cyan); }
+
+.btn-outline-sm {
+    padding:2px 8px; font-size:10px;
+    background:transparent; border:1px solid var(--border);
+    border-radius:var(--radius-sm); color:var(--text-secondary);
+    transition:border-color 0.15s;
+}
+.btn-outline-sm:hover { border-color:var(--accent-cyan); color:var(--accent-cyan); }
+
+.source-badge {
+    display:inline-block; padding:1px 7px; border-radius:9999px;
+    font-size:10px; font-weight:600;
+}
+.source--gas    { background:rgba(245,158,11,0.15); color:var(--warning); }
+.source--power  { background:rgba(59,130,246,0.15); color:var(--info); }
+.source--worker { background:rgba(16,185,129,0.15); color:var(--normal); }
+.source--system { background:rgba(148,163,184,0.1); color:var(--text-secondary); }
+
+.ev-title { font-weight:600; font-size:12px; }
+</style>
+{% endblock %}
+
+#화면 틀만 확인하기 위해 주석처리함
+{% block script %}
+<script>
+(function() {
+    // ── 필터 ────────────────────────────────────────────
+    function filterEvents() {
+        const sev  = document.getElementById('ev-severity-filter').value;
+        const src  = document.getElementById('ev-source-filter').value;
+        const ack  = document.getElementById('ev-ack-filter').value;
+        document.querySelectorAll('#event-tbody .event-row').forEach(function(row) {
+            const ok = (!sev || row.dataset.severity === sev)
+                    && (!src || row.dataset.source === src)
+                    && (!ack || row.dataset.acked === ack);
+            row.style.display = ok ? '' : 'none';
+        });
+    }
+    ['ev-severity-filter','ev-source-filter','ev-ack-filter'].forEach(function(id) {
+        document.getElementById(id).addEventListener('change', filterEvents);
+    });
+
+    // ── 전체 선택 ───────────────────────────────────────
+    document.getElementById('ck-all').addEventListener('change', function() {
+        document.querySelectorAll('.ev-checkbox').forEach(function(cb) {
+            cb.checked = document.getElementById('ck-all').checked;
+        });
+    });
+
+    // ── 개별 확인 처리 ──────────────────────────────────
+    document.querySelectorAll('.ack-btn').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+            const id = btn.dataset.id;
+            try {
+                await SafetyAPI.acknowledgeEvent(id);
+                const row = btn.closest('tr');
+                btn.replaceWith(Object.assign(
+                    document.createElement('span'),
+                    { className:'level-badge level--normal', textContent:'확인됨' }
+                ));
+                row.dataset.acked = '1';
+                // 미확인 카운트 감소
+                const el = document.getElementById('ev-unacked');
+                if (el) el.textContent = Math.max(0, parseInt(el.textContent) - 1);
+            } catch(e) { alert('처리 중 오류가 발생했습니다.'); }
+        });
+    });
+
+    // ── 선택 일괄 확인 ──────────────────────────────────
+    document.getElementById('ack-selected-btn').addEventListener('click', async function() {
+        const ids = Array.from(document.querySelectorAll('.ev-checkbox:checked')).map(cb => cb.value);
+        if (!ids.length) { alert('확인할 이벤트를 선택해주세요.'); return; }
+        await Promise.all(ids.map(id => SafetyAPI.acknowledgeEvent(id)));
+        location.reload();
+    });
+
+    // ── 경과 시간 카운터 ─────────────────────────────────
+    setInterval(function() {
+        document.querySelectorAll('.elapsed-cell[data-start]').forEach(function(el) {
+            const diff = Math.floor((Date.now() - new Date(el.dataset.start)) / 1000);
+            const h = Math.floor(diff / 3600);
+            const m = Math.floor((diff % 3600) / 60);
+            const s = diff % 60;
+            el.textContent = h > 0
+                ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+                : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        });
+    }, 1000);
+
+    // ── 이벤트 추이 차트 ─────────────────────────────────
+    const trendCtx = document.getElementById('eventTrendChart');
+    if (trendCtx) {
+        const hours = Array.from({length:24}, function(_, i) {
+            return String((new Date().getHours() - 23 + i + 24) % 24).padStart(2,'0') + ':00';
+        });
+        new Chart(trendCtx, {
+            type: 'bar',
+            data: {
+                labels: hours,
+                datasets: [
+                    {
+                        label: '위험',
+                        data: {{ event_hourly_danger|default:"[]" }},
+                        backgroundColor: 'rgba(239,68,68,0.6)',
+                        borderRadius: 2,
+                    },
+                    {
+                        label: '주의',
+                        data: {{ event_hourly_warning|default:"[]" }},
+                        backgroundColor: 'rgba(245,158,11,0.5)',
+                        borderRadius: 2,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 10 }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#4b5563', maxTicksLimit: 8, font: { size: 10 } }
+                    },
+                    y: {
+                        stacked: true,
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#4b5563', stepSize: 1, font: { size: 10 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── WebSocket 신규 이벤트 ────────────────────────────
+    if (window.SafetyWS) {
+        SafetyWS.on('event_new', function(payload) {
+            const tbody = document.getElementById('event-tbody');
+            const tr = document.createElement('tr');
+            tr.className = `event-row row--${payload.severity}`;
+            tr.dataset.severity = payload.severity;
+            tr.dataset.source   = payload.source || '';
+            tr.dataset.acked    = '0';
+            tr.dataset.id       = payload.id;
+            tr.innerHTML = `
+                <td><input type="checkbox" class="ev-checkbox" value="${payload.id}"></td>
+                <td><span class="level-badge level--${payload.severity}">${{danger:'위험',warning:'주의',info:'정보'}[payload.severity]||payload.severity}</span></td>
+                <td class="ev-title">${payload.title}</td>
+                <td style="color:var(--text-secondary)">${payload.description}</td>
+                <td>—</td><td>—</td>
+                <td class="mono" style="font-size:11px">${new Date(payload.started_at).toLocaleString('ko-KR')}</td>
+                <td class="mono elapsed-cell" data-start="${payload.started_at}">00:00</td>
+                <td><button class="ack-btn btn-outline-sm" data-id="${payload.id}">확인</button></td>
+            `;
+            tbody.prepend(tr);
+
+            const el = document.getElementById('ev-unacked');
+            if (el) el.textContent = parseInt(el.textContent || 0) + 1;
+        });
+    }
+})();
+</script>
+{% endblock %}

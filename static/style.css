@@ -1,0 +1,61 @@
+ :root {
+            --bg-color: #0b0e1a;
+            --card-bg: #161b30;
+            --header-bg: #161b30;
+            --text-color: #ffffff;
+            --accent-blue: #3b82f6;
+            --border-color: #2d3550;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-color);
+            font-family: 'Pretendard', sans-serif;
+            padding: 10px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 메인 그리드 설정 (그림 1의 레이아웃 반영) */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px; /* 좌/중/우 비율 */
+            grid-template-rows: 60px 1fr 280px;    /* 헤더/메인/하단분석 */
+            gap: 12px;
+            height: 100%;
+        }
+
+        /* 공통 카드 스타일 */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #a0a7ba;
+        }
+
+        /* 구역별 설정 */
+        .header { grid-column: 1 / 4; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+        
+        .side-left { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; }
+        .main-view { position: relative; } /* 실시간 모니터링 평면도 구역 */
+        .side-right { } /* 이벤트 현황 구역 */
+
+        /* 하단 4분할 분석 영역 (12, 13, 14, 15번) */
+        .bottom-analysis {
+            grid-column: 1 / 4;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        /* 텍스트 강조 */
+        h2 { color: var(--text-color); font-size: 1.1rem; margin-bottom: 10px; }
+        .highlight { color: var(--accent-blue); font-weight: bold; }

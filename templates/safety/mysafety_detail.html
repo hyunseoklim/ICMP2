@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}나의 안전확인 — 산재 예방 통합 관제시스템{% endblock %}
+
+{% block page_content %}
+<main class="detail-layout">
+
+    <aside class="left">
+        {% include "components/worker_status.html" %}
+    </aside>
+
+    <div class="detail-main" style="max-width:860px;">
+
+        <section class="detail-summary">
+            <div class="summary-card {% if safety.ppe_worn %}normal{% else %}danger{% endif %}">
+                <span class="summary-label">PPE 착용</span>
+                <span class="summary-value" style="font-size:15px">
+                    {{ safety.ppe_worn|yesno:"✔ 완료,✘ 미완료" }}
+                </span>
+            </div>
+            <div class="summary-card {% if safety.checklist_done %}normal{% else %}warning{% endif %}">
+                <span class="summary-label">안전 체크리스트</span>
+                <span class="summary-value" style="font-size:15px">
+                    {{ safety.checklist_done|yesno:"✔ 완료,✘ 미완료" }}
+                </span>
+            </div>
+            <div class="summary-card {% if safety.vr_training %}normal{% else %}warning{% endif %}">
+                <span class="summary-label">VR 교육</span>
+                <span class="summary-value" style="font-size:15px">
+                    {{ safety.vr_training|yesno:"✔ 완료,✘ 미완료" }}
+                </span>
+            </div>
+            <div class="summary-card info">
+                <span class="summary-label">확인 날짜</span>
+                <span class="summary-value mono" style="font-size:14px">{{ safety.check_date }}</span>
+            </div>
+        </section>
+
+        <!-- 체크 폼 -->
+        <div class="panel" style="margin-top:8px;">
+            <div class="panel-header">
+                <h2>오늘의 안전 확인 항목</h2>
+                <span style="font-size:11px;color:var(--text-muted)">{{ safety.check_date }} 기준</span>
+            </div>
+
+            <div class="safety-form-body">
+                <div class="safety-item-row" id="row-ppe">
+                    <div class="safety-item-info">
+                        <span class="safety-item-icon">🦺</span>
+                        <div>
+                            <p class="safety-item-title">PPE (개인보호장비) 착용</p>
+                            <p class="safety-item-desc">안전모, 안전화, 보호장갑, 안전복 착용 여부를 확인합니다.</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="ppe_worn" {% if safety.ppe_worn %}checked{% endif %}>
+                        <span class="toggle-track">
+                            <span class="toggle-thumb"></span>
+                        </span>
+                        <span class="toggle-label">{{ safety.ppe_worn|yesno:"완료,미완료" }}</span>
+                    </label>
+                </div>
+
+                <div class="safety-item-row" id="row-checklist">
+                    <div class="safety-item-info">
+                        <span class="safety-item-icon">📋</span>
+                        <div>
+                            <p class="safety-item-title">안전 확인 체크리스트</p>
+                            <p class="safety-item-desc">작업 전 위험 요소 점검, 장비 상태 확인, 비상구 위치 파악을 완료합니다.</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="checklist_done" {% if safety.checklist_done %}checked{% endif %}>
+                        <span class="toggle-track">
+                            <span class="toggle-thumb"></span>
+                        </span>
+                        <span class="toggle-label">{{ safety.checklist_done|yesno:"완료,미완료" }}</span>
+                    </label>
+                </div>
+
+                <div class="safety-item-row" id="row-vr">
+                    <div class="safety-item-info">
+                        <span class="safety-item-icon">🥽</span>
+                        <div>
+                            <p class="safety-item-title">VR 안전 교육</p>
+                            <p class="safety-item-desc">가상현실 기반 산재 예방 교육을 이수합니다. (월 1회 필수)</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="vr_training" {% if safety.vr_training %}checked{% endif %}>
+                        <span class="toggle-track">
+                            <span class="toggle-thumb"></span>
+                        </span>
+                        <span class="toggle-label">{{ safety.vr_training|yesno:"완료,미완료" }}</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="safety-form-footer">
+                <span class="save-status" id="save-status"></span>
+                <button class="btn-primary" id="save-btn">저장하기</button>
+            </div>
+        </div>
+
+        <!-- 이전 기록 -->
+        <div class="panel" style="margin-top:8px;">
+            <div class="panel-header"><h2>최근 안전 확인 이력</h2></div>
+            <div class="table-wrapper" style="max-height:240px;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>날짜</th>
+                            <th>PPE 착용</th>
+                            <th>체크리스트</th>
+                            <th>VR 교육</th>
+                            <th>완료율</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in recent_safety_records %}
+                        <tr>
+                            <td class="mono">{{ record.check_date }}</td>
+                            <td>
+                                <span class="level-badge {% if record.ppe_worn %}level--normal{% else %}level--danger{% endif %}">
+                                    {{ record.ppe_worn|yesno:"완료,미완료" }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="level-badge {% if record.checklist_done %}level--normal{% else %}level--warning{% endif %}">
+                                    {{ record.checklist_done|yesno:"완료,미완료" }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="level-badge {% if record.vr_training %}level--normal{% else %}level--warning{% endif %}">
+                                    {{ record.vr_training|yesno:"완료,미완료" }}
+                                </span>
+                            </td>
+                            <td>
+                                {% with done=record.ppe_worn|add:record.checklist_done|add:record.vr_training %}
+                                <div class="progress-bar-wrap">
+                                    <div class="progress-bar" style="width:{% widthratio done 3 100 %}%"></div>
+                                    <span>{{ done }}/3</span>
+                                </div>
+                                {% endwith %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">이전 기록이 없습니다.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <aside class="right">
+        {% include "components/event_status.html" %}
+    </aside>
+
+</main>
+{% endblock page_content %}
+
+{% block extra_css %}
+<style>
+.safety-form-body { padding: 8px 0; }
+
+.safety-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+    transition: background 0.15s;
+}
+.safety-item-row:hover { background: var(--bg-hover); }
+.safety-item-row:last-child { border-bottom: none; }
+
+.safety-item-info { display: flex; align-items: center; gap: 14px; flex: 1; }
+.safety-item-icon { font-size: 22px; flex-shrink: 0; }
+.safety-item-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.safety-item-desc  { font-size: 11px; color: var(--text-secondary); }
+
+/* 토글 스위치 */
+.toggle-switch { display: flex; align-items: center; gap: 8px; cursor: pointer; flex-shrink: 0; }
+.toggle-switch input { display: none; }
+.toggle-track {
+    position: relative; width: 42px; height: 22px;
+    background: var(--border-light); border-radius: 11px;
+    transition: background 0.2s;
+}
+.toggle-switch input:checked + .toggle-track { background: var(--normal); }
+.toggle-thumb {
+    position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.toggle-switch input:checked + .toggle-track .toggle-thumb { transform: translateX(20px); }
+.toggle-label { font-size: 11px; color: var(--text-secondary); min-width: 30px; }
+
+.safety-form-footer {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 12px; padding: 10px 16px;
+    border-top: 1px solid var(--border);
+}
+.btn-primary {
+    padding: 7px 20px;
+    background: var(--accent-blue);
+    border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 600;
+    color: #fff; transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.85; }
+.save-status { font-size: 11px; color: var(--normal); }
+
+.progress-bar-wrap {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; color: var(--text-muted);
+}
+.progress-bar-wrap > div {
+    height: 4px; border-radius: 2px;
+    background: var(--normal); min-width: 4px;
+    max-width: 60px; transition: width 0.3s;
+}
+</style>
+{% endblock %}
+
+#화면 틀만 확인하기 위해 주석처리함
+{% block script %}
+<script>
+(function() {
+    const items = ['ppe_worn', 'checklist_done', 'vr_training'];
+
+    // 토글 레이블 동기화
+    items.forEach(function(id) {
+        const cb = document.getElementById(id);
+        if (!cb) return;
+        const label = cb.closest('.toggle-switch').querySelector('.toggle-label');
+        cb.addEventListener('change', function() {
+            label.textContent = cb.checked ? '완료' : '미완료';
+        });
+    });
+
+    // 저장
+    document.getElementById('save-btn').addEventListener('click', async function() {
+        const payload = {};
+        items.forEach(function(id) {
+            payload[id] = document.getElementById(id)?.checked ?? false;
+        });
+        try {
+            await SafetyAPI.updateSafetyItem(payload);
+            const st = document.getElementById('save-status');
+            st.textContent = '✔ 저장되었습니다';
+            setTimeout(function() { st.textContent = ''; }, 3000);
+        } catch(e) {
+            alert('저장 중 오류가 발생했습니다.');
+        }
+    });
+})();
+</script>
+{% endblock %}

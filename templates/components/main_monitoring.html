@@ -1,0 +1,55 @@
+{% load static %}
+<div class="widget monitoring-widget">
+    <div class="widget-header">
+        <h3>실시간 모니터링</h3>
+        <a href="{% url 'monitoring_detail' %}" class="widget-more-link">+ 상세 보기</a>
+    </div>
+
+    <!-- 탭 네비게이션 -->
+    <nav class="tab-nav" role="tablist">
+        <button class="tab-btn active" role="tab" data-tab="all" aria-selected="true">전체</button>
+        <button class="tab-btn" role="tab" data-tab="worker" aria-selected="false">작업자</button>
+        <button class="tab-btn" role="tab" data-tab="danger" aria-selected="false">위험구역</button>
+        <button class="tab-btn" role="tab" data-tab="gas" aria-selected="false">유해가스 센서</button>
+        <button class="tab-btn" role="tab" data-tab="equipment" aria-selected="false">설비</button>
+        <button class="tab-btn" role="tab" data-tab="power" aria-selected="false">스마트 전력 시스템</button>
+        <button class="tab-btn" role="tab" data-tab="location" aria-selected="false">위치 센서</button>
+    </nav>
+
+    <!-- 지도 필터 범례 -->
+    <div class="map-legend">
+        <span class="legend-item"><i class="dot dot--worker"></i> 작업자</span>
+        <span class="legend-item"><i class="dot dot--danger-zone"></i> 위험구역</span>
+        <span class="legend-item"><i class="dot dot--gas"></i> 유해가스 센서</span>
+        <span class="legend-item"><i class="dot dot--equipment"></i> 위험 설비</span>
+        <span class="legend-item"><i class="dot dot--ai"></i> AI 전력 시스템</span>
+    </div>
+
+    <!-- 지도 캔버스 -->
+    <div class="map-container" id="factory-map" data-tab="all">
+        <canvas id="map-canvas"></canvas>
+        <!-- 위험 구역 오버레이 (서버 데이터 기반) -->
+        {% for zone in danger_zones %}
+        <div class="map-overlay danger-zone-overlay"
+             style="left:{{ zone.x }}%;top:{{ zone.y }}%;width:{{ zone.w }}%;height:{{ zone.h }}%"
+             title="{{ zone.name }}">
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(b) {
+            b.classList.remove('active');
+            b.setAttribute('aria-selected', 'false');
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        var tab = btn.dataset.tab;
+        document.getElementById('factory-map').dataset.tab = tab;
+        document.dispatchEvent(new CustomEvent('tabChange', { detail: { tab: tab } }));
+    });
+});
+</script>

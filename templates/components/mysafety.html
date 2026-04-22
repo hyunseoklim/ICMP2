@@ -1,0 +1,29 @@
+{% load static %}
+<div class="widget mysafety-widget">
+    <div class="widget-header">
+        <h3>나의 안전확인</h3>
+    </div>
+
+    <ul class="safety-check-list">
+        <li class="safety-check-item">
+            <span class="check-label">PPE 착용</span>
+            <span class="check-badge {% if safety.ppe_worn %}badge--ok{% else %}badge--fail{% endif %}">
+                {{ safety.ppe_worn|yesno:"완료,미완료" }}
+            </span>
+        </li>
+        <li class="safety-check-item">
+            <span class="check-label">안전 확인 체크리스트</span>
+            <span class="check-badge {% if safety.checklist_done %}badge--ok{% else %}badge--fail{% endif %}">
+                {{ safety.checklist_done|yesno:"완료,미완료" }}
+            </span>
+        </li>
+        <li class="safety-check-item">
+            <span class="check-label">VR 교육</span>
+            <span class="check-badge {% if safety.vr_training %}badge--ok{% else %}badge--pending{% endif %}">
+                {{ safety.vr_training|yesno:"완료,미완료" }}
+            </span>
+        </li>
+    </ul>
+
+    <a href="{% url 'mysafety_detail' %}" class="widget-link-btn">나의 안전 확인 바로가기</a>
+</div>

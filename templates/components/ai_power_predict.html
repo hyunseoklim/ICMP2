@@ -1,0 +1,81 @@
+{% load static %}
+<div class="widget ai-power-widget">
+    <div class="widget-header">
+        <h3>AI 예측 — 스마트 전력 시스템 위험</h3>
+        <a href="{% url 'power_detail' %}" class="widget-more-link">+ 상세 보기</a>
+        <div class="sensor-nav">
+            <button class="sensor-nav-btn" id="ai-power-prev">&#8249;</button>
+            <span class="sensor-nav-label" id="ai-power-label">{{ ai_power.current_equipment }}</span>
+            <button class="sensor-nav-btn" id="ai-power-next">&#8250;</button>
+            <span class="sensor-page" id="ai-power-page">1 / {{ ai_power.total_equipment }}</span>
+        </div>
+    </div>
+
+    <div class="ai-predict-summary">
+        <div class="predict-stat predict-stat--alert">
+            <span class="predict-label">위험 도달 예상 시간</span>
+            <span class="predict-value predict-value--danger" id="power-predict-time">
+                {{ ai_power.danger_eta_min }}분 뒤
+            </span>
+        </div>
+        <div class="predict-stat">
+            <span class="predict-label">12시간 내 예상 최대 부하</span>
+            <span class="predict-value" id="power-predict-max">
+                {{ ai_power.predicted_max_kw }} kW
+                <span class="predict-diff">(정상 대비 {{ ai_power.predicted_max_pct }}%)</span>
+            </span>
+        </div>
+    </div>
+
+    <div class="chart-wrapper">
+        <canvas id="powerPredict{% if full_view %}Full{% endif %}Chart" height="{{ full_view|yesno:'160,100' }}"></canvas>
+    </div>
+</div>
+
+<script>
+(function() {
+    var id = 'powerPredict{% if full_view %}Full{% endif %}Chart';
+    var ctx = document.getElementById(id);
+    if (!ctx) return;
+
+    var labels = {{ ai_power.labels|safe }};
+    var actual = {{ ai_power.actual|safe }};
+    var predicted = {{ ai_power.predicted|safe }};
+    var threshold = {{ ai_power.threshold }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '실제 부하',
+                    data: actual,
+                    borderColor: '#63b3ed',
+                    backgroundColor: 'rgba(99,179,237,0.08)',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0.4
+                },
+                {
+                    label: 'AI 예측',
+                    data: predicted,
+                    borderColor: '#fc8181',
+                    borderWidth: 1.5,
+                    borderDash: [4, 3],
+                    pointRadius: 0,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#718096', maxTicksLimit: 6 } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#718096' } }
+            }
+        }
+    });
+})();
+</script>
