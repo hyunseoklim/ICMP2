@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}내 정보 확인 | 산재 예방 통합 관제시스템{% endblock %}
+
+{% block page_content %}
+<div class="profile-page">
+    <main class="profile-main">
+        <div class="profile-container">
+            <h2 class="profile-title">내 정보 확인</h2>
+
+            <div class="profile-card">
+                <div class="profile-card__header">
+                    <span class="profile-card__label">내 정보</span>
+                    <button class="btn-change-pw" id="open-pw-modal">비밀번호 변경</button>
+                </div>
+
+                <div class="profile-card__body">
+                    <div class="profile-row">
+                        <span class="profile-key">이름</span>
+                        <span class="profile-val">{{ request.user.name|default:request.user.get_full_name|default:"-" }}</span>
+                        <span class="profile-key">이메일</span>
+                        <span class="profile-val">{{ request.user.email|default:"-" }}</span>
+                    </div>
+                    <div class="profile-row">
+                        <span class="profile-key">ID</span>
+                        <span class="profile-val">{{ request.user.username }}</span>
+                        <span class="profile-key">연락처</span>
+                        <span class="profile-val">{{ request.user.phone|default:"-" }}</span>
+                    </div>
+                    <div class="profile-row">
+                        <span class="profile-key">소속</span>
+                        <span class="profile-val">{{ request.user.department|default:"-" }}</span>
+                        <span class="profile-key">직급</span>
+                        <span class="profile-val">{{ request.user.position|default:"-" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- 비밀번호 변경 모달 -->
+<div class="modal-overlay" id="pw-modal" aria-hidden="true">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modal-title">비밀번호 변경</h3>
+            <button class="modal-close" id="close-pw-modal" aria-label="닫기">&times;</button>
+        </div>
+        <div class="modal-body">
+
+            <!-- 현재 비밀번호 -->
+            <div class="pw-field" id="field-current">
+                <label class="form-label" for="current-pw">현재 비밀번호</label>
+                <div class="input-wrap">
+                    <input class="form-input" type="password" id="current-pw" autocomplete="current-password" placeholder="현재 비밀번호 입력">
+                    <button class="input-clear" type="button" id="clear-current" aria-label="지우기" hidden>&times;</button>
+                </div>
+                <p class="field-hint" id="hint-current">현재 사용 중인 비밀번호를 입력해 주세요.</p>
+                <p class="field-error" id="error-current" hidden></p>
+            </div>
+
+            <!-- 신규 비밀번호 -->
+            <div class="pw-field" id="field-new">
+                <label class="form-label" for="new-pw">신규 비밀번호</label>
+                <div class="input-wrap">
+                    <input class="form-input" type="password" id="new-pw" autocomplete="new-password" placeholder="신규 비밀번호 입력">
+                    <button class="input-clear" type="button" id="clear-new" aria-label="지우기" hidden>&times;</button>
+                </div>
+                <p class="field-hint" id="hint-new">8~16자의 영문, 숫자, 특수문자를 조합하여 입력해 주세요.</p>
+                <p class="field-error" id="error-new" hidden></p>
+            </div>
+
+            <!-- 신규 비밀번호 재입력 -->
+            <div class="pw-field" id="field-confirm">
+                <label class="form-label" for="confirm-pw">신규 비밀번호 재입력</label>
+                <div class="input-wrap">
+                    <input class="form-input" type="password" id="confirm-pw" autocomplete="new-password" placeholder="신규 비밀번호 재입력">
+                    <button class="input-clear" type="button" id="clear-confirm" aria-label="지우기" hidden>&times;</button>
+                </div>
+                <p class="field-hint" id="hint-confirm">새로운 비밀번호를 한 번 더 입력해 주세요.</p>
+                <p class="field-error" id="error-confirm" hidden></p>
+            </div>
+
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="cancel-pw-modal">취소</button>
+            <button class="btn-submit" id="submit-pw">변경 완료</button>
+        </div>
+    </div>
+</div>
+
+<!-- 변경 완료 시스템 팝업 -->
+<div class="modal-overlay" id="pw-success-modal" aria-hidden="true" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;z-index:1100;">
+    <div class="modal-box success-modal-box" role="dialog" aria-modal="true">
+        <div class="success-modal-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20,6 9,17 4,12"/>
+            </svg>
+        </div>
+        <p class="success-modal-msg">비밀번호가 변경되었습니다.</p>
+        <button class="btn-submit success-confirm-btn" id="pw-success-confirm">확인</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.profile-page {
+    min-height: 100vh;
+    background: var(--bg-primary, #0f1117);
+    display: flex;
+    flex-direction: column;
+}
+.profile-main {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 48px 24px;
+}
+.profile-container {
+    width: 100%;
+    max-width: 600px;
+}
+.profile-title {
+    color: var(--text-primary, #e2e8f0);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+.profile-card {
+    background: var(--bg-card, #1a1d27);
+    border: 1px solid var(--border, #2d3148);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.profile-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border, #2d3148);
+}
+.profile-card__label {
+    color: var(--text-primary, #e2e8f0);
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+.btn-change-pw {
+    background: var(--accent, #4f6ef7);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.btn-change-pw:hover { background: #3b57e0; }
+
+.profile-card__body { padding: 20px; }
+.profile-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 80px 1fr;
+    gap: 8px 16px;
+    margin-bottom: 14px;
+    align-items: center;
+}
+.profile-row:last-child { margin-bottom: 0; }
+.profile-key {
+    color: var(--text-muted, #718096);
+    font-size: 0.82rem;
+}
+.profile-val {
+    color: var(--text-primary, #e2e8f0);
+    font-size: 0.9rem;
+}
+
+/* 모달 */
+.modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.15s;
+}
+.modal-overlay.is-open {
+    opacity: 1; pointer-events: auto;
+}
+.modal-box {
+    background: var(--bg-card, #1a1d27);
+    border: 1px solid var(--border, #2d3148);
+    border-radius: 12px;
+    width: 360px;
+    padding: 0;
+    transform: translateY(-12px);
+    transition: transform 0.15s;
+}
+.modal-overlay.is-open .modal-box { transform: translateY(0); }
+.modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border, #2d3148);
+}
+.modal-title {
+    color: var(--text-primary, #e2e8f0);
+    font-size: 1rem; font-weight: 600; margin: 0;
+}
+.modal-close {
+    background: none; border: none;
+    color: var(--text-muted, #718096);
+    font-size: 1.3rem; cursor: pointer; line-height: 1;
+}
+.modal-close:hover { color: var(--text-primary, #e2e8f0); }
+.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 6px; }
+.form-label {
+    color: var(--text-muted, #718096);
+    font-size: 0.82rem; margin-top: 8px;
+}
+.form-label:first-of-type { margin-top: 0; }
+.form-input {
+    background: var(--bg-primary, #0f1117);
+    border: 1px solid var(--border, #2d3148);
+    border-radius: 6px;
+    color: var(--text-primary, #e2e8f0);
+    padding: 8px 12px; font-size: 0.9rem; width: 100%; box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+.form-input:focus { outline: none; border-color: var(--accent, #4f6ef7); }
+.form-hint { color: var(--text-muted, #718096); font-size: 0.75rem; margin: 0; }
+
+/* 필드별 구조 */
+.pw-field { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; }
+.pw-field:first-child { margin-top: 0; }
+.input-wrap { position: relative; display: flex; align-items: center; }
+.input-wrap .form-input { padding-right: 32px; }
+.input-clear {
+    position: absolute; right: 8px;
+    background: none; border: none;
+    color: var(--text-muted, #718096);
+    font-size: 1rem; line-height: 1; cursor: pointer;
+    padding: 2px 4px;
+    transition: color 0.15s;
+}
+.input-clear:hover { color: var(--text-primary, #e2e8f0); }
+.field-hint { color: var(--text-muted, #718096); font-size: 0.75rem; margin: 0; }
+.field-error { color: #f87171; font-size: 0.75rem; margin: 0; }
+.pw-field.has-error .form-input { border-color: rgba(239,68,68,0.6); }
+.pw-field.has-error .field-hint { display: none; }
+
+/* 성공 팝업 */
+.success-modal-box {
+    text-align: center; padding: 36px 40px 28px; width: 300px;
+}
+.success-modal-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 56px; height: 56px;
+    background: rgba(34,197,94,0.12); border: 2px solid rgba(34,197,94,0.4);
+    border-radius: 50%; margin: 0 auto 16px;
+}
+.success-modal-msg {
+    color: var(--text-primary, #e2e8f0); font-size: 1rem; font-weight: 600; margin: 0 0 20px;
+}
+.success-confirm-btn { width: 100%; padding: 10px; font-size: 0.9rem; }
+.modal-footer {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border, #2d3148);
+}
+.btn-cancel {
+    background: none; border: 1px solid var(--border, #2d3148);
+    color: var(--text-muted, #718096);
+    border-radius: 6px; padding: 7px 18px; font-size: 0.85rem; cursor: pointer;
+}
+.btn-cancel:hover { border-color: #718096; }
+.btn-submit {
+    background: var(--accent, #4f6ef7); border: none;
+    color: #fff; border-radius: 6px; padding: 7px 18px;
+    font-size: 0.85rem; cursor: pointer; transition: background 0.15s;
+}
+.btn-submit:hover { background: #3b57e0; }
+.btn-submit:disabled { background: #374151; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+    const overlay     = document.getElementById('pw-modal');
+    const successModal = document.getElementById('pw-success-modal');
+
+    /* ── 모달 열기/닫기 ── */
+    function openModal() {
+        overlay.classList.add('is-open');
+        overlay.setAttribute('aria-hidden', 'false');
+        ['current','new','confirm'].forEach(clearField);
+        document.getElementById('current-pw').value = '';
+        document.getElementById('new-pw').value = '';
+        document.getElementById('confirm-pw').value = '';
+        updateClearBtn('current');
+        updateClearBtn('new');
+        updateClearBtn('confirm');
+    }
+    function closeModal() {
+        overlay.classList.remove('is-open');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    document.getElementById('open-pw-modal').addEventListener('click', openModal);
+    document.getElementById('close-pw-modal').addEventListener('click', closeModal);
+    document.getElementById('cancel-pw-modal').addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+
+    /* ── X(지우기) 버튼 ── */
+    function updateClearBtn(key) {
+        const input = document.getElementById(key + '-pw');
+        const btn   = document.getElementById('clear-' + key);
+        btn.hidden  = !input.value;
+    }
+    ['current','new','confirm'].forEach(function(key) {
+        const input = document.getElementById(key + '-pw');
+        const btn   = document.getElementById('clear-' + key);
+        input.addEventListener('input', function() { updateClearBtn(key); });
+        btn.addEventListener('click', function() {
+            input.value = '';
+            btn.hidden = true;
+            input.focus();
+            clearField(key);
+        });
+    });
+
+    /* ── 필드 오류/초기화 ── */
+    function showError(key, msg) {
+        const field = document.getElementById('field-' + key);
+        const err   = document.getElementById('error-' + key);
+        field.classList.add('has-error');
+        err.textContent = msg;
+        err.hidden = false;
+        return false;
+    }
+    function clearField(key) {
+        const field = document.getElementById('field-' + key);
+        const err   = document.getElementById('error-' + key);
+        field.classList.remove('has-error');
+        err.hidden = true;
+    }
+
+    /* ── 실시간 유효성 ── */
+    function validateNew() {
+        const val = document.getElementById('new-pw').value;
+        const cur = document.getElementById('current-pw').value;
+        if (!val) return true;
+        if (cur && val === cur) return showError('new', '현재 사용 중인 비밀번호는 신규 비밀번호로 사용할 수 없습니다.');
+        const ok = /[a-zA-Z]/.test(val), ok2 = /[0-9]/.test(val), ok3 = /[^a-zA-Z0-9]/.test(val);
+        if (val.length < 8 || val.length > 16 || (ok + ok2 + ok3) < 2)
+            return showError('new', '8~16자의 영문, 숫자, 특수문자를 조합하여 입력해 주세요.');
+        clearField('new');
+        return true;
+    }
+    function validateConfirm() {
+        const val    = document.getElementById('confirm-pw').value;
+        const newVal = document.getElementById('new-pw').value;
+        if (!val) return true;
+        if (val !== newVal) return showError('confirm', '입력하신 신규 비밀번호와 일치하지 않습니다.');
+        clearField('confirm');
+        return true;
+    }
+
+    document.getElementById('new-pw').addEventListener('input', function() { validateNew(); validateConfirm(); });
+    document.getElementById('confirm-pw').addEventListener('input', validateConfirm);
+    document.getElementById('current-pw').addEventListener('input', function() { clearField('current'); });
+
+    /* ── 제출 ── */
+    document.getElementById('submit-pw').addEventListener('click', function () {
+        const btn = this;
+        clearField('current'); clearField('new'); clearField('confirm');
+
+        const currentVal = document.getElementById('current-pw').value;
+        const newVal     = document.getElementById('new-pw').value;
+        const confirmVal = document.getElementById('confirm-pw').value;
+
+        if (!currentVal) return showError('current', '현재 사용 중인 비밀번호를 입력해 주세요.');
+        if (!newVal)     return showError('new', '새로운 비밀번호를 입력해 주세요.');
+        if (!validateNew()) return;
+        if (!confirmVal) return showError('confirm', '비밀번호 확인을 위해 한 번 더 입력해 주세요.');
+        if (!validateConfirm()) return;
+
+        const body = new FormData();
+        body.append('current_password', currentVal);
+        body.append('new_password',     newVal);
+        body.append('confirm_password', confirmVal);
+        body.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        btn.disabled = true;
+        btn.textContent = '변경 중...';
+
+        fetch("{% url 'change_password' %}", { method: 'POST', body })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    closeModal();
+                    successModal.style.display = 'flex';
+                    successModal.style.opacity = '1';
+                    successModal.style.pointerEvents = 'auto';
+                    successModal.setAttribute('aria-hidden', 'false');
+                } else {
+                    showError(data.field || 'current', data.error);
+                }
+            })
+            .catch(() => showError('current', '서버 오류가 발생했습니다.'))
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = '변경 완료';
+            });
+    });
+
+    /* ── 성공 팝업 확인 ── */
+    document.getElementById('pw-success-confirm').addEventListener('click', function() {
+        successModal.style.display = 'none';
+    });
+})();
+</script>
+{% endblock %}

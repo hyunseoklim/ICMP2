@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}나의 안전 확인{% endblock %}
+
+{% block extra_css %}
+<style>
+.safety-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  overflow-y: auto;
+  height: calc(100vh - var(--header-h));
+}
+
+/* 헤더 */
+.safety-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.safety-page-header-left { display: flex; align-items: baseline; gap: 12px; }
+.safety-page-header h2 { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+.safety-page-date { font-size: 12px; color: var(--text-secondary); font-family: var(--font-mono); }
+.safety-page-header .header-links { display: flex; gap: 8px; }
+.safety-page-header .header-links a {
+  font-size: 12px; color: var(--text-secondary);
+  padding: 4px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); transition: background 0.15s;
+}
+.safety-page-header .header-links a:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* 안내 배너 (sticky) */
+.guide-banner {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(245,158,11,0.15);
+  border: 1px solid rgba(245,158,11,0.4);
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: var(--warning);
+}
+.guide-banner svg { flex-shrink: 0; }
+
+/* 완료 배너 */
+.done-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px;
+  background: var(--normal-bg); border: 1px solid var(--normal-border);
+  border-radius: var(--radius-md); margin-bottom: 16px;
+  font-size: 13px; color: var(--accent-green);
+}
+
+/* 체크리스트 */
+.checklist-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; margin-bottom: 8px;
+}
+.check-all-btn {
+  font-size: 12px; color: var(--text-secondary);
+  padding: 4px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); cursor: pointer; transition: background 0.1s;
+}
+.check-all-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.check-progress { font-size: 12px; color: var(--text-secondary); }
+.check-progress span { color: var(--accent-cyan); font-weight: 600; font-family: var(--font-mono); }
+
+.checklist-category { margin-bottom: 20px; }
+.checklist-category-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.category-num {
+  width: 22px; height: 22px; background: var(--accent-blue); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.checklist-category-header h4 { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.checklist-items { display: flex; flex-direction: column; gap: 4px; }
+.checklist-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.checklist-item:hover { background: var(--bg-hover); }
+.checklist-item.checked { border-color: var(--normal-border); background: var(--normal-bg); }
+.checklist-item input[type="checkbox"] { display: none; }
+.check-box {
+  width: 18px; height: 18px; border: 2px solid var(--border-light);
+  border-radius: 3px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; transition: all 0.1s;
+}
+.checklist-item.checked .check-box { background: var(--accent-green); border-color: var(--accent-green); }
+.check-tick { display: none; }
+.checklist-item.checked .check-tick { display: block; }
+.item-text { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+.checklist-item.checked .item-text { color: var(--text-primary); }
+
+/* 하단 버튼 영역 */
+.action-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 24px;
+}
+.error-msg {
+  font-size: 12px; color: var(--danger);
+  display: none;
+}
+.error-msg.visible { display: block; }
+.btn-group { display: flex; gap: 8px; margin-left: auto; }
+.cancel-btn {
+  padding: 10px 24px;
+  background: transparent; color: var(--text-secondary);
+  font-size: 13px; font-weight: 600;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer; transition: background 0.15s;
+}
+.cancel-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.next-btn {
+  padding: 10px 28px;
+  background: var(--accent-blue); color: #fff;
+  font-size: 13px; font-weight: 600;
+  border-radius: var(--radius-md); border: none;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.next-btn:hover:not(:disabled) { opacity: 0.85; }
+.next-btn:disabled { background: var(--bg-hover); color: var(--text-muted); cursor: not-allowed; }
+
+.no-worker-msg { text-align: center; padding: 48px; color: var(--text-secondary); font-size: 14px; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="safety-page">
+
+  <div class="safety-page-header">
+    <div class="safety-page-header-left">
+      <h2>나의 안전 확인</h2>
+      <span class="safety-page-date">{{ today|date:"Y년 m월 d일" }}</span>
+    </div>
+    <div class="header-links">
+      <a href="{% url 'mysafety_history' %}">안전 확인 이력</a>
+      {% if request.user.is_staff %}
+        <a href="{% url 'mysafety_admin_history' %}">전체 이력 관리</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if no_worker %}
+    <div class="no-worker-msg">
+      <p>연결된 근무자 정보가 없습니다.<br>관리자에게 문의하세요.</p>
+    </div>
+  {% else %}
+
+    {% if session and session.checklist_completed %}
+      <div class="done-banner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        오늘의 안전 체크리스트를 완료하였습니다. (완료 시각: {{ session.checklist_completed_at|date:"H:i" }})
+      </div>
+    {% else %}
+      <div class="guide-banner">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        작업 시작 전 아래 안전 항목을 모두 확인하고 체크해주세요. 모든 항목 체크 완료 후 다음 단계로 진행됩니다.
+      </div>
+    {% endif %}
+
+    <div class="checklist-controls">
+      {% if not session or not session.checklist_completed %}
+        <button type="button" class="check-all-btn" id="check-all-btn">전체 선택</button>
+      {% else %}
+        <span></span>
+      {% endif %}
+      <div class="check-progress">
+        완료 <span id="checked-count">{% if session %}{{ checked_ids|length }}{% else %}0{% endif %}</span> / {{ items_count }} 항목
+      </div>
+    </div>
+
+    <form id="checklist-form">
+      {% csrf_token %}
+      {% for cat_name, cat_data in categories_list %}
+        <div class="checklist-category">
+          <div class="checklist-category-header">
+            <span class="category-num">{{ forloop.counter }}</span>
+            <h4>{{ cat_name }}</h4>
+          </div>
+          <div class="checklist-items">
+            {% for item in cat_data.items %}
+              <label class="checklist-item {% if item.pk in checked_ids %}checked{% endif %}"
+                {% if session and session.checklist_completed %}style="pointer-events:none;opacity:0.75;"{% endif %}>
+                <input type="checkbox" name="checked_items" value="{{ item.pk }}"
+                  {% if item.pk in checked_ids %}checked{% endif %}>
+                <span class="check-box">
+                  <svg class="check-tick" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2.5">
+                    <polyline points="2 6 5 9 10 3"/>
+                  </svg>
+                </span>
+                <span class="item-text">{{ item.item_text }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+
+      {% if not session or not session.checklist_completed %}
+        <div class="action-row">
+          <span class="error-msg" id="error-msg">모든 항목을 체크해주세요.</span>
+          <div class="btn-group">
+            <button type="button" class="cancel-btn" id="cancel-btn">취소</button>
+            <button type="button" class="next-btn" id="next-btn" disabled>다음</button>
+          </div>
+        </div>
+      {% else %}
+        <div class="action-row">
+          <div class="btn-group">
+            <a href="{% url 'mysafety_vr' %}" class="next-btn" style="text-decoration:none;display:inline-block;">VR 교육 바로가기</a>
+          </div>
+        </div>
+      {% endif %}
+    </form>
+
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+const csrfToken = "{{ csrf_token }}";
+const totalItems = {{ items_count }};
+
+const checkedCountEl = document.getElementById("checked-count");
+const nextBtn = document.getElementById("next-btn");
+const errorMsg = document.getElementById("error-msg");
+
+function getCheckedCount() {
+  return document.querySelectorAll(".checklist-item.checked").length;
+}
+function updateCheckedCount() {
+  const count = getCheckedCount();
+  if (checkedCountEl) checkedCountEl.textContent = count;
+  if (nextBtn) nextBtn.disabled = count < totalItems;
+  if (errorMsg && errorMsg.classList.contains("visible") && count === totalItems) {
+    errorMsg.classList.remove("visible");
+  }
+}
+
+document.querySelectorAll(".checklist-item").forEach(label => {
+  label.addEventListener("click", function() {
+    const cb = this.querySelector("input[type=checkbox]");
+    cb.checked = !cb.checked;
+    this.classList.toggle("checked", cb.checked);
+    updateCheckedCount();
+  });
+});
+
+const checkAllBtn = document.getElementById("check-all-btn");
+if (checkAllBtn) {
+  let allChecked = false;
+  checkAllBtn.addEventListener("click", () => {
+    allChecked = !allChecked;
+    document.querySelectorAll(".checklist-item").forEach(label => {
+      const cb = label.querySelector("input[type=checkbox]");
+      cb.checked = allChecked;
+      label.classList.toggle("checked", allChecked);
+    });
+    checkAllBtn.textContent = allChecked ? "전체 해제" : "전체 선택";
+    updateCheckedCount();
+  });
+}
+
+const cancelBtn = document.getElementById("cancel-btn");
+if (cancelBtn) {
+  cancelBtn.addEventListener("click", () => {
+    document.querySelectorAll(".checklist-item").forEach(label => {
+      const cb = label.querySelector("input[type=checkbox]");
+      cb.checked = false;
+      label.classList.remove("checked");
+    });
+    if (checkAllBtn) checkAllBtn.textContent = "전체 선택";
+    updateCheckedCount();
+    window.location.href = "{% url 'dashboard' %}";
+  });
+}
+
+if (nextBtn) {
+  nextBtn.addEventListener("click", async () => {
+    if (getCheckedCount() < totalItems) {
+      errorMsg.classList.add("visible");
+      return;
+    }
+    errorMsg.classList.remove("visible");
+    nextBtn.disabled = true;
+    nextBtn.textContent = "저장 중...";
+
+    const formData = new FormData(document.getElementById("checklist-form"));
+    formData.append("action", "submit_checklist");
+
+    try {
+      const resp = await fetch("{% url 'mysafety_detail' %}", {
+        method: "POST",
+        headers: {"X-CSRFToken": csrfToken},
+        body: formData,
+      });
+      const data = await resp.json();
+      if (data.ok && data.redirect) {
+        window.location.href = data.redirect;
+      } else {
+        alert(data.error || "오류가 발생하였습니다.");
+        nextBtn.disabled = false;
+        nextBtn.textContent = "다음";
+      }
+    } catch {
+      alert("서버 오류가 발생하였습니다.");
+      nextBtn.disabled = false;
+      nextBtn.textContent = "다음";
+    }
+  });
+}
+
+updateCheckedCount();
+</script>
+{% endblock %}

@@ -1,0 +1,870 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}안전 확인 이력{% endblock %}
+
+{% block extra_css %}
+<style>
+.hist-page {
+  padding: 28px 32px;
+  overflow-y: auto;
+  height: calc(100vh - var(--header-h));
+}
+
+/* 헤더 */
+.hist-page-title { font-size: 20px; font-weight: 700; color: var(--text-primary); margin-bottom: 24px; }
+
+/* 탭 */
+.hist-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.hist-tab-btn {
+  padding: 10px 28px;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  background: none; cursor: pointer;
+  transition: all 0.15s;
+}
+.hist-tab-btn.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+.hist-tab-btn:hover:not(.active) { color: var(--text-primary); }
+.hist-tab-panel { display: none; }
+.hist-tab-panel.active { display: block; }
+
+/* 툴바 (월이동 + 버튼) */
+.hist-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.hist-month-nav { display: flex; align-items: center; gap: 12px; }
+.cal-nav-btn {
+  width: 30px; height: 30px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); text-decoration: none;
+  transition: background 0.15s; cursor: pointer; background: none;
+}
+.cal-nav-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.cal-month-label { font-size: 15px; font-weight: 700; min-width: 100px; text-align: center; }
+.hist-action-btns { display: flex; gap: 8px; }
+.hist-action-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-panel); color: var(--text-secondary);
+  cursor: pointer; transition: background 0.15s;
+}
+.hist-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* 캘린더 */
+.hist-cal-wrap {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.hist-cal-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.hist-cal-table th {
+  font-size: 11px; font-weight: 600;
+  color: var(--text-muted);
+  padding: 10px 0;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.hist-cal-table th:first-child { color: #ef4444; }
+.hist-cal-table th:last-child { color: #3b82f6; }
+.hist-cal-table td {
+  border: 1px solid var(--border);
+  vertical-align: top;
+  width: calc(100% / 7);
+  height: 96px;
+  padding: 8px 10px;
+}
+.hist-cal-table td.empty { background: transparent; border-color: var(--border); opacity: 0.3; }
+
+.cal-day-num {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: block;
+}
+.cal-day-num.today-num { color: var(--accent-blue); }
+.cal-day-num.sunday { color: #ef4444; }
+.cal-day-num.saturday { color: #3b82f6; }
+
+.cal-indicators { display: flex; flex-direction: column; gap: 3px; }
+.cal-indicator {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--text-secondary); line-height: 1.2;
+}
+.ind-ok { color: #22c55e; flex-shrink: 0; }
+.ind-fail { color: #ef4444; flex-shrink: 0; }
+.ind-none { color: var(--text-muted); flex-shrink: 0; opacity: 0.4; }
+
+/* 범례 */
+.hist-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary); }
+
+/* 전체 이력 현황 탭 - 좌우 분할 */
+.admin-split {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  height: calc(100vh - var(--header-h) - 160px);
+}
+.admin-left {
+  display: flex; flex-direction: column;
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-md); overflow: hidden;
+}
+.admin-left-header {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.admin-filter-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.admin-dept-select {
+  flex: 1; padding: 7px 10px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 12px; color: var(--text-secondary);
+  cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+  padding-right: 28px;
+}
+.admin-dept-select:focus { outline: none; border-color: var(--accent-blue); }
+.admin-search-wrap { display: flex; align-items: center; gap: 6px; flex: 1; position: relative; }
+.admin-search-input {
+  width: 100%; padding: 7px 30px 7px 10px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 12px; color: var(--text-primary);
+}
+.admin-search-input:focus { outline: none; border-color: var(--accent-blue); }
+.admin-search-icon {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); pointer-events: none;
+}
+
+.admin-worker-list {
+  flex: 1; overflow-y: auto;
+  padding: 0;
+}
+.admin-worker-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.admin-worker-table th {
+  position: sticky; top: 0;
+  background: var(--bg-secondary); z-index: 1;
+  padding: 8px 10px; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.admin-worker-row {
+  cursor: pointer; transition: background 0.1s;
+}
+.admin-worker-row td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.admin-worker-row:hover td { background: var(--bg-hover); }
+.admin-worker-row.selected td { background: rgba(59,130,246,0.08); }
+.admin-worker-row.selected { outline: 1px solid var(--accent-blue); }
+.attend-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px;
+}
+.attend-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+.attend-ok .attend-dot { background: var(--accent-green); }
+.attend-ok { color: var(--accent-green); }
+.attend-no .attend-dot { background: var(--text-muted); }
+.attend-no { color: var(--text-muted); }
+
+.admin-left-footer {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 8px; align-items: center;
+  flex-shrink: 0;
+}
+.admin-dl-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 12px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-secondary); color: var(--text-muted);
+  cursor: pointer; transition: all 0.15s;
+}
+.admin-dl-btn.active {
+  background: var(--bg-panel); color: var(--text-secondary);
+  border-color: var(--border-light);
+}
+.admin-dl-btn.active:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* 오른쪽 캘린더 패널 */
+.admin-right {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-md); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.admin-right-header {
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.admin-worker-title { font-size: 14px; font-weight: 700; }
+.admin-right-body { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.admin-empty-state {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; color: var(--text-muted); font-size: 13px;
+}
+
+/* 날짜 피커 오버레이 */
+.dp-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 200;
+  align-items: center; justify-content: center;
+}
+.dp-overlay.open { display: flex; }
+.dp-box {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px;
+  width: 640px; max-width: 95vw;
+}
+.dp-box-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
+.dp-inputs {
+  display: flex; gap: 16px; margin-bottom: 20px;
+}
+.dp-input-group { flex: 1; }
+.dp-input-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; display: block; }
+.dp-input-val {
+  width: 100%; padding: 8px 12px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font-mono);
+  color: var(--text-primary); cursor: pointer;
+}
+.dp-months { display: flex; gap: 24px; }
+.dp-month { flex: 1; }
+.dp-month-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.dp-month-label { font-size: 13px; font-weight: 700; }
+.dp-month-nav {
+  width: 26px; height: 26px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: none; color: var(--text-secondary);
+  transition: background 0.1s;
+}
+.dp-month-nav:hover { background: var(--bg-hover); color: var(--text-primary); }
+.dp-cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.dp-cal-header-cell {
+  font-size: 10px; font-weight: 600; color: var(--text-muted);
+  text-align: center; padding: 4px 0;
+}
+.dp-cal-day {
+  font-size: 11px; text-align: center;
+  padding: 5px 2px; border-radius: 3px; cursor: pointer;
+  color: var(--text-secondary); transition: background 0.1s;
+  user-select: none;
+}
+.dp-cal-day:hover { background: var(--bg-hover); color: var(--text-primary); }
+.dp-cal-day.in-range { background: rgba(59,130,246,0.15); }
+.dp-cal-day.range-start, .dp-cal-day.range-end {
+  background: var(--accent-blue); color: #fff; font-weight: 700;
+}
+.dp-cal-day.other-month { color: var(--text-muted); opacity: 0.4; }
+.dp-cal-day.empty { cursor: default; }
+.dp-footer {
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;
+}
+.dp-cancel-btn {
+  padding: 8px 20px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 13px;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+}
+.dp-cancel-btn:hover { background: var(--bg-hover); }
+.dp-confirm-btn {
+  padding: 8px 20px; background: var(--accent-blue);
+  border: none; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; color: #fff; cursor: pointer;
+}
+.dp-confirm-btn:hover { opacity: 0.85; }
+
+/* 인쇄 스타일 */
+@media print {
+  .hist-tabs, .hist-toolbar, .hist-legend, .dp-overlay, nav { display: none !important; }
+  .hist-page { padding: 0; height: auto; overflow: visible; }
+  .hist-tab-panel { display: block !important; }
+  .hist-cal-table td { height: 80px; }
+}
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="hist-page">
+  <h2 class="hist-page-title">안전 확인 이력</h2>
+
+  {% if no_worker %}
+    <p style="color:var(--text-secondary);text-align:center;padding:48px;">연결된 근무자 정보가 없습니다.</p>
+  {% else %}
+
+  <div class="hist-tabs">
+    <button class="hist-tab-btn active" data-htab="mine">나의 안전 확인</button>
+    {% if request.user.is_staff %}
+      <button class="hist-tab-btn" data-htab="all">전체 이력 현황</button>
+    {% endif %}
+  </div>
+
+  <!-- ── 나의 안전 확인 탭 ── -->
+  <div class="hist-tab-panel active" id="htab-mine">
+
+    <div class="hist-toolbar">
+      <div class="hist-month-nav">
+        <a class="cal-nav-btn" href="?year={{ prev_year }}&month={{ prev_month }}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </a>
+        <span class="cal-month-label">{{ month_label }}</span>
+        <a class="cal-nav-btn" href="?year={{ next_year }}&month={{ next_month }}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+      <div class="hist-action-btns">
+        <button class="hist-action-btn" id="download-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          다운로드
+        </button>
+        <button class="hist-action-btn" id="print-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          인쇄
+        </button>
+      </div>
+    </div>
+
+    <div class="hist-cal-wrap">
+      <table class="hist-cal-table">
+        <thead>
+          <tr>
+            <th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for week in weeks %}
+          <tr>
+            {% for cell in week %}
+              {% if cell.day %}
+                <td>
+                  <span class="cal-day-num {% if cell.date == today %}today-num{% endif %} {% if forloop.counter == 1 %}sunday{% elif forloop.counter == 7 %}saturday{% endif %}">
+                    {{ cell.day }}
+                    {% if cell.date == today %} ●{% endif %}
+                  </span>
+                  {% if cell.checklist is not None %}
+                  <div class="cal-indicators">
+                    <div class="cal-indicator">
+                      {% if cell.checklist %}
+                        <svg class="ind-ok" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+                      {% else %}
+                        <svg class="ind-fail" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                      {% endif %}
+                      <span>안전 체크리스트</span>
+                    </div>
+                    <div class="cal-indicator">
+                      {% if cell.vr %}
+                        <svg class="ind-ok" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+                      {% else %}
+                        <svg class="ind-fail" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                      {% endif %}
+                      <span>VR 교육</span>
+                    </div>
+                  </div>
+                  {% endif %}
+                </td>
+              {% else %}
+                <td class="empty"></td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="hist-legend">
+      <div class="legend-item">
+        <svg class="ind-ok" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+        완료
+      </div>
+      <div class="legend-item">
+        <svg class="ind-fail" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        미완료
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 전체 이력 현황 탭 (관리자) ── -->
+  {% if request.user.is_staff %}
+  <div class="hist-tab-panel" id="htab-all">
+    <div class="admin-split">
+
+      <!-- 좌: 근무자 리스트 -->
+      <div class="admin-left">
+        <div class="admin-left-header">
+          <div class="admin-filter-row">
+            <select class="admin-dept-select" id="dept-select">
+              <option value="">소속 부서</option>
+              {% for dept in departments %}
+                <option value="{{ dept }}" {% if dept_q == dept %}selected{% endif %}>{{ dept }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="admin-search-wrap">
+            <input class="admin-search-input" id="name-search" type="text"
+              placeholder="이름 검색" value="{{ name_q }}">
+            <svg class="admin-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+        </div>
+
+        <div class="admin-worker-list">
+          <table class="admin-worker-table">
+            <thead>
+              <tr>
+                <th style="width:32px"><input type="checkbox" id="check-all-workers"></th>
+                <th>소속</th>
+                <th>작업자명</th>
+                <th>금일 출근상태</th>
+              </tr>
+            </thead>
+            <tbody id="worker-tbody">
+              {% for row in admin_workers %}
+              <tr class="admin-worker-row" data-worker-id="{{ row.worker.pk }}" data-worker-name="{{ row.worker.worker_name }}">
+                <td><input type="checkbox" class="worker-cb" value="{{ row.worker.pk }}"></td>
+                <td>{{ row.worker.department|default:"—" }}</td>
+                <td>{{ row.worker.worker_name }}</td>
+                <td>
+                  <span class="attend-badge {% if row.attendance_ok %}attend-ok{% else %}attend-no{% endif %}">
+                    <span class="attend-dot"></span>{{ row.attendance }}
+                  </span>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px;">등록된 근무자가 없습니다.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="admin-left-footer">
+          <button class="admin-dl-btn" id="admin-download-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            다운로드
+          </button>
+          <button class="admin-dl-btn" id="admin-print-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            인쇄
+          </button>
+        </div>
+      </div>
+
+      <!-- 우: 선택 근무자 캘린더 -->
+      <div class="admin-right">
+        <div class="admin-right-header">
+          <span class="admin-worker-title" id="admin-cal-title">작업자를 선택해주세요</span>
+          <div class="hist-month-nav" id="admin-cal-nav" style="display:none;">
+            <button class="cal-nav-btn" id="admin-prev-month">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span class="cal-month-label" id="admin-month-label"></span>
+            <button class="cal-nav-btn" id="admin-next-month">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="admin-right-body" id="admin-cal-body">
+          <div class="admin-empty-state">좌측 리스트에서 작업자를 클릭하면<br>안전 확인 이력이 표시됩니다.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+  {% endif %}
+</div>
+
+<!-- 날짜 피커 오버레이 -->
+<div class="dp-overlay" id="dp-overlay">
+  <div class="dp-box">
+    <div class="dp-box-title" id="dp-title">다운로드 날짜 지정</div>
+    <div class="dp-inputs">
+      <div class="dp-input-group">
+        <label class="dp-input-label">시작 날짜</label>
+        <div class="dp-input-val" id="dp-start-display">—</div>
+      </div>
+      <div class="dp-input-group">
+        <label class="dp-input-label">종료 날짜</label>
+        <div class="dp-input-val" id="dp-end-display">—</div>
+      </div>
+    </div>
+    <div class="dp-months">
+      <div class="dp-month">
+        <div class="dp-month-header">
+          <button class="dp-month-nav" id="dp-prev">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span class="dp-month-label" id="dp-left-label"></span>
+          <div style="width:26px"></div>
+        </div>
+        <div class="dp-cal-grid" id="dp-left-grid"></div>
+      </div>
+      <div class="dp-month">
+        <div class="dp-month-header">
+          <div style="width:26px"></div>
+          <span class="dp-month-label" id="dp-right-label"></span>
+          <button class="dp-month-nav" id="dp-next">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <div class="dp-cal-grid" id="dp-right-grid"></div>
+      </div>
+    </div>
+    <div class="dp-footer">
+      <button class="dp-cancel-btn" id="dp-cancel">취소</button>
+      <button class="dp-confirm-btn" id="dp-confirm">확인</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+"use strict";
+
+// ── 탭 전환 ──
+document.querySelectorAll(".hist-tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".hist-tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".hist-tab-panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("htab-" + btn.dataset.htab).classList.add("active");
+  });
+});
+
+// ── 날짜 피커 ──
+const MONTHS_KO = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+const DAYS_KO = ["일","월","화","수","목","금","토"];
+
+let dpMode = "download"; // "download" | "print"
+let dpLeftYear = {{ year }}, dpLeftMonth = {{ month }};
+let dpStartDate = null, dpEndDate = null;
+let dpConfirmedStart = null, dpConfirmedEnd = null;
+
+function fmtDate(d) {
+  if (!d) return "—";
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function dateKey(d) { return fmtDate(d); }
+
+function renderDpMonth(year, month, gridId, labelId) {
+  document.getElementById(labelId).textContent = `${year}년 ${MONTHS_KO[month-1]}`;
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = "";
+
+  // 요일 헤더
+  DAYS_KO.forEach(d => {
+    const cell = document.createElement("div");
+    cell.className = "dp-cal-header-cell";
+    cell.textContent = d;
+    grid.appendChild(cell);
+  });
+
+  const firstDay = new Date(year, month-1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  for (let i = 0; i < firstDay; i++) {
+    const cell = document.createElement("div");
+    cell.className = "dp-cal-day empty";
+    grid.appendChild(cell);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const cell = document.createElement("div");
+    cell.className = "dp-cal-day";
+    cell.textContent = day;
+    const d = new Date(year, month-1, day);
+    cell.dataset.date = fmtDate(d);
+
+    applyRangeClass(cell, d);
+    cell.addEventListener("click", () => onDayClick(d));
+    grid.appendChild(cell);
+  }
+}
+
+function applyRangeClass(cell, d) {
+  cell.classList.remove("range-start", "range-end", "in-range");
+  if (!dpStartDate) return;
+  const dTime = d.getTime();
+  const sTime = dpStartDate.getTime();
+  const eTime = dpEndDate ? dpEndDate.getTime() : null;
+  if (dTime === sTime) cell.classList.add("range-start");
+  if (eTime && dTime === eTime) cell.classList.add("range-end");
+  if (eTime && dTime > sTime && dTime < eTime) cell.classList.add("in-range");
+}
+
+function renderDp() {
+  let rightYear = dpLeftYear, rightMonth = dpLeftMonth + 1;
+  if (rightMonth > 12) { rightMonth = 1; rightYear++; }
+  renderDpMonth(dpLeftYear, dpLeftMonth, "dp-left-grid", "dp-left-label");
+  renderDpMonth(rightYear, rightMonth, "dp-right-grid", "dp-right-label");
+  document.getElementById("dp-start-display").textContent = fmtDate(dpStartDate);
+  document.getElementById("dp-end-display").textContent = fmtDate(dpEndDate);
+}
+
+function onDayClick(d) {
+  if (!dpStartDate || (dpStartDate && dpEndDate)) {
+    dpStartDate = d; dpEndDate = null;
+  } else {
+    if (d < dpStartDate) { dpEndDate = dpStartDate; dpStartDate = d; }
+    else { dpEndDate = d; }
+  }
+  renderDp();
+}
+
+document.getElementById("dp-prev").addEventListener("click", () => {
+  dpLeftMonth--;
+  if (dpLeftMonth < 1) { dpLeftMonth = 12; dpLeftYear--; }
+  renderDp();
+});
+document.getElementById("dp-next").addEventListener("click", () => {
+  dpLeftMonth++;
+  if (dpLeftMonth > 12) { dpLeftMonth = 1; dpLeftYear++; }
+  renderDp();
+});
+
+function openDp(mode) {
+  dpMode = mode;
+  document.getElementById("dp-title").textContent =
+    mode === "download" ? "다운로드 날짜 지정" : "출력 날짜 지정";
+  dpStartDate = dpConfirmedStart;
+  dpEndDate = dpConfirmedEnd;
+  dpLeftYear = {{ year }};
+  dpLeftMonth = {{ month }};
+  renderDp();
+  document.getElementById("dp-overlay").classList.add("open");
+}
+
+document.getElementById("dp-cancel").addEventListener("click", () => {
+  document.getElementById("dp-overlay").classList.remove("open");
+});
+
+document.getElementById("dp-confirm").addEventListener("click", () => {
+  if (!dpStartDate || !dpEndDate) { alert("시작 날짜와 종료 날짜를 모두 선택해주세요."); return; }
+  dpConfirmedStart = dpStartDate;
+  dpConfirmedEnd = dpEndDate;
+  document.getElementById("dp-overlay").classList.remove("open");
+
+  const start = fmtDate(dpConfirmedStart);
+  const end = fmtDate(dpConfirmedEnd);
+
+  if (dpMode === "download") {
+    window.location.href = `{% url 'mysafety_history_download' %}?start=${start}&end=${end}`;
+  } else {
+    window.open(`?year={{ year }}&month={{ month }}&print=1&start=${start}&end=${end}`, "_blank");
+    setTimeout(() => window.print(), 500);
+  }
+});
+
+document.getElementById("download-btn").addEventListener("click", () => openDp("download"));
+document.getElementById("print-btn").addEventListener("click", () => openDp("print"));
+
+document.getElementById("dp-overlay").addEventListener("click", function(e) {
+  if (e.target === this) this.classList.remove("open");
+});
+
+// ── dp-confirm (단일 핸들러) ──
+let dpAdminWorkerIds = [];
+
+document.getElementById("dp-confirm").addEventListener("click", () => {
+  if (!dpStartDate || !dpEndDate) { alert("시작 날짜와 종료 날짜를 모두 선택해주세요."); return; }
+  dpConfirmedStart = dpStartDate;
+  dpConfirmedEnd = dpEndDate;
+  document.getElementById("dp-overlay").classList.remove("open");
+  const start = fmtDate(dpConfirmedStart);
+  const end = fmtDate(dpConfirmedEnd);
+
+  if (dpMode === "admin-download") {
+    const ids = dpAdminWorkerIds.join(",");
+    window.location.href = `{% url 'mysafety_history_download' %}?start=${start}&end=${end}&workers=${ids}`;
+  } else if (dpMode === "download") {
+    window.location.href = `{% url 'mysafety_history_download' %}?start=${start}&end=${end}`;
+  } else {
+    setTimeout(() => window.print(), 300);
+  }
+});
+
+// ── 전체 이력 현황 탭 ──
+let adminSelectedWorker = null;
+let adminYear = {{ year }};
+let adminMonth = {{ month }};
+
+// 부서 필터 / 이름 검색
+const deptSelect = document.getElementById("dept-select");
+const nameSearch = document.getElementById("name-search");
+
+function applyAdminFilter() {
+  const dept = deptSelect ? deptSelect.value : "";
+  const name = nameSearch ? nameSearch.value : "";
+  const url = new URL(window.location.href);
+  url.searchParams.set("dept", dept);
+  url.searchParams.set("q", name);
+  window.location.href = url.toString();
+}
+if (deptSelect) deptSelect.addEventListener("change", applyAdminFilter);
+if (nameSearch) nameSearch.addEventListener("keydown", e => { if (e.key === "Enter") applyAdminFilter(); });
+
+// 캘린더 렌더링
+function renderAdminCalendar(data) {
+  const titleEl = document.getElementById("admin-cal-title");
+  const labelEl = document.getElementById("admin-month-label");
+  const navEl   = document.getElementById("admin-cal-nav");
+  const bodyEl  = document.getElementById("admin-cal-body");
+  if (!bodyEl) return;
+
+  if (titleEl) titleEl.textContent = `작업자 안전 확인 이력  -  ${data.worker_name}`;
+  if (labelEl) labelEl.textContent = data.month_label;
+  if (navEl)   navEl.style.display = "flex";
+
+  const okSvg   = `<svg class="ind-ok"   width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>`;
+  const failSvg = `<svg class="ind-fail" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+
+  const rows = data.weeks.map(week => {
+    const cells = week.map((cell, ci) => {
+      if (!cell.day) return '<td class="empty"></td>';
+      const todayCls = cell.is_today ? 'today-num' : '';
+      const sideCls  = ci === 0 ? 'sunday' : ci === 6 ? 'saturday' : '';
+      let ind = '';
+      if (cell.checklist !== null) {
+        ind = `<div class="cal-indicators">
+          <div class="cal-indicator">${cell.checklist ? okSvg : failSvg}<span>안전 체크리스트</span></div>
+          <div class="cal-indicator">${cell.vr        ? okSvg : failSvg}<span>VR 교육</span></div>
+        </div>`;
+      }
+      return `<td><span class="cal-day-num ${todayCls} ${sideCls}">${cell.day}</span>${ind}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  bodyEl.innerHTML = `
+    <div class="hist-cal-wrap">
+      <table class="hist-cal-table">
+        <thead><tr><th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="hist-legend" style="margin-top:12px;">
+      <div class="legend-item">${okSvg}완료</div>
+      <div class="legend-item">${failSvg}미완료</div>
+    </div>`;
+}
+
+async function loadWorkerCalendar(workerId, year, month) {
+  const bodyEl = document.getElementById("admin-cal-body");
+  if (bodyEl) bodyEl.innerHTML = '<div class="admin-empty-state">불러오는 중...</div>';
+  try {
+    const resp = await fetch(`/safety/mysafety/worker/${workerId}/calendar/?year=${year}&month=${month}`);
+    if (!resp.ok) {
+      const txt = await resp.text();
+      console.error("calendar API:", resp.status, txt.slice(0, 200));
+      if (bodyEl) bodyEl.innerHTML = `<div class="admin-empty-state">데이터 로드 실패 (${resp.status})</div>`;
+      return;
+    }
+    const data = await resp.json();
+    adminYear  = data.year;
+    adminMonth = data.month;
+    renderAdminCalendar(data);
+  } catch (err) {
+    console.error("loadWorkerCalendar:", err);
+    if (bodyEl) bodyEl.innerHTML = `<div class="admin-empty-state">오류: ${err.message}</div>`;
+  }
+}
+
+// 근무자 행 클릭
+document.querySelectorAll(".admin-worker-row").forEach(row => {
+  row.addEventListener("click", function(e) {
+    document.querySelectorAll(".admin-worker-row").forEach(r => r.classList.remove("selected"));
+    this.classList.add("selected");
+    adminSelectedWorker = parseInt(this.dataset.workerId);
+    loadWorkerCalendar(adminSelectedWorker, adminYear, adminMonth);
+    updateAdminBtns();
+  });
+});
+
+// 월 이동 (관리자 캘린더)
+const adminPrev = document.getElementById("admin-prev-month");
+const adminNext = document.getElementById("admin-next-month");
+if (adminPrev) adminPrev.addEventListener("click", () => {
+  if (!adminSelectedWorker) return;
+  adminMonth--; if (adminMonth < 1) { adminMonth = 12; adminYear--; }
+  loadWorkerCalendar(adminSelectedWorker, adminYear, adminMonth);
+});
+if (adminNext) adminNext.addEventListener("click", () => {
+  if (!adminSelectedWorker) return;
+  adminMonth++; if (adminMonth > 12) { adminMonth = 1; adminYear++; }
+  loadWorkerCalendar(adminSelectedWorker, adminYear, adminMonth);
+});
+
+// 체크박스
+const checkAllWorkers = document.getElementById("check-all-workers");
+if (checkAllWorkers) {
+  checkAllWorkers.addEventListener("change", function() {
+    document.querySelectorAll(".worker-cb").forEach(cb => cb.checked = this.checked);
+    updateAdminBtns();
+  });
+}
+document.querySelectorAll(".worker-cb").forEach(cb => cb.addEventListener("change", updateAdminBtns));
+
+function updateAdminBtns() {
+  const anyChecked = document.querySelectorAll(".worker-cb:checked").length > 0;
+  document.querySelectorAll(".admin-dl-btn").forEach(btn => btn.classList.toggle("active", anyChecked));
+}
+
+// 관리자 다운로드/인쇄
+const adminDlBtn   = document.getElementById("admin-download-btn");
+const adminPrintBtn = document.getElementById("admin-print-btn");
+if (adminDlBtn) adminDlBtn.addEventListener("click", () => {
+  const checked = [...document.querySelectorAll(".worker-cb:checked")].map(cb => cb.value);
+  if (!checked.length) return;
+  dpMode = "admin-download";
+  dpAdminWorkerIds = checked;
+  dpStartDate = null; dpEndDate = null;
+  dpLeftYear = {{ year }}; dpLeftMonth = {{ month }};
+  document.getElementById("dp-title").textContent = "다운로드 날짜 지정";
+  renderDp();
+  document.getElementById("dp-overlay").classList.add("open");
+});
+if (adminPrintBtn) adminPrintBtn.addEventListener("click", () => {
+  if (!document.querySelectorAll(".worker-cb:checked").length) return;
+  window.print();
+});
+</script>
+{% endblock %}

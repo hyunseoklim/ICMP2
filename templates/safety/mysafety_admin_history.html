@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}안전 확인 전체 이력{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-history-page {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+  height: calc(100vh - var(--header-h));
+  padding: 20px;
+  overflow: hidden;
+}
+
+/* 좌측 근무자 목록 */
+.worker-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.worker-panel-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+}
+.worker-list { overflow-y: auto; flex: 1; }
+.worker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text-secondary);
+  transition: background 0.1s;
+  font-size: 12px;
+}
+.worker-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.worker-item.selected { background: var(--info-bg); border-left: 2px solid var(--accent-blue); color: var(--text-primary); }
+.worker-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.worker-info { flex: 1; min-width: 0; }
+.worker-name { font-weight: 500; }
+.worker-no { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+
+/* 우측 캘린더 */
+.cal-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  overflow-y: auto;
+}
+.cal-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.cal-panel-title { font-size: 14px; font-weight: 600; }
+.cal-panel-subtitle { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.cal-nav-btn {
+  width: 30px; height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.cal-nav-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.cal-month-label { font-size: 14px; font-weight: 700; }
+
+.cal-table { width: 100%; border-collapse: separate; border-spacing: 4px; }
+.cal-table th {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 4px;
+}
+.cal-table th:first-child { color: #ef4444; }
+.cal-table th:last-child { color: #3b82f6; }
+
+.cal-day { text-align: center; padding: 0; height: 48px; vertical-align: middle; }
+.cal-day-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-panel-2);
+  gap: 3px;
+}
+.cal-day-inner.empty { border-color: transparent; background: transparent; }
+.cal-day-inner.today { border-color: var(--accent-blue); }
+.cal-day-num { font-size: 12px; font-weight: 500; color: var(--text-secondary); font-family: var(--font-mono); }
+.cal-day-inner.today .cal-day-num { color: var(--accent-blue); font-weight: 700; }
+.cal-day-inner.complete { background: var(--normal-bg); border-color: var(--normal-border); }
+.cal-day-inner.complete .cal-day-num { color: var(--accent-green); }
+.cal-day-inner.partial { background: var(--warning-bg); border-color: var(--warning-border); }
+.cal-day-inner.partial .cal-day-num { color: var(--warning); }
+.cal-day-inner.incomplete { background: var(--danger-bg); border-color: var(--danger-border); }
+.cal-day-inner.incomplete .cal-day-num { color: var(--danger); }
+.cal-status-dot { width: 5px; height: 5px; border-radius: 50%; }
+.complete .cal-status-dot { background: var(--accent-green); }
+.partial .cal-status-dot { background: var(--warning); }
+.incomplete .cal-status-dot { background: var(--danger); }
+
+.cal-legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 14px;
+  justify-content: center;
+}
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary); }
+.legend-dot { width: 9px; height: 9px; border-radius: 2px; }
+.legend-dot.complete { background: var(--accent-green); }
+.legend-dot.partial { background: var(--warning); }
+.legend-dot.incomplete { background: var(--danger); }
+.legend-dot.none { background: var(--bg-panel-2); border: 1px solid var(--border); }
+
+.no-selection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.back-link {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.back-link:hover { background: var(--bg-hover); }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="admin-history-page">
+
+  <!-- 좌측: 근무자 목록 -->
+  <div class="worker-panel">
+    <div class="worker-panel-header">근무자 목록</div>
+    <div class="worker-list">
+      {% for w in workers %}
+        <a href="?worker_id={{ w.pk }}&year={{ year }}&month={{ month }}"
+           class="worker-item {% if selected_worker and selected_worker.pk == w.pk %}selected{% endif %}">
+          <div class="worker-avatar">{{ w.worker_name|slice:":1" }}</div>
+          <div class="worker-info">
+            <div class="worker-name">{{ w.worker_name }}</div>
+            <div class="worker-no">{{ w.worker_no }}</div>
+          </div>
+        </a>
+      {% empty %}
+        <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">
+          등록된 근무자가 없습니다.
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 우측: 캘린더 -->
+  <div class="cal-panel">
+    {% if selected_worker %}
+      <div class="cal-panel-header">
+        <div>
+          <div class="cal-panel-title">{{ selected_worker.worker_name }} 안전 확인 이력</div>
+          <div class="cal-panel-subtitle">사번: {{ selected_worker.worker_no }}</div>
+        </div>
+        <a href="{% url 'mysafety_admin_history' %}" class="back-link">← 선택 해제</a>
+      </div>
+
+      <div class="cal-header">
+        <a class="cal-nav-btn" href="?worker_id={{ selected_worker.pk }}&year={{ prev_year }}&month={{ prev_month }}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </a>
+        <span class="cal-month-label">{{ month_label }}</span>
+        <a class="cal-nav-btn" href="?worker_id={{ selected_worker.pk }}&year={{ next_year }}&month={{ next_month }}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+
+      <table class="cal-table">
+        <thead>
+          <tr><th>일</th><th>월</th><th>화</th><th>수</th><th>목</th><th>금</th><th>토</th></tr>
+        </thead>
+        <tbody>
+          {% for week in weeks %}
+            <tr>
+              {% for cell in week %}
+                <td class="cal-day">
+                  {% if cell.day %}
+                    <div class="cal-day-inner {% if cell.status %}{{ cell.status }}{% endif %} {% if cell.date == today %}today{% endif %}">
+                      <span class="cal-day-num">{{ cell.day }}</span>
+                      {% if cell.status %}<span class="cal-status-dot"></span>{% endif %}
+                    </div>
+                  {% else %}
+                    <div class="cal-day-inner empty"></div>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="cal-legend">
+        <div class="legend-item"><span class="legend-dot complete"></span>완료</div>
+        <div class="legend-item"><span class="legend-dot partial"></span>부분완료</div>
+        <div class="legend-item"><span class="legend-dot incomplete"></span>미완료</div>
+        <div class="legend-item"><span class="legend-dot none"></span>미진행</div>
+      </div>
+
+    {% else %}
+      <div class="no-selection">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--border)">
+          <circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 014-4h6a4 4 0 014 4v2"/>
+          <path d="M19 8l2 2 4-4" stroke-width="2"/>
+        </svg>
+        좌측에서 근무자를 선택하세요
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

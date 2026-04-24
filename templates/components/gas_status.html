@@ -1,0 +1,38 @@
+{% load static %}
+<div class="widget gas-widget">
+    <div class="widget-header">
+        <h3>유해가스 위험 현황</h3>
+        <!-- 센서 번호 페이지네이션 -->
+        <div class="sensor-nav">
+            <button class="sensor-nav-btn" id="gas-prev">&#8249;</button>
+            <span class="sensor-nav-label">유해가스 1</span>
+            <button class="sensor-nav-btn" id="gas-next">&#8250;</button>
+            <span class="sensor-page" id="gas-page">1 / {{ sensor_pages }}</span>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table" id="gas-table">
+            <thead>
+                <tr>
+                    <th>가스 종류</th>
+                    <th>현재 농도</th>
+                    <th>폭발 단위</th>
+                    <th>위험도</th>
+                </tr>
+            </thead>
+            <tbody id="gas-tbody">
+                {% for gas in gas_readings %}
+                <tr class="row--{{ gas.level }}">
+                    <td>{{ gas.name }}<br><small class="text-muted">{{ gas.formula }}</small></td>
+                    <td class="mono">{{ gas.current_value }}</td>
+                    <td class="mono">{{ gas.unit }}</td>
+                    <td>
+                        <span class="level-badge level--{{ gas.level }}">{{ gas.level_display }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

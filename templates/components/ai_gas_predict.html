@@ -1,0 +1,92 @@
+{% load static %}
+<div class="widget ai-gas-widget">
+    <div class="widget-header">
+        <h3>AI 예측 — 유해가스 위험</h3>
+        <a href="{% url 'gas_detail' %}" class="widget-more-link">+ 상세 보기</a>
+        <div class="sensor-nav">
+            <button class="sensor-nav-btn" id="ai-gas-prev">&#8249;</button>
+            <span class="sensor-nav-label" id="ai-gas-label">유해가스 1</span>
+            <button class="sensor-nav-btn" id="ai-gas-next">&#8250;</button>
+            <span class="sensor-page" id="ai-gas-page">1 / 8</span>
+        </div>
+    </div>
+
+    <div class="ai-predict-summary">
+        <div class="predict-stat">
+            <span class="predict-label">CH4(메탄) 현재 농도</span>
+            <span class="predict-value" id="gas-predict-current">{{ ai_gas.current_pct }}%</span>
+        </div>
+        <div class="predict-stat predict-stat--alert">
+            <span class="predict-label">12시간 내 최대 예상 농도</span>
+            <span class="predict-value" id="gas-predict-max">{{ ai_gas.predicted_max_pct }}%</span>
+        </div>
+    </div>
+
+    <div class="chart-wrapper">
+        <canvas id="gasPredict{% if full_view %}Full{% endif %}Chart" height="{{ full_view|yesno:'160,100' }}"></canvas>
+    </div>
+</div>
+
+<script>
+(function() {
+    var id = 'gasPredict{% if full_view %}Full{% endif %}Chart';
+    var ctx = document.getElementById(id);
+    if (!ctx) return;
+
+    var labels = {{ ai_gas.labels|safe }};
+    var actual = {{ ai_gas.actual|safe }};
+    var predicted = {{ ai_gas.predicted|safe }};
+    var threshold = {{ ai_gas.threshold }};
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '실제 농도',
+                    data: actual,
+                    borderColor: '#f6ad55',
+                    backgroundColor: 'rgba(246,173,85,0.08)',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0.4
+                },
+                {
+                    label: 'AI 예측',
+                    data: predicted,
+                    borderColor: '#fc8181',
+                    backgroundColor: 'rgba(252,129,129,0.1)',
+                    borderWidth: 1.5,
+                    borderDash: [4, 3],
+                    pointRadius: 0,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                annotation: {
+                    annotations: {
+                        threshold: {
+                            type: 'line',
+                            yMin: threshold,
+                            yMax: threshold,
+                            borderColor: '#e53e3e',
+                            borderWidth: 1,
+                            borderDash: [3, 3],
+                            label: { content: '위험 임계값', enabled: true, position: 'end' }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#718096', maxTicksLimit: 6 } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#718096' } }
+            }
+        }
+    });
+})();
+</script>

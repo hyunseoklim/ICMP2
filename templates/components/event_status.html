@@ -1,0 +1,40 @@
+{% load static %}
+<div class="widget event-widget">
+    <div class="widget-header">
+        <h3>이벤트 현황</h3>
+        <a href="{% url 'event_list' %}" class="widget-more-link">+ 상세 보기</a>
+    </div>
+
+    <ul class="event-list" id="event-list">
+        {% for event in recent_events %}
+        <li class="event-item event--{{ event.severity }}" data-id="{{ event.id }}">
+            <div class="event-icon">
+                {% if event.severity == 'danger' %}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 3.5l8.7 15H3.3L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+                {% elif event.severity == 'warning' %}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {% else %}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {% endif %}
+            </div>
+            <div class="event-body">
+                <p class="event-title">{{ event.title }}</p>
+                <p class="event-desc">{{ event.description }}</p>
+            </div>
+            <span class="event-time" data-start="{{ event.started_at|date:'c' }}">
+                {{ event.elapsed }}
+            </span>
+        </li>
+        {% empty %}
+        <li class="event-empty">현재 이벤트가 없습니다.</li>
+        {% endfor %}
+    </ul>
+
+    <!-- 하단 요약 -->
+    <div class="event-summary">
+        <span class="summary-icon summary-icon--info"></span>
+        최근 24시간 동안 발생한 이벤트 현황
+        <span class="event-count-danger">위험 {{ event_summary.danger }}건</span>,
+        <span class="event-count-warning">주의 {{ event_summary.warning }}건</span>
+    </div>
+</div>

@@ -1,0 +1,85 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}산재 예방 통합 관제시스템{% endblock %}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- ① 헤더 -->
+    <header class="top">
+        {% include "components/header.html" %}
+    </header>
+
+    <!-- ② 메인 콘텐츠: 서브페이지는 이 블록만 override -->
+    {% block page_content %}
+
+    <main class="middle">
+        <!-- 좌측 패널 -->
+        <aside class="left">
+            {% block mysafety %}
+                {% include "components/mysafety.html" %}
+            {% endblock %}
+
+            {% block worker_status %}
+                {% include "components/worker_status.html" %}
+            {% endblock %}
+        </aside>
+
+        <!-- 중앙 실시간 모니터링 -->
+        <div class="dashboard">
+            {% block main_monitoring %}
+                {% include "components/main_monitoring.html" %}
+            {% endblock %}
+        </div>
+
+        <!-- 우측 이벤트 패널 -->
+        <aside class="right">
+            {% block event_status %}
+                {% include "components/event_status.html" %}
+            {% endblock %}
+        </aside>
+    </main>
+
+    <section class="bottom">
+        <!-- 하단 좌측: 유해가스 영역 -->
+        <div class="danger-zone">
+            {% block dangerous_status %}
+                {% include "components/gas_status.html" %}
+            {% endblock %}
+
+            {% block ai_analyze_gas %}
+                {% include "components/ai_gas_predict.html" %}
+            {% endblock %}
+        </div>
+
+        <!-- 하단 우측: 전력 영역 -->
+        <div class="power-zone">
+            {% block smartpower_system %}
+                {% include "components/power_status.html" %}
+            {% endblock %}
+
+            {% block ai_analyze_power %}
+                {% include "components/ai_power_predict.html" %}
+            {% endblock %}
+        </div>
+    </section>
+
+    {% endblock page_content %}
+
+    <!-- 공통 스크립트 -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script src="{% static 'js/api.js' %}"></script>
+    <!-- <script src="{% static 'js/websocket.js' %}"></script> 나중에 웹소켓 달면 그때 살릴지 검토--> 
+
+    {% block script %}{% endblock %}
+</body>
+</html>

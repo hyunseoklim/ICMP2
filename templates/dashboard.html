@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}대시보드 — 산재 예방 통합 관제시스템{% endblock %}
+
+{# 대시보드는 base의 모든 컴포넌트를 그대로 표시 — 블록 override 없음 #}
+
+{% block script %}
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}
