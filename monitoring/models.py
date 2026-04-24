@@ -17,7 +17,7 @@ class Device(models.Model):
     building = models.ForeignKey("facilities.Building", on_delete=models.SET_NULL, null=True, blank=True, related_name="devices")
     floor = models.ForeignKey("facilities.Floor", on_delete=models.SET_NULL, null=True, blank=True, related_name="devices")
     zone = models.ForeignKey("facilities.Zone", on_delete=models.SET_NULL, null=True, blank=True, related_name="devices")
-    connected_facility = models.ForeignKey("facilities.Facility", on_delete=models.SET_NULL, null=True, blank=True, related_name="connected_devices", help_text="연결 설비")
+    equipment = models.ForeignKey("facilities.Equipment", on_delete=models.SET_NULL, null=True, blank=True, related_name="devices", help_text="연결 설비")
 
     # 관리 담당
     department = models.ForeignKey("accounts.Department", on_delete=models.SET_NULL, null=True, blank=True, related_name="devices")
@@ -30,7 +30,6 @@ class Device(models.Model):
     device_name = models.CharField(max_length=200)
     software_version = models.CharField(max_length=50, blank=True)
     model_name = models.CharField(max_length=100, blank=True)
-    # manufacturer = models.CharField(max_length=100, blank=True)
 
     # 통신 정보
     ip_address = models.GenericIPAddressField(null=True, help_text="장비 통신 IP")
@@ -79,7 +78,7 @@ class DeviceChannel(models.Model):
         ACTIVE   = "active",   "활성"
         INACTIVE = "inactive", "비활성"
 
-    device       = models.ForeignKey(Device, on_delete=models.PROTECT, related_name="channels")
+    device       = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="channels")
     channel_code = models.CharField(max_length=10, choices=ChannelCode.choices, help_text="slave01~slave72")
     channel_name = models.CharField(max_length=100, blank=True, help_text="관리자 등록 채널명 ex) 압연기 전원")
     x_position   = models.FloatField(null=True, blank=True, help_text="공장 지도 X좌표")
@@ -130,7 +129,7 @@ class GasReading(models.Model):
     o3  = models.FloatField(null=True, blank=True, help_text="오존 ppm")
     nh3 = models.FloatField(null=True, blank=True, help_text="암모니아 ppm")
     voc = models.FloatField(null=True, blank=True, help_text="휘발성유기화합물 ppm")
-    measured_at = models.DateTimeField(help_text="센서 측정 시각")
+    measured_at = models.DateTimeField(help_text="센서 측정 시각", db_index=True)
     received_at = models.DateTimeField(auto_now_add=True, help_text="서버 수신 시각")
 
     class Meta:
@@ -138,6 +137,10 @@ class GasReading(models.Model):
         ordering            = ["-measured_at"]
         verbose_name        = "유해가스 측정값"
         verbose_name_plural = "유해가스 측정값 목록"
+        # 복합 인덱스 (특정 장비의 시간대별 조회 성능 향상)
+        indexes = [
+            models.Index(fields=['device', 'measured_at']),
+        ]
 
     def __str__(self):
         return f"{self.device.device_uid} @ {self.measured_at}"
@@ -163,59 +166,31 @@ class PowerStatusReading(models.Model):
         status = "ON" if self.status_value == 255 else "OFF"
         return f"{self.device.device_uid} {self.channel.channel_code} {status}"
 
-class CurrentReading(models.Model):
-    """전류 (A) - 1분 1회, 통신불능=-1"""
-
-    device      = models.ForeignKey(Device, on_delete=models.PROTECT, related_name="current_readings")
-    channel     = models.ForeignKey(DeviceChannel, on_delete=models.PROTECT, related_name="current_readings")
-    value       = models.IntegerField(default=-1, help_text="전류 A, -1=통신불능")
-    measured_at = models.DateTimeField()
-    received_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table            = "current_readings"
-        ordering            = ["-measured_at"]
-        verbose_name        = "전류 측정값"
-        verbose_name_plural = "전류 측정값 목록"
-
-    def __str__(self):
-        return f"{self.device.device_uid} {self.channel.channel_code} {self.value}A"
-
-class VoltageReading(models.Model):
-    """전압 (V) - 1분 1회, 통신불능=-1"""
-
-    device      = models.ForeignKey(Device, on_delete=models.PROTECT, related_name="voltage_readings")
-    channel     = models.ForeignKey(DeviceChannel, on_delete=models.PROTECT, related_name="voltage_readings")
-    value       = models.IntegerField(default=-1, help_text="전압 V, -1=통신불능")
-    measured_at = models.DateTimeField()
-    received_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table            = "voltage_readings"
-        ordering            = ["-measured_at"]
-        verbose_name        = "전압 측정값"
-        verbose_name_plural = "전압 측정값 목록"
-
-    def __str__(self):
-        return f"{self.device.device_uid} {self.channel.channel_code} {self.value}V"
-
 class PowerReading(models.Model):
-    """전력 (W) - 1분 1회, 통신불능=-1"""
-
+    """전력/전압/전류 통합 테이블 - 1분 1회 (Insert 최소화 구조)"""
     device      = models.ForeignKey(Device, on_delete=models.PROTECT, related_name="power_readings")
     channel     = models.ForeignKey(DeviceChannel, on_delete=models.PROTECT, related_name="power_readings")
-    value       = models.IntegerField(default=-1, help_text="전력 W, -1=통신불능")
-    measured_at = models.DateTimeField()
+    
+    # 3개의 모델을 하나로 합침
+    current_a   = models.IntegerField(default=-1, help_text="전류 A, -1=통신불능")
+    voltage_v   = models.IntegerField(default=-1, help_text="전압 V, -1=통신불능")
+    power_w     = models.IntegerField(default=-1, help_text="전력 W, -1=통신불능")
+    
+    # db_index=True 추가 완료
+    measured_at = models.DateTimeField(db_index=True)
     received_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table            = "power_readings"
         ordering            = ["-measured_at"]
-        verbose_name        = "전력 측정값"
-        verbose_name_plural = "전력 측정값 목록"
+        verbose_name        = "스마트파워 측정값"
+        verbose_name_plural = "스마트파워 측정값 목록"
+        indexes = [
+            models.Index(fields=['channel', 'measured_at']),
+        ]
 
     def __str__(self):
-        return f"{self.device.device_uid} {self.channel.channel_code} {self.value}W"
+        return f"{self.device.device_uid} {self.channel.channel_code} @ {self.measured_at}"
 
 
 # ── ThresholdPolicy ────────────────────────────────────────

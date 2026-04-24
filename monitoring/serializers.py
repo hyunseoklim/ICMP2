@@ -1,0 +1,199 @@
+from rest_framework import serializers
+from django.utils import timezone
+
+from monitoring.models import (
+    Device,
+    DeviceChannel,
+    DeviceStatusLog,
+    GasReading,
+    PowerStatusReading,
+    PowerReading,
+    ThresholdPolicy,
+    InspectionLog,
+    ActionLog,
+)
+
+
+# ── Device ────────────────────────────────────────────────
+
+class DeviceSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model  = Device
+        fields = "__all__"
+
+    def validate_port(self, value):
+        """포트 번호 범위 검증 (1~65535)"""
+        if value is not None and not (1 <= value <= 65535):
+            raise serializers.ValidationError("포트 번호는 1~65535 사이여야 합니다.")
+        return value
+
+    def validate_device_uid(self, value):
+        """장비 UID 중복 검증 (수정 시 자기 자신 제외)"""
+        instance = self.instance
+        qs = Device.objects.filter(device_uid=value)
+        if instance:
+            qs = qs.exclude(pk=instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("이미 등록된 장비 ID입니다.")
+        return value
+
+
+# ── DeviceChannel ──────────────────────────────────────────
+
+class DeviceChannelSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model  = DeviceChannel
+        fields = "__all__"
+
+
+# ── DeviceStatusLog ────────────────────────────────────────
+
+class DeviceStatusLogSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model            = DeviceStatusLog
+        fields           = "__all__"
+        read_only_fields = ["occurred_at"]
+
+
+# ── GasReading ─────────────────────────────────────────────
+
+GAS_FIELDS = ["co", "h2s", "co2", "o2", "no2", "so2", "o3", "nh3", "voc"]
+
+
+class GasReadingSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model            = GasReading
+        fields           = "__all__"
+        read_only_fields = ["received_at"]
+
+    def validate(self, data):
+        """가스 수치 음수 검증 (O2 포함 모두 0 이상이어야 함)"""
+        for field in GAS_FIELDS:
+            value = data.get(field)
+            if value is not None and value < 0:
+                raise serializers.ValidationError(
+                    {field: f"{field} 값은 0 이상이어야 합니다."}
+                )
+        return data
+
+
+# ── PowerStatusReading ─────────────────────────────────────
+
+class PowerStatusReadingSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model            = PowerStatusReading
+        fields           = "__all__"
+        read_only_fields = ["received_at"]
+
+
+# ── PowerReading ───────────────────────────────────────────
+
+class PowerReadingSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model            = PowerReading
+        fields           = "__all__"
+        read_only_fields = ["received_at"]
+
+    def validate(self, data):
+        """
+        전류/전압/전력 값 검증
+        -1(통신불능) 또는 0 이상만 허용
+        """
+        for field in ["current_a", "voltage_v", "power_w"]:
+            value = data.get(field)
+            if value is not None and value < -1:
+                raise serializers.ValidationError(
+                    {field: f"{field} 값은 -1(통신불능) 또는 0 이상이어야 합니다."}
+                )
+        return data
+
+
+# ── ThresholdPolicy ────────────────────────────────────────
+
+class ThresholdPolicySerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model  = ThresholdPolicy
+        fields = "__all__"
+
+    def validate(self, data):
+        """임계치 범위 논리 검증"""
+        warning_min = data.get("warning_min")
+        warning_max = data.get("warning_max")
+        danger_min  = data.get("danger_min")
+        danger_max  = data.get("danger_max")
+
+        if warning_min is not None and warning_max is not None:
+            if warning_min >= warning_max:
+                raise serializers.ValidationError(
+                    "warning_min은 warning_max보다 작아야 합니다."
+                )
+
+        if danger_min is not None and danger_max is not None:
+            if danger_min >= danger_max:
+                raise serializers.ValidationError(
+                    "danger_min은 danger_max보다 작아야 합니다."
+                )
+
+        if warning_max is not None and danger_min is not None:
+            if warning_max > danger_min:
+                raise serializers.ValidationError(
+                    "주의 범위(warning_max)는 위험 범위(danger_min)보다 작거나 같아야 합니다."
+                )
+
+        return data
+
+
+# ── InspectionLog ──────────────────────────────────────────
+
+class InspectionLogSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model            = InspectionLog
+        fields           = "__all__"
+        read_only_fields = ["created_at"]
+
+    def validate(self, data):
+        """점검 상태 및 날짜 검증"""
+        status               = data.get("status")
+        expected_action_date = data.get("expected_action_date")
+        inspection_date      = data.get("inspection_date")
+
+        # 조치 필요 상태면 예상 조치일 필수
+        if status == "action_required" and not expected_action_date:
+            raise serializers.ValidationError(
+                "조치 필요 상태일 때 예상 조치일은 필수입니다."
+            )
+
+        # 예상 조치일은 점검일 이후여야 함
+        if inspection_date and expected_action_date:
+            if expected_action_date < inspection_date:
+                raise serializers.ValidationError(
+                    "예상 조치일은 점검일 이후여야 합니다."
+                )
+
+        return data
+
+
+# ── ActionLog ──────────────────────────────────────────────
+
+class ActionLogSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model            = ActionLog
+        fields           = "__all__"
+        read_only_fields = ["created_at"]
+
+    def validate_action_date(self, value):
+        """조치 완료일은 미래일 수 없음"""
+        if value > timezone.now().date():
+            raise serializers.ValidationError(
+                "조치 완료일은 오늘 이후일 수 없습니다."
+            )
+        return value

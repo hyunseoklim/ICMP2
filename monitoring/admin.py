@@ -5,8 +5,6 @@ from monitoring.models import (
     DeviceStatusLog,
     GasReading,
     PowerStatusReading,
-    CurrentReading,
-    VoltageReading,
     PowerReading,
     ThresholdPolicy,
     InspectionLog,
@@ -23,8 +21,8 @@ class DeviceAdmin(admin.ModelAdmin):
 
 @admin.register(DeviceChannel)
 class DeviceChannelAdmin(admin.ModelAdmin):
-    list_display = ["device", "channel_code", "status"]
-    list_filter  = ["status"]
+    list_display = ["device", "channel_code", "channel_name", "is_active", "status"]
+    list_filter  = ["status", "is_active"]
 
 
 @admin.register(DeviceStatusLog)
@@ -40,9 +38,14 @@ class GasReadingAdmin(admin.ModelAdmin):
     search_fields = ["device__device_uid"]
 
 
+@admin.register(PowerStatusReading)
+class PowerStatusReadingAdmin(admin.ModelAdmin):
+    list_display = ["device", "channel", "status_value", "received_at"]
+
+
 @admin.register(PowerReading)
 class PowerReadingAdmin(admin.ModelAdmin):
-    list_display = ["device", "channel", "value", "measured_at"]
+    list_display = ["device", "channel", "current_a", "voltage_v", "power_w", "measured_at"]
 
 
 @admin.register(ThresholdPolicy)
