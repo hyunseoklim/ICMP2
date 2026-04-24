@@ -1,21 +1,33 @@
 from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import TemplateView
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from django.views      import View
 from .models import (
-    Facility, Building, Floor, FloorGrid,
-    Zone, LocationNode, Worker, WorkerLocation,
-    Geofence, SensorDummy,
+    Facility, Building, Floor, FloorGrid, IndexGrid,
+    Zone,  Geofence, LocationNode, Worker, WorkerLocation, Equipment
+   
 )
 from .serializers import (
-    FacilitySerializer, BuildingSerializer, FloorSerializer, FloorGridSerializer,
-    ZoneSerializer, LocationNodeSerializer, WorkerSerializer, WorkerLocationSerializer,
-    GeofenceSerializer, SensorDummySerializer, WorkerLocationLatestSerializer,
+    FacilitySerializer, BuildingSerializer, FloorSerializer,
+    FloorGridSerializer,
+    ZoneSerializer, LocationNodeSerializer,
+    WorkerSerializer, WorkerLocationSerializer,
+    GeofenceSerializer,
+    WorkerLocationLatestSerializer,
 )
+from .services.floor_grid_maker    import FloorGridService
+from .repositories import IndexGridWriter, IndexGridReader
 
+class DashboardTempleteView(TemplateView):
+    template_name = 'dashboard.html'
 
-# ─── 템플릿 뷰 ───────────────────────────────────────────────
 
 def monitoring_view(request):
     """
@@ -26,10 +38,8 @@ def monitoring_view(request):
     context = {
         'facilities': facilities,
     }
-    return render(request, 'test/monitoring.html', context)
+    return render(request, 'map/map_monitoring.html', context)
 
-
-# ─── DRF ViewSet ─────────────────────────────────────────────
 
 class FacilityViewSet(viewsets.ModelViewSet):
     queryset = Facility.objects.all().order_by('facility_name')
@@ -57,12 +67,61 @@ class FloorViewSet(viewsets.ModelViewSet):
             qs = qs.filter(building_id=building_id)
         return qs.order_by('floor_no')
 
+@method_decorator(csrf_exempt, name='dispatch')
+class FloorGridSetupView(View):
+    """
+    Grid 생성 및 DB 저장.
 
+    POST /facilities/floors/<floor_id>/setup/
+
+    흐름:
+        1. Floor 조회       → 없으면 404
+        2. FloorGrid 조회   → 없으면 cell_size=1.0으로 생성
+        3. 셀 목록 계산     → FloorGridService.generate_all_cells()
+        4. DB 저장          → IndexGridWriter.bulk_create()
+        5. 응답             → {"created": 셀 수}
+
+    멱등성:
+        이미 저장된 셀은 skip (ignore_conflicts=True)
+        같은 floor_id로 중복 호출해도 안전
+    """
+
+    def post(self, request, floor_id):
+
+        # 1. Floor 조회
+        floor = get_object_or_404(Floor, id=floor_id)
+
+        # 2. FloorGrid 조회 또는 생성
+        #    floor.grid 없으면 RelatedObjectDoesNotExist 발생
+        #    → get_or_create로 방어
+        FloorGrid.objects.get_or_create(
+            floor=floor,
+            defaults={"cell_size": 1.0}
+        )
+
+        # 3. 셀 목록 계산
+        service = FloorGridService(floor)
+        cells   = service.generate_all_cells()
+
+        # 4. DB 저장
+        writer  = IndexGridWriter()
+        writer.bulk_create(floor, cells)
+
+        # 5. 응답
+        return JsonResponse({"created": len(cells)})
+    
 class FloorGridViewSet(viewsets.ModelViewSet):
     """
-    FloorGrid CRUD.
-    GET /api/floor-grids/?floor_id=<id>  로 특정 층의 격자 설정을 조회한다.
-    운영자가 cell_width / cell_height 를 변경하면 프론트에서 격자를 재렌더링한다.
+    FloorGrid CRUD — cell_size 설정값 관리
+
+    엔드포인트:
+        GET    /api/floor-grids/?floor_id=<id>  — 격자 설정 조회
+        POST   /api/floor-grids/                — 직접 생성 (관리자용)
+        PATCH  /api/floor-grids/<id>/           — cell_size 수정
+        DELETE /api/floor-grids/<id>/           — 삭제
+
+    격자선 렌더링용 데이터:
+        GET /api/floors/<id>/grid-data/ 사용 (floor_grid_data 함수)
     """
     serializer_class = FloorGridSerializer
 
@@ -73,7 +132,78 @@ class FloorGridViewSet(viewsets.ModelViewSet):
             qs = qs.filter(floor_id=floor_id)
         return qs
 
+def floor_grid_data(request, floor_id):
+    """
+    GET /api/floors/<floor_id>/grid-data/
 
+    IndexGrid DB 기반 격자 정보 반환.
+    JS는 받은 값 그대로 렌더링만 수행. 연산 없음.
+
+    Single Source of Truth: IndexGrid DB
+    → JS 격자선, 각 앱 인덱스 모두 동일한 기준
+
+    선행 조건:
+        /floors/<floor_id>/setup/ 으로 IndexGrid 생성 완료 필요
+        미생성 시 400 반환
+
+    좌표계: meter (floor.width, floor.length 기준)
+    Leaflet bounds: [[0, 0], [floor.length, floor.width]]
+
+    반환:
+    {
+        "floor_id":  1,
+        "width":     10,
+        "length":    5,
+        "cell_size": 1.0,
+        "cols":      10,
+        "rows":      5,
+        "lines": {
+            "vertical":   [{"x": 0,   "y1": 0, "y2": 5}, ...],
+            "horizontal": [{"y": 0,   "x1": 0, "x2": 10}, ...]
+        }
+    }
+    """
+    floor = get_object_or_404(Floor, pk=floor_id)
+
+    # IndexGrid DB 조회 — Single Source of Truth
+    cells = IndexGridReader().get_full_grid(floor)
+    if not cells:
+        return JsonResponse(
+            {"error": "IndexGrid 없음. /floors/{floor_id}/setup/ 먼저 호출 필요"},
+            status=400
+        )
+
+    # cell_size 조회
+    try:
+        cell_size = float(floor.grid.cell_size)
+    except Exception:
+        cell_size = 1.0
+
+    width  = float(floor.width)
+    length = float(floor.length)
+
+    # cols, rows: Floor 모델이 아닌 DB 실제값 기준
+    cols = max(cell.col for cell in cells) + 1
+    rows = max(cell.row for cell in cells) + 1
+
+    return JsonResponse({
+        "floor_id":  floor.id,
+        "width":     width,
+        "length":    length,
+        "cell_size": cell_size,
+        "cols":      cols,
+        "rows":      rows,
+        "lines": {
+            "vertical": [
+                {"x": round(c * cell_size, 6), "y1": 0, "y2": length}
+                for c in range(cols + 1)
+            ],
+            "horizontal": [
+                {"y": round(r * cell_size, 6), "x1": 0, "x2": width}
+                for r in range(rows + 1)
+            ],
+        }
+    })
 class ZoneViewSet(viewsets.ModelViewSet):
     """
     Zone CRUD.
@@ -130,41 +260,66 @@ class WorkerLocationViewSet(viewsets.ModelViewSet):
     def dummy(self, request):
         if request.method == 'GET':
             workers = Worker.objects.filter(status='on_duty')
-            result = []
+            result  = []
+
             for worker in workers:
                 loc = worker.locations.order_by('-measured_at').first()
-                if loc:
-                    result.append(WorkerLocationLatestSerializer(loc).data)
+                if not loc:
+                    continue
+
+                # floor 없으면 snap 변환 불가 → skip
+                if not loc.floor:
+                    continue
+
+                # x, y → grid_index
+                service    = FloorGridService(loc.floor)
+                grid_index = service.get_grid_index(loc.x, loc.y)
+
+                # 유효하지 않은 좌표 → skip
+                if grid_index is None:
+                    continue
+
+                # grid_index → snap_x, snap_y
+                snap = service.get_snap_point(grid_index)
+
+                # 기존 직렬화 + snap, grid_index 추가
+                data               = WorkerLocationLatestSerializer(loc).data
+                data['grid_index'] = grid_index
+                data['snap_x']     = snap['snap_x']
+                data['snap_y']     = snap['snap_y']
+
+                result.append(data)
+
             return Response(result)
 
         # POST — curl 로 위치 주입
         worker_id = request.data.get('worker_id')
         if not worker_id:
-            return Response({'error': 'worker_id 필요'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'error': 'worker_id 필요'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         worker = get_object_or_404(Worker, pk=worker_id)
-        loc = WorkerLocation.objects.create(
-            worker=worker,
-            x=request.data.get('x', 0),
-            y=request.data.get('y', 0),
-            z=request.data.get('z', 0),
-            cell_no=request.data.get('cell_no', ''),
-            floor_id=request.data.get('floor_id'),
-            zone_id=request.data.get('zone_id'),
+        loc    = WorkerLocation.objects.create(
+            worker   = worker,
+            x        = request.data.get('x', 0),
+            y        = request.data.get('y', 0),
+            z        = request.data.get('z', 0),
+            cell_no  = request.data.get('cell_no', ''),
+            floor_id = request.data.get('floor_id'),
+            zone_id  = request.data.get('zone_id'),
         )
-        return Response(WorkerLocationSerializer(loc).data, status=status.HTTP_201_CREATED)
-
+        return Response(
+            WorkerLocationSerializer(loc).data,
+            status=status.HTTP_201_CREATED
+        )
 
 class GeofenceViewSet(viewsets.ModelViewSet):
     """
     Geofence CRUD.
     PATCH /api/geofences/<id>/  로 center_x / center_y / radius 를 업데이트하면
     프론트에서 CSS transition 으로 원이 부드럽게 이동/확산한다.
-
-    curl 예시:
-    curl -X PATCH http://localhost:8000/api/geofences/1/ \\
-         -H "Content-Type: application/json" \\
-         -d '{"center_x": 280, "center_y": 210, "radius": 75}'
     """
     serializer_class = GeofenceSerializer
 
@@ -179,29 +334,4 @@ class GeofenceViewSet(viewsets.ModelViewSet):
         return qs.order_by('-severity')
 
 
-class SensorDummyViewSet(viewsets.ModelViewSet):
-    """
-    센서 더미 데이터 CRUD.
 
-    curl 주입 예시:
-    curl -X POST http://localhost:8000/api/sensors/ \\
-         -H "Content-Type: application/json" \\
-         -d '{"device_id":"G2","device_name":"G2 유해가스 센서",
-              "sensor_type":"gas","x":400,"y":130,
-              "status":"danger","latest_value":{"co":32,"o2":18.1}}'
-
-    curl -X PATCH http://localhost:8000/api/sensors/1/ \\
-         -H "Content-Type: application/json" \\
-         -d '{"status":"warning","latest_value":{"co":15,"o2":19.5}}'
-    """
-    serializer_class = SensorDummySerializer
-
-    def get_queryset(self):
-        qs = SensorDummy.objects.all()
-        floor_id = self.request.query_params.get('floor_id')
-        sensor_type = self.request.query_params.get('sensor_type')
-        if floor_id:
-            qs = qs.filter(floor_id=floor_id)
-        if sensor_type:
-            qs = qs.filter(sensor_type=sensor_type)
-        return qs.order_by('device_id')

@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from .views import FloorGridSetupView
 
 router = DefaultRouter()
 router.register(r'facilities', views.FacilityViewSet, basename='facility')
@@ -12,10 +13,11 @@ router.register(r'location-nodes', views.LocationNodeViewSet, basename='location
 router.register(r'workers', views.WorkerViewSet, basename='worker')
 router.register(r'worker-locations', views.WorkerLocationViewSet, basename='workerlocation')
 router.register(r'geofences', views.GeofenceViewSet, basename='geofence')
-router.register(r'sensors', views.SensorDummyViewSet, basename='sensor')
 
 urlpatterns = [
     path('api/', include(router.urls)),
+    path('api/floors/<int:floor_id>/grid-data/', views.floor_grid_data, name='floor-grid-data'),
     path('monitoring/', views.monitoring_view, name='monitoring'),
     path('', views.monitoring_view, name='index'),
+     path("floors/<int:floor_id>/setup/", FloorGridSetupView.as_view(), name="floor-grid-setup")
 ]

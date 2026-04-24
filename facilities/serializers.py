@@ -2,8 +2,7 @@ from rest_framework import serializers
 from .models import (
     Facility, Building, Floor, FloorGrid,
     Zone, LocationNode, Worker, WorkerLocation,
-    Geofence, SensorDummy,
-)
+    Geofence,)
 
 
 class FacilitySerializer(serializers.ModelSerializer):
@@ -25,14 +24,40 @@ class FloorSerializer(serializers.ModelSerializer):
 
 
 class FloorGridSerializer(serializers.ModelSerializer):
+    """
+    FloorGrid 조회/응답용 Serializer.
+ 
+    lines 필드 포함:
+        JS(map_grid.js)가 이 값을 받아 렌더링만 수행.
+        lines 가 빈 배열이면 JS의 _drawGridFallback 이 동작함.
+ 
+    cols / rows 는 읽기 전용:
+        service.py가 계산하여 저장하므로 외부에서 직접 수정하지 않음.
+    """
+    # cols = serializers.IntegerField(read_only=True)
+    # rows = serializers.IntegerField(read_only=True)
+ 
     class Meta:
-        model = FloorGrid
-        fields = '__all__'
+        model  = FloorGrid
+        fields = [
+            'id',
+            'floor',
+            'cell_size',
+            'created_at',
+            'updated_at',
+        ]
+ 
 
 
 class ZoneSerializer(serializers.ModelSerializer):
     class Meta:
         model = Zone
+        fields = '__all__'
+
+
+class GeofenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Geofence
         fields = '__all__'
 
 
@@ -55,17 +80,6 @@ class WorkerLocationSerializer(serializers.ModelSerializer):
         model = WorkerLocation
         fields = '__all__'
 
-
-class GeofenceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Geofence
-        fields = '__all__'
-
-
-class SensorDummySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SensorDummy
-        fields = '__all__'
 
 
 class WorkerLocationLatestSerializer(serializers.ModelSerializer):
