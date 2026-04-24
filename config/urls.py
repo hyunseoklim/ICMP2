@@ -15,8 +15,25 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.http import HttpResponse
+from django.urls import path, include
+from django.contrib.auth import views as auth_views
+
+
+def _stub(request):
+    return HttpResponse('<h2 style="font-family:sans-serif;padding:40px">준비 중입니다.</h2>')
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', include('dashboard.urls')),
+    path('alerts/', include('alerts.urls')),
+    path('login/', auth_views.LoginView.as_view(template_name='accounts/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+    # 다른 앱 URL 스텁 (각 앱 개발 시 교체 예정)
+    path('safety/mysafety/', _stub, name='mysafety_detail'),
+    path('monitoring/workers/', _stub, name='worker_list'),
+    path('monitoring/gas/', _stub, name='gas_detail'),
+    path('monitoring/power/', _stub, name='power_detail'),
+    path('monitoring/', _stub, name='monitoring_detail'),
 ]
