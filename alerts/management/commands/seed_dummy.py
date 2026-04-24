@@ -152,7 +152,13 @@ class Command(BaseCommand):
             workers[0].user = worker_user
             workers[0].save()
 
-        self.stdout.write(f'  작업자 {len(workers)}명 (worker1 계정 → 김철수 연결)')
+        # admin 계정 → 이영희(W002) 연결
+        Worker.objects.filter(user=admin_user).update(user=None)
+        if not workers[1].user:
+            workers[1].user = admin_user
+            workers[1].save()
+
+        self.stdout.write(f'  작업자 {len(workers)}명 (worker1→김철수, admin→이영희 연결)')
 
         # ── 7. 알람 규칙 ───────────────────────────────────────────────────
         rules = []

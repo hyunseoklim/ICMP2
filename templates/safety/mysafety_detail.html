@@ -249,7 +249,8 @@ function updateCheckedCount() {
 }
 
 document.querySelectorAll(".checklist-item").forEach(label => {
-  label.addEventListener("click", function() {
+  label.addEventListener("click", function(e) {
+    e.preventDefault();
     const cb = this.querySelector("input[type=checkbox]");
     cb.checked = !cb.checked;
     this.classList.toggle("checked", cb.checked);
