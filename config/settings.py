@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # third-party
+    'rest_framework',
     # local apps
     'core',
     'accounts',
@@ -46,6 +48,11 @@ INSTALLED_APPS = [
     'dashboard',
     'safety',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
+    'PAGE_SIZE': 20,
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
