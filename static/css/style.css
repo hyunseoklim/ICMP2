@@ -123,6 +123,13 @@ body {
   display: flex; flex-direction: column; align-items: flex-end;
   font-size: 11px; color: var(--text-secondary);
 }
+.user-badge--link {
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+.user-badge--link:hover { background: var(--bg-panel-2); }
 .user-name { font-weight: 600; color: var(--text-primary); font-size: 12px; }
 
 .nav-btn {
@@ -607,4 +614,28 @@ body {
   .left    { width: 180px; }
   .right   { width: 200px; }
   .system-title { font-size: 13px; }
+}
+
+/* 로그아웃 모달 */
+.logout-modal-box {
+  text-align: center;
+  padding: 36px 40px 28px;
+  width: 320px;
+}
+.logout-modal-icon { margin-bottom: 8px; }
+.logout-modal-label {
+  color: var(--text-muted, #718096);
+  font-size: 0.8rem;
+  margin: 0 0 8px;
+}
+.logout-modal-msg {
+  color: var(--text-primary, #e2e8f0);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 24px;
+}
+.logout-confirm-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.95rem;
 }
