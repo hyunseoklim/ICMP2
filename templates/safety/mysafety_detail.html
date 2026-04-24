@@ -145,9 +145,6 @@
     </div>
     <div class="header-links">
       <a href="{% url 'mysafety_history' %}">안전 확인 이력</a>
-      {% if request.user.is_staff %}
-        <a href="{% url 'mysafety_admin_history' %}">전체 이력 관리</a>
-      {% endif %}
     </div>
   </div>
 

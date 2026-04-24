@@ -19,6 +19,45 @@ class Command(BaseCommand):
 
         self.stdout.write('더미 데이터 생성 시작...')
 
+        # ── 0. 테스트 계정 ─────────────────────────────────────────────────
+        admin_user, _ = User.objects.get_or_create(
+            username='admin',
+            defaults={
+                'name': '관리자',
+                'user_type': 'admin',
+                'is_staff': True,
+                'is_superuser': True,
+            },
+        )
+        admin_user.user_type = 'admin'
+        admin_user.is_staff = True
+        admin_user.is_superuser = True
+        admin_user.set_password('admin1234!')
+        admin_user.save()
+
+        worker_user, _ = User.objects.get_or_create(
+            username='worker1',
+            defaults={
+                'name': '김철수',
+                'user_type': 'worker',
+            },
+        )
+        worker_user.set_password('worker1234!')
+        worker_user.save()
+
+        manager_user, _ = User.objects.get_or_create(
+            username='manager1',
+            defaults={
+                'name': '현장관리자',
+                'user_type': 'manager',
+                'is_staff': True,
+            },
+        )
+        manager_user.set_password('manager1234!')
+        manager_user.save()
+
+        self.stdout.write('  테스트 계정 3개 (admin / worker1 / manager1)')
+
         # ── 1. 사업장 ──────────────────────────────────────────────────────
         facilities = []
         for code, name in [('FAC001', '제1공장'), ('FAC002', '제2공장'), ('FAC003', '창고동')]:
@@ -101,13 +140,19 @@ class Command(BaseCommand):
             ('W001', '김철수'), ('W002', '이영희'), ('W003', '박민준'),
             ('W004', '최수진'), ('W005', '정도현'),
         ]
-        for no, name in worker_specs:
+        for i, (no, name) in enumerate(worker_specs):
             w, _ = Worker.objects.get_or_create(
                 worker_no=no,
                 defaults={'worker_name': name, 'status': 'active'},
             )
             workers.append(w)
-        self.stdout.write(f'  작업자 {len(workers)}명')
+
+        # worker1 계정 → 김철수(W001) 연결
+        if not workers[0].user:
+            workers[0].user = worker_user
+            workers[0].save()
+
+        self.stdout.write(f'  작업자 {len(workers)}명 (worker1 계정 → 김철수 연결)')
 
         # ── 7. 알람 규칙 ───────────────────────────────────────────────────
         rules = []
