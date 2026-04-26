@@ -12,11 +12,13 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    {% block header %}
 
     <!-- ① 헤더 -->
     <header class="top">
         {% include "components/header.html" %}
     </header>
+    {% endblock %} 
 
     <!-- ② 메인 콘텐츠: 서브페이지는 이 블록만 override -->
     {% block page_content %}

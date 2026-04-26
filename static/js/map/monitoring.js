@@ -1,4 +1,4 @@
-
+document.addEventListener('DOMContentLoaded', () => {
   // ─── 셀렉트박스 연동 ───
   document.getElementById('sel-facility').addEventListener('change', function () {
     const fid = this.value;
@@ -40,10 +40,11 @@
   });
 
   // ─── 탭 필터 ───
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.tab-btn-map').forEach(btn => {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-btn-map').forEach(b => b.classList.remove('active'));
       this.classList.add('active');
       applyTabFilter(this.dataset.filter);
     });
   });
+});
