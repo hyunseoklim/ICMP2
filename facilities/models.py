@@ -211,6 +211,7 @@ class LocationNode(models.Model):
         default='active',
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
  
     class Meta:
         db_table = 'location_nodes'

@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'dashboard',
     'safety',
     #websocket
-    'channels',
+    # 'channels',
 ]
 
 REST_FRAMEWORK = {

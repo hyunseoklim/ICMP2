@@ -83,8 +83,17 @@ class GeofenceSerializer(serializers.ModelSerializer):
 class LocationNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = LocationNode
-        fields = '__all__'
-
+        fields = [
+            'id',
+            'zone',
+            'node_name',
+            'x',
+            'y',
+            'status',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
 
 class WorkerSerializer(serializers.ModelSerializer):
     class Meta:
