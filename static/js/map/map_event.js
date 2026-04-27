@@ -63,6 +63,8 @@ function loadFloorData(floorId) {
             // 2. map 재생성 (CRS 적용)
             initMap(CustomCRS);
 
+            if (window.clearWorkerMarkers) clearWorkerMarkers();
+
             // 3. 이벤트 재등록
             initZoneEvents();
 

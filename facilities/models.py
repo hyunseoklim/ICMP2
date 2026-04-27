@@ -307,15 +307,21 @@ class Zone(models.Model):
 class Equipment(models.Model):
     floor = models.ForeignKey('facilities.Floor',on_delete=models.SET_NULL,null= True, related_name='equipments')
     zone = models.ForeignKey("facilities.Zone",on_delete=models.SET_NULL, null= True )
-    equipment_code = models.CharField(max_length=20)  # "B-02"
     equipment_name = models.CharField(max_length=20)  # "냉각 설비 2호"
+    equipment_code = models.CharField(max_length=20)  # "B-02"
+    width  = models.FloatField(null=True, blank=True, help_text='장비 가로 크기(m)')
+    height = models.FloatField(null=True, blank=True, help_text='장비 세로 크기(m)')
+    center_x = models.FloatField(null=True, blank=True, help_text='장비 중심점 x 좌표(m)')
+    center_y = models.FloatField(null=True, blank=True, help_text='장비 중심점 y 좌표(m)')
+    rotation = models.IntegerField(default=0,           help_text='회전 각도 (0/45/90/.../315)')
     status = models.CharField(
     max_length=20,
     choices=[('active', '운영중'), ('inactive', '비운영'), ('maintenance', '점검중')],
     default='active',
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, help_text='생성 날짜')
+    updated_at = models.DateTimeField(auto_now=True, help_text='업데이트 내역')
+    is_placed = models.BooleanField(default=False, help_text='지도 배치 완료 여부')
 
     class Meta:
         db_table = 'equipments'

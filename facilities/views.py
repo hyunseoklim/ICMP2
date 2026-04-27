@@ -20,7 +20,7 @@ from .serializers import (
     ZoneSerializer, LocationNodeSerializer,
     WorkerSerializer, WorkerLocationSerializer,
     GeofenceSerializer,
-    WorkerLocationLatestSerializer,
+    WorkerLocationLatestSerializer, EquipmentSerializer
 )
 from .services.floor_grid_maker    import FloorGridService
 from .repositories import IndexGridWriter, IndexGridReader
@@ -333,5 +333,27 @@ class GeofenceViewSet(viewsets.ModelViewSet):
             qs = qs.filter(is_active=is_active in ['true', '1', 'True'])
         return qs.order_by('-severity')
 
+
+class EquipmentViewSet(viewsets.ModelViewSet):
+    serializer_class = EquipmentSerializer
+
+    def get_queryset(self):
+        qs = Equipment.objects.all()
+        
+        floor_id   = self.request.query_params.get('floor_id')
+        zone_id    = self.request.query_params.get('zone_id')
+        is_placed  = self.request.query_params.get('is_placed')
+        status     = self.request.query_params.get('status')
+
+        if floor_id:
+            qs = qs.filter(floor_id=floor_id)
+        if zone_id:
+            qs = qs.filter(zone_id=zone_id)
+        if is_placed is not None:
+            qs = qs.filter(is_placed=is_placed in ['true', '1', 'True'])
+        if status:
+            qs = qs.filter(status=status)
+
+        return qs.order_by('equipment_code')
 
 

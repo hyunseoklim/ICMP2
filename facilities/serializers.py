@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Facility, Building, Floor, FloorGrid,
     Zone, LocationNode, Worker, WorkerLocation,
-    Geofence,)
+    Geofence, Equipment)
 
 
 class FacilitySerializer(serializers.ModelSerializer):
@@ -22,7 +22,26 @@ class FloorSerializer(serializers.ModelSerializer):
         model = Floor
         fields = '__all__'
 
-
+class EquipmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Equipment
+        fields = [
+            'id',
+            'floor',
+            'zone',
+            'equipment_code',
+            'equipment_name',
+            'width',
+            'height',
+            'center_x',
+            'center_y',
+            'rotation',
+            'status',
+            'is_placed',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
 class FloorGridSerializer(serializers.ModelSerializer):
     """
     FloorGrid 조회/응답용 Serializer.

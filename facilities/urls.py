@@ -13,6 +13,7 @@ router.register(r'location-nodes', views.LocationNodeViewSet, basename='location
 router.register(r'workers', views.WorkerViewSet, basename='worker')
 router.register(r'worker-locations', views.WorkerLocationViewSet, basename='workerlocation')
 router.register(r'geofences', views.GeofenceViewSet, basename='geofence')
+router.register(r'equipments', views.EquipmentViewSet, basename='equipment')
 
 urlpatterns = [
     path('api/', include(router.urls)),

@@ -14,10 +14,36 @@ let workerPollingTimer = null;
 
 // ─── 시뮬레이션 시작 ─────────────────────────────────────────
 
+function simulateWorkerMove() {
+    Object.values(workerMarkers).forEach(w => {
+        const latlng = w.marker.getLatLng();
+        let newLat = latlng.lat;
+        let newLng = latlng.lng;
+
+        // x, y 각각 0.1m씩 증가, 건물 범위 벗어나면 반대로
+        newLng += 0.1;
+        newLat += 0.1;
+
+        if (newLng > floorWidthMeters)  newLng = 0;
+        if (newLat > floorLengthMeters) newLat = 0;
+
+        w.marker.setLatLng([newLat, newLng]);
+    });
+}
+// 움직임을 테스트하기 위해 잠시 주석처리
+// function startWorkerSim() {
+//     if (workerPollingTimer) clearInterval(workerPollingTimer);
+//     fetchWorkerLocations();
+//     workerPollingTimer = setInterval(fetchWorkerLocations, 2000);
+// }
+// 움직임 테스트를 위한 임시 로직
 function startWorkerSim() {
     if (workerPollingTimer) clearInterval(workerPollingTimer);
     fetchWorkerLocations();
-    workerPollingTimer = setInterval(fetchWorkerLocations, 2000);
+    workerPollingTimer = setInterval(() => {
+        fetchWorkerLocations();
+        simulateWorkerMove();  // ← 추가
+    }, 500);
 }
 
 function stopWorkerSim() {
@@ -26,6 +52,14 @@ function stopWorkerSim() {
         workerPollingTimer = null;
     }
 }
+
+// ─── 초기화 ──────────────────────────────────────────────────
+function clearWorkerMarkers() {          // ← 여기 추가
+    stopWorkerSim();
+    Object.values(workerMarkers).forEach(w => w.marker.remove());
+    Object.keys(workerMarkers).forEach(k => delete workerMarkers[k]);
+}
+
 
 // ─── 위치 폴링 ────────────────────────────────────────────────
 

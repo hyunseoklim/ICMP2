@@ -1,0 +1,64 @@
+{% extends 'users/user_list.html' %}
+
+{% block title %}사용자 정보 조회 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{% block modal %}
+<div id="modal-overlay" class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-content bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div class="px-8 py-7">
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-slate-900 mb-1">사용자 정보 조회</h3>
+        <p class="text-xs text-slate-500">사용자의 프로필 정보를 조회합니다.</p>
+      </div>
+
+      <div class="space-y-3">
+        <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+          <span class="text-xs font-medium text-slate-700">사용자명</span>
+          <input type="text" value="{{ target_user.name|default:'김관리' }}" disabled
+            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
+        </div>
+        <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+          <span class="text-xs font-medium text-slate-700">아이디</span>
+          <input type="text" value="{{ target_user.username|default:'admin_kim' }}" disabled
+            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700 font-mono" />
+        </div>
+        <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+          <span class="text-xs font-medium text-slate-700">비밀번호</span>
+          <input type="password" value="********" disabled
+            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
+        </div>
+        <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+          <span class="text-xs font-medium text-slate-700">소속</span>
+          <input type="text" value="{{ target_user.dept|default:'관제운영팀' }}" disabled
+            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
+        </div>
+        <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+          <span class="text-xs font-medium text-slate-700">직위</span>
+          <input type="text" value="{{ target_user.position|default:'과장' }}" disabled
+            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
+        </div>
+        <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+          <span class="text-xs font-medium text-slate-700">계정 상태</span>
+          <input type="text" value="{{ target_user.status|default:'사용' }}" disabled
+            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
+        </div>
+        <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+          <span class="text-xs font-medium text-slate-700">이메일</span>
+          <input type="email" value="{{ target_user.email|default:'admin_kim@garameng.co.kr' }}" disabled
+            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
+        </div>
+        <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+          <span class="text-xs font-medium text-slate-700">연락처</span>
+          <input type="text" value="{{ target_user.phone|default:'010-2222-1111' }}" disabled
+            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 mt-6">
+        <a href="#" class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</a>
+        <a href="#" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">수정</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

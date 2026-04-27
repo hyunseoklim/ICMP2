@@ -89,7 +89,7 @@ function loadGeofences(floorId) {
     fetch(url)
         .then(r => r.json())
         .then(data => {
-            data.forEach(g => renderGeofence(g));
+            data.results.forEach(g => renderGeofence(g));
             startGeofencePolling(floorId);
         });
 }
