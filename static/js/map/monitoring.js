@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch(`${API_BASE}/buildings/?facility_id=${fid}`)
       .then(r => r.json())
       .then(data => {
-        data.forEach(b => {
+        data.results.forEach(b => {
           const opt = document.createElement('option');
           opt.value = b.id; opt.textContent = b.building_name;
           bSel.appendChild(opt);
@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch(`${API_BASE}/floors/?building_id=${bid}`)
       .then(r => r.json())
       .then(data => {
-        data.forEach(f => {
+        data.results.forEach(f => {
           const opt = document.createElement('option');
           opt.value = f.id; opt.textContent = f.floor_name;
           fSel.appendChild(opt);

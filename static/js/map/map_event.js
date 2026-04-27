@@ -6,19 +6,18 @@
  *       UI 패널 렌더링, 이벤트 로그 관리
  *
  * 의존성:
- *   map_config.js — MapManager, cellWidth, cellHeight,
- *                   floorWidthMeters, floorLengthMeters,
+ *   map_config.js — cellWidth, cellHeight, imgWidth, imgHeight,
  *                   currentFloorId, imageOverlay, map, API_BASE
- *   map_grid.js   — loadGridLayer()
- *   map_zone.js   — loadZoneLayer()
+ *   map_grid.js   — drawGrid()
+ *   map_zone.js   — loadZones()
  * 로드 순서: 모든 map_*.js 중 마지막
  *
  * 함수 목록:
- *   loadFloorData(floorId)     — 층 설정 로드 후 격자·구역·센서 갱신
- *   toggleLayer(name, visible) — MapManager 기반 레이어 지도 추가/제거
- *   applyTabFilter(filter)     — 탭별 레이어 일괄 ON/OFF
- *   showDetail(type, data)     — 상세 패널 HTML 렌더링
- *   addEvent(level, message)   — 이벤트 로그 항목 추가
+ *   loadFloorData(floorId)    — 층 설정 로드 후 격자·구역·센서 갱신
+ *   toggleLayer(name, visible)— 레이어 지도 추가/제거
+ *   applyTabFilter(filter)    — 탭별 레이어 일괄 ON/OFF
+ *   showDetail(type, data)    — 상세 패널 HTML 렌더링
+ *   addEvent(level, message)  — 이벤트 로그 항목 추가
  */
 
 // ─── 층 데이터 로드 ───────────────────────────────────────────
@@ -26,71 +25,89 @@
 /**
  * loadFloorData
  * 입력: floorId {number|string} — 선택된 층 ID
+ * 참조: API_BASE, currentFloorId, imageOverlay, map (map_config.js)
+ *       drawGrid() (map_grid.js), loadZones() (map_zone.js)
  * 출력:
  *   - currentFloorId 갱신
  *   - /api/floors/<id>/grid-data/ 에서 meter 기반 격자 정보 수신
- *   - floorWidthMeters(m), floorLengthMeters(m), cellWidth(m), cellHeight(m) 갱신
- *   - imageOverlay bounds 갱신 + 지도 뷰 재조정
- *   - loadGridLayer() 재호출로 SVG 격자 갱신
- *   - loadZoneLayer(), loadGeofences(), loadSensors(), startWorkerSim() 연쇄 호출
+ *   - imgWidth(m), imgHeight(m), cellWidth(m), cellHeight(m) 갱신
+ *   - imageOverlay bounds 갱신 (meter 기준) + 지도 뷰 재조정
+ *   - drawGrid(lines) 재호출로 격자 갱신
+ *   - loadZones(), loadGeofences(), loadSensors(), startWorkerSim() 연쇄 호출
+ *
+ * [수정 내역]
+ *   - API 엔드포인트 변경: /floor-grids/ → /floors/<id>/grid-data/
+ *   - 좌표계 변경: px → meter
+ *   - drawGrid 인자 변경: 4개 px 값 → lines 객체
  */
 function loadFloorData(floorId) {
-    currentFloorId = floorId;
+  currentFloorId = floorId;
 
-    fetch(`${API_BASE}/floors/${floorId}/grid-data/`)
-        .then(r => r.json())
-        .then(g => {
-            // meter 단위 전역 변수 갱신
-            floorWidthMeters  = g.width;
-            floorLengthMeters = g.length;
-            cellWidth         = g.cell_size;
-            cellHeight        = g.cell_size;
+  // meter 기반 grid-data API 호출
+  fetch(`${API_BASE}/floors/${floorId}/grid-data/`)
+    .then(r => r.json())
+    .then(g => {
+      // meter 단위 값으로 전역 변수 갱신
+      imgWidth   = g.width;      // m — floor.width
+      imgHeight  = g.length;     // m — floor.length
+      cellWidth  = g.cell_size;  // m
+      cellHeight = g.cell_size;  // m
 
-            // UI 입력 필드 동기화
-            const wEl = document.getElementById('grid-cell-w');
-            const hEl = document.getElementById('grid-cell-h');
-            if (wEl) wEl.value = g.cell_size;
-            if (hEl) hEl.value = g.cell_size;
+      // UI 입력 필드 동기화
+      document.getElementById('grid-cell-w').value = g.cell_size;
+      document.getElementById('grid-cell-h').value = g.cell_size;
 
-            // bounds를 meter 기준으로 설정 (Leaflet: [[y1,x1],[y2,x2]])
-            const bounds = [[0, 0], [floorLengthMeters, floorWidthMeters]];
-            imageOverlay.setUrl(g.floor_image || (typeof SAMPLE_IMAGE !== 'undefined' ? SAMPLE_IMAGE : '')
-            );
-            imageOverlay.setBounds(bounds);
-            map.fitBounds(bounds, {
-                padding: [0, 0],
-                maxZoom: map.getBoundsZoom(bounds, true),
-            });
-            map.setMaxBounds(bounds);
+      // bounds를 meter 기준으로 설정
+      // Leaflet L.CRS.Simple: [[y1,x1],[y2,x2]] → [[0,0],[length,width]]
+      const bounds = [[0, 0], [imgHeight, imgWidth]];
+      imageOverlay.setBounds(bounds);
+      // map.fitBounds(bounds);
+      map.setView([imgHeight / 2, imgWidth / 2], 0);
 
-            // SVG 격자 재렌더링 (map_grid.js)
-            loadGridLayer();
-        });
+      // 격자 렌더링 — lines를 그대로 전달, JS는 렌더링만
+      drawGrid(g.lines);
+    });
 
-    // 구역 재렌더링 (map_zone.js)
-    loadZoneLayer(floorId);
+  loadZones(floorId);
 
-    // 외부 모듈 — 존재할 경우에만 실행
-    if (window.loadGeofences)  loadGeofences(floorId);
-    if (window.loadSensors)    loadSensors(floorId);
-    if (window.startWorkerSim) startWorkerSim();
+  // 외부 모듈 — 존재할 경우에만 실행
+  if (window.loadGeofences)  loadGeofences(floorId);
+  if (window.loadSensors)    loadSensors(floorId);
+  if (window.startWorkerSim) startWorkerSim();
 }
 
 // ─── 레이어 ON/OFF ────────────────────────────────────────────
 
 /**
  * toggleLayer
- * MapManager에 등록된 레이어를 지도에 추가하거나 제거한다.
- *
  * 입력:
- *   name    {string}  — MAP_LAYERS의 name 값
- *                       (grid, zone, geofence, gas, power, location, device, worker)
+ *   name    {string}  — 레이어 키 (아래 layers 맵 참조)
  *   visible {boolean} — true: 지도에 추가 / false: 지도에서 제거
+ * 참조:
+ *   gridLayer, zoneLayer (map_config.js)
+ *   window.geofenceLayer, window.workerLayer, window.gasLayer,
+ *   window.powerLayer, window.locationLayer, window.deviceLayer (외부 모듈)
+ * 출력: 해당 레이어를 map에 추가하거나 제거
+ *
+ * 레이어 키 목록:
+ *   grid, zone, geofence, worker, gas, power, location, device
  */
 function toggleLayer(name, visible) {
-    const layer = MapManager.getLayer(name);
-    if (!layer) return;
-    visible ? map.addLayer(layer) : map.removeLayer(layer);
+  const layers = {
+    grid:     gridLayer,
+    zone:     zoneLayer,
+    geofence: window.geofenceLayer,
+    worker:   window.workerLayer,
+    gas:      window.gasLayer,
+    power:    window.powerLayer,
+    location: window.locationLayer,
+    device:   window.deviceLayer,
+  };
+
+  const layer = layers[name];
+  if (!layer) return;
+
+  visible ? map.addLayer(layer) : map.removeLayer(layer);
 }
 
 // ─── 탭 필터 ──────────────────────────────────────────────────
@@ -98,27 +115,26 @@ function toggleLayer(name, visible) {
 /**
  * applyTabFilter
  * 입력: filter {string} — 'all' | 'gas' | 'power' | 'worker' | 'device'
- * 출력: 각 레이어 ON/OFF + 대응 체크박스 상태 동기화
+ * 참조: toggleLayer()
+ * 출력:
+ *   - gas / power / worker / device 레이어 ON/OFF 일괄 적용
+ *   - 대응하는 DOM 체크박스(#layer-gas 등) 상태 동기화
  */
 function applyTabFilter(filter) {
-    const gasOn    = filter === 'all' || filter === 'gas';
-    const powerOn  = filter === 'all' || filter === 'power';
-    const workerOn = filter === 'all' || filter === 'worker';
-    const deviceOn = filter === 'all' || filter === 'device';
+  const gasOn    = filter === 'all' || filter === 'gas';
+  const powerOn  = filter === 'all' || filter === 'power';
+  const workerOn = filter === 'all' || filter === 'worker';
+  const deviceOn = filter === 'all' || filter === 'device';
 
-    toggleLayer('gas',    gasOn);
-    toggleLayer('power',  powerOn);
-    toggleLayer('worker', workerOn);
-    toggleLayer('device', deviceOn);
+  toggleLayer('gas',    gasOn);
+  toggleLayer('power',  powerOn);
+  toggleLayer('worker', workerOn);
+  toggleLayer('device', deviceOn);
 
-    const sync = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.checked = val;
-    };
-    sync('layer-gas',    gasOn);
-    sync('layer-power',  powerOn);
-    sync('layer-worker', workerOn);
-    sync('layer-device', deviceOn);
+  document.getElementById('layer-gas').checked    = gasOn;
+  document.getElementById('layer-power').checked  = powerOn;
+  document.getElementById('layer-worker').checked = workerOn;
+  document.getElementById('layer-device').checked = deviceOn;
 }
 
 // ─── 상세 패널 ────────────────────────────────────────────────
@@ -128,17 +144,21 @@ function applyTabFilter(filter) {
  * 입력:
  *   type {string} — 'zone' | 'sensor' | 'worker'
  *   data {object} — API 응답 객체
+ *     zone   필드: zone_name, zone_type, cell_row_start/end, cell_col_start/end
+ *     sensor 필드: device_name, status, sensor_type, x, y
+ *     worker 필드: worker_name, worker_status, cell_no, x, y
+ * 참조: DOM — #detail-panel, #detail-content
+ * 출력: #detail-panel 표시, #detail-content에 HTML 렌더링
  */
 function showDetail(type, data) {
-    const panel   = document.getElementById('detail-panel');
-    const content = document.getElementById('detail-content');
-    if (!panel || !content) return;
-    panel.style.display = 'block';
+  const panel   = document.getElementById('detail-panel');
+  const content = document.getElementById('detail-content');
+  panel.style.display = 'block';
 
-    let html = '';
+  let html = '';
 
-    if (type === 'zone') {
-        html = `
+  if (type === 'zone') {
+    html = `
       <div class="popup-title">${data.zone_name}</div>
       <div class="popup-row">
         <span>유형</span>
@@ -153,11 +173,11 @@ function showDetail(type, data) {
         </span>
       </div>`;
 
-    } else if (type === 'sensor') {
-        const statusClass = data.status === 'danger'  ? 'danger'
-                          : data.status === 'warning' ? 'warning'
-                          : 'normal';
-        html = `
+  } else if (type === 'sensor') {
+    const statusClass = data.status === 'danger'  ? 'danger'
+                      : data.status === 'warning' ? 'warning'
+                      : 'normal';
+    html = `
       <div class="popup-title">${data.device_name}</div>
       <div class="popup-row">
         <span>상태</span>
@@ -172,8 +192,8 @@ function showDetail(type, data) {
         <span class="popup-val">(${data.x}, ${data.y})</span>
       </div>`;
 
-    } else if (type === 'worker') {
-        html = `
+  } else if (type === 'worker') {
+    html = `
       <div class="popup-title">${data.worker_name}</div>
       <div class="popup-row">
         <span>상태</span>
@@ -187,9 +207,9 @@ function showDetail(type, data) {
         <span>위치</span>
         <span class="popup-val">(${data.x}, ${data.y})</span>
       </div>`;
-    }
+  }
 
-    content.innerHTML = html;
+  content.innerHTML = html;
 }
 
 // ─── 이벤트 로그 ──────────────────────────────────────────────
@@ -197,31 +217,33 @@ function showDetail(type, data) {
 /**
  * addEvent
  * 입력:
- *   level   {string} — 'info' | 'warning' | 'danger'
+ *   level   {string} — 'info' | 'warning' | 'danger' (CSS 클래스 키)
  *   message {string} — 표시할 메시지
+ * 참조: DOM — #event-list, #last-refresh
  * 출력:
- *   - #event-list 최상단에 항목 추가
+ *   - #event-list 최상단에 이벤트 항목 prepend
  *   - 50개 초과 시 가장 오래된 항목 제거
+ *   - #last-refresh 텍스트 갱신
  */
 function addEvent(level, message) {
-    const list = document.getElementById('event-list');
-    if (!list) return;
+  const list = document.getElementById('event-list');
+  const now  = new Date().toLocaleTimeString('ko-KR', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
 
-    const now = new Date().toLocaleTimeString('ko-KR', {
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-    });
+  const item = document.createElement('div');
+  item.className = `event-item ${level}`;
+  item.innerHTML = `<span class="event-time">${now}</span>${message}`;
+  list.prepend(item);
 
-    const item = document.createElement('div');
-    item.className = `event-item-map ${level}`;
-    item.innerHTML = `<span class="event-time">${now}</span>${message}`;
-    list.prepend(item);
+  // 최대 50개 유지
+  const items = list.querySelectorAll('.event-item');
+  if (items.length > 50) items[items.length - 1].remove();
 
-    const items = list.querySelectorAll('.event-item-map');
-    if (items.length > 50) items[items.length - 1].remove();
+  // 빈 상태 placeholder 제거
+  const empty = list.querySelector('[style]');
+  if (empty) empty.remove();
 
-    const empty = list.querySelector('[style]');
-    if (empty) empty.remove();
-
-    const refreshEl = document.getElementById('last-refresh');
-    if (refreshEl) refreshEl.textContent = new Date().toLocaleTimeString('ko-KR');
+  document.getElementById('last-refresh').textContent =
+    new Date().toLocaleTimeString('ko-KR');
 }

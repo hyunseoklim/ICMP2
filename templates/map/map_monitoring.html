@@ -5,12 +5,12 @@
   <link rel="stylesheet" href="{% static 'css/map/map_monitoring.css' %}">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
-{% endblock %}
+{% endblock %}  
 
 {% block page_content %}
 
 <div class="page-wrap">
-
+  
   <!-- 페이지 타이틀 -->
   <div class="page-title-bar">
     실시간 모니터링
@@ -24,6 +24,7 @@
     <button class="tab-btn-map" data-filter="gas">가스센서</button>
     <button class="tab-btn-map" data-filter="power">전력</button>
   </div>
+
 
   <!-- 본문 -->
   <div class="body-wrap">
@@ -92,7 +93,8 @@
         </div>
       </div>
 
-      <!-- 도구 -->
+
+      <!-- zone 지정 도구 -->
       <div class="panel-section">
         <div class="panel-label">도구</div>
         <button class="btn-dark-outline" style="width:100%;margin-bottom:4px;text-align:left" onclick="startZoneDraw()">
@@ -106,28 +108,27 @@
         </button>
       </div>
 
-      <!-- 격자 설정 (좌측 패널로 이동) -->
-      <div class="panel-section">
-        <div class="panel-label">격자 설정</div>
-        <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">셀 크기 (m) — 현재 1m 고정</div>
-        <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
-          <input type="number" id="grid-cell-w" value="1" min="1" max="10"
-                 style="width:54px;background:var(--bg-panel-2);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:12px;padding:3px 6px">
-          <span style="font-size:11px;color:var(--text-muted)">×</span>
-          <input type="number" id="grid-cell-h" value="1" min="1" max="10"
-                 style="width:54px;background:var(--bg-panel-2);border:1px solid var(--border);border-radius:4px;color:var(--text-primary);font-size:12px;padding:3px 6px">
-        </div>
-      </div>
-
     </div><!-- /left-panel -->
 
-    <!-- 지도 영역 -->
+    <!-- 지도 -->
     <div class="map-wrap">
+      <div id="map">
 
-      <!-- Leaflet 지도 컨테이너 -->
-      <div id="map"></div>
 
-      <!-- zone 저장 패널: 지도 위에 absolute로 표시되므로 map-wrap 안에 위치 -->
+    </div>
+      <!-- 격자 설정 -->
+      <div class="panel-section">
+        <div class="panel-label">격자 설정</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">셀 크기 (px)</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
+          <input type="number" id="grid-cell-w" value="50" min="10" max="200" style="width:54px;background:var(--bg-input);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);font-size:12px;padding:3px 6px">
+          <span style="font-size:11px;color:var(--text-muted)">×</span>
+          <input type="number" id="grid-cell-h" value="50" min="10" max="200" style="width:54px;background:var(--bg-input);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);font-size:12px;padding:3px 6px">
+        </div>
+        <button class="btn-dark-primary" style="width:100%" onclick="applyGrid()">격자 적용</button>
+      </div>
+    
+      <!-- zone 저장 패널 (셀 드래그 완료 후 표시) -->
       <div id="zone-draw-panel">
         <div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:8px">zone 정보 입력</div>
         <div style="margin-bottom:6px">
@@ -151,9 +152,7 @@
         </div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:6px" id="zone-cell-info"></div>
       </div>
-
-    </div><!-- /map-wrap -->
-
+      </div>   <!-- 지도 -->
     <!-- 우측 패널 -->
     <div class="right-panel">
 
@@ -210,9 +209,11 @@
 
 {% block script %}
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- leaflet.js 바로 아래에 추가 -->
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script>
-  const API_BASE    = '/api';
+  const FLOOR_ID = null;
+  const API_BASE = '/api';
   const SAMPLE_IMAGE = "{{ MEDIA_URL }}img/sample_floor.png";
 </script>
 <script src="{% static 'js/map/map_config.js' %}"></script>
@@ -226,3 +227,8 @@
 <script src="{% static 'js/map/monitoring.js' %}"></script>
 <script src="{% static 'js/map/map_init.js' %}"></script>
 {% endblock %}
+
+
+
+
+

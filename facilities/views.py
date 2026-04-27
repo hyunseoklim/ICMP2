@@ -193,7 +193,6 @@ def floor_grid_data(request, floor_id):
         "cell_size": cell_size,
         "cols":      cols,
         "rows":      rows,
-        "floor_image": floor.plan_image.url if floor.plan_image else '',
         "lines": {
             "vertical": [
                 {"x": round(c * cell_size, 6), "y1": 0, "y2": length}
