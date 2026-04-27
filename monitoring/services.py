@@ -6,9 +6,10 @@ from django.utils import timezone
 # ──────────────────────────────────────────────────────────
 
 # O2는 다른 가스와 반대로 수치가 낮을수록 위험 (정상: 18% 이상 / 주의: 16~18% / 위험: 16% 미만)
-# 임계치 정의서에 정상 범위는 18-23.5인데 23.5인 경우 주의, 위험 구분해야 하는지도 질문 후 
+# 임계치 정의서에 정상 범위는 18-23.5인데 23.5인 경우 주의, 위험 구분해야 하는지 디코나이 측에서 답변 주실 예정
 O2_WARN   = 18
 O2_DANGER = 16
+O2_HIGH = 23.5
 
 # 위험도 문자열 비교를 위한 우선순위 매핑
 # max() 함수에서 key로 사용 → 여러 가스 중 가장 높은 위험도 선택
@@ -70,26 +71,29 @@ def calc_danger_level(reading) -> str:
     - 여러 가스가 동시에 임계치 초과하면 가장 높은 위험도 반환
       ex) co=주의, h2s=위험 → '위험' 반환
     - O2는 낮을수록 위험한 역방향이므로 먼저 별도 체크
+    - O2 > 23.5% 는 기준 미정이므로 임시 주의 처리
     """
     thresholds = get_thresholds()
-    level = "정상"  # 초기값, 루프 돌면서 높은 위험도로 갱신
+    level = "정상"
 
     # O2 먼저 체크 (역방향: 수치가 낮을수록 위험)
     if reading.o2 is not None:
         if reading.o2 < O2_DANGER:
             level = "위험"
         elif reading.o2 < O2_WARN:
-            # max()로 현재 level과 비교해서 더 높은 위험도 유지
+            level = max(level, "주의", key=lambda x: LEVEL_PRIORITY[x])
+        elif reading.o2 > O2_HIGH:
+            # 23.5% 초과: 기준 미정, 임시 주의 처리 (디코나이 확인 필요)
             level = max(level, "주의", key=lambda x: LEVEL_PRIORITY[x])
 
     # 나머지 가스 체크 (높을수록 위험)
     for gas, (warn, danger) in thresholds.items():
         if gas == "o2":
-            continue  # O2는 위에서 이미 처리했으므로 건너뜀
+            continue
 
         value = getattr(reading, gas, None)
         if value is None:
-            continue  # 측정값 없으면 건너뜀
+            continue
 
         if value >= danger:
             level = "위험"
@@ -117,6 +121,9 @@ def check_threshold_exceeded(reading) -> list:
         if reading.o2 < O2_DANGER:
             exceeded.append({"gas": "o2", "value": reading.o2, "level": "위험"})
         elif reading.o2 < O2_WARN:
+            exceeded.append({"gas": "o2", "value": reading.o2, "level": "주의"})
+        elif reading.o2 > O2_HIGH:
+            # 23.5% 초과: 기준 미정, 임시 주의 처리 (디코나이 확인 후 수정 예정)
             exceeded.append({"gas": "o2", "value": reading.o2, "level": "주의"})
 
     thresholds = get_thresholds()

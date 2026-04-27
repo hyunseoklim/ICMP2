@@ -1,0 +1,379 @@
+/* =========================================================
+   power_detail.css — 전력 상세 페이지 전용 스타일
+   style.css의 CSS 변수 및 공통 클래스 활용
+   ========================================================= */
+
+/* ── 페이지 래퍼 ─────────────────────────────────────────── */
+.detail-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--header-h));
+    overflow: hidden;
+}
+
+/* ── 페이지 타이틀 ───────────────────────────────────────── */
+.detail-title {
+    font-size: 16px;
+    font-weight: 700;
+    padding: 12px 16px 0;
+    flex-shrink: 0;
+}
+.detail-title .title-accent {
+    color: var(--accent-cyan);
+}
+
+/* ── 전체 레이아웃 ───────────────────────────────────────── */
+.detail-layout {
+    display: flex;
+    gap: var(--gap);
+    padding: var(--gap);
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ── 좌측 패널 ───────────────────────────────────────────── */
+.detail-left {
+    width: 320px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    overflow: hidden;
+}
+
+.power-list-panel {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── 설비 리스트 테이블 ──────────────────────────────────── */
+.power-list-panel .data-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.power-list-panel .data-table th:nth-child(1),
+.power-list-panel .data-table td:nth-child(1) {
+    width: 36px;
+    text-align: center;
+}
+.power-list-panel .data-table th:nth-child(2),
+.power-list-panel .data-table td:nth-child(2) {
+    width: auto;
+    white-space: normal;    /* ← 줄바꿈 허용 */
+    word-break: break-all;
+}
+.power-list-panel .data-table th:nth-child(3),
+.power-list-panel .data-table td:nth-child(3) {
+    width: 55px;
+    text-align: center;
+    white-space: nowrap;
+}
+.power-list-panel .data-table th:nth-child(4),
+.power-list-panel .data-table td:nth-child(4) {
+    width: 55px;
+    text-align: center;
+    white-space: nowrap;
+}
+.power-list-panel .data-table th:nth-child(5),
+.power-list-panel .data-table td:nth-child(5) {
+    width: 50px;
+    text-align: center;
+    white-space: nowrap;
+}
+.power-list-panel .data-table th:nth-child(6),
+.power-list-panel .data-table td:nth-child(6) {
+    width: 60px;
+    text-align: center;
+    vertical-align: middle;
+    padding: 4px 10px;
+}
+
+/* ── 설비 리스트 행 ──────────────────────────────────────── */
+.power-equip-item {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.power-equip-item:hover { background: var(--bg-hover); }
+.power-equip-item--active {
+    background: rgba(34,211,238,0.06) !important;
+}
+.power-equip-item--active td:first-child {
+    border-left: 2px solid var(--accent-cyan);
+}
+
+/* ── 연결 상태 ───────────────────────────────────────────── */
+.conn-status      { font-size: 11px; font-weight: 600; }
+.conn-status--ok { color: var(--text-primary); }
+.conn-status--off { color: var(--text-muted); }
+.conn-status--err { color: var(--danger); }
+
+/* 통신불능 배지 — 밝은 회색, bold */
+.level-badge.level--error-comm {
+    background: rgba(130,130,130,0.25);
+    color: #aaa;
+    border: 1px solid rgba(150,150,150,0.5);
+    font-weight: 600;
+}
+
+/* OFF 위험도 — 테두리 없이 회색 글씨 */
+.power-danger-off {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* 통신불능/OFF 행 배경 투명 */
+.row--error td { background: transparent; }
+
+/* OFF/통신불능 카드 */
+.power-chart-card--off   { border-color: var(--border); opacity: 0.5; }
+.power-chart-card--error { border-color: var(--border); opacity: 0.6; }
+
+/* 위험도 칸 여백 */
+.power-list-panel .data-table td:nth-child(6) {
+    padding: 5px 5px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* ── 재가동 버튼 ─────────────────────────────────────────── */
+.power-action-row {
+    display: flex;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+.power-restart-btn {
+    padding: 6px 20px;
+    background: var(--danger);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    transition: opacity 0.15s;
+}
+.power-restart-btn:disabled {
+    background: var(--bg-panel-2);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+.power-restart-btn:not(:disabled):hover { opacity: 0.8; }
+
+/* ── 위험도별 행 배경 ────────────────────────────────────── */
+.row--danger  td { background: var(--danger-bg); }
+.row--warning td { background: var(--warning-bg); }
+.row--normal  td { background: transparent; }
+.row--danger:hover  td { background: rgba(239,68,68,0.22); }
+.row--warning:hover td { background: rgba(245,158,11,0.22); }
+
+/* ── 우측 메인 패널 ──────────────────────────────────────── */
+.detail-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* ── 탭 + 범례 행 ────────────────────────────────────────── */
+.detail-tab-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px;
+    flex-shrink: 0;
+}
+
+.chart-legend {
+    display: flex;
+    gap: 10px;
+    font-size: 10px;
+    color: var(--text-muted);
+    padding-right: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-line  { display: inline-block; width: 16px; height: 2px; }
+.legend-line--warn   { background: var(--warning); }
+.legend-line--danger { background: var(--danger); }
+.legend-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    opacity: 0.6;
+}
+.legend-swatch--warn   { background: var(--warning); }
+.legend-swatch--danger { background: var(--danger); }
+
+/* ── 탭 콘텐츠 ───────────────────────────────────────────── */
+.tab-content {
+    display: none;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+.tab-content.active { display: block; }
+
+/* ── 전력 차트 그리드 ────────────────────────────────────── */
+.power-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--gap);
+    padding: var(--gap);
+}
+
+.power-chart-card {
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 170px;
+    transition: border-color 0.2s;
+    cursor: pointer;
+}
+.power-chart-card:hover { border-color: var(--border-light); }
+.power-chart-card--danger  { border-color: var(--danger-border)  !important; }
+.power-chart-card--warning { border-color: var(--warning-border) !important; }
+.power-chart-card--normal  { border-color: var(--border); }
+.power-chart-card--error   { border-color: var(--text-muted); opacity: 0.5; }
+
+.power-chart-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.power-chart-card__name  { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+.power-chart-card__badge { font-size: 10px; flex-shrink: 0; }
+
+.power-chart-card__canvas-wrap {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+.power-chart-card__canvas-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* ── OFF / 통신불능 라벨 ─────────────────────────────────── */
+.power-state-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+.power-state-label--off   { color: var(--text-muted); }
+.power-state-label--error { color: var(--danger); }
+
+/* 통신불능 카드 테두리 */
+.power-chart-card--error {
+    border-color: var(--danger-border) !important;
+    opacity: 0.8;
+}
+/* OFF 카드 테두리 */
+.power-chart-card--off {
+    border-color: var(--border);
+    opacity: 0.5;
+}
+
+/* 연결 상태 OFF */
+.conn-status--off { color: var(--text-muted); }
+
+/* ── 센서 요약 뱃지 ──────────────────────────────────────── */
+.sensor-summary {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.badge--danger  { background: var(--danger-bg);  color: var(--danger);  border: 1px solid var(--danger-border); }
+.badge--warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+.badge--normal  { background: var(--normal-bg);  color: var(--normal);  border: 1px solid var(--normal-border); }
+
+/* ── 4차 coming soon ─────────────────────────────────────── */
+.coming-soon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* ── 긴급 액션바 ─────────────────────────────────────────── */
+.alert-bar {
+    display: none;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 16px;
+    background: var(--danger-bg);
+    border: 1px solid var(--danger-border);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    flex-shrink: 0;
+    color: #fff;
+    margin: 0 var(--gap) var(--gap);
+}
+.alert-bar--danger  { background: var(--danger-bg);  border-color: var(--danger-border); }
+.alert-bar--warning { background: var(--warning-bg); border-color: var(--warning-border); }
+
+.alert-bar__indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    flex-shrink: 0;
+    animation: blink 1s ease-in-out infinite;
+}
+.alert-bar--warning .alert-bar__indicator { background: var(--warning); }
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.2; }
+}
+
+.alert-bar__sensor {
+    font-family: var(--font-mono);
+    color: #fff;
+    font-weight: 700;
+    flex-shrink: 0;
+    padding: 2px 10px;
+    background: var(--danger);
+    border-radius: var(--radius-sm);
+}
+.alert-bar--warning .alert-bar__sensor { background: var(--warning); color: #000; }
+.alert-bar__divider { color: var(--border-light); flex-shrink: 0; }
+.alert-bar__msg     { flex: 1; color: #fff; }
+.alert-bar__action  { color: #fff; font-weight: 600; flex-shrink: 0; }
+.alert-bar__time    {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}

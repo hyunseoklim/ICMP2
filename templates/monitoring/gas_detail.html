@@ -1,77 +1,122 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}유해가스 관리 — 산재 예방 통합 관제시스템{% endblock %}
+{% block title %}실시간/AI 예측 유해가스 현황 — 산재 예방 통합 관제시스템{% endblock %}
 
-{# 세부 페이지: 중앙 영역과 하단 전체를 유해가스 전용 UI로 교체 #}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/gas_detail.css' %}">
+{% endblock %}
 
 {% block page_content %}
-<main class="detail-layout">
+<div class="detail-page">
 
-    <aside class="left">
-        {% include "components/mysafety.html" %}
-        {% include "components/worker_status.html" %}
-    </aside>
+    <!-- 페이지 타이틀 -->
+    <h2 class="detail-title">
+        <span class="title-accent">실시간/AI 예측</span> 유해가스 현황
+    </h2>
 
-    <div class="detail-main">
+    <div class="detail-layout">
 
-        <!-- 상단: 가스 현황 요약 카드 행 -->
-        <section class="detail-summary">
-            <div class="summary-card danger">
-                <span class="summary-label">위험 센서</span>
-                <span class="summary-value" id="gas-danger-count">{{ gas_stats.danger_count }}</span>
-            </div>
-            <div class="summary-card warning">
-                <span class="summary-label">주의 센서</span>
-                <span class="summary-value" id="gas-warning-count">{{ gas_stats.warning_count }}</span>
-            </div>
-            <div class="summary-card normal">
-                <span class="summary-label">정상 센서</span>
-                <span class="summary-value" id="gas-normal-count">{{ gas_stats.normal_count }}</span>
-            </div>
-            <div class="summary-card info">
-                <span class="summary-label">마지막 갱신</span>
-                <span class="summary-value mono" id="gas-last-update">--:--:--</span>
-            </div>
-        </section>
+        <!-- ── 좌측 패널 ── -->
+        <aside class="detail-left">
 
-        <!-- 중앙: 가스 센서 상세 테이블 + 지도 -->
-        <section class="detail-body two-col">
-            <div class="panel">
+            <!-- 센서 목록 -->
+            <section class="panel sensor-list-panel">
                 <div class="panel-header">
-                    <h2>유해가스 센서 현황</h2>
-                    <select id="sensor-filter" class="filter-select">
-                        <option value="all">전체 센서</option>
-                        <option value="danger">위험</option>
-                        <option value="warning">주의</option>
-                        <option value="normal">정상</option>
-                    </select>
+                    <h3>유해가스 센서 목록</h3>
+                    <div class="sensor-summary">
+                        <span class="badge badge--danger">위험 <span id="summary-danger">0</span></span>
+                        <span class="badge badge--warning">주의 <span id="summary-warning">0</span></span>
+                        <span class="badge badge--normal">정상 <span id="summary-normal">0</span></span>
+                    </div>
                 </div>
-                {% include "components/gas_status.html" %}
-            </div>
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>센서 위치 지도</h2>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>센서 ID</th>
+                                <th>현재 주요 위험 가스</th>
+                                <th>연결 상태</th>
+                                <th>위험 상태</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sensor-list">
+                            <tr><td colspan="4" class="text-center">로딩 중...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div id="gas-map" class="sensor-map"></div>
-            </div>
-        </section>
+            </section>
 
-        <!-- 하단: AI 예측 전체 뷰 -->
-        <section class="detail-predict">
-            <div class="panel full-width">
+            <!-- 유해가스 위험 현황 -->
+            <section class="panel gas-detail-panel">
                 <div class="panel-header">
-                    <h2>AI 예측 — 유해가스 위험도 (24시간)</h2>
+                    <h3>유해가스 위험 현황</h3>
+                    <span class="current-sensor-badge" id="current-sensor-name">-</span>
                 </div>
-                {% include "components/ai_gas_predict.html" with full_view=True %}
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>가스 종류</th>
+                                <th>현재 농도</th>
+                                <th>측정 단위</th>
+                                <th>위험도</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gas-tbody">
+                            <tr><td colspan="4" class="text-center">센서를 선택하세요</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </aside>
+
+        <!-- ── 우측 메인 패널 ── -->
+        <div class="detail-main">
+
+            <!-- 탭 + 범례 -->
+            <div class="detail-tab-row">
+                <nav class="tab-nav" role="tablist">
+                    <button class="tab-btn active" data-tab="realtime" role="tab">실시간 현황</button>
+                    <button class="tab-btn" data-tab="ai" role="tab">AI 예측</button>
+                </nav>
+                <div class="chart-legend">
+                    <span class="legend-item"><i class="legend-line legend-line--warn"></i> 주의 임계치</span>
+                    <span class="legend-item"><i class="legend-line legend-line--danger"></i> 위험 임계치</span>
+                    <span class="legend-item"><i class="legend-swatch legend-swatch--warn"></i> 주의 범위</span>
+                    <span class="legend-item"><i class="legend-swatch legend-swatch--danger"></i> 위험 범위</span>
+                </div>
             </div>
-        </section>
+
+            <!-- 실시간 현황 탭 -->
+            <div class="tab-content active" id="tab-realtime">
+                <div class="gas-chart-grid" id="gas-chart-grid">
+                    <!-- JS에서 9개 차트 카드 동적 생성 -->
+                </div>
+            </div>
+
+            <!-- AI 예측 탭 (4차) -->
+            <div class="tab-content" id="tab-ai">
+                <div class="coming-soon">
+                    <p>🔧 AI 예측 기능은 4차에서 구현 예정입니다.</p>
+                </div>
+            </div>
+
+            <!-- 긴급 액션바 — 위험/주의 감지 시에만 표시 -->
+            <div class="alert-bar" id="alert-bar" style="display:none;">
+                <span class="alert-bar__indicator"></span>
+                <span class="alert-bar__sensor" id="alert-sensor">-</span>
+                <span class="alert-bar__divider">|</span>
+                <span class="alert-bar__msg" id="alert-msg">-</span>
+                <span class="alert-bar__divider">|</span>
+                <span class="alert-bar__action" id="alert-action">-</span>
+                <span class="alert-bar__time" id="alert-time">-</span>
+            </div>
+
+        </div>
 
     </div>
-</main>
-{% endblock page_content %}
 
-#화면 틀만 확인하기 위해 주석처리함
-{% block script %}
-<script src="{% static 'js/gas_detail.js' %}"></script>
-{% endblock %}
+</div>
+{% endblock page_content %}

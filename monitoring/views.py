@@ -37,12 +37,12 @@ class MonitoringDashboardView(TemplateView):
 
 class GasSensorManageView(TemplateView):
     """유해가스 센서 관리 페이지"""
-    template_name = "monitoring/gas_sensor.html"
+    template_name = "monitoring/gas_detail.html"
 
 
 class PowerSystemManageView(TemplateView):
     """스마트 전력 시스템 관리 페이지"""
-    template_name = "monitoring/power_system.html"
+    template_name = "monitoring/power_detail.html"
 
 
 # ── API ViewSets (DRF JSON 데이터) ─────────────────────────

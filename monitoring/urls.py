@@ -33,10 +33,10 @@ router.register("actions",               ActionLogViewSet,           basename="a
 # ── URL Patterns ───────────────────────────────────────────
 urlpatterns = [
     # 페이지 URL
-    path("monitoring/",        MonitoringDashboardView.as_view(), name="monitoring_dashboard"),
-    path("monitoring/gas/",    GasSensorManageView.as_view(),     name="monitoring_gas"),
-    path("monitoring/power/",  PowerSystemManageView.as_view(),   name="monitoring_power"),
+    path("",        MonitoringDashboardView.as_view(), name="monitoring_dashboard"),
+    path("gas/",    GasSensorManageView.as_view(),     name="monitoring_gas"),
+    path("power/",  PowerSystemManageView.as_view(),   name="monitoring_power"),
 
     # API URL
-    path("api/monitoring/", include(router.urls)),
+    path("api/", include(router.urls)),
 ]

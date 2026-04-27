@@ -22,9 +22,7 @@ class User(AbstractUser):
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True)
     user_type = models.CharField(max_length=20, choices=UserType.choices, default=UserType.WORKER)
-    department = models.ForeignKey(
-        Department, on_delete=models.SET_NULL, null=True, blank=True,related_name="users"
-    )
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True,related_name="users")
     position = models.CharField(max_length=100, blank=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
 

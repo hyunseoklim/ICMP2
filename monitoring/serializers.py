@@ -12,7 +12,7 @@ from monitoring.models import (
     InspectionLog,
     ActionLog,
 )
-
+from monitoring.services import calc_danger_level, check_threshold_exceeded
 
 # ── Device ────────────────────────────────────────────────
 
@@ -64,6 +64,18 @@ GAS_FIELDS = ["co", "h2s", "co2", "o2", "no2", "so2", "o3", "nh3", "voc"]
 
 
 class GasReadingSerializer(serializers.ModelSerializer):
+    danger_level = serializers.SerializerMethodField()
+    gas_levels   = serializers.SerializerMethodField()
+
+    def get_danger_level(self, obj):          # ← 이게 빠져있었음
+        return calc_danger_level(obj)
+
+    def get_gas_levels(self, obj):
+        exceeded = check_threshold_exceeded(obj)
+        levels = {gas: 'normal' for gas in GAS_FIELDS}
+        for item in exceeded:
+            levels[item['gas']] = 'danger' if item['level'] == '위험' else 'warning'
+        return levels
 
     class Meta:
         model            = GasReading
@@ -71,7 +83,6 @@ class GasReadingSerializer(serializers.ModelSerializer):
         read_only_fields = ["received_at"]
 
     def validate(self, data):
-        """가스 수치 음수 검증 (O2 포함 모두 0 이상이어야 함)"""
         for field in GAS_FIELDS:
             value = data.get(field)
             if value is not None and value < 0:
@@ -94,6 +105,9 @@ class PowerStatusReadingSerializer(serializers.ModelSerializer):
 # ── PowerReading ───────────────────────────────────────────
 
 class PowerReadingSerializer(serializers.ModelSerializer):
+    channel_name      = serializers.CharField(source="channel.channel_name", read_only=True)
+    channel_code      = serializers.CharField(source="channel.channel_code", read_only=True)
+    channel_rated_power = serializers.IntegerField(source="channel.rated_power_w", read_only=True)
 
     class Meta:
         model            = PowerReading
@@ -101,10 +115,6 @@ class PowerReadingSerializer(serializers.ModelSerializer):
         read_only_fields = ["received_at"]
 
     def validate(self, data):
-        """
-        전류/전압/전력 값 검증
-        -1(통신불능) 또는 0 이상만 허용
-        """
         for field in ["current_a", "voltage_v", "power_w"]:
             value = data.get(field)
             if value is not None and value < -1:

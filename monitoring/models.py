@@ -85,6 +85,7 @@ class DeviceChannel(models.Model):
     y_position   = models.FloatField(null=True, blank=True, help_text="공장 지도 Y좌표")
     is_active    = models.BooleanField(default=True, help_text="ON/OFF 스위치 상태")
     status       = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    rated_power_w = models.PositiveIntegerField(default=1000, help_text="채널 정격 전력(W). 카탈로그 기준 1CH Max 1000W. 설비별 실제값으로 수정 하도록")
 
     class Meta:
         db_table            = "device_channels"
