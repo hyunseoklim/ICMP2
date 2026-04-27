@@ -262,7 +262,7 @@ function loadZoneLayer(floorId) {
     fetch(`${API_BASE}/zones/?floor_id=${floorId}`)
         .then(r => r.json())
         .then(data => {
-            data.forEach(zone => renderZone(zone, zoneLayer));
+            data.results.forEach(zone => renderZone(zone, zoneLayer));
         })
         .catch(err => console.error('🚫 [Zone] 데이터 로드 실패:', err));
 }

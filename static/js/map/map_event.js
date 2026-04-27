@@ -50,29 +50,40 @@ function loadFloorData(floorId) {
             if (wEl) wEl.value = g.cell_size;
             if (hEl) hEl.value = g.cell_size;
 
+            // 1. CRS 계산
+            const mapEl = document.getElementById('map');
+            const scale = Math.min(
+                mapEl.offsetWidth  / floorWidthMeters,
+                mapEl.offsetHeight / floorLengthMeters
+            );
+            const CustomCRS = L.extend({}, L.CRS.Simple, {
+                transformation: new L.Transformation(scale, 0, -scale, 0)
+            });
+
+            // 2. map 재생성 (CRS 적용)
+            initMap(CustomCRS);
+
+            // 3. 이벤트 재등록
+            initZoneEvents();
+
+            // 4. image/bounds 설정
             const bounds = [[0, 0], [floorLengthMeters, floorWidthMeters]];
             imageOverlay.setUrl(g.floor_image || (typeof SAMPLE_IMAGE !== 'undefined' ? SAMPLE_IMAGE : ''));
             imageOverlay.setBounds(bounds);
-            
-            map.fitBounds(bounds, {
-                padding: [0, 0],
-                maxZoom: map.getBoundsZoom(bounds, true),
-            });
+            map.fitBounds(bounds, { padding: [0, 0] });
             map.setMaxBounds(bounds);
 
-            // fitBounds 완료 후 격자 그리기
+            // 5. 좌표계 확정 후 렌더링
             map.once('moveend', function() {
-                loadGridLayer();  // ← moveend 이후 실행!
+                loadGridLayer();
+                loadZoneLayer(floorId);
             });
         });
-
-    loadZoneLayer(floorId);
 
     if (window.loadGeofences)  loadGeofences(floorId);
     if (window.loadSensors)    loadSensors(floorId);
     if (window.startWorkerSim) startWorkerSim();
 }
-
 // ─── 레이어 ON/OFF ────────────────────────────────────────────
 
 /**

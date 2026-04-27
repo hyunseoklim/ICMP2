@@ -36,13 +36,13 @@ let currentFloorId = null;   // 현재 활성 층 ID (API 키)
 // interactive: false → pointerEvents: none (클릭 이벤트 통과)
 
 const MAP_LAYERS = [
-    { name: 'grid',     pane: 'gridPane',     zIndex: 200, interactive: false },
+    { name: 'grid',     pane: 'gridPane',     zIndex: 650, interactive: false },
     { name: 'zone',     pane: 'zonePane',     zIndex: 300, interactive: true  },
     { name: 'geofence', pane: 'geofencePane', zIndex: 350, interactive: true  },
     { name: 'gas',      pane: 'gasPane',      zIndex: 400, interactive: true  },
     { name: 'power',    pane: 'powerPane',    zIndex: 410, interactive: true  },
-    { name: 'location', pane: 'locationPane', zIndex: 420, interactive: true  },
-    { name: 'device',   pane: 'devicePane',   zIndex: 430, interactive: true  },
+    { name: 'locationNode', pane: 'locationNodePane', zIndex: 420, interactive: true  },
+    { name: 'equipment',   pane: 'equipmentPane',   zIndex: 430, interactive: true  },
     { name: 'worker',   pane: 'workerPane',   zIndex: 500, interactive: true  },
 ];
 
@@ -57,9 +57,9 @@ const MapManager = {
      * MAP_LAYERS 등록부를 순회하여 Pane과 LayerGroup을 생성·등록한다.
      * 멱등성: 이미 존재하는 Pane/레이어는 재생성하지 않고 데이터만 비운다.
      */
-    syncLayers: function (map) {
+    syncLayers: function(map) {
         MAP_LAYERS.forEach(layer => {
-            // 1. Pane 생성 (중복 방지)
+            // Pane 생성
             if (!map.getPane(layer.pane)) {
                 const pane = map.createPane(layer.pane);
                 pane.style.zIndex = layer.zIndex;
@@ -67,13 +67,8 @@ const MapManager = {
                     pane.style.pointerEvents = 'none';
                 }
             }
-
-            // 2. LayerGroup 생성 및 장부 등록
-            if (this.layers[layer.name]) {
-                this.layers[layer.name].clearLayers();   // 기존 데이터만 삭제
-            } else {
-                this.layers[layer.name] = L.layerGroup([], { pane: layer.pane }).addTo(map);
-            }
+            // 항상 새로 생성해서 새 map에 추가
+            this.layers[layer.name] = L.layerGroup([], { pane: layer.pane }).addTo(map);
         });
     },
 
@@ -102,8 +97,8 @@ let zoneHighlightRect = null;    // L.Rectangle — 드래그 중 임시 사각�
 
 // ─── 격자 스타일 상수 ─────────────────────────────────────────
 
-const GRID_COLOR  = 'rgba(255, 0, 0, 0.4)';   // 격자선 색상
-const GRID_WEIGHT = 0.5;                        // 격자선 두께(px)
+const GRID_COLOR  = 'rgb(255, 0, 0)';  // 진한 빨강
+const GRID_WEIGHT = 0.02;                    // 미터 단위
 
 // ─── Zone 색상 맵 ─────────────────────────────────────────────
 // zone_type 값을 키로 사용 / renderZone()에서 참조됨

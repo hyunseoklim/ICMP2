@@ -30,33 +30,48 @@
  *   - 마우스 이벤트 등록은 map_init.js의 initZoneEvents()에서 수행한다.
  *   - 격자·구역 데이터 주입은 loadFloorData() 호출 시 각 담당 파일이 수행한다.
  */
-function initMap() {
+
+function initMap(crs) {  // ← crs 파라미터 추가
+    if (map) {
+        map.remove();
+        map = null;
+    }
     map = L.map('map', {
-        crs:         L.CRS.Simple,
+        crs:         crs || L.CRS.Simple,  // ← 수정
         minZoom:     -3,
         maxZoom:     3,
         zoomControl: false,
     });
-
-    // MAP_LAYERS 등록부를 순회하여 Pane과 LayerGroup을 일괄 생성
     MapManager.syncLayers(map);
-
-    const bounds = [[0, 0], [floorLengthMeters, floorWidthMeters]];
-    imageOverlay = L.imageOverlay(SAMPLE_IMAGE, bounds, { opacity: 0.85 }).addTo(map);
-
-    map.fitBounds(bounds, { padding: [0, 0] });
-    map.setMaxBounds(bounds);
-
-    map.once('moveend', function() {
-    loadGridLayer();       // ← moveend 이후로 이동!
-    loadZoneLayer(currentFloorId);
-    });
-    // 도면 데이터가 없는 초기 상태에서도 지도를 표시할 수 있도록
-    // imageOverlay를 빈 bounds로 미리 생성해 둔다.
-    // 실제 URL과 크기는 loadFloorData()에서 setBounds/setUrl로 교체한다.
-    const initialBounds = [[0, 0], [1, 1]];
-    imageOverlay = L.imageOverlay('', initialBounds, { opacity: 0.85 }).addTo(map);
+    imageOverlay = L.imageOverlay('', [[0,0],[1,1]], { opacity: 0.85 }).addTo(map);
 }
+// function initMap() {
+//     map = L.map('map', {
+//         crs:         L.CRS.Simple,
+//         minZoom:     -3,
+//         maxZoom:     3,
+//         zoomControl: false,
+//     });
+
+//     // MAP_LAYERS 등록부를 순회하여 Pane과 LayerGroup을 일괄 생성
+//     MapManager.syncLayers(map);
+
+//     const bounds = [[0, 0], [floorLengthMeters, floorWidthMeters]];
+//     imageOverlay = L.imageOverlay(SAMPLE_IMAGE, bounds, { opacity: 0.85 }).addTo(map);
+
+//     map.fitBounds(bounds, { padding: [0, 0] });
+//     map.setMaxBounds(bounds);
+
+//     map.once('moveend', function() {
+//     loadGridLayer();       // ← moveend 이후로 이동!
+//     loadZoneLayer(currentFloorId);
+//     });
+//     // 도면 데이터가 없는 초기 상태에서도 지도를 표시할 수 있도록
+//     // imageOverlay를 빈 bounds로 미리 생성해 둔다.
+//     // 실제 URL과 크기는 loadFloorData()에서 setBounds/setUrl로 교체한다.
+//     // const initialBounds = [[0, 0], [1, 1]];
+//     // imageOverlay = L.imageOverlay('', initialBounds, { opacity: 0.85 }).addTo(map);
+// }
 
 // ─── 지도 조작 ────────────────────────────────────────────────
 // HTML에서 onclick="fitMapView()" / onclick="zoomIn()" 형태로 직접 호출됨

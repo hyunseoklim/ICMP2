@@ -307,8 +307,15 @@ class Zone(models.Model):
 class Equipment(models.Model):
     floor = models.ForeignKey('facilities.Floor',on_delete=models.SET_NULL,null= True, related_name='equipments')
     zone = models.ForeignKey("facilities.Zone",on_delete=models.SET_NULL, null= True )
-    equipment_name = models.CharField(max_length=20)  # "냉각 설비 2호"
     equipment_code = models.CharField(max_length=20)  # "B-02"
+    equipment_name = models.CharField(max_length=20)  # "냉각 설비 2호"
+    status = models.CharField(
+    max_length=20,
+    choices=[('active', '운영중'), ('inactive', '비운영'), ('maintenance', '점검중')],
+    default='active',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'equipments'

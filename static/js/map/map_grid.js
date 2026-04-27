@@ -22,7 +22,9 @@ function setupSVGGrid(gridLayer, widthMeters, heightMeters) {
     svg.innerHTML = `
       <defs>
         <pattern id="gridPattern" width="1" height="1" patternUnits="userSpaceOnUse">
-          <path d="M 1 0 L 0 0 0 1" fill="none" stroke="${GRID_COLOR}"  stroke-width="0.05"/>
+          <rect width="1" height="1" fill="none" 
+                stroke="${GRID_COLOR}" 
+                stroke-width="${GRID_WEIGHT}"/>
         </pattern>
       </defs>
       <rect width="${widthMeters}" height="${heightMeters}" fill="url(#gridPattern)" />
