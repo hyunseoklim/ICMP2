@@ -160,7 +160,7 @@ def mysafety_history(request):
         from facilities.models import Worker
         dept_q = request.GET.get("dept", "")
         name_q = request.GET.get("q", "")
-        qs = Worker.objects.filter(status="active").select_related("user")
+        qs = Worker.objects.filter(current_state="on_duty").select_related("user")
         if dept_q:
             qs = qs.filter(department=dept_q)
         if name_q:
@@ -177,7 +177,7 @@ def mysafety_history(request):
                 "attendance_ok": bool(s and s.checklist_completed),
             })
         departments = list(
-            Worker.objects.filter(status="active")
+            Worker.objects.filter(current_state="on_duty")
             .exclude(department="")
             .values_list("department", flat=True)
             .distinct()

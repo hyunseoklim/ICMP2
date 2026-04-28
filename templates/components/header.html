@@ -14,12 +14,12 @@
 
     <!-- 중앙: 사용자 정보 + 메뉴 -->
     <div class="header-center">
-        <div class="user-badge">
+        <!-- <div class="user-badge">
             <span class="user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
             <span class="user-role">{{ request.user.profile.role_display|default:"관리자" }}</span>
-        </div>
+        </div> -->
 
-        <a href="#" class="nav-btn {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <!-- <a href="#" class="nav-btn {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"> 필요 없는 버튼으로 주석 처리함--> 
         <a href="{% url 'profile' %}" class="user-badge user-badge--link" title="내 정보 확인">
             <span class="user-name">{{ request.user.name|default:request.user.get_full_name|default:request.user.username }}</span>
             <span class="user-role">{{ request.user.get_user_type_display|default:"관리자" }}</span>
@@ -42,7 +42,7 @@
                 <button class="refresh-btn" id="refresh-btn" aria-label="새로고침">↻</button>
             </div>
         </div>
-        <a href="#" class="icon-btn" aria-label="홈">
+        <a href="{% url 'dashboard' %}" class="icon-btn" aria-label="홈">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>
             </svg>
