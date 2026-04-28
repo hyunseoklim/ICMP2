@@ -129,8 +129,7 @@ class Command(BaseCommand):
         for dev, ch_no, code, ch_name, ch_type in channel_specs:
             DeviceChannel.objects.get_or_create(
                 device=dev, channel_code=code,
-                defaults={'channel_name': ch_name,
-                          'current_state': 'on_duty'},
+                defaults={'channel_name': ch_name},
             )
         self.stdout.write('  채널 생성 완료')
 
