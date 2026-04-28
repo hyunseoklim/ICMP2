@@ -63,7 +63,7 @@ class Command(BaseCommand):
         for code, name in [('FAC001', '제1공장'), ('FAC002', '제2공장'), ('FAC003', '창고동')]:
             f, _ = Facility.objects.get_or_create(
                 facility_code=code,
-                defaults={'facility_name': name, 'current_state': 'on_duty'},
+                defaults={'facility_name': name },
             )
             facilities.append(f)
         self.stdout.write(f'  사업장 {len(facilities)}개')
@@ -112,7 +112,6 @@ class Command(BaseCommand):
                     'device_name': name,
                     'device_type': dtype,
                     'facility': facility,
-                    'current_state': 'on_duty',
                     'port': 502,
                 },
             )
