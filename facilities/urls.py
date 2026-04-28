@@ -18,7 +18,8 @@ router.register(r'equipments', views.EquipmentViewSet, basename='equipment')
 urlpatterns = [
     path('api/', include(router.urls)),
     path('api/floors/<int:floor_id>/grid-data/', views.floor_grid_data, name='floor-grid-data'),
-    path('monitoring/', views.monitoring_view, name='monitoring'),
+    path('monitoring/', views.monitoring_view, name='map_monitoring'),
     path('', views.monitoring_view, name='index'),
-    path("floors/<int:floor_id>/setup/", FloorGridSetupView.as_view(), name="floor-grid-setup")
+    path("floors/<int:floor_id>/setup/", FloorGridSetupView.as_view(), name="floor-grid-setup"),
+    path("workers/", views.worker_list, name="worker_list"),
 ]

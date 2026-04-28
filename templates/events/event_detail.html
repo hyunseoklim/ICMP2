@@ -1,0 +1,712 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}이벤트 상세 — 산재 예방 통합 관제시스템{% endblock %}
+
+{% block page_content %}
+<div class="ed-page">
+
+  <!-- 페이지 헤더 -->
+  <div class="ed-page-header">
+    <button class="ed-back-btn" onclick="history.back()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      목록으로
+    </button>
+    <h1 class="ed-page-title">이벤트 상세</h1>
+  </div>
+
+  <!-- 요약 카드 -->
+  <div class="ed-summary-card">
+    <div class="ed-summary-left">
+      {% if event.event_status == 'closed' %}
+        <span class="sev-badge sev-badge--closed ed-sev-badge">—</span>
+      {% else %}
+        <span class="sev-badge sev-badge--{{ event.severity }} ed-sev-badge">
+          {{ event.get_severity_display }}
+        </span>
+      {% endif %}
+      <span class="ed-status-badge ed-status-badge--{{ event.event_status }}">
+        {% if event.event_status == 'open' %}조치 필요
+        {% elif event.event_status == 'acknowledged' %}조치 중
+        {% else %}조치 완료{% endif %}
+      </span>
+    </div>
+    <div class="ed-summary-center">
+      <h2 class="ed-event-title">{{ event.title }}</h2>
+      <div class="ed-meta-row">
+        <span class="ed-meta-item">
+          <span class="ed-meta-label">발생원</span>
+          <span class="ed-meta-value">{{ event.device|default:event.facility|default:"—" }}</span>
+        </span>
+        <span class="ed-meta-item">
+          <span class="ed-meta-label">발생 시간</span>
+          <span class="ed-meta-value mono">{{ event.occurred_at|date:"Y-m-d H:i:s" }}</span>
+        </span>
+        {% if event.worker %}
+        <span class="ed-meta-item">
+          <span class="ed-meta-label">연관 작업자</span>
+          <span class="ed-meta-value">{{ event.worker }}</span>
+        </span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- 콘텐츠 영역 -->
+  <div class="ed-content">
+
+    <!-- 좌측: 상세 정보 (스크롤) -->
+    <div class="ed-left">
+
+      <!-- 이벤트 상세 내용 -->
+      <div class="ed-card">
+        <div class="ed-card-header">이벤트 상세 내용</div>
+        <div class="ed-card-body">
+
+          <!-- 상세 내용 -->
+          <div class="ed-section">
+            <div class="ed-section-title">상세 내용</div>
+            <p class="ed-section-text">{{ event.message|default:"—" }}</p>
+          </div>
+
+          <div class="ed-divider"></div>
+
+          <!-- 권고 조치 -->
+          <div class="ed-section">
+            <div class="ed-section-title">권고 조치</div>
+            {% if event.event_type == 'gas' %}
+              <ul class="ed-recommend-list">
+                <li>해당 구역 즉시 환기 실시</li>
+                <li>작업자 대피 및 안전 거리 확보</li>
+                <li>가스 차단 밸브 잠금 조치</li>
+                <li>현장 책임자 즉시 보고</li>
+              </ul>
+            {% elif event.event_type == 'power' %}
+              <ul class="ed-recommend-list">
+                <li>해당 전력 회로 차단기 확인</li>
+                <li>과부하 발생 장비 전원 차단</li>
+                <li>전기 담당자에게 즉시 연락</li>
+                <li>임시 전력 공급 방안 검토</li>
+              </ul>
+            {% elif event.event_type == 'location' %}
+              <ul class="ed-recommend-list">
+                <li>해당 작업자 위치 즉시 확인</li>
+                <li>음성 통화 또는 무선 호출 시도</li>
+                <li>위험 구역 진입 여부 확인</li>
+                <li>필요 시 현장 수색 실시</li>
+              </ul>
+            {% else %}
+              <ul class="ed-recommend-list">
+                <li>장비 상태 현장 확인</li>
+                <li>네트워크 연결 상태 점검</li>
+                <li>장비 재시작 검토</li>
+                <li>유지보수 팀 통보</li>
+              </ul>
+            {% endif %}
+          </div>
+
+          <div class="ed-divider"></div>
+
+          <!-- 연관 대상 정보 -->
+          <div class="ed-section">
+            <div class="ed-section-title">연관 대상 정보</div>
+            <div class="ed-info-grid">
+              <div class="ed-info-row">
+                <span class="ed-info-label">타입</span>
+                <span class="ed-info-value">
+                  {% if event.device %}{{ event.device.get_device_type_display }}
+                  {% elif event.event_type == 'gas' %}유해가스 센서
+                  {% elif event.event_type == 'power' %}스마트 전력계
+                  {% elif event.event_type == 'location' %}위치 추적
+                  {% else %}장비{% endif %}
+                </span>
+              </div>
+              {% if event.device %}
+              <div class="ed-info-row">
+                <span class="ed-info-label">대상 ID</span>
+                <span class="ed-info-value mono">{{ event.device.device_uid }}</span>
+              </div>
+              {% endif %}
+              {% if event.worker %}
+              <div class="ed-info-row">
+                <span class="ed-info-label">연관 작업자</span>
+                <span class="ed-info-value">{{ event.worker.worker_no }} / {{ event.worker.worker_name }}</span>
+              </div>
+              {% endif %}
+              {% if event.rule %}
+              <div class="ed-info-row">
+                <span class="ed-info-label">알람 규칙</span>
+                <span class="ed-info-value">{{ event.rule.rule_name }}</span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="ed-divider"></div>
+
+          <!-- 발생 추이 -->
+          <div class="ed-section">
+            <div class="ed-section-title">발생 추이</div>
+            <div class="ed-timeline">
+              {% for h in histories %}
+              <div class="ed-timeline-item">
+                <div class="ed-tl-dot ed-tl-dot--{{ h.action_type }}"></div>
+                <div class="ed-tl-content">
+                  <span class="ed-tl-action">
+                    {% if h.action_type == 'acknowledge' %}확인
+                    {% elif h.action_type == 'close' %}종료
+                    {% else %}재오픈{% endif %}
+                  </span>
+                  {% if h.action_by %}
+                  <span class="ed-tl-by">{{ h.action_by.username }}</span>
+                  {% endif %}
+                  {% if h.action_note %}
+                  <span class="ed-tl-note">{{ h.action_note }}</span>
+                  {% endif %}
+                </div>
+                <span class="ed-tl-time mono">{{ h.action_at|date:"Y-m-d H:i" }}</span>
+              </div>
+              {% empty %}
+              <p class="ed-empty-text">조치 이력이 없습니다.</p>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- 우측: 조치 패널 -->
+    <div class="ed-right">
+
+      <!-- 조치 상태 변경 카드 -->
+      <div class="ed-card ed-action-card">
+        <div class="ed-card-header">조치 상태 변경</div>
+        <div class="ed-card-body">
+          {% if next_statuses %}
+          <div class="ed-transition-row">
+            <span class="ed-tr-label">현재 상태 :</span>
+            <span class="ed-tr-current">
+              {% if event.event_status == 'open' %}조치 필요
+              {% elif event.event_status == 'acknowledged' %}조치 중
+              {% else %}조치 완료{% endif %}
+            </span>
+            <span class="ed-tr-arrow">→</span>
+            <span class="ed-tr-label">변경 예정 :</span>
+            <span class="ed-tr-target" id="ed-target-label">
+              {% if default_target == 'acknowledged' %}조치 중
+              {% elif default_target == 'closed' %}조치 완료
+              {% elif default_target == 'open' %}재오픈
+              {% else %}{{ default_target }}{% endif %}
+            </span>
+          </div>
+          <div class="ed-target-btns">
+            {% for st in next_statuses %}
+            <button class="ed-target-btn {% if st == default_target %}active{% endif %}"
+                    data-status="{{ st }}"
+                    onclick="selectTarget(this)">
+              {% if st == 'acknowledged' %}조치 중
+              {% elif st == 'closed' %}조치 완료
+              {% elif st == 'open' %}재오픈
+              {% else %}{{ st }}{% endif %}
+            </button>
+            {% endfor %}
+          </div>
+          <button class="ed-change-btn" id="ed-change-btn" onclick="openConfirm()">변경</button>
+          {% else %}
+          <div class="ed-closed-msg">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 18A8 8 0 1 0 10 2a8 8 0 0 0 0 16Z" stroke="var(--text-muted)" stroke-width="1.5"/>
+              <path d="M7 10l2 2 4-4" stroke="var(--text-muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>조치가 완료된 이벤트입니다.</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- 연관 모니터링 정보 -->
+      <div class="ed-card ed-monitor-card">
+        <div class="ed-card-header">연관 모니터링 정보</div>
+        <div class="ed-card-body">
+          <div class="ed-monitor-list">
+            {% if event.device %}
+            <div class="ed-monitor-row">
+              <div class="ed-monitor-icon ed-monitor-icon--sensor">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                  <path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M9.2 9.2a4 4 0 0 0 0 5.6M14.8 9.2a4 4 0 0 1 0 5.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="ed-monitor-text">
+                <span class="ed-monitor-detail">
+                  {{ event.device.get_device_type_display }} : {{ event.device.device_uid }}
+                  / 현재 상태 {{ event.get_severity_display }}
+                  {% if event.channel %} / {{ event.channel.channel_name }}{% endif %}
+                  / 연결 상태 {% if event.device.status == 'active' %}정상{% else %}{{ event.device.get_status_display }}{% endif %}
+                </span>
+              </div>
+            </div>
+            {% endif %}
+            {% if event.worker %}
+            <div class="ed-monitor-row">
+              <div class="ed-monitor-icon ed-monitor-icon--worker">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/>
+                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="ed-monitor-text">
+                <span class="ed-monitor-detail">
+                  연관 작업자 : {{ event.worker.worker_no }} {{ event.worker.worker_name }}
+                  / 현재 상태 {{ event.get_severity_display }}
+                  / 마지막 연결 정상
+                </span>
+              </div>
+            </div>
+            {% endif %}
+            {% if event.facility %}
+            <div class="ed-monitor-row">
+              <div class="ed-monitor-icon ed-monitor-icon--facility">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="10" width="18" height="11" rx="1" stroke="currentColor" stroke-width="1.8"/>
+                  <path d="M7 10V6a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  <path d="M9 21v-5h6v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="ed-monitor-text">
+                <span class="ed-monitor-detail">
+                  연관 설비 : {{ event.facility.facility_name }}
+                </span>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- 확인 버튼 -->
+      <a href="{% url 'event_list' %}" class="ed-confirm-btn">확인</a>
+
+    </div>
+  </div>
+</div>
+
+<!-- 확인 팝업 -->
+<div class="ed-modal-overlay" id="ed-modal" style="display:none;">
+  <div class="ed-modal">
+    <div class="ed-modal-icon">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <div class="ed-modal-label">조치 상태 변경</div>
+    <p class="ed-modal-body">
+      이벤트 조치 상태를<br>
+      <strong id="ed-modal-target-label"></strong>으로 변경하고<br>
+      알림을 발송하시겠습니까?
+    </p>
+    <textarea id="ed-modal-note" class="ed-modal-note" placeholder="메모 (선택)"></textarea>
+    <div class="ed-modal-actions">
+      <button class="ed-modal-cancel" onclick="closeConfirm()">취소</button>
+      <button class="ed-modal-ok" id="ed-modal-ok" onclick="submitChange()">확인</button>
+    </div>
+  </div>
+</div>
+{% endblock page_content %}
+
+{% block extra_css %}
+<style>
+/* 전체 페이지 스크롤 */
+html, body { overflow: auto; height: auto; display: block; }
+
+/* ── 페이지 레이아웃 ────────────────────────────────── */
+.ed-page {
+  min-height: calc(100vh - var(--header-h));
+  display: flex;
+  flex-direction: column;
+  padding: 20px 28px;
+  background: var(--bg-base);
+  gap: 16px;
+}
+
+/* ── 헤더 ───────────────────────────────────────────── */
+.ed-page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ed-back-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-panel);
+  color: var(--text-secondary); transition: all 0.15s;
+}
+.ed-back-btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.ed-page-title { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+
+/* ── 요약 카드 ──────────────────────────────────────── */
+.ed-summary-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 20px 24px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.ed-summary-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.ed-sev-badge { font-size: 13px; padding: 4px 14px; }
+.ed-status-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 3px 12px; border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.ed-status-badge--open         { color: var(--danger); border-color: var(--danger); background: rgba(239,68,68,0.08); }
+.ed-status-badge--acknowledged { color: var(--warning); border-color: var(--warning); background: rgba(245,158,11,0.08); }
+.ed-status-badge--closed       { color: #22c55e; border-color: #22c55e; background: rgba(34,197,94,0.08); }
+
+.ed-summary-center { flex: 1; }
+.ed-event-title { font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+.ed-meta-row { display: flex; flex-wrap: wrap; gap: 20px; }
+.ed-meta-item { display: flex; align-items: center; gap: 8px; }
+.ed-meta-label { font-size: 11px; color: var(--text-muted); }
+.ed-meta-value { font-size: 12px; color: var(--text-secondary); }
+
+/* ── 콘텐츠 영역 ────────────────────────────────────── */
+.ed-content {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* ── 공통 카드 ──────────────────────────────────────── */
+.ed-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.ed-card-header {
+  padding: 12px 20px;
+  font-size: 13px; font-weight: 700; color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel-2);
+}
+.ed-card-body { padding: 20px; }
+
+/* ── 좌측 ───────────────────────────────────────────── */
+.ed-left {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── 상세 내용 섹션 ─────────────────────────────────── */
+.ed-section { padding: 4px 0 16px; }
+.ed-section:last-child { padding-bottom: 0; }
+.ed-section-title {
+  font-size: 12px; font-weight: 700; color: var(--accent-cyan);
+  margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.ed-section-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.ed-recommend-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.ed-recommend-list li {
+  font-size: 12px; color: var(--text-secondary); line-height: 1.5;
+  padding-left: 14px; position: relative;
+}
+.ed-recommend-list li::before {
+  content: '•'; position: absolute; left: 0;
+  color: var(--accent-cyan);
+}
+.ed-divider { height: 1px; background: var(--border); margin: 8px 0 16px; }
+
+/* ── 정보 그리드 ────────────────────────────────────── */
+.ed-info-grid { display: flex; flex-direction: column; gap: 8px; }
+.ed-info-row { display: flex; align-items: flex-start; gap: 12px; }
+.ed-info-label {
+  font-size: 11px; color: var(--text-muted); flex-shrink: 0;
+  width: 80px; padding-top: 1px;
+}
+.ed-info-value { font-size: 12px; color: var(--text-secondary); }
+
+/* ── 타임라인 ───────────────────────────────────────── */
+.ed-timeline { display: flex; flex-direction: column; gap: 12px; }
+.ed-timeline-item {
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.ed-tl-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+}
+.ed-tl-dot--acknowledge { background: var(--accent-cyan); }
+.ed-tl-dot--close       { background: var(--text-muted); }
+.ed-tl-dot--reopen      { background: var(--danger); }
+.ed-tl-content { flex: 1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ed-tl-action { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.ed-tl-by     { font-size: 11px; color: var(--text-muted); }
+.ed-tl-note   { font-size: 11px; color: var(--text-secondary); }
+.ed-tl-time   { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.ed-empty-text { font-size: 12px; color: var(--text-muted); }
+
+/* ── 우측 ───────────────────────────────────────────── */
+.ed-right {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── 조치 상태 변경 카드 ────────────────────────────── */
+.ed-transition-row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  background: var(--bg-panel-2); border: 1px solid var(--border);
+  margin-bottom: 16px; font-size: 12px;
+}
+.ed-tr-label { color: var(--text-muted); white-space: nowrap; }
+.ed-tr-current { color: var(--text-primary); font-weight: 600; white-space: nowrap; }
+.ed-tr-arrow { color: var(--text-muted); }
+.ed-tr-target { color: var(--text-primary); font-weight: 600; white-space: nowrap; }
+.ed-target-btns { display: flex; gap: 8px; margin-bottom: 20px; }
+.ed-target-btn {
+  flex: 1; padding: 8px 0; border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-muted); transition: all 0.15s;
+}
+.ed-target-btn:hover {
+  border-color: var(--border-light); color: var(--text-secondary);
+}
+.ed-target-btn:active { opacity: 0.7; }
+.ed-target-btn[data-status="acknowledged"].active {
+  border-color: var(--warning); color: var(--warning);
+  background: transparent;
+}
+.ed-target-btn[data-status="closed"].active {
+  border-color: #22c55e; color: #22c55e;
+  background: transparent;
+}
+.ed-target-btn[data-status="open"].active {
+  border-color: var(--danger); color: var(--danger);
+  background: transparent;
+}
+.ed-change-btn {
+  width: 100%; padding: 10px;
+  border-radius: var(--radius-sm); border: none; cursor: pointer;
+  background: var(--accent-cyan); color: var(--bg-base);
+  font-size: 13px; font-weight: 700; transition: opacity 0.15s;
+}
+.ed-change-btn:hover { opacity: 0.85; }
+.ed-closed-msg {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px; border-radius: var(--radius-sm);
+  background: var(--bg-panel-2); border: 1px solid var(--border);
+  font-size: 12px; color: var(--text-muted);
+}
+
+/* ── 연관 모니터링 정보 ─────────────────────────────── */
+.ed-monitor-list { display: flex; flex-direction: column; gap: 10px; }
+.ed-monitor-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--bg-panel-2); border: 1px solid var(--border);
+}
+.ed-monitor-cb {
+  flex-shrink: 0; width: 14px; height: 14px; margin-top: 1px;
+  accent-color: var(--accent-cyan); cursor: pointer;
+}
+.ed-monitor-icon {
+  flex-shrink: 0; width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+}
+.ed-monitor-icon--sensor   { color: var(--accent-cyan); background: rgba(34,211,238,0.1); }
+.ed-monitor-icon--worker   { color: var(--warning); background: rgba(245,158,11,0.1); }
+.ed-monitor-icon--facility { color: var(--text-secondary); background: rgba(148,163,184,0.1); }
+.ed-monitor-text { flex: 1; min-width: 0; }
+.ed-monitor-detail {
+  font-size: 11px; color: var(--text-secondary); line-height: 1.5;
+  word-break: keep-all;
+}
+
+/* ── 목록 버튼 ──────────────────────────────────────── */
+.ed-confirm-btn {
+  display: block; text-align: center;
+  width: 100%; padding: 10px; border-radius: var(--radius-sm);
+  border: none; background: var(--accent-cyan);
+  color: var(--bg-base); font-size: 13px; font-weight: 700;
+  text-decoration: none; transition: opacity 0.15s; box-sizing: border-box;
+}
+.ed-confirm-btn:hover { opacity: 0.85; }
+
+/* ── 확인 모달 ──────────────────────────────────────── */
+.ed-modal-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+}
+.ed-modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px 32px 28px;
+  width: 400px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  text-align: center;
+}
+.ed-modal-icon {
+  width: 64px; height: 64px; border-radius: 12px;
+  background: var(--bg-panel-2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 12px;
+  color: var(--text-muted);
+}
+.ed-modal-label {
+  font-size: 12px; color: var(--text-muted); font-weight: 500;
+  margin-bottom: 20px;
+}
+.ed-modal-body {
+  font-size: 18px; font-weight: 700; color: var(--text-primary);
+  line-height: 1.6; margin-bottom: 20px;
+}
+.ed-modal-body strong { font-weight: 700; }
+.ed-modal-note {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg-base); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-size: 13px; padding: 8px 10px; resize: vertical;
+  min-height: 64px; margin-bottom: 20px; text-align: left;
+}
+.ed-modal-note:focus { outline: none; border-color: var(--accent-cyan); }
+.ed-modal-actions { display: flex; gap: 10px; }
+.ed-modal-cancel {
+  flex: 1; padding: 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-secondary); font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
+}
+.ed-modal-cancel:hover { border-color: var(--border-light); color: var(--text-primary); }
+.ed-modal-ok {
+  flex: 1; padding: 10px; border-radius: var(--radius-sm);
+  border: none; background: var(--accent-cyan);
+  color: var(--bg-base); font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.ed-modal-ok:hover { opacity: 0.85; }
+
+/* ── 심각도 뱃지 (event_list에서 공유) ─────────────── */
+.sev-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700;
+}
+.sev-badge--danger   { background: var(--danger); color: #fff; }
+.sev-badge--warning  { background: rgba(245,158,11,0.2); color: var(--warning); border: 1px solid var(--warning-border); }
+.sev-badge--normal   { background: rgba(148,163,184,0.12); color: var(--text-secondary); border: 1px solid var(--border); }
+.sev-badge--closed   { background: transparent; color: var(--text-muted); border: 1px solid var(--border); font-size: 10px; }
+
+.mono { font-family: var(--font-mono); }
+</style>
+{% endblock %}
+
+{% block script %}
+<script>
+(function () {
+  var EVENT_PK    = {{ event.id }};
+  var STATUS_LABEL = { open: '재오픈', acknowledged: '조치 중', closed: '조치 완료' };
+  var STATUS_COLOR = { open: 'var(--danger)', acknowledged: 'var(--warning)', closed: '#22c55e' };
+  var selectedTarget = '{{ default_target|escapejs }}';
+
+  // ── 변경 대상 선택 ──────────────────────────────────────────────────
+  window.selectTarget = function (btn) {
+    document.querySelectorAll('.ed-target-btn').forEach(function (b) {
+      b.classList.remove('active');
+    });
+    btn.classList.add('active');
+    selectedTarget = btn.dataset.status;
+
+    var labelEl = document.getElementById('ed-target-label');
+    if (labelEl) labelEl.textContent = STATUS_LABEL[selectedTarget] || selectedTarget;
+
+    if (document.querySelectorAll('.ed-target-btn').length === 1) {
+      openConfirm();
+    }
+  };
+
+  // ── 확인 팝업 열기 ──────────────────────────────────────────────────
+  window.openConfirm = function () {
+    if (!selectedTarget) return;
+    var label = STATUS_LABEL[selectedTarget] || selectedTarget;
+    var labelEl = document.getElementById('ed-modal-target-label');
+    labelEl.textContent = label;
+    labelEl.style.color = STATUS_COLOR[selectedTarget] || '';
+    document.getElementById('ed-modal').style.display = 'flex';
+  };
+
+  // ── 팝업 닫기 ───────────────────────────────────────────────────────
+  window.closeConfirm = function () {
+    document.getElementById('ed-modal').style.display = 'none';
+    document.getElementById('ed-modal-note').value = '';
+  };
+
+  // ── 상태 변경 POST ──────────────────────────────────────────────────
+  window.submitChange = function () {
+    var btn = document.getElementById('ed-modal-ok');
+    btn.disabled = true;
+    btn.textContent = '처리 중…';
+
+    var formData = new FormData();
+    formData.append('status', selectedTarget);
+    formData.append('action_note', document.getElementById('ed-modal-note').value);
+    formData.append('csrfmiddlewaretoken', getCsrf());
+
+    fetch('/alerts/events/' + EVENT_PK + '/status/', {
+      method: 'POST',
+      body: formData,
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.status === 'ok') {
+          location.reload();
+        } else {
+          alert('오류: ' + (data.message || '알 수 없는 오류'));
+          btn.disabled = false;
+          btn.textContent = '확인';
+        }
+      })
+      .catch(function () {
+        alert('서버와의 통신에 실패했습니다.');
+        btn.disabled = false;
+        btn.textContent = '확인';
+      });
+  };
+
+  // ── CSRF 헬퍼 ───────────────────────────────────────────────────────
+  function getCsrf() {
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++) {
+      var c = cookies[i].trim();
+      if (c.startsWith('csrftoken=')) return c.slice(10);
+    }
+    return '';
+  }
+
+  // ── 모달 오버레이 클릭 시 닫기 ──────────────────────────────────────
+  document.getElementById('ed-modal').addEventListener('click', function (e) {
+    if (e.target === this) closeConfirm();
+  });
+})();
+</script>
+{% endblock %}

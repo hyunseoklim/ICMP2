@@ -1,7 +1,18 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+class Department(models.Model):
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=50, unique=True, blank=True)
 
+    class Meta:
+        db_table            = "departments"
+        verbose_name        = "부서"
+        verbose_name_plural = "부서 목록"
+
+    def __str__(self):
+        return self.name
+    
 class User(AbstractUser):
     class UserType(models.TextChoices):
         ADMIN = "admin", "관리자"
@@ -11,7 +22,7 @@ class User(AbstractUser):
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True)
     user_type = models.CharField(max_length=20, choices=UserType.choices, default=UserType.WORKER)
-    department = models.CharField(max_length=100, blank=True)
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True,related_name="users")
     position = models.CharField(max_length=100, blank=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
 

@@ -8,6 +8,7 @@
  *   - geofenceLayer 참조를 MapManager.getLayer('geofence')로 교체
  */
 
+
 const SEVERITY_COLOR = {
     danger:  { fill: 'rgba(239,68,68,0.15)',  stroke: '#ef4444' },
     warning: { fill: 'rgba(245,158,11,0.12)', stroke: '#f59e0b' },
@@ -168,7 +169,7 @@ function pollGeofences(floorId) {
     fetch(url)
         .then(r => r.json())
         .then(data => {
-            data.forEach(g => {
+            data.results.forEach(g => {
                 const state = geofenceState[g.id];
                 if (!state) {
                     renderGeofence(g);

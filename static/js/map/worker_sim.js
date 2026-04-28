@@ -8,6 +8,7 @@
  *   - renderOrMoveWorker()에서 MapManager.getLayer('worker')로 레이어 참조
  */
 
+
 // workerId → { marker }
 const workerMarkers = {};
 let workerPollingTimer = null;
@@ -36,14 +37,20 @@ function simulateWorkerMove() {
 //     fetchWorkerLocations();
 //     workerPollingTimer = setInterval(fetchWorkerLocations, 2000);
 // }
-// 움직임 테스트를 위한 임시 로직
+// 움직임 시뮬레이션만 해서 pulling 제거
+// function startWorkerSim() {
+//     if (workerPollingTimer) clearInterval(workerPollingTimer);
+//     fetchWorkerLocations();
+//     workerPollingTimer = setInterval(() => {
+//         fetchWorkerLocations();
+//         simulateWorkerMove();  // ← 추가
+//     }, 500);
+// }
+
 function startWorkerSim() {
     if (workerPollingTimer) clearInterval(workerPollingTimer);
     fetchWorkerLocations();
-    workerPollingTimer = setInterval(() => {
-        fetchWorkerLocations();
-        simulateWorkerMove();  // ← 추가
-    }, 500);
+    workerPollingTimer = setInterval(simulateWorkerMove, 500);
 }
 
 function stopWorkerSim() {

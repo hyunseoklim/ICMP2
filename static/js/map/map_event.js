@@ -34,6 +34,7 @@
  *   - loadGridLayer() 재호출로 SVG 격자 갱신
  *   - loadZoneLayer(), loadGeofences(), loadSensors(), startWorkerSim() 연쇄 호출
  */
+
 function loadFloorData(floorId) {
     currentFloorId = floorId;
 
@@ -79,12 +80,13 @@ function loadFloorData(floorId) {
             map.once('moveend', function() {
                 loadGridLayer();
                 loadZoneLayer(floorId);
+                if (window.loadGeofences)  loadGeofences(floorId);
+                if (window.loadSensors)    loadSensors(floorId);
+                if (window.startWorkerSim) startWorkerSim();
             });
         });
 
-    if (window.loadGeofences)  loadGeofences(floorId);
-    if (window.loadSensors)    loadSensors(floorId);
-    if (window.startWorkerSim) startWorkerSim();
+    
 }
 // ─── 레이어 ON/OFF ────────────────────────────────────────────
 

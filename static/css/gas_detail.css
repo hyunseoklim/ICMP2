@@ -1,0 +1,363 @@
+/* =========================================================
+   gas_detail.css — 유해가스 상세 페이지 전용 스타일
+   style.css의 CSS 변수 및 공통 클래스 활용
+   ========================================================= */
+
+/* ── 페이지 래퍼 ─────────────────────────────────────────── */
+.detail-page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--header-h));
+    overflow: hidden;
+}
+
+/* ── 페이지 타이틀 ───────────────────────────────────────── */
+.detail-title {
+    font-size: 16px;
+    font-weight: 700;
+    padding: 12px 16px 0;
+    flex-shrink: 0;
+}
+.detail-title .title-accent {
+    color: var(--accent-cyan);
+}
+
+/* ── 전체 레이아웃 ───────────────────────────────────────── */
+.detail-layout {
+    display: flex;
+    gap: var(--gap);
+    padding: var(--gap);
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ── 좌측 패널 ───────────────────────────────────────────── */
+.detail-left {
+    width: 300px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    overflow: hidden;
+}
+
+.sensor-list-panel {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.gas-detail-panel {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 가스 위험도 칼럼 가운데 정렬 */
+.gas-detail-panel .data-table th:last-child,
+.gas-detail-panel .data-table td:last-child {
+    text-align: center;
+}
+
+/* ── 우측 메인 패널 ──────────────────────────────────────── */
+.detail-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* ── 센서 요약 뱃지 ──────────────────────────────────────── */
+.sensor-summary {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.badge--danger  { background: var(--danger-bg);  color: var(--danger);  border: 1px solid var(--danger-border); }
+.badge--warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+.badge--normal  { background: var(--normal-bg);  color: var(--normal);  border: 1px solid var(--normal-border); }
+
+/* ── 센서 리스트 테이블 ──────────────────────────────────── */
+.sensor-list-panel .data-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.sensor-list-panel .data-table th:nth-child(1),
+.sensor-list-panel .data-table td:nth-child(1) {
+    width: 100px;
+    white-space: normal;   /* ← 줄바꿈 허용 */
+    word-break: break-all; /* ← 긴 ID 강제 줄바꿈 */
+}
+
+.sensor-list-panel .data-table th:nth-child(2),
+.sensor-list-panel .data-table td:nth-child(2) {
+    width: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sensor-list-panel .data-table th:nth-child(3),
+.sensor-list-panel .data-table td:nth-child(3) {
+    width: 50px;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.sensor-list-panel .data-table th:nth-child(4),
+.sensor-list-panel .data-table td:nth-child(4) {
+    width: 70px;
+    white-space: nowrap;
+    text-align: center;
+    padding: 4px 6px;
+}
+
+/* ── 센서 리스트 행 ──────────────────────────────────────── */
+.sensor-list__item {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.sensor-list__item:hover {
+    background: var(--bg-hover);
+}
+.sensor-list__item--active {
+    background: rgba(34,211,238,0.06) !important;
+}
+.sensor-list__item--active td:first-child {
+    border-left: 2px solid var(--accent-cyan);
+    padding-left: 6px;
+}
+
+/* ── 연결 상태 ───────────────────────────────────────────── */
+.conn-status {
+    font-size: 11px;
+    font-weight: 600;
+}
+.conn-status--ok  { color: var(--text-primary); }
+.conn-status--err { color: var(--text-muted); }
+
+/* ── 현재 센서 배지 ──────────────────────────────────────── */
+.current-sensor-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent-cyan);
+    padding: 2px 8px;
+    background: rgba(34,211,238,0.08);
+    border: 1px solid rgba(34,211,238,0.2);
+    border-radius: var(--radius-sm);
+}
+
+/* ── 가스 테이블 행 ──────────────────────────────────────── */
+.gas-table-row {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.gas-table-row.selected td {
+    background: rgba(255,255,255,0.06) !important;
+}
+
+.row--danger  td { background: var(--danger-bg); }
+.row--warning td { background: var(--warning-bg); }
+.row--normal  td { background: transparent; }
+.row--danger:hover  td { background: rgba(239,68,68,0.22); }
+.row--warning:hover td { background: rgba(245,158,11,0.22); }
+
+/* ── 탭 + 범례 행 ────────────────────────────────────────── */
+.detail-tab-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px;
+    flex-shrink: 0;
+}
+
+.chart-legend {
+    display: flex;
+    gap: 10px;
+    font-size: 10px;
+    color: var(--text-muted);
+    padding-right: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-line {
+    display: inline-block;
+    width: 16px;
+    height: 2px;
+}
+.legend-line--warn   { background: var(--warning); }
+.legend-line--danger { background: var(--danger); }
+.legend-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    opacity: 0.6;
+}
+.legend-swatch--warn   { background: var(--warning); }
+.legend-swatch--danger { background: var(--danger); }
+
+/* ── 탭 콘텐츠 ───────────────────────────────────────────── */
+.tab-content {
+    display: none;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+.tab-content.active { display: block; }
+
+/* ── 가스 차트 그리드 ────────────────────────────────────── */
+.gas-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--gap);
+    padding: var(--gap);
+}
+
+.gas-chart-card {
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 170px;
+    transition: border-color 0.2s;
+    cursor: pointer;
+}
+.gas-chart-card:hover { border-color: var(--border-light); }
+.gas-chart-card--danger  { border-color: var(--danger-border) !important; }
+.gas-chart-card--warning { border-color: var(--warning-border) !important; }
+.gas-chart-card--normal  { border-color: var(--border); }
+
+.gas-chart-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.gas-chart-card__name  {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.gas-chart-card__badge { font-size: 10px; flex-shrink: 0; }
+
+.gas-chart-card__canvas-wrap {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+.gas-chart-card__canvas-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* ── 4차 coming soon ─────────────────────────────────────── */
+.coming-soon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+/* ── 긴급 액션바 ─────────────────────────────────────────── */
+.alert-bar {
+    display: none;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 16px;
+    background: var(--danger-bg);
+    border: 1px solid var(--danger-border);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    flex-shrink: 0;
+    color: #fff;
+    margin: 0 var(--gap) var(--gap);
+}
+
+.alert-bar--danger {
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+}
+.alert-bar--warning {
+    background: var(--warning-bg);
+    border-color: var(--warning-border);
+}
+
+.alert-bar__indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    flex-shrink: 0;
+    animation: blink 1s ease-in-out infinite;
+}
+.alert-bar--warning .alert-bar__indicator {
+    background: var(--warning);
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.2; }
+}
+
+.alert-bar__sensor {
+    font-family: var(--font-mono);
+    color: #fff;
+    font-weight: 700;
+    flex-shrink: 0;
+    padding: 2px 10px;
+    background: var(--danger);
+    border-radius: var(--radius-sm);
+}
+.alert-bar--warning .alert-bar__sensor {
+    background: var(--warning);
+    color: #000;
+}
+
+.alert-bar__divider {
+    color: var(--border-light);
+    flex-shrink: 0;
+}
+
+.alert-bar__msg {
+    flex: 1;
+    color: #fff;
+}
+
+.alert-bar__action {
+    color: #fff;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.alert-bar__time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}

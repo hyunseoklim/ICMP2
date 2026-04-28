@@ -1,8 +1,10 @@
-from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
+
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -24,6 +26,12 @@ from .serializers import (
 )
 from .services.floor_grid_maker    import FloorGridService
 from .repositories import IndexGridWriter, IndexGridReader
+
+
+
+@login_required(login_url="login")
+def worker_list(request):
+    return render(request, "facilities/worker_list.html")
 
 class DashboardTempleteView(TemplateView):
     template_name = 'dashboard.html'
@@ -193,6 +201,7 @@ def floor_grid_data(request, floor_id):
         "cell_size": cell_size,
         "cols":      cols,
         "rows":      rows,
+        "floor_image": request.build_absolute_uri(floor.plan_image.url) if floor.plan_image else None,  # ← 추가
         "lines": {
             "vertical": [
                 {"x": round(c * cell_size, 6), "y1": 0, "y2": length}
@@ -259,7 +268,7 @@ class WorkerLocationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get', 'post'], url_path='dummy')
     def dummy(self, request):
         if request.method == 'GET':
-            workers = Worker.objects.filter(status='on_duty')
+            workers = Worker.objects.filter(current_state='on_duty')
             result  = []
 
             for worker in workers:
