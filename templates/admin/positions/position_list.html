@@ -1,0 +1,181 @@
+{% extends 'admin/base_manage.html' %}
+
+{% block title %}직위 관리 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{# 사이드바에서 '계정/권한 관리' 메뉴 강조 (직위 관리는 사용자 관리 하위) #}
+{% block breadcrumb %}
+<div class="text-xs text-slate-500 mb-3">
+  사용자 관리 / <span class="text-slate-700">직위 관리</span>
+</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <h2 class="text-2xl font-bold text-slate-900 mb-1.5">직위 관리</h2>
+    <p class="text-sm text-slate-500">조직에서 사용할 직위를 등록하고 사용 여부를 관리합니다.</p>
+  </div>
+  {# ③ 직위 등록 Btn — 클릭 시 직위 등록 팝업 표출 #}
+  <a href="{% url 'position_create' %}" id="position-register-btn"
+     class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+    직위 등록
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-lg border border-slate-200">
+
+  {# 카드 상단 헤더: 직위 목록 + 삭제 버튼 / 검색 필드 #}
+  <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+    <div class="flex items-center gap-3">
+      {# ② 직위 목록 타이틀 #}
+      <span class="text-sm font-semibold text-slate-900">
+        직위 목록 <span class="text-blue-600">{{ total_count|default:7 }}</span>
+      </span>
+      {# ⑥ 삭제 Btn — Check Box 선택 시 활성화, 다중 선택 후 삭제 가능 #}
+      <button id="bulk-delete-btn" type="button" disabled
+              class="px-3 py-1.5 text-xs font-medium rounded transition-colors
+                     bg-red-50 text-red-600 hover:bg-red-100
+                     disabled:opacity-60 disabled:cursor-not-allowed">
+        삭제
+      </button>
+    </div>
+
+    {# ④ 직위명 검색 필드 (검색 아이콘 삽입) #}
+    <form method="get" class="relative">
+      <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+      <input type="text" name="q" value="{{ request.GET.q }}" placeholder="직위명 검색"
+             class="w-64 pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-md
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                    placeholder-slate-400" />
+    </form>
+  </div>
+
+  {# 직위 목록 테이블 #}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-slate-50 text-slate-600 text-xs">
+          <th class="px-4 py-3 text-center w-12">
+            <input type="checkbox" id="check-all" class="rounded border-slate-300" />
+          </th>
+          <th class="px-4 py-3 text-center font-medium w-24">순서</th>
+          <th class="px-4 py-3 text-center font-medium">직위명</th>
+          <th class="px-4 py-3 text-center font-medium w-32">상태</th>
+          <th class="px-4 py-3 text-center font-medium w-32">관리</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for position in positions %}
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-4 text-center">
+            <input type="checkbox" class="row-check rounded border-slate-300" value="{{ position.id }}" />
+          </td>
+          <td class="px-4 py-4 text-center text-slate-700">{{ position.order }}</td>
+          <td class="px-4 py-4 text-center text-slate-900">{{ position.name }}</td>
+          <td class="px-4 py-4 text-center">
+            {% if position.is_active %}
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span>
+            {% else %}
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-500">비활성</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-4 text-center">
+            {# ⑤ 수정 Btn — 클릭 시 직위 수정 팝업 표출 #}
+            <a href="{% url 'position_edit' position.id %}"
+               class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">
+              수정
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        {# Django 데이터 없을 때 더미 데이터로 디자인 미리보기 #}
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-4 text-center text-slate-700">1</td>
+          <td class="px-4 py-4 text-center text-slate-900">대표이사</td>
+          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-4 text-center text-slate-700">2</td>
+          <td class="px-4 py-4 text-center text-slate-900">이사</td>
+          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-4 text-center text-slate-700">3</td>
+          <td class="px-4 py-4 text-center text-slate-900">부장</td>
+          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-4 text-center text-slate-700">4</td>
+          <td class="px-4 py-4 text-center text-slate-900">차장</td>
+          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-4 text-center text-slate-700">5</td>
+          <td class="px-4 py-4 text-center text-slate-900">과장</td>
+          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-4 text-center text-slate-700">6</td>
+          <td class="px-4 py-4 text-center text-slate-900">대리</td>
+          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-4 text-center text-slate-700">7</td>
+          <td class="px-4 py-4 text-center text-slate-900">사원</td>
+          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-500">비활성</span></td>
+          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+{{ block.super }}
+<script>
+  // 전체 선택 체크박스
+  const positionCheckAll = document.getElementById('check-all');
+  const positionRowChecks = document.querySelectorAll('.row-check');
+  const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+
+  function updateBulkDeleteState() {
+    const anyChecked = Array.from(positionRowChecks).some(cb => cb.checked);
+    if (bulkDeleteBtn) bulkDeleteBtn.disabled = !anyChecked;
+  }
+
+  if (positionCheckAll) {
+    positionCheckAll.addEventListener('change', (e) => {
+      positionRowChecks.forEach(cb => cb.checked = e.target.checked);
+      updateBulkDeleteState();
+    });
+  }
+  positionRowChecks.forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (positionCheckAll) {
+        const all = Array.from(positionRowChecks).every(c => c.checked);
+        const some = Array.from(positionRowChecks).some(c => c.checked);
+        positionCheckAll.checked = all;
+        positionCheckAll.indeterminate = !all && some;
+      }
+      updateBulkDeleteState();
+    });
+  });
+</script>
+{% endblock %}

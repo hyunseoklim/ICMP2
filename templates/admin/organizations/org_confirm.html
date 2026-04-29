@@ -1,0 +1,38 @@
+{% extends 'admin/organizations/org_list.html' %}
+
+{% block title %}조직 관리 - 재확인 팝업 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{# ===== 재확인 팝업 =====
+   '조직 관리' 화면에서 해당 액션 클릭 시 표출되는 모달 #}
+{% block modal %}
+{{ block.super }}
+<!-- ===== 재확인 팝업 ===== -->
+  <div class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-7 text-center">
+
+      <!-- 아이콘 (시스템 관련 아이콘) -->
+      <div class="w-14 h-14 mx-auto mb-4 bg-slate-900 rounded-xl flex items-center justify-center">
+        <div class="w-6 h-6 bg-white rounded-md"></div>
+      </div>
+
+      <!-- 라벨 -->
+      <p class="text-xs text-slate-500 mb-3">구성원 선택</p>
+
+      <!-- 메시지 -->
+      <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">
+        2명의 사용자를 해당 부서에<br />
+        추가하시겠습니까?
+      </p>
+
+      <!-- 버튼 -->
+      <div class="flex items-center gap-2 justify-center">
+        <button class="px-6 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">
+          취 소
+        </button>
+        <button class="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+          확 인
+        </button>
+      </div>
+    </div>
+  </div>
+{% endblock %}
