@@ -5,8 +5,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi_app.fake_data import generate_sensor_data, generate_location_data
-from fastapi_app.sender import fetch_gas_devices, post_gas_reading
+from fastapi_app.fake_data import generate_sensor_data, generate_location_data, generate_power_data
+from fastapi_app.sender import fetch_gas_devices, post_gas_reading, post_power_reading
 
 # 연결된 클라이언트 목록
 _clients: list[WebSocket] = []
@@ -28,13 +28,21 @@ async def _broadcast(message: dict) -> None:
 
 
 async def _data_loop() -> None:
-    """2초마다 센서 데이터 + 위치 데이터 broadcast"""
+    """2초마다 센서 데이터 + 전력 데이터 + 위치 데이터 broadcast"""
     while True:
+        # 가스 센서 데이터
         for device in _devices:
             data = generate_sensor_data(device["id"], device["device_uid"])
             await _broadcast(data)
             await post_gas_reading(data)
 
+        # 전력 데이터 (채널별로 여러 번)
+        for _ in range(5):  # 한 루프에 5개 채널 데이터 전송
+            power = generate_power_data()
+            await _broadcast(power)
+            await post_power_reading(power)
+
+        # 위치 데이터
         location = generate_location_data()
         await _broadcast(location)
 

@@ -45,17 +45,22 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     /* ── 유해가스 테이블 갱신 ── */
-    SafetyWS.on('gas_update', function(payload) {
-        const device = gasSensors.find(s => s.device_uid === data.device_uid);
-        if (device && gasSensors[gasCurrentIndex]?.device_uid === data.device_uid) {
+    SafetyWS.on('gas_update', function(data) {
+        if (typeof gasSensors === 'undefined' || !gasSensors.length) return;
+
+        const deviceUid = data.device_uid;
+        const device = gasSensors.find(s => s.device_uid === deviceUid);
+
+        if (device && gasSensors[gasCurrentIndex]?.device_uid === deviceUid) {
             renderGasTable(data);
         }
-        // 센서 리스트 요약도 갱신
         if (device) loadSensorSummary(device);
     });
 
     /* ── 전력 현황 갱신 ── */
     SafetyWS.on('power_update', function(data) {
+        if (typeof powerDevices === 'undefined' || !powerDevices.length) return;
+
         loadLatestPower(powerDevices[powerCurrentIndex]?.id);
     });
 

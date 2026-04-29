@@ -36,7 +36,29 @@ async def post_gas_reading(data: dict) -> None:
     }
     async with httpx.AsyncClient(timeout=3.0) as client:
         try:
-            await client.post(f"{DJANGO_BASE}/monitoring/api/gas-readings/", json=payload)
+            await client.post(
+                f"{DJANGO_BASE}/monitoring/api/gas-readings/",
+                json=payload,
+            )
             print(f"[sender] GasReading POST 성공: {data['device_uid']}")
         except Exception as e:
             print(f"[sender] GasReading POST 실패: {e}")
+
+
+async def post_power_reading(data: dict) -> None:
+    payload = {
+        "device_uid":   data["device_uid"],
+        "channel_code": data["channel_code"],
+        "current_a":    data["current_a"],
+        "voltage_v":    data["voltage_v"],
+        "power_w":      data["power_w"],
+    }
+    async with httpx.AsyncClient(timeout=3.0) as client:
+        try:
+            await client.post(
+                f"{DJANGO_BASE}/monitoring/api/power-readings/",
+                json=payload,
+            )
+            print(f"[sender] PowerReading POST 성공: {data['device_uid']} {data['channel_code']}")
+        except Exception as e:
+            print(f"[sender] PowerReading POST 실패: {e}")

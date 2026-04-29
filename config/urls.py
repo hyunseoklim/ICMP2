@@ -7,16 +7,15 @@ from monitoring import views as monitoring_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('monitoring/api/gas-readings/', monitoring_views.ingest_gas),
+    path('monitoring/api/power-readings/', monitoring_views.ingest_power),
+    
     path('', include('dashboard.urls')),
     path('accounts/', include('accounts.urls')),
     path('safety/', include('safety.urls')),
     path('facilities/', include('facilities.urls')),
     path('monitoring/', include('monitoring.urls')),
     path('alerts/', include('alerts.urls')),
-
-    path('monitoring/api/gas-readings/', monitoring_views.ingest_gas),
-    path('monitoring/api/power-readings/', monitoring_views.ingest_power),
-
 ] 
 
 
