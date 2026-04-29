@@ -259,11 +259,11 @@ class Command(BaseCommand):
                     action_type='close',
                     defaults={'action_note': '조치 완료 및 정상 복귀 확인'},
                 )
-
+                
         self.stdout.write('조치 이력 생성 완료')
         # ── 10. 안전 체크리스트 항목 ───────────────────────────────────────
         from django.core.management import call_command
         call_command('loaddata', 'safety/fixtures/safety_check_items.json', verbosity=0)
         self.stdout.write('  안전 체크리스트 항목 로드 완료')
-    
+        
         self.stdout.write(self.style.SUCCESS('더미 데이터 생성 완료!'))

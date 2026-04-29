@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from monitoring import views as monitoring_views
  
 
 urlpatterns = [
@@ -12,6 +13,10 @@ urlpatterns = [
     path('facilities/', include('facilities.urls')),
     path('monitoring/', include('monitoring.urls')),
     path('alerts/', include('alerts.urls')),
+
+    path('monitoring/api/gas-readings/', monitoring_views.ingest_gas),
+    path('monitoring/api/power-readings/', monitoring_views.ingest_power),
+
 ] 
 
 
