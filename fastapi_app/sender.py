@@ -21,8 +21,9 @@ async def fetch_gas_devices() -> list[dict]:
 
 
 async def post_gas_reading(data: dict) -> None:
+    # device_uid 기준으로 전송 (ingest_gas 함수가 device_uid로 장비 조회)
     payload = {
-        "device": data["device_id"],
+        "device_uid": data["device_uid"],
         "co":  data["co"],
         "h2s": data["h2s"],
         "co2": data["co2"],
@@ -32,11 +33,10 @@ async def post_gas_reading(data: dict) -> None:
         "o3":  data["o3"],
         "nh3": data["nh3"],
         "voc": data["voc"],
-        "measured_at": data["measured_at"],
     }
     async with httpx.AsyncClient(timeout=3.0) as client:
         try:
             await client.post(f"{DJANGO_BASE}/monitoring/api/gas-readings/", json=payload)
-            print(f"[sender] GasReading POST 성공: {payload['device']}")
+            print(f"[sender] GasReading POST 성공: {data['device_uid']}")
         except Exception as e:
             print(f"[sender] GasReading POST 실패: {e}")
