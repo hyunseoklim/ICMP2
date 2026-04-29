@@ -1,0 +1,20 @@
+{% extends 'users/user_list.html' %}
+
+{% block title %}로그아웃 완료 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{% block modal %}
+<div id="modal-overlay" class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-content bg-white rounded-xl shadow-xl w-full max-w-sm">
+    <div class="px-6 pt-8 pb-6 text-center">
+      <div class="w-12 h-12 mx-auto mb-3 bg-slate-900 rounded-lg flex items-center justify-center">
+        <div class="w-6 h-6 bg-white rounded-sm"></div>
+      </div>
+      <p class="text-xs text-slate-500 mb-4">로그아웃 완료</p>
+      <h3 class="text-base font-bold text-slate-900 mb-6">로그아웃되었습니다.</h3>
+      <a href="#" class="inline-block px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+        확 인
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

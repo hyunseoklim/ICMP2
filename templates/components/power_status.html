@@ -1,0 +1,38 @@
+{% load static %}
+<div class="widget power-widget">
+    <div class="widget-header">
+        <h3>스마트 전력 시스템 위험 현황</h3>
+    </div>
+
+    <!-- 현재 전체 전력 소비 -->
+     <div class="power-total-row">
+        <div>
+            <p class="power-total-label">현재 전체 스마트 파워 전력 사용량</p>
+            <p class="power-total-value">
+                <span id="power-total">-</span>
+                <span class="power-unit">W</span>
+            </p>
+        </div>
+        <div class="power-vs-baseline">
+            <span class="baseline-label">기준 대비</span>
+            <span class="baseline-val" id="power-baseline">-</span>
+        </div>
+    </div>
+
+    <!-- 설비별 테이블 -->
+    <div class="table-wrapper">
+        <table class="data-table" id="power-table">
+            <thead>
+                <tr>
+                    <th>설비명</th>
+                    <th>전력 사용량</th>
+                    <th>온도</th>
+                    <th>위험도</th>
+                </tr>
+            </thead>
+            <tbody id="power-tbody">
+                <tr><td colspan="4" class="text-center">로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>

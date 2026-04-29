@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}실시간/AI 예측 스마트 전력 현황 — 산재 예방 통합 관제시스템{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/power_detail.css' %}">
+{% endblock %}
+
+{% block page_content %}
+<div class="detail-page">
+
+    <!-- 페이지 타이틀 -->
+    <h2 class="detail-title">
+        <span class="title-accent">실시간/AI 예측</span> 스마트 전력 현황
+    </h2>
+
+    <div class="detail-layout">
+
+        <!-- ── 좌측 패널 ── -->
+        <aside class="detail-left">
+
+            <!-- 전력 장비 목록 -->
+            <section class="panel power-list-panel">
+                <div class="panel-header">
+                    <h3>스마트 전력 위험 현황</h3>
+                    <div class="sensor-summary">
+                        <span class="badge badge--danger">위험 <span id="summary-danger">0</span></span>
+                        <span class="badge badge--warning">주의 <span id="summary-warning">0</span></span>
+                        <span class="badge badge--normal">정상 <span id="summary-normal">0</span></span>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>선택</th>
+                                <th>설비명</th>
+                                <th>부하율(%)</th>
+                                <th>연결 상태</th>
+                                <th>온도(°C)</th>
+                                <th>위험도</th>
+                            </tr>
+                        </thead>
+                        <tbody id="power-equip-list">
+                            <tr><td colspan="6" class="text-center">로딩 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 재가동 버튼 -->
+            <div class="power-action-row">
+                <button class="power-restart-btn" id="power-restart-btn" disabled>재가동</button>
+            </div>
+
+        </aside>
+
+        <!-- ── 우측 메인 패널 ── -->
+        <div class="detail-main">
+
+            <!-- 탭 + 범례 -->
+            <div class="detail-tab-row">
+                <nav class="tab-nav" role="tablist">
+                    <button class="tab-btn active" data-tab="realtime" role="tab">실시간 현황</button>
+                    <button class="tab-btn" data-tab="ai" role="tab">AI 예측</button>
+                </nav>
+                <div class="chart-legend">
+                    <span class="legend-item"><i class="legend-line legend-line--warn"></i> 주의 임계치</span>
+                    <span class="legend-item"><i class="legend-line legend-line--danger"></i> 위험 임계치</span>
+                    <span class="legend-item"><i class="legend-swatch legend-swatch--warn"></i> 주의 범위</span>
+                    <span class="legend-item"><i class="legend-swatch legend-swatch--danger"></i> 위험 범위</span>
+                </div>
+            </div>
+
+            <!-- 실시간 현황 탭 -->
+            <div class="tab-content active" id="tab-realtime">
+                <div class="power-chart-grid" id="power-chart-grid">
+                    <!-- JS에서 채널별 차트 카드 동적 생성 -->
+                </div>
+            </div>
+
+            <!-- AI 예측 탭 (4차) -->
+            <div class="tab-content" id="tab-ai">
+                <div class="coming-soon">
+                    <p>🔧 AI 예측 기능은 4차에서 구현 예정입니다.</p>
+                </div>
+            </div>
+
+            <!-- 긴급 액션바 — 위험/주의 감지 시에만 표시 -->
+            <div class="alert-bar" id="power-alert-bar" style="display:none;">
+                <span class="alert-bar__indicator"></span>
+                <span class="alert-bar__sensor" id="power-alert-sensor">-</span>
+                <span class="alert-bar__divider">|</span>
+                <span class="alert-bar__msg" id="power-alert-msg">-</span>
+                <span class="alert-bar__divider">|</span>
+                <span class="alert-bar__action" id="power-alert-action">-</span>
+                <span class="alert-bar__time" id="power-alert-time">-</span>
+            </div>
+
+        </div>
+        <!-- ── 우측 메인 패널 끝 ── -->
+
+    </div>
+
+</div>
+{% endblock page_content %}
+
+{% block script %}{% endblock %}

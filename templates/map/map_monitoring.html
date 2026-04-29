@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/map/map_monitoring.css' %}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+{% endblock %}  
+
+{% block page_content %}
+
+<div class="page-wrap">
+  
+  <!-- 페이지 타이틀 -->
+  <div class="page-title-bar">
+    실시간 모니터링
+  </div>
+
+  <!-- 탭 필터 -->
+  <div class="tab-bar">
+    <button class="tab-btn-map active" data-filter="all">전체</button>
+    <button class="tab-btn-map" data-filter="worker">작업자</button>
+    <button class="tab-btn-map" data-filter="device">설비</button>
+    <button class="tab-btn-map" data-filter="gas">가스센서</button>
+    <button class="tab-btn-map" data-filter="power">전력</button>
+  </div>
+
+
+  <!-- 본문 -->
+  <div class="body-wrap">
+
+    <!-- 좌측 패널 -->
+    <div class="left-panel">
+
+      <!-- 지도 제어 -->
+      <div class="panel-section">
+        <div class="panel-label">지도 제어</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">사업장/층 이동과 화면 제어</div>
+        <select id="sel-facility" class="dark-select" style="margin-bottom:4px">
+          <option value="">사업장 선택</option>
+          {% for f in facilities %}
+          <option value="{{ f.id }}">{{ f.facility_name }}</option>
+          {% endfor %}
+        </select>
+        <select id="sel-building" class="dark-select" style="margin-bottom:4px">
+          <option value="">건물 선택</option>
+        </select>
+        <select id="sel-floor" class="dark-select" style="margin-bottom:6px">
+          <option value="">층 선택</option>
+        </select>
+        <div style="display:flex;gap:4px">
+          <button class="btn-dark-primary" style="flex:1" onclick="fitMapView()">전체 맞춤</button>
+          <button class="btn-dark-outline" style="flex:0 0 30px" onclick="zoomIn()">+</button>
+          <button class="btn-dark-outline" style="flex:0 0 30px" onclick="zoomOut()">-</button>
+        </div>
+      </div>
+
+      <!-- 레이어 표시 -->
+      <div class="panel-section">
+        <div class="panel-label">레이어 표시</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:8px">관제 객체 표시 On/Off</div>
+        <div class="layer-row">
+          <div class="layer-row-left"><span class="layer-dot" style="background:#ef4444"></span>작업자</div>
+          <label class="layer-toggle"><input type="checkbox" checked id="layer-worker" onchange="toggleLayer('worker',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="layer-row">
+          <div class="layer-row-left"><span class="layer-dot" style="background:#22d3ee"></span>설비</div>
+          <label class="layer-toggle"><input type="checkbox" checked id="layer-device" onchange="toggleLayer('device',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="layer-row">
+          <div class="layer-row-left"><span class="layer-dot" style="background:#a855f7"></span>유해가스 센서</div>
+          <label class="layer-toggle"><input type="checkbox" checked id="layer-gas" onchange="toggleLayer('gas',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="layer-row">
+          <div class="layer-row-left"><span class="layer-dot" style="background:#22c55e"></span>스마트 전력</div>
+          <label class="layer-toggle"><input type="checkbox" checked id="layer-power" onchange="toggleLayer('power',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="layer-row">
+          <div class="layer-row-left"><span class="layer-dot" style="background:#3b82f6"></span>위치 센서</div>
+          <label class="layer-toggle"><input type="checkbox" checked id="layer-location" onchange="toggleLayer('location',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="layer-row">
+          <div class="layer-row-left"><span class="layer-dot" style="background:#f59e0b"></span>위험구역</div>
+          <label class="layer-toggle"><input type="checkbox" checked id="layer-geofence" onchange="toggleLayer('geofence',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="layer-row">
+          <div class="layer-row-left"><span class="layer-dot" style="background:#475569;border-radius:2px"></span>격자</div>
+          <label class="layer-toggle"><input type="checkbox" checked id="layer-grid" onchange="toggleLayer('grid',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="layer-row">
+          <div class="layer-row-left"><span class="layer-dot" style="background:#64748b;border-radius:2px"></span>zone</div>
+          <label class="layer-toggle"><input type="checkbox" checked id="layer-zone" onchange="toggleLayer('zone',this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+
+      <!-- zone 지정 도구 -->
+      <div class="panel-section">
+        <div class="panel-label">도구</div>
+        <button class="btn-dark-outline" style="width:100%;margin-bottom:4px;text-align:left" onclick="startZoneDraw()">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#378ADD;margin-right:6px"></span>zone 범위 지정
+        </button>
+        <button class="btn-dark-outline" style="width:100%;margin-bottom:4px;text-align:left" id="btn-draw-geofence">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;margin-right:6px"></span>위험구역 설정
+        </button>
+        <button class="btn-dark-outline" style="width:100%;text-align:left" onclick="cancelDraw()">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#475569;margin-right:6px"></span>그리기 취소
+        </button>
+      </div>
+
+    </div><!-- /left-panel -->
+
+    <!-- 지도 -->
+    <div class="map-wrap">
+      <div id="map">
+
+
+    </div>
+      <!-- 격자 설정 -->
+      <div class="panel-section">
+        <div class="panel-label">격자 설정</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">셀 크기 (px)</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
+          <input type="number" id="grid-cell-w" value="50" min="10" max="200" style="width:54px;background:var(--bg-input);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);font-size:12px;padding:3px 6px">
+          <span style="font-size:11px;color:var(--text-muted)">×</span>
+          <input type="number" id="grid-cell-h" value="50" min="10" max="200" style="width:54px;background:var(--bg-input);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);font-size:12px;padding:3px 6px">
+        </div>
+        <button class="btn-dark-primary" style="width:100%" onclick="applyGrid()">격자 적용</button>
+      </div>
+    
+      <!-- zone 저장 패널 (셀 드래그 완료 후 표시) -->
+      <div id="zone-draw-panel">
+        <div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:8px">zone 정보 입력</div>
+        <div style="margin-bottom:6px">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">구역 이름</div>
+          <input type="text" id="zone-name-input" placeholder="예: 창고1">
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">구역 유형</div>
+          <select id="zone-type-input">
+            <option value="work">작업구역</option>
+            <option value="storage">창고</option>
+            <option value="rest">휴게구역</option>
+            <option value="utility">설비구역</option>
+            <option value="passage">통로</option>
+            <option value="etc">기타</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-dark-primary" style="flex:1" onclick="saveZone()">저장</button>
+          <button class="btn-dark-outline" style="flex:1" onclick="cancelZoneDraw()">취소</button>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:6px" id="zone-cell-info"></div>
+      </div>
+      </div>   <!-- 지도 -->
+    <!-- 우측 패널 -->
+    <div class="right-panel">
+
+      <!-- AI 예측 타임라인 -->
+      <div class="panel-section">
+        <div class="panel-label">AI 예측 타임라인</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">유해가스 확산 및 위험구역 변화 예측</div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+          <span class="badge-warning" style="font-size:10px">현재 10분</span>
+        </div>
+        <div class="timeline-track">
+          <div class="timeline-progress"></div>
+          <div class="timeline-thumb"></div>
+        </div>
+        <div class="timeline-labels">
+          <span>0분</span><span>5분</span><span>10분</span><span>15분</span><span>20분</span>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:var(--text-muted);text-align:center">AI 연동 예정</div>
+      </div>
+
+      <!-- 클릭 팝업 상세 -->
+      <div class="panel-section" id="detail-panel" style="display:none">
+        <div class="panel-label">선택 항목</div>
+        <div id="detail-content"></div>
+      </div>
+
+      <!-- 실시간 이벤트 로그 -->
+      <div class="panel-section event-log-wrap" style="flex:1">
+        <div class="panel-label">실시간 이벤트</div>
+        <div class="event-list" id="event-list">
+          <div style="font-size:11px;color:var(--text-muted);text-align:center;padding:12px 0">이벤트 없음</div>
+        </div>
+      </div>
+
+    </div><!-- /right-panel -->
+
+  </div><!-- /body-wrap -->
+
+  <!-- 하단 범례 -->
+  <div class="bottom-bar">
+    <div class="legend-item-map"><div class="leg-dot" style="background:#ef4444"></div>위험구역</div>
+    <div class="legend-item-map"><div class="leg-dot" style="background:#f59e0b"></div>주의구역</div>
+    <div class="legend-item-map"><div class="leg-dot" style="background:#22c55e"></div>정상</div>
+    <div class="legend-item-map"><div class="leg-dot" style="background:#3b82f6"></div>위치 센서</div>
+    <div class="legend-item-map"><div class="leg-dot" style="background:#a855f7"></div>유해가스 센서</div>
+    <div class="legend-item-map"><div class="leg-dot" style="background:#22c55e"></div>스마트 전력</div>
+    <div class="legend-item-map"><div class="leg-sq" style="background:#378ADD;border-radius:2px"></div>zone</div>
+    <div class="legend-item-map"><div class="leg-dot" style="background:#ef4444;opacity:0.5"></div>작업자(위험)</div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+{% endblock %}
+
+{% block script %}
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- leaflet.js 바로 아래에 추가 -->
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+  const FLOOR_ID = null;
+  const API_BASE = '/facilities/api'; 
+  const SAMPLE_IMAGE = "{{ MEDIA_URL }}img/sample_floor.png";
+</script>
+<script src="{% static 'js/map/map_config.js' %}"></script>
+<script src="{% static 'js/map/map_core.js' %}"></script>
+<script src="{% static 'js/map/map_grid.js' %}"></script>
+<script src="{% static 'js/map/map_zone.js' %}"></script>
+<script src="{% static 'js/map/map_event.js' %}"></script>
+<script src="{% static 'js/map/geofence.js' %}"></script>
+<!-- <script src="{% static 'js/map/sensor.js' %}"></script> -->
+<script src="{% static 'js/map/worker_sim.js' %}"></script>
+<script src="{% static 'js/map/monitoring.js' %}"></script>
+<script src="{% static 'js/map/map_init.js' %}"></script>
+{% endblock %}
+
+
+
+
+

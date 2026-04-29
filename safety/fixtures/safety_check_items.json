@@ -1,0 +1,41 @@
+[
+  {"model": "safety.safetycheckitem", "pk": 1,  "fields": {"category": "작업 구역 안전 확인", "category_order": 1, "item_text": "작업 구역 내 위험구역 표시 및 출입 통제 상태를 확인하였다.", "item_order": 1, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 2,  "fields": {"category": "작업 구역 안전 확인", "category_order": 1, "item_text": "작업 구역 바닥 상태(미끄럼, 철편, 자재 등)가 안전한 것을 확인하였다.", "item_order": 2, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 3,  "fields": {"category": "작업 구역 안전 확인", "category_order": 1, "item_text": "작업 구역 내 낙하물 위험이 없는 것을 확인하였다.", "item_order": 3, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 4,  "fields": {"category": "작업 구역 안전 확인", "category_order": 1, "item_text": "작업 구역 내 작업 통로 및 이동 동선이 확보되어 있는 것을 확인하였다.", "item_order": 4, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 5,  "fields": {"category": "작업 구역 안전 확인", "category_order": 1, "item_text": "작업 구역 주변에서 크레인 또는 중장비 작업 여부를 확인하였다.", "item_order": 5, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 6,  "fields": {"category": "작업 구역 안전 확인", "category_order": 1, "item_text": "작업 구역 주변 고소 작업이 진행 중인지 확인하였다.", "item_order": 6, "is_active": true}},
+
+  {"model": "safety.safetycheckitem", "pk": 7,  "fields": {"category": "배관 작업 안전 확인", "category_order": 2, "item_text": "작업 대상 배관의 압력 상태를 확인하였다.", "item_order": 1, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 8,  "fields": {"category": "배관 작업 안전 확인", "category_order": 2, "item_text": "작업 대상 배관 내 가스 또는 유체 잔존 여부를 확인하였다.", "item_order": 2, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 9,  "fields": {"category": "배관 작업 안전 확인", "category_order": 2, "item_text": "배관 차단 밸브 상태를 확인하였다.", "item_order": 3, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 10, "fields": {"category": "배관 작업 안전 확인", "category_order": 2, "item_text": "배관 작업 구역의 누출 위험이 없는 것을 확인하였다.", "item_order": 4, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 11, "fields": {"category": "배관 작업 안전 확인", "category_order": 2, "item_text": "배관 작업 구역의 환기 상태를 확인하였다.", "item_order": 5, "is_active": true}},
+
+  {"model": "safety.safetycheckitem", "pk": 12, "fields": {"category": "용접 및 화기 작업 확인", "category_order": 3, "item_text": "용접 및 화기 작업 허가서를 확인하였다.", "item_order": 1, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 13, "fields": {"category": "용접 및 화기 작업 확인", "category_order": 3, "item_text": "화기 작업 주변 인화성 물질이 없는 것을 확인하였다.", "item_order": 2, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 14, "fields": {"category": "용접 및 화기 작업 확인", "category_order": 3, "item_text": "화재 감시자가 배치되어 있는 것을 확인하였다.", "item_order": 3, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 15, "fields": {"category": "용접 및 화기 작업 확인", "category_order": 3, "item_text": "소화기 및 화재 대응 장비 위치를 확인하였다.", "item_order": 4, "is_active": true}},
+
+  {"model": "safety.safetycheckitem", "pk": 16, "fields": {"category": "고소 작업 안전 확인", "category_order": 4, "item_text": "고소 작업 발판 및 작업대 상태를 확인하였다.", "item_order": 1, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 17, "fields": {"category": "고소 작업 안전 확인", "category_order": 4, "item_text": "작업 발판이 고정되어 있는 것을 확인하였다.", "item_order": 2, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 18, "fields": {"category": "고소 작업 안전 확인", "category_order": 4, "item_text": "낙하물 방지 조치가 되어 있는 것을 확인하였다.", "item_order": 3, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 19, "fields": {"category": "고소 작업 안전 확인", "category_order": 4, "item_text": "작업 구역 하부 접근 통제가 되어 있는 것을 확인하였다.", "item_order": 4, "is_active": true}},
+
+  {"model": "safety.safetycheckitem", "pk": 20, "fields": {"category": "설비 및 장비 확인", "category_order": 5, "item_text": "사용 장비(그라인더, 절단기, 용접기 등) 이상 여부를 확인하였다.", "item_order": 1, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 21, "fields": {"category": "설비 및 장비 확인", "category_order": 5, "item_text": "전기 케이블 및 장비 전원 상태를 확인하였다.", "item_order": 2, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 22, "fields": {"category": "설비 및 장비 확인", "category_order": 5, "item_text": "이동 장비(지게차, 크레인 등) 작업 반경을 확인하였다.", "item_order": 3, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 23, "fields": {"category": "설비 및 장비 확인", "category_order": 5, "item_text": "장비 작업 반경 내 접근 위험 요소가 없는 것을 확인하였다.", "item_order": 4, "is_active": true}},
+
+  {"model": "safety.safetycheckitem", "pk": 24, "fields": {"category": "가스 및 환경 위험 확인", "category_order": 6, "item_text": "작업 구역 가스 감지 시스템 상태를 확인하였다.", "item_order": 1, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 25, "fields": {"category": "가스 및 환경 위험 확인", "category_order": 6, "item_text": "가스 누출 경고 또는 알림이 없는 것을 확인하였다.", "item_order": 2, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 26, "fields": {"category": "가스 및 환경 위험 확인", "category_order": 6, "item_text": "작업 구역 환기 상태를 확인하였다.", "item_order": 3, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 27, "fields": {"category": "가스 및 환경 위험 확인", "category_order": 6, "item_text": "밀폐 공간 작업 여부를 확인하였다.", "item_order": 4, "is_active": true}},
+
+  {"model": "safety.safetycheckitem", "pk": 28, "fields": {"category": "주변 작업자 안전 확인", "category_order": 7, "item_text": "주변 작업자와 작업 구역이 중복되지 않는 것을 확인하였다.", "item_order": 1, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 29, "fields": {"category": "주변 작업자 안전 확인", "category_order": 7, "item_text": "협착 및 충돌 위험이 없는 작업 동선을 확보하였다.", "item_order": 2, "is_active": true}},
+
+  {"model": "safety.safetycheckitem", "pk": 30, "fields": {"category": "비상 대응 확인", "category_order": 8, "item_text": "비상 대피 경로를 확인하였다.", "item_order": 1, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 31, "fields": {"category": "비상 대응 확인", "category_order": 8, "item_text": "비상 상황 발생 시 대응 절차를 인지하였다.", "item_order": 2, "is_active": true}},
+  {"model": "safety.safetycheckitem", "pk": 32, "fields": {"category": "비상 대응 확인", "category_order": 8, "item_text": "응급 장비 및 비상 연락 체계를 확인하였다.", "item_order": 3, "is_active": true}}
+]

@@ -1,0 +1,307 @@
+{% extends 'base_manage.html' %}
+
+{% block title %}사용자 관리 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{# 사이드바에서 '계정/권한 관리' 메뉴 강조 #}
+{% block breadcrumb %}
+<div class="text-xs text-slate-500 mb-3">
+  계정/권한 관리 / <span class="text-slate-700">사용자 관리</span>
+</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <h2 class="text-2xl font-bold text-slate-900 mb-1.5">사용자 관리</h2>
+    <p class="text-sm text-slate-500">계정을 조회하고 등록, 수정, 삭제할 수 있습니다.</p>
+  </div>
+  <a href="#" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+    사용자 등록
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+{# ⑧ 검색 필터 영역 #}
+<div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+  <form method="get">
+    <div class="grid grid-cols-5 gap-4 mb-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">사용자명</label>
+        <input type="text" name="username" value="{{ request.GET.username }}" placeholder="이름 입력"
+          class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">소속</label>
+        <select name="dept" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <option value="">전체</option>
+          {# 실제 옵션은 view에서 context로 전달 #}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">직위</label>
+        <select name="position" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <option value="">전체</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">권한</label>
+        <select name="role" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <option value="">전체</option>
+          <option value="super">슈퍼관리자</option>
+          <option value="admin">관리자</option>
+          <option value="user">일반사용자</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">계정 상태</label>
+        <select name="status" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <option value="">전체</option>
+          <option value="active">사용</option>
+          <option value="locked">잠금</option>
+          <option value="inactive">비활성</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-2">
+      {# ⑨ 초기화 #}
+      <a href="{{ request.path }}" class="px-5 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1.5">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        초기화
+      </a>
+      {# ⑩ 검색 #}
+      <button type="submit" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors flex items-center gap-1.5">
+        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+        검색
+      </button>
+    </div>
+  </form>
+</div>
+
+{# 결과 영역 #}
+<div class="bg-white rounded-lg border border-slate-200">
+  <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+    <div class="flex items-center gap-3">
+      {# ⑪ 카운트 #}
+      <span class="text-sm font-semibold text-slate-900">
+        전체 사용자 <span class="text-blue-600">{{ total_count|default:128 }}</span>
+      </span>
+      {# ⑬⑭⑮ 액션 버튼 #}
+      <div class="flex items-center gap-1.5 ml-3">
+        <button type="button" class="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded hover:bg-red-100 transition-colors">삭제</button>
+        <button type="button" class="px-3 py-1.5 bg-orange-50 text-orange-600 text-xs font-medium rounded hover:bg-orange-100 transition-colors">계정 잠금</button>
+        <button type="button" class="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-medium rounded hover:bg-green-100 transition-colors">계정 잠금 해제</button>
+      </div>
+    </div>
+
+    {# ⑯ 정렬 #}
+    <button type="button" class="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors">
+      등록일 오름차순
+      <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+    </button>
+  </div>
+
+  {# ⑫ 사용자 테이블 #}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-slate-50 text-slate-600 text-xs">
+          <th class="px-4 py-3 text-left w-10">
+            <input type="checkbox" id="check-all" class="rounded border-slate-300" />
+          </th>
+          <th class="px-4 py-3 text-left font-medium">사용자명</th>
+          <th class="px-4 py-3 text-left font-medium">소속</th>
+          <th class="px-4 py-3 text-left font-medium">직급</th>
+          <th class="px-4 py-3 text-left font-medium">아이디</th>
+          <th class="px-4 py-3 text-left font-medium">권한</th>
+          <th class="px-4 py-3 text-left font-medium">계정 상태</th>
+          <th class="px-4 py-3 text-left font-medium">연락처</th>
+          <th class="px-4 py-3 text-left font-medium">최근 로그인</th>
+          <th class="px-4 py-3 text-left font-medium">등록일</th>
+          <th class="px-4 py-3 text-left font-medium">관리</th>
+        </tr>
+      </thead>
+      <tbody>
+        {# 실제 데이터는 views.py에서 users 컨텍스트로 전달 #}
+        {% for u in users %}
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" value="{{ u.id }}" /></td>
+          <td class="px-4 py-3 text-slate-900 font-medium">{{ u.name }}</td>
+          <td class="px-4 py-3 text-slate-600">{{ u.dept|default:"-" }}</td>
+          <td class="px-4 py-3 text-slate-600">{{ u.position|default:"-" }}</td>
+          <td class="px-4 py-3 text-slate-600 font-mono text-xs">{{ u.username }}</td>
+          <td class="px-4 py-3">
+            {% if u.role == 'super' %}
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-purple-100 text-purple-700">슈퍼관리자</span>
+            {% elif u.role == 'admin' %}
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span>
+            {% else %}
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">일반사용자</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            {% if u.status == 'active' %}
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span>
+            {% elif u.status == 'locked' %}
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-orange-100 text-orange-700">잠금</span>
+            {% else %}
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-red-100 text-red-700">비활성</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-slate-600 text-xs">{{ u.phone|default:"-" }}</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">{{ u.last_login|date:"Y-m-d H:i:s"|default:"-" }}</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">{{ u.date_joined|date:"Y-m-d"|default:"-" }}</td>
+          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        {% empty %}
+        {# users 데이터가 없을 때 더미 데이터로 디자인 미리보기 #}
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors bg-blue-50/30">
+          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" checked /></td>
+          <td class="px-4 py-3 text-slate-900 font-medium">김관리</td>
+          <td class="px-4 py-3 text-slate-600">경영지원팀</td>
+          <td class="px-4 py-3 text-slate-600">과장</td>
+          <td class="px-4 py-3 text-slate-600 font-mono text-xs">admin_kim</td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span></td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs">010-2222-1111</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-02-15</td>
+          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 text-slate-900 font-medium">박현장</td>
+          <td class="px-4 py-3 text-slate-600">영업팀</td>
+          <td class="px-4 py-3 text-slate-600">차장</td>
+          <td class="px-4 py-3 text-slate-600 font-mono text-xs">field_mgr_01</td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span></td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-orange-100 text-orange-700">잠금</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs">010-3456-7821</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-02-21</td>
+          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 text-slate-900 font-medium">이작업</td>
+          <td class="px-4 py-3 text-slate-600">기술연구소</td>
+          <td class="px-4 py-3 text-slate-600">사원</td>
+          <td class="px-4 py-3 text-slate-600 font-mono text-xs">worker_lee</td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">일반사용자</span></td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs">010-7788-9900</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-01</td>
+          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 text-slate-900 font-medium">정운영</td>
+          <td class="px-4 py-3 text-slate-600">관제운영팀</td>
+          <td class="px-4 py-3 text-slate-600">대리</td>
+          <td class="px-4 py-3 text-slate-600 font-mono text-xs">ops_jung</td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span></td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs">010-1122-3344</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-08</td>
+          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 text-slate-900 font-medium">최정겸</td>
+          <td class="px-4 py-3 text-slate-600">시스템운영팀</td>
+          <td class="px-4 py-3 text-slate-600">조장</td>
+          <td class="px-4 py-3 text-slate-600 font-mono text-xs">worker_choi</td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">일반사용자</span></td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-red-100 text-red-700">비활성</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs">010-6677-1223</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-04</td>
+          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 text-slate-900 font-medium">홍길동</td>
+          <td class="px-4 py-3 text-slate-600">-</td>
+          <td class="px-4 py-3 text-slate-600">대표이사</td>
+          <td class="px-4 py-3 text-slate-600 font-mono text-xs">super_admin</td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-purple-100 text-purple-700">슈퍼관리자</span></td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs">010-1234-5678</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-02-11</td>
+          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 text-slate-900 font-medium">정운영</td>
+          <td class="px-4 py-3 text-slate-600">운영팀</td>
+          <td class="px-4 py-3 text-slate-600">대리</td>
+          <td class="px-4 py-3 text-slate-600 font-mono text-xs">ops_jung_02</td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-purple-100 text-purple-700">슈퍼관리자</span></td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs">010-2456-8891</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-29 14:20</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-10</td>
+          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# ⑱ 페이지 정보 + ⑲ 페이지네이션 #}
+  <div class="flex items-center justify-between px-6 py-4 border-t border-slate-200">
+    <div class="text-xs text-slate-500">
+      {% if page_obj %}
+        {{ page_obj.start_index }} - {{ page_obj.end_index }} / {{ page_obj.paginator.count }}
+      {% else %}
+        1 - 10 / 128
+      {% endif %}
+    </div>
+
+    <div class="flex items-center gap-1">
+      <a href="?page={% if page_obj %}{{ page_obj.previous_page_number }}{% else %}1{% endif %}"
+         class="w-8 h-8 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+      </a>
+      {% if page_obj %}
+        {% for num in page_obj.paginator.page_range %}
+          <a href="?page={{ num }}"
+             class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium transition-colors
+                    {% if page_obj.number == num %}bg-slate-900 text-white{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
+            {{ num }}
+          </a>
+        {% endfor %}
+      {% else %}
+        <a href="?page=1" class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium bg-slate-900 text-white">1</a>
+        <a href="?page=2" class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium text-slate-600 hover:bg-slate-100">2</a>
+        <a href="?page=3" class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium text-slate-600 hover:bg-slate-100">3</a>
+        <a href="?page=4" class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium text-slate-600 hover:bg-slate-100">4</a>
+        <a href="?page=5" class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium text-slate-600 hover:bg-slate-100">5</a>
+      {% endif %}
+      <a href="?page={% if page_obj %}{{ page_obj.next_page_number }}{% else %}2{% endif %}"
+         class="w-8 h-8 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </a>
+    </div>
+
+    <div class="w-16"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+  // 전체 선택 체크박스
+  const checkAll = document.getElementById('check-all');
+  const rowChecks = document.querySelectorAll('.row-check');
+  if (checkAll) {
+    checkAll.addEventListener('change', (e) => {
+      rowChecks.forEach(cb => cb.checked = e.target.checked);
+    });
+  }
+</script>
+{% endblock %}

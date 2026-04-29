@@ -1,0 +1,59 @@
+{% load static %}
+<div class="widget worker-widget">
+    <div class="widget-header">
+        <h3>작업자 현황</h3>
+        <a href="{% url 'worker_list' %}" class="widget-more-link">+ 상세 보기</a>
+    </div>
+
+    <div class="worker-chart-area">
+        <!-- 도넛 차트 (Chart.js로 렌더링) -->
+        <div class="donut-wrapper">
+            <canvas id="workerDonut" width="120" height="120"></canvas>
+            <div class="donut-center">
+                <span class="donut-label">총 작업자 수</span>
+                <span class="donut-total">{{ worker_stats.total }}명</span>
+            </div>
+        </div>
+
+        <ul class="worker-legend">
+            <li>
+                <span class="legend-dot dot--danger"></span>
+                <span class="legend-text">위험</span>
+                <span class="legend-count" id="worker-danger">{{ worker_stats.danger }}명</span>
+            </li>
+            <li>
+                <span class="legend-dot dot--warning"></span>
+                <span class="legend-text">주의</span>
+                <span class="legend-count" id="worker-warning">{{ worker_stats.warning }}명</span>
+            </li>
+            <li>
+                <span class="legend-dot dot--normal"></span>
+                <span class="legend-text">정상</span>
+                <span class="legend-count" id="worker-normal">{{ worker_stats.normal }}명</span>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<script>
+(function() {
+    var ctx = document.getElementById('workerDonut');
+    if (!ctx) return;
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: [{{ worker_stats.danger }}, {{ worker_stats.warning }}, {{ worker_stats.normal }}],
+                backgroundColor: ['#e53e3e', '#f6ad55', '#48bb78'],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            cutout: '70%',
+            plugins: { legend: { display: false }, tooltip: { enabled: true } },
+            animation: { animateRotate: true, duration: 800 }
+        }
+    });
+})();
+</script>

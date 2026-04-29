@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - 산재 예방 통합 관제 플랫폼</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #0d3f7a 0%, #1a5fa8 50%, #1e6fbe 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 배경 장식 */
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.04);
+        }
+        body::before {
+            width: 600px; height: 600px;
+            top: -200px; left: -150px;
+        }
+        body::after {
+            width: 400px; height: 400px;
+            bottom: -100px; right: -100px;
+        }
+
+        .login-wrapper {
+            position: relative;
+            z-index: 1;
+            width: 360px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* 2. 로고 영역 */
+        .logo-area {
+            width: 200px;
+            height: 56px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1.5px solid rgba(255, 255, 255, 0.4);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        /* 3. 플랫폼명 */
+        .platform-title {
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-align: center;
+        }
+
+        /* 4. 입력 폼 */
+        .login-form {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 13px 16px;
+            border: 1.5px solid rgba(255, 255, 255, 0.25);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.95);
+            font-size: 14px;
+            color: #333;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .login-form input::placeholder {
+            color: #aaa;
+        }
+
+        .login-form input:focus {
+            border-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25);
+        }
+
+        .login-form input.has-value {
+            padding-right: 38px;
+        }
+
+        .btn-clear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: #bbb;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .btn-clear.visible {
+            display: flex;
+        }
+
+        .btn-clear::before,
+        .btn-clear::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 1.5px;
+            background: #fff;
+            border-radius: 1px;
+        }
+        .btn-clear::before { transform: rotate(45deg); }
+        .btn-clear::after  { transform: rotate(-45deg); }
+
+        /* 오류 메시지 */
+        .error-box {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(255, 80, 80, 0.15);
+            border: 1px solid rgba(255, 120, 120, 0.5);
+            border-radius: 6px;
+            color: #ffe0e0;
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .field-error {
+            font-size: 12px;
+            color: #ffb3b3;
+            margin-top: 4px;
+            padding-left: 2px;
+            min-height: 16px;
+            display: none;
+        }
+
+        .field-error.visible {
+            display: block;
+        }
+
+        .login-form input.input-error {
+            border-color: rgba(255, 100, 100, 0.8);
+            box-shadow: 0 0 0 2px rgba(255, 80, 80, 0.2);
+        }
+
+        /* 5. 로그인 버튼 */
+        .btn-login {
+            width: 100%;
+            padding: 13px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1.5px solid rgba(255, 255, 255, 0.55);
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.1em;
+            transition: background 0.2s, transform 0.1s;
+            margin-top: 4px;
+        }
+
+        .btn-login:hover {
+            background: rgba(255, 255, 255, 0.32);
+        }
+
+        .btn-login:active {
+            transform: scale(0.98);
+        }
+
+        /* 6. 문의 안내 */
+        .contact-info {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            text-align: center;
+            line-height: 1.8;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+
+        <!-- 2. 로고 -->
+        <div class="logo-area">에어위드 로고</div>
+
+        <!-- 3. 플랫폼명 -->
+        <div class="platform-title">산재 예방 통합 관제 플랫폼</div>
+
+        <!-- 4. 입력 폼 -->
+        <form class="login-form" method="post">
+            {% csrf_token %}
+            <div class="input-wrapper">
+                <input
+                    type="text"
+                    name="username"
+                    id="id_username"
+                    placeholder="아이디"
+                    value="{{ username|default:'' }}"
+                    autocomplete="username"
+                >
+                <button type="button" class="btn-clear" id="clear_username" aria-label="아이디 지우기" tabindex="-1"></button>
+                <p class="field-error {% if username_error %}visible{% endif %}" id="err_username">
+                    {{ username_error|default:'' }}
+                </p>
+            </div>
+            <div class="input-wrapper">
+                <input
+                    type="password"
+                    name="password"
+                    id="id_password"
+                    placeholder="비밀번호"
+                    autocomplete="current-password"
+                >
+                <button type="button" class="btn-clear" id="clear_password" aria-label="비밀번호 지우기" tabindex="-1"></button>
+                <p class="field-error {% if password_error %}visible{% endif %}" id="err_password">
+                    {{ password_error|default:'' }}
+                </p>
+            </div>
+
+            <!-- 인증 실패 오류 메시지 -->
+            {% if auth_error %}
+            <div class="error-box">{{ auth_error }}</div>
+            {% endif %}
+
+            <!-- 5. 로그인 버튼 -->
+            <button type="submit" class="btn-login">로그인</button>
+        </form>
+
+        <!-- 6. 문의 안내 -->
+        <div class="contact-info">
+            로그인 관련 문의<br>
+            ㅇㅇ보서 ㅇㅇ실 &nbsp;|&nbsp; 010-1234-5678
+        </div>
+
+    </div>
+
+    <script>
+        function initClearBtn(inputId, btnId) {
+            const input = document.getElementById(inputId);
+            const btn = document.getElementById(btnId);
+
+            function update() {
+                const hasVal = input.value.length > 0;
+                btn.classList.toggle('visible', hasVal);
+                input.classList.toggle('has-value', hasVal);
+            }
+
+            input.addEventListener('input', update);
+            btn.addEventListener('click', function () {
+                input.value = '';
+                input.focus();
+                update();
+                clearFieldError(inputId);
+            });
+
+            update();
+        }
+
+        function showFieldError(inputId, errId, msg) {
+            const input = document.getElementById(inputId);
+            const err = document.getElementById(errId);
+            input.classList.add('input-error');
+            err.textContent = msg;
+            err.classList.add('visible');
+        }
+
+        function clearFieldError(inputId) {
+            const errId = inputId === 'id_username' ? 'err_username' : 'err_password';
+            const input = document.getElementById(inputId);
+            const err = document.getElementById(errId);
+            input.classList.remove('input-error');
+            err.textContent = '';
+            err.classList.remove('visible');
+        }
+
+        function validateUsername(value) {
+            if (!value) return '아이디를 입력해주세요.';
+            if (!/^[a-zA-Z0-9]+$/.test(value)) return '아이디는 영문 또는 숫자만 입력할 수 있습니다.';
+            if (value.length < 4 || value.length > 20) return '아이디를 4~20자로 입력해주세요.';
+            return null;
+        }
+
+        function validatePassword(value) {
+            if (!value) return '비밀번호를 입력해주세요.';
+            if (value.length < 8) return '비밀번호를 8자 이상 입력해야 합니다.';
+            const hasLetter = /[a-zA-Z]/.test(value);
+            const hasNumber = /[0-9]/.test(value);
+            const hasSpecial = /[^a-zA-Z0-9]/.test(value);
+            const combo = [hasLetter, hasNumber, hasSpecial].filter(Boolean).length;
+            if (combo < 2) return '비밀번호는 영문, 숫자, 특수문자 중 2가지 이상을 포함해야 합니다.';
+            return null;
+        }
+
+        document.getElementById('id_username').addEventListener('input', function () {
+            clearFieldError('id_username');
+        });
+        document.getElementById('id_password').addEventListener('input', function () {
+            clearFieldError('id_password');
+        });
+
+        document.querySelector('.login-form').addEventListener('submit', function (e) {
+            const username = document.getElementById('id_username').value;
+            const password = document.getElementById('id_password').value;
+
+            const uErr = validateUsername(username);
+            const pErr = validatePassword(password);
+
+            if (uErr) showFieldError('id_username', 'err_username', uErr);
+            if (pErr) showFieldError('id_password', 'err_password', pErr);
+
+            if (uErr || pErr) e.preventDefault();
+        });
+
+        initClearBtn('id_username', 'clear_username');
+        initClearBtn('id_password', 'clear_password');
+    </script>
+</body>
+</html>

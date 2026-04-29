@@ -1,0 +1,120 @@
+{% extends 'users/user_list.html' %}
+
+{% block title %}사용자 등록 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{% block modal %}
+<div id="modal-overlay" class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
+  <div class="modal-content bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
+    <div class="px-8 py-7">
+      {# 헤더 #}
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-slate-900 mb-1">사용자 등록</h3>
+        <p class="text-xs text-slate-500">관리자 또는 사용자 계정을 등록합니다.</p>
+      </div>
+
+      <form method="post" action="#">
+        {% csrf_token %}
+
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                사용자명 <span class="text-red-500">*</span>
+              </label>
+              <input type="text" name="name" required placeholder="이름을 입력하세요"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                아이디 <span class="text-red-500">*</span>
+              </label>
+              <input type="text" name="username" required placeholder="아이디를 입력하세요"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                비밀번호 <span class="text-red-500">*</span>
+              </label>
+              <input type="password" name="password1" required placeholder="비밀번호를 입력하세요"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                비밀번호 확인 <span class="text-red-500">*</span>
+              </label>
+              <input type="password" name="password2" required placeholder="비밀번호를 다시 입력하세요"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                조직 <span class="text-red-500">*</span>
+              </label>
+              <select name="dept" required class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
+                <option value="">조직을 선택하세요</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                권한 <span class="text-red-500">*</span>
+              </label>
+              <select name="role" required class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
+                <option value="">권한을 선택하세요</option>
+                <option value="super">슈퍼관리자</option>
+                <option value="admin">관리자</option>
+                <option value="user">일반사용자</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">직위</label>
+              <select name="position" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
+                <option value="">직급을 입력하세요</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                계정 상태 <span class="text-red-500">*</span>
+              </label>
+              <select name="status" required class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
+                <option value="">상태를 선택하세요</option>
+                <option value="active">사용</option>
+                <option value="inactive">비활성</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                이메일 <span class="text-red-500">*</span>
+              </label>
+              <input type="email" name="email" required placeholder="example@company.com"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                연락처 <span class="text-red-500">*</span>
+              </label>
+              <input type="text" name="phone" required placeholder="010-0000-0000"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 mt-6">
+          <a href="#" class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</a>
+          <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">등록</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
