@@ -1,8 +1,10 @@
 from rest_framework import viewsets, filters
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.views.generic import TemplateView
+from django.utils import timezone
 
 from monitoring.models import (
     Device,
@@ -26,6 +28,7 @@ from monitoring.serializers import (
     InspectionLogSerializer,
     ActionLogSerializer,
 )
+from monitoring.collector import update_last_seen
 
 
 # ── Template Views (HTML 렌더링) ───────────────────────────
@@ -43,6 +46,69 @@ class GasSensorManageView(TemplateView):
 class PowerSystemManageView(TemplateView):
     """스마트 전력 시스템 관리 페이지"""
     template_name = "monitoring/power_detail.html"
+
+
+# ── Ingest API (FastAPI → Django 데이터 수신) ──────────────
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def ingest_gas(request):
+    """
+    POST /ingest/gas/
+    FastAPI 가짜 데이터 생성기 → Django DB 저장
+    """
+    device_uid = request.data.get('device_uid')
+    device = Device.objects.filter(device_uid=device_uid).first()
+    if not device:
+        return Response({'error': f'장비 없음: {device_uid}'}, status=404)
+
+    GasReading.objects.create(
+        device=device,
+        co=request.data.get('co', 0),
+        h2s=request.data.get('h2s', 0),
+        co2=request.data.get('co2', 0),
+        o2=request.data.get('o2', 0),
+        no2=request.data.get('no2', 0),
+        so2=request.data.get('so2', 0),
+        o3=request.data.get('o3', 0),
+        nh3=request.data.get('nh3', 0),
+        voc=request.data.get('voc', 0),
+        measured_at=timezone.now(),
+    )
+    update_last_seen(device)
+    return Response({'status': 'ok'})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def ingest_power(request):
+    """
+    POST /ingest/power/
+    FastAPI 가짜 데이터 생성기 → Django DB 저장
+    """
+    device_uid   = request.data.get('device_uid')
+    channel_code = request.data.get('channel_code')
+
+    device = Device.objects.filter(device_uid=device_uid).first()
+    if not device:
+        return Response({'error': f'장비 없음: {device_uid}'}, status=404)
+
+    channel = DeviceChannel.objects.filter(
+        device=device, channel_code=channel_code
+    ).first()
+    if not channel:
+        return Response({'error': f'채널 없음: {channel_code}'}, status=404)
+
+    PowerReading.objects.create(
+        device=device,
+        channel=channel,
+        current_a=request.data.get('current_a', 0),
+        voltage_v=request.data.get('voltage_v', 0),
+        power_w=request.data.get('power_w', 0),
+        measured_at=timezone.now(),
+    )
+    update_last_seen(device)
+    return Response({'status': 'ok'})
 
 
 # ── API ViewSets (DRF JSON 데이터) ─────────────────────────
