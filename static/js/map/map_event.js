@@ -76,17 +76,31 @@ function loadFloorData(floorId) {
             map.fitBounds(bounds, { padding: [0, 0] });
             map.setMaxBounds(bounds);
 
-            // 5. 좌표계 확정 후 렌더링
+            // 5. 좌표계 확정 후 렌더링 — 각각 독립 실행
             map.once('moveend', function() {
-                loadGridLayer();
-                loadZoneLayer(floorId);
-                if (window.loadGeofences)  loadGeofences(floorId);
-                if (window.loadSensors)    loadSensors(floorId);
-                if (window.startWorkerSim) startWorkerSim();
-            });
-        });
+                try { loadGridLayer(); }
+                catch(e) { console.error('[layer:grid] 실패', e); }
 
-    
+                try { loadZoneLayer(floorId); }
+                catch(e) { console.error('[layer:zone] 실패', e); }
+
+                try { if (window.loadGeofences) loadGeofences(floorId); }
+                catch(e) { console.error('[layer:geofence] 실패', e); }
+
+                try { if (window.loadSensors) loadSensors(floorId); }
+                catch(e) { console.error('[layer:sensor] 실패', e); }
+                
+                try { if (window.loadLocationNodes) loadLocationNodes(floorId); }  // ← 추가
+                catch(e) { console.error('[layer:locationNode] 실패', e); }
+
+                try { if (window.loadEquipments)    loadEquipments(floorId); }     // ← 추가
+                catch(e) { console.error('[layer:equipment] 실패', e); }
+
+                try { if (window.startWorkerSim) startWorkerSim(); }
+                catch(e) { console.error('[layer:worker] 실패', e); }
+            });
+        })
+        .catch(e => console.error('[loadFloorData] grid-data fetch 실패 — 지도 초기화 중단', e));
 }
 // ─── 레이어 ON/OFF ────────────────────────────────────────────
 
@@ -116,21 +130,26 @@ function applyTabFilter(filter) {
     const gasOn    = filter === 'all' || filter === 'gas';
     const powerOn  = filter === 'all' || filter === 'power';
     const workerOn = filter === 'all' || filter === 'worker';
-    const deviceOn = filter === 'all' || filter === 'device';
+    const equipmentOn = filter === 'all' || filter === 'equipment';
+    const locationOn  = filter === 'all' || filter === 'locationNode'; //  입력 형식 (map_core의 layer이름을 html에 동일하게 입력)
 
+    // 입력 형식 (map_core의 layer이름, 위의 상수 참조)
     toggleLayer('gas',    gasOn);
     toggleLayer('power',  powerOn);
     toggleLayer('worker', workerOn);
-    toggleLayer('device', deviceOn);
+    toggleLayer('equipment', equipmentOn);
+    toggleLayer('locationNode', locationOn);
 
     const sync = (id, val) => {
         const el = document.getElementById(id);
         if (el) el.checked = val;
     };
+    // 입력 형식 (html id, 위의 상수 참조)
     sync('layer-gas',    gasOn);
     sync('layer-power',  powerOn);
     sync('layer-worker', workerOn);
-    sync('layer-device', deviceOn);
+    sync('layer-eqipment', equipmentOn);
+    sync('layer-location', locationOn); 
 }
 
 // ─── 상세 패널 ────────────────────────────────────────────────

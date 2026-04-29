@@ -266,7 +266,7 @@ body {
 .widget-link-btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
 
 /* ── 6. 나의 안전확인 ────────────────────────────────── */
-.mysafety-widget { flex-shrink: 0; }
+.mysafety-widget { flex : 1; } /**수정함 대시보드에 안 봄여서**/
 
 .safety-check-list { padding: 6px 0; flex: 1; }
 

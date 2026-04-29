@@ -13,16 +13,18 @@ from rest_framework.response import Response
 from django.views      import View
 from .models import (
     Facility, Building, Floor, FloorGrid, IndexGrid,
-    Zone,  Geofence, LocationNode, Worker, WorkerLocation, Equipment
-   
+    Zone, Geofence, LocationNode, Worker, WorkerLocation, Equipment,
+    SensorLocation
 )
+   
 from .serializers import (
     FacilitySerializer, BuildingSerializer, FloorSerializer,
     FloorGridSerializer,
     ZoneSerializer, LocationNodeSerializer,
     WorkerSerializer, WorkerLocationSerializer,
     GeofenceSerializer,
-    WorkerLocationLatestSerializer, EquipmentSerializer
+    WorkerLocationLatestSerializer, EquipmentSerializer,
+    SensorLocationSerializer
 )
 from .services.floor_grid_maker    import FloorGridService
 from .repositories import IndexGridWriter, IndexGridReader
@@ -234,11 +236,13 @@ class LocationNodeViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = LocationNode.objects.all()
-        zone_id = self.request.query_params.get('zone_id')
+        floor_id = self.request.query_params.get('floor_id')
+        zone_id  = self.request.query_params.get('zone_id')
+        if floor_id:
+            qs = qs.filter(floor_id=floor_id)
         if zone_id:
             qs = qs.filter(zone_id=zone_id)
         return qs
-
 
 class WorkerViewSet(viewsets.ModelViewSet):
     queryset = Worker.objects.all().order_by('worker_name')
@@ -268,34 +272,35 @@ class WorkerLocationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get', 'post'], url_path='dummy')
     def dummy(self, request):
         if request.method == 'GET':
-            workers = Worker.objects.filter(current_state='on_duty')
+            from facilities.services.geofence_checker import sync_worker_status
+
+            workers = Worker.objects.filter(current_state__in=['on_duty', 'danger'])
             result  = []
 
             for worker in workers:
                 loc = worker.locations.order_by('-measured_at').first()
                 if not loc:
                     continue
-
-                # floor 없으면 snap 변환 불가 → skip
                 if not loc.floor:
                     continue
+
+                # 지오펜스 내부 판단 + Worker.current_state 업데이트
+                worker_status = sync_worker_status(worker, loc)
 
                 # x, y → grid_index
                 service    = FloorGridService(loc.floor)
                 grid_index = service.get_grid_index(loc.x, loc.y)
-
-                # 유효하지 않은 좌표 → skip
                 if grid_index is None:
                     continue
 
-                # grid_index → snap_x, snap_y
                 snap = service.get_snap_point(grid_index)
 
-                # 기존 직렬화 + snap, grid_index 추가
                 data               = WorkerLocationLatestSerializer(loc).data
                 data['grid_index'] = grid_index
                 data['snap_x']     = snap['snap_x']
                 data['snap_y']     = snap['snap_y']
+                # worker_status를 판단 결과로 교체
+                data['worker_status'] = worker_status
 
                 result.append(data)
 
@@ -365,4 +370,87 @@ class EquipmentViewSet(viewsets.ModelViewSet):
 
         return qs.order_by('equipment_code')
 
+class SensorLocationViewSet(viewsets.ModelViewSet):
+    """
+    센서 위치 CRUD.
+
+    GET /api/sensor-locations/?floor_id=<id>
+        → 해당 층의 활성 센서 위치 목록 반환
+        → sensor.js 폴링 대상
+
+    GET /api/sensor-locations/?floor_id=<id>&sensor_type=gas
+        → 가스 센서만 필터링
+
+    sensor.js가 참조하는 필드:
+        id, device_id, sensor_type, x, y, device_name, is_active
+    """
+    serializer_class = SensorLocationSerializer
+
+    def get_queryset(self):
+        qs = SensorLocation.objects.all()
+        floor_id    = self.request.query_params.get('floor_id')
+        sensor_type = self.request.query_params.get('sensor_type')
+        is_active   = self.request.query_params.get('is_active')
+
+        if floor_id:
+            qs = qs.filter(floor_id=floor_id)
+        if sensor_type:
+            qs = qs.filter(sensor_type=sensor_type)
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active in ['true', '1', 'True'])
+        else:
+            qs = qs.filter(is_active=True)  # 기본값: 활성 센서만
+
+        return qs.order_by('sensor_type', 'id')
+    
+
+class GeofenceViewSet(viewsets.ModelViewSet):
+    serializer_class = GeofenceSerializer
+
+    def get_queryset(self):
+        qs = Geofence.objects.all()
+        floor_id  = self.request.query_params.get('floor_id')
+        is_active = self.request.query_params.get('is_active')
+        if floor_id:
+            qs = qs.filter(floor_id=floor_id)
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active in ['true', '1', 'True'])
+        return qs.order_by('-severity')
+
+    def list(self, request, *args, **kwargs):
+        """
+        Geofence 목록 반환 전 가스 수치 기반 자동 갱신 수행.
+        floor_id가 있을 때만 실행 (지도 화면 폴링 대상).
+        """
+        floor_id = request.query_params.get('floor_id')
+        if floor_id:
+            self._sync_gas_geofences(floor_id)
+        return super().list(request, *args, **kwargs)
+
+    def _sync_gas_geofences(self, floor_id):
+        """
+        해당 floor의 가스 센서별 최신 GasReading을 조회하여
+        지오펜스를 자동 생성/갱신/비활성화한다.
+        """
+        from monitoring.models import GasReading
+        from facilities.services.geofence_service import update_geofence_from_gas
+
+        # 해당 floor에 등록된 가스 센서 device_id 목록
+        sensor_device_ids = SensorLocation.objects.filter(
+            floor_id=floor_id,
+            sensor_type='gas',
+            is_active=True,
+        ).values_list('device_id', flat=True)
+
+        # 센서별 최신 GasReading 1건씩 조회 후 갱신
+        for device_id in sensor_device_ids:
+            reading = GasReading.objects.filter(
+                device_id=device_id
+            ).order_by('-measured_at').first()
+
+            if reading:
+                try:
+                    update_geofence_from_gas(reading)
+                except Exception as e:
+                    print(f'[geofence_sync] device_id={device_id} 오류: {e}')
 

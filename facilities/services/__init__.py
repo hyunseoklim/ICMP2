@@ -5,6 +5,8 @@ from .grid_coordinate_to_index import GridCoordinateToIndex
 from .grid_index_to_coordinate import GridIndexToCoordinate
 from .grid_cell_generator      import GridCellGenerator
 from .grid_point_snapper       import GridPointSnapper
+from .geofence_service         import update_geofence_from_gas
+from .geofence_checker         import sync_worker_status 
 
 __all__ = [
     "FloorGridService",
@@ -14,4 +16,6 @@ __all__ = [
     "GridIndexToCoordinate",
     "GridCellGenerator",
     "GridPointSnapper",
+    "update_geofence_from_gas",
+    "sync_worker_status", 
 ]

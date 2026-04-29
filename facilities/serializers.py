@@ -2,8 +2,7 @@ from rest_framework import serializers
 from .models import (
     Facility, Building, Floor, FloorGrid,
     Zone, LocationNode, Worker, WorkerLocation,
-    Geofence, Equipment)
-
+    Geofence, Equipment, SensorLocation)
 
 class FacilitySerializer(serializers.ModelSerializer):
     class Meta:
@@ -85,6 +84,7 @@ class LocationNodeSerializer(serializers.ModelSerializer):
         model = LocationNode
         fields = [
             'id',
+            'floor',
             'zone',
             'node_name',
             'x',
@@ -123,3 +123,28 @@ class WorkerLocationLatestSerializer(serializers.ModelSerializer):
             'id', 'worker_id', 'worker_name', 'worker_status',
             'cell_no', 'x', 'y', 'z', 'measured_at',
         ]
+
+class SensorLocationSerializer(serializers.ModelSerializer):
+    """
+    센서 위치 조회용 Serializer.
+    sensor.js가 참조하는 필드:
+      id, device_id, sensor_type, x, y, device_name, status(→is_active), floor
+    JS의 sensor.status 참조를 위해 monitoring API와 별도로
+    is_active를 status 형태로 노출하지 않음.
+    상태(normal/warning/danger)는 monitoring 앱이 담당.
+    """
+    class Meta:
+        model = SensorLocation
+        fields = [
+            'id',
+            'device_id',
+            'floor',
+            'sensor_type',
+            'x',
+            'y',
+            'device_name',
+            'is_active',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']

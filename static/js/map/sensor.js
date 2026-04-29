@@ -1,40 +1,116 @@
 /**
  * sensor.js
- * 센서 데이터 조회 → Leaflet 마커 렌더링 (2초 폴링)
+ * 센서 위치 조회 → Leaflet 마커 렌더링 (2초 폴링)
  *
- * 변경 사항:
- *   - initSensorLayers() 제거: 레이어는 MapManager.syncLayers()에서 일괄 생성됨
- *   - window.gasLayer 등 전역 레이어 변수 제거
- *   - layerForType()에서 MapManager.getLayer()로 레이어 참조
+ * API: /facilities/api/sensor-locations/?floor_id=<id>
+ * 반환 필드: id, device_id, sensor_type, x, y, device_name, is_active
+ *
+ * 상태(normal/warning/danger)는 monitoring 앱 담당.
+ * 현재는 위치 마커만 렌더링. 추후 monitoring API 병합 시 상태 반영.
  */
 
 // sensorId → Leaflet marker
+/**
+ * sensor.js
+ * 센서 위치 + 상태 렌더링
+ *
+ * USE_WS = false : 폴링 모드 (현재)
+ * USE_WS = true  : WebSocket 모드 (팀원 완료 시 전환)
+ *
+ * WebSocket 메시지 형태:
+ *   { "type": "full",  "layer": "sensor", "data": [...] }
+ *   { "type": "delta", "layer": "sensor", "data": [...] }
+ */
+ /** 웹 소켓 개발이 완료되면 아래의 USE_WS를 True로 바꿔 놓으면 websocket 로직이 적용됨 */
+
+const SensorLayer = {
+    USE_WS: false,/** 웹소켓 전환 False -> True */
+
+    _ws:        null,
+    _pollTimer: null,
+    _floorId:   null,
+
+    // ─── 공통 진입점 ────────────────────────────────────────
+    load(floorId) {
+        this._floorId = floorId;
+        this._clear();
+        this.USE_WS ? this._useWS(floorId) : this._usePoll(floorId);
+    },
+
+    destroy() {
+        this._clear();
+    },
+
+    _clear() {
+        if (this._pollTimer) {
+            clearInterval(this._pollTimer);
+            this._pollTimer = null;
+        }
+        if (this._ws) {
+            this._ws.onclose = null;  // 재연결 방지
+            this._ws.close();
+            this._ws = null;
+        }
+        // 마커 제거
+        ['gas', 'power', 'locationNode',].forEach(name => {
+            const layer = MapManager.getLayer(name);
+            if (layer) layer.clearLayers();
+        });
+        Object.keys(sensorMarkers).forEach(k => delete sensorMarkers[k]);
+    },
+
+    // ─── 폴링 모드 ──────────────────────────────────────────
+    _usePoll(floorId) {
+        const url = `${API_BASE}/sensor-locations/?floor_id=${floorId}`;
+
+        const fetch_ = () => {
+            fetch(url)
+                .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+                .then(data => data.results.forEach(s => renderOrUpdateSensor(s)))
+                .catch(err => console.warn('[layer:sensor] 폴링 실패:', err));
+        };
+
+        fetch_();
+        this._pollTimer = setInterval(fetch_, 2000);
+    },
+
+    // ─── WebSocket 모드 ─────────────────────────────────────
+    _useWS(floorId) {
+        const url = `ws://${location.host}/ws/floor/${floorId}/sensor/`;
+        this._ws  = new WebSocket(url);
+
+        this._ws.onopen = () => {
+            console.info('[layer:sensor] WebSocket 연결됨');
+        };
+
+        this._ws.onmessage = (e) => {
+            try {
+                const msg = JSON.parse(e.data);
+                if (msg.type === 'full' || msg.type === 'delta') {
+                    msg.data.forEach(s => renderOrUpdateSensor(s));
+                }
+            } catch (err) {
+                console.warn('[layer:sensor] 메시지 파싱 실패:', err);
+            }
+        };
+
+        this._ws.onclose = () => {
+            console.warn('[layer:sensor] WebSocket 끊김 — 3초 후 재연결');
+            setTimeout(() => {
+                if (this._floorId) this._useWS(this._floorId);
+            }, 3000);
+        };
+
+        this._ws.onerror = (e) => {
+            console.error('[layer:sensor] WebSocket 에러:', e);
+        };
+    },
+};
+
+// ─── 마커 상태 저장소 ─────────────────────────────────────────
 const sensorMarkers = {};
-let sensorPollingTimer = null;
 
-// ─── 센서 조회 + 폴링 ─────────────────────────────────────────
-
-function loadSensors(floorId) {
-    const url = floorId
-        ? `${API_BASE}/sensors/?floor_id=${floorId}`
-        : `${API_BASE}/sensors/`;
-
-    fetch(url)
-        .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-        .then(data => data.forEach(s => renderOrUpdateSensor(s)))
-        .catch(err => console.warn('sensor fetch 실패:', err));
-
-    if (sensorPollingTimer) clearInterval(sensorPollingTimer);
-    sensorPollingTimer = setInterval(() => {
-        fetch(url)
-            .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-            .then(data => data.forEach(s => renderOrUpdateSensor(s)))
-            .catch(err => console.warn('sensor fetch 실패:', err));
-    }, 2000);
-}
-
-// ─── 마커 색상 규칙 ───────────────────────────────────────────
-
+// ─── 마커 색상 ───────────────────────────────────────────────
 const STATUS_COLOR = {
     normal:  '#22c55e',
     warning: '#f59e0b',
@@ -43,19 +119,20 @@ const STATUS_COLOR = {
 };
 
 function sensorIcon(sensor) {
-    const color  = STATUS_COLOR[sensor.status] || '#64748b';
+    const status = sensor.status || 'normal';
+    const color  = STATUS_COLOR[status] || '#64748b';
     const symbol = sensor.sensor_type === 'power'    ? '⚡'
                  : sensor.sensor_type === 'location' ? '📡'
                  : 'G';
 
     return L.divIcon({
         html: `<div style="
-      width:20px;height:20px;border-radius:50%;
-      background:${color};border:2px solid #0f1117;
-      display:flex;align-items:center;justify-content:center;
-      font-size:9px;font-weight:700;color:#0f1117;
-      box-shadow:0 0 6px ${color}66;
-    ">${symbol}</div>`,
+            width:20px;height:20px;border-radius:50%;
+            background:${color};border:2px solid #0f1117;
+            display:flex;align-items:center;justify-content:center;
+            font-size:9px;font-weight:700;color:#0f1117;
+            box-shadow:0 0 6px ${color}66;
+        ">${symbol}</div>`,
         iconSize:   [20, 20],
         iconAnchor: [10, 10],
         className:  '',
@@ -63,7 +140,6 @@ function sensorIcon(sensor) {
 }
 
 // ─── 마커 렌더/갱신 ───────────────────────────────────────────
-
 function renderOrUpdateSensor(sensor) {
     const layer = layerForType(sensor.sensor_type);
     if (!layer) return;
@@ -81,7 +157,7 @@ function renderOrUpdateSensor(sensor) {
 
         marker._sensorData = sensor;
         marker.on('click', () => {
-            showDetail('sensor', sensor);
+            if (typeof showDetail === 'function') showDetail('sensor', sensor);
             showSensorPopup(marker, sensor);
         });
 
@@ -89,24 +165,24 @@ function renderOrUpdateSensor(sensor) {
     }
 
     if (sensor.status === 'danger') {
-        addEvent('danger', `${sensor.device_name} 위험 상태 감지`);
+        if (typeof addEvent === 'function')
+            addEvent('danger', `${sensor.device_name} 위험 상태 감지`);
     }
 }
 
-/**
- * layerForType
- * sensor_type → MapManager에서 해당 레이어 반환
- */
 function layerForType(type) {
     if (type === 'gas')      return MapManager.getLayer('gas');
     if (type === 'power')    return MapManager.getLayer('power');
-    if (type === 'location') return MapManager.getLayer('location');
-    return MapManager.getLayer('device');
+    if (type === 'location') return MapManager.getLayer('locationNode');
+    // 추후 새 sensor_type 추가 시 여기에 추가
+    return null
+    // return MapManager.getLayer('device');
 }
 
 function showSensorPopup(marker, sensor) {
-    const statusClass = sensor.status === 'danger'  ? 'danger'
-                      : sensor.status === 'warning' ? 'warning' : 'normal';
+    const status      = sensor.status || 'normal';
+    const statusClass = status === 'danger'  ? 'danger'
+                      : status === 'warning' ? 'warning' : 'normal';
 
     let valHtml = '';
     if (sensor.latest_value && typeof sensor.latest_value === 'object') {
@@ -115,14 +191,24 @@ function showSensorPopup(marker, sensor) {
         });
     }
 
-    const html = `
-    <div class="popup-title">${sensor.device_name}</div>
-    <div class="popup-row"><span>상태</span><span class="popup-val ${statusClass}">${sensor.status}</span></div>
-    <div class="popup-row"><span>종류</span><span class="popup-val">${sensor.sensor_type}</span></div>
-    ${valHtml}
-    <div class="popup-row" style="margin-top:4px;font-size:10px;color:var(--text-muted)">
-      <span>위치</span><span>(${sensor.x}, ${sensor.y})</span>
-    </div>`;
+    marker.bindPopup(`
+        <div class="popup-title">${sensor.device_name}</div>
+        <div class="popup-row">
+            <span>상태</span>
+            <span class="popup-val ${statusClass}">${status}</span>
+        </div>
+        <div class="popup-row">
+            <span>종류</span>
+            <span class="popup-val">${sensor.sensor_type}</span>
+        </div>
+        ${valHtml}
+        <div class="popup-row" style="font-size:10px;color:var(--text-muted)">
+            <span>위치</span><span>(${sensor.x}, ${sensor.y})</span>
+        </div>
+    `, { maxWidth: 180, closeButton: true }).openPopup();
+}
 
-    marker.bindPopup(html, { maxWidth: 180, closeButton: true }).openPopup();
+// ─── 외부 호출 인터페이스 (map_event.js에서 호출) ──────────────
+function loadSensors(floorId) {
+    SensorLayer.load(floorId);
 }

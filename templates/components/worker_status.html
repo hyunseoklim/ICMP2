@@ -37,23 +37,33 @@
 
 <script>
 (function() {
-    var ctx = document.getElementById('workerDonut');
-    if (!ctx) return;
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            datasets: [{
-                data: [{{ worker_stats.danger }}, {{ worker_stats.warning }}, {{ worker_stats.normal }}],
-                backgroundColor: ['#e53e3e', '#f6ad55', '#48bb78'],
-                borderWidth: 0,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            cutout: '70%',
-            plugins: { legend: { display: false }, tooltip: { enabled: true } },
-            animation: { animateRotate: true, duration: 800 }
-        }
-    });
+    function initWorkerChart() {
+        var ctx = document.getElementById('workerDonut');
+        if (!ctx) return;
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [{{ worker_stats.danger }}, {{ worker_stats.warning }}, {{ worker_stats.normal }}],
+                    backgroundColor: ['#e53e3e', '#f6ad55', '#48bb78'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                cutout: '70%',
+                plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                animation: { animateRotate: true, duration: 800 }
+            }
+        });
+    }
+
+    // Chart.js 로드 완료 후 실행
+    if (typeof Chart !== 'undefined') {
+        initWorkerChart();
+    } else {
+        window.addEventListener('load', initWorkerChart);
+    }
 })();
 </script>
+
