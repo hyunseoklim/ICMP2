@@ -63,7 +63,7 @@ class Command(BaseCommand):
         for code, name in [('FAC001', '제1공장'), ('FAC002', '제2공장'), ('FAC003', '창고동')]:
             f, _ = Facility.objects.get_or_create(
                 facility_code=code,
-                defaults={'facility_name': name, 'current_state': 'on_duty'},
+                defaults={'facility_name': name, 'status': 'active'},
             )
             facilities.append(f)
         self.stdout.write(f'  사업장 {len(facilities)}개')
@@ -112,7 +112,7 @@ class Command(BaseCommand):
                     'device_name': name,
                     'device_type': dtype,
                     'facility': facility,
-                    'current_state': 'on_duty',
+                    'status': 'active',
                     'port': 502,
                 },
             )
@@ -131,7 +131,7 @@ class Command(BaseCommand):
             DeviceChannel.objects.get_or_create(
                 device=dev, channel_code=code,
                 defaults={'channel_name': ch_name,
-                          'current_state': 'on_duty'},
+                          'status': 'active'},
             )
         self.stdout.write('  채널 생성 완료')
 
@@ -149,15 +149,16 @@ class Command(BaseCommand):
             workers.append(w)
 
         # worker1 계정 → 김철수(W001) 연결
-        if not workers[0].user:
-            workers[0].user = worker_user
-            workers[0].save()
+        Worker.objects.filter(user=worker_user).update(user=None)
+        workers[0].refresh_from_db()
+        workers[0].user = worker_user
+        workers[0].save()
 
         # admin 계정 → 이영희(W002) 연결
         Worker.objects.filter(user=admin_user).update(user=None)
-        if not workers[1].user:
-            workers[1].user = admin_user
-            workers[1].save()
+        workers[1].refresh_from_db()
+        workers[1].user = admin_user
+        workers[1].save()
 
         self.stdout.write(f'  작업자 {len(workers)}명 (worker1→김철수, admin→이영희 연결)')
 
@@ -259,5 +260,10 @@ class Command(BaseCommand):
                     defaults={'action_note': '조치 완료 및 정상 복귀 확인'},
                 )
 
-        self.stdout.write('  조치 이력 생성 완료')
+        self.stdout.write('조치 이력 생성 완료')
+        # ── 10. 안전 체크리스트 항목 ───────────────────────────────────────
+        from django.core.management import call_command
+        call_command('loaddata', 'safety/fixtures/safety_check_items.json', verbosity=0)
+        self.stdout.write('  안전 체크리스트 항목 로드 완료')
+    
         self.stdout.write(self.style.SUCCESS('더미 데이터 생성 완료!'))
