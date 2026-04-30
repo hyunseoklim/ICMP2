@@ -92,7 +92,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!list) return;
 
         try {
-            const res    = await axios.get('/alerts/api/recent/?mine=true&minutes=1440&limit=20');
+            const mineParam = window.CURRENT_WORKER_ID ? '&mine=true' : '';
+            const res    = await axios.get('/alerts/api/recent/?minutes=1440&limit=20' + mineParam);
             const alarms = Array.isArray(res.data) ? res.data : [];
 
             const alarmItems = alarms.map(a => {

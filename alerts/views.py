@@ -108,11 +108,12 @@ def recent_alarms(request):
     ).select_related('device', 'facility', 'worker')
 
     # ?mine=true 이면 로그인 유저의 worker 에 연결된 이벤트만
+    # worker가 없는 유저(admin/manager)는 전체 이벤트 반환
     if request.GET.get('mine') == 'true' and request.user.is_authenticated:
         try:
             qs = qs.filter(worker=request.user.worker)
         except Exception:
-            qs = qs.none()
+            pass
 
     severity_rank = Case(
         When(severity='danger',  then=0),

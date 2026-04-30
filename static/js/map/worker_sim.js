@@ -6,7 +6,7 @@
  */
 
 const WorkerLayer = {
-    USE_WS: false,          // true: WebSocket 모드, false: Polling 모드
+    USE_WS: true,          // true: WebSocket 모드, false: Polling 모드
     USE_SIMULATION: true,  // true: polling 테스트용 자동 이동 사용
 
     _ws:         null,
