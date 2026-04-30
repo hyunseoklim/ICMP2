@@ -282,9 +282,15 @@ class Worker(models.Model):
     phone = models.CharField(max_length=20, blank=True)
     current_state = models.CharField(
         max_length=20,
-        choices=[('on_duty', '근무중'), ('off_duty', '비근무'), ('danger', '위험')],
+        choices=[('on_duty', '근무중'), ('off_duty', '비근무') ],
         default='on_duty',
     )
+    safety_status = models.CharField(
+    max_length=20,
+    choices=[('safe', '안전'), ('warning', '주의'), ('danger', '위험')],
+    default='safe',
+    help_text='Geofence 판단 결과',
+)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

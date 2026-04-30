@@ -1,5 +1,37 @@
 {% load static %}
 <nav class="header-nav">
+    <aside class="snb" id="snb-menu">
+        <div class="snb-content">
+            <!-- 나의 안전확인 그룹 -->
+            <div class="snb-group">
+                <div class="snb-header">
+                    <span class="icon">▣</span>
+                    <span class="text">나의 안전확인</span>
+                    <span class="arrow">▼</span>
+                </div>
+                <ul class="snb-list">
+                    <li class="active"><a href="{% url 'mysafety_detail' %}">작업 전 안전 확인</a></li>
+                    <li><a href="{% url 'mysafety_history' %}">안전 확인 이력</a></li>
+                </ul>
+            </div>
+
+            <!-- 모니터링 그룹 -->
+            <div class="snb-group">
+                <div class="snb-header">
+                    <span class="icon">▣</span>
+                    <span class="text">모니터링</span>
+                    <span class="arrow">▼</span>
+                </div>
+                <ul class="snb-list">
+                    <li><a href="{% url 'map_monitoring' %}">실시간 모니터링</a></li>
+                    <li><a href="{% url 'monitoring_gas' %}">실시간/AI 예측 유해가스 현황</a></li>
+                    <li><a href="{% url 'monitoring_power' %}">실시간/AI 예측 스마트 전력 현황</a></li>
+                    <li><a href="{% url 'worker_list' %}">작업자 현황</a></li>
+                    <li><a href="{% url 'event_list' %}">이벤트 현황</a></li>
+                </ul>
+            </div>
+        </div>
+    </aside>
     <!-- 좌측: 메뉴 + 로고 -->
     <div class="header-left">
         <button class="hamburger" id="menu-toggle" aria-label="메뉴 열기">
@@ -74,7 +106,6 @@
         </form>
     </div>
 </div>
-
 <script>
 (function() {
     function pad(n) { return String(n).padStart(2, '0'); }
@@ -102,5 +133,31 @@
         modal.style.pointerEvents = 'auto';
         modal.setAttribute('aria-hidden', 'false');
     });
+
+    // SNB 토글 버튼
+    document.getElementById('menu-toggle')?.addEventListener('click', function() {
+        const snb = document.getElementById('snb-menu');
+        snb.classList.toggle('active');
+        this.classList.toggle('open');
+    });
+
+    // SNB 아코디언 메뉴
+    document.querySelectorAll('.snb-header').forEach(header => {
+        header.addEventListener('click', function() {
+        const list = this.nextElementSibling;
+        const arrow = this.querySelector('.arrow');
+        
+        // 현재 실제로 보이고 있는지 확인 (getComputedStyle 활용)
+        const isHidden = window.getComputedStyle(list).display === 'none';
+        
+        if (isHidden) {
+            list.style.display = 'block';
+            if (arrow) arrow.style.transform = 'rotate(0deg)'; // 아래 방향
+        } else {
+            list.style.display = 'none';
+            if (arrow) arrow.style.transform = 'rotate(-90deg)'; // 오른쪽 방향
+        }
+    });
+});
 })();
 </script>

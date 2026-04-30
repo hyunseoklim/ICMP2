@@ -33,7 +33,19 @@ from .repositories import IndexGridWriter, IndexGridReader
 
 @login_required(login_url="login")
 def worker_list(request):
-    return render(request, "facilities/worker_list.html")
+    workers = Worker.objects.all().order_by('worker_name')
+    
+    context = {
+        'workers': workers,
+        'worker_stats': {
+            'total':   workers.count(),
+            'checkin': workers.filter(current_state='on_duty').count(),  # 근무중
+            'danger':  workers.filter(safety_status='danger').count(),   # safety_status 기준
+            'warning': workers.filter(safety_status='warning').count(),
+            'normal':  workers.filter(safety_status='safe').count(),
+        }
+    }
+    return render(request, "facilities/worker_list.html", context)
 
 class DashboardTempleteView(TemplateView):
     template_name = 'dashboard.html'
@@ -273,8 +285,30 @@ class WorkerLocationViewSet(viewsets.ModelViewSet):
     def dummy(self, request):
         if request.method == 'GET':
             from facilities.services.geofence_checker import sync_worker_status
+            from monitoring.models import GasReading
+            from facilities.services.geofence_service import update_geofence_from_gas
 
-            workers = Worker.objects.filter(current_state__in=['on_duty', 'danger'])
+            # 1. 가스 센서 최신값 기반 Geofence 자동 갱신
+            floor_id = request.query_params.get('floor_id')
+            if floor_id:
+                sensor_device_ids = SensorLocation.objects.filter(
+                    floor_id=floor_id,
+                    sensor_type='gas',
+                    is_active=True,
+                ).values_list('device_id', flat=True)
+
+                for device_id in sensor_device_ids:
+                    reading = GasReading.objects.filter(
+                        device_id=device_id
+                    ).order_by('-measured_at').first()
+                    if reading:
+                        try:
+                            update_geofence_from_gas(reading)
+                        except Exception as e:
+                            print(f'[geofence_sync] device_id={device_id} 오류: {e}')
+
+            # 2. on_duty 작업자 geofence 판단
+            workers = Worker.objects.filter(current_state='on_duty')
             result  = []
 
             for worker in workers:

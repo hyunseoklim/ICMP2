@@ -52,11 +52,6 @@ const WorkerLayer = {
                 })
                 .then(data => {
                     data.forEach(loc => renderOrMoveWorker(loc));
-
-                    // [SIM] polling 테스트용 자동 이동
-                    if (this.USE_SIMULATION) {
-                         this._pollTimer = setInterval(simulateWorkerMove, 500);
-                    }
                 })
                 .catch(err => {
                     console.warn('[layer:worker] 폴링 실패:', err);
@@ -65,8 +60,11 @@ const WorkerLayer = {
 
         fetch_();
 
-        // // 시뮬레이션 확인용 빠른 갱신 주기
-        // this._pollTimer = setInterval(fetch_, 500);
+        if (!this.USE_SIMULATION) {
+            this._pollTimer = setInterval(fetch_, 500);
+        } else {
+            simulateWorkerMove();
+        }
     },
 
     // ─── WebSocket 모드 ─────────────────────────────────────
@@ -111,9 +109,11 @@ const workerMarkers = {};
 
 // ─── 마커 아이콘 ──────────────────────────────────────────────
 const WORKER_STATUS_COLOR = {
-    on_duty:  '#f59e0b',
-    danger:   '#ef4444',
-    off_duty: '#475569',
+    safe:     '#22c55e',  // 초록
+    warning:  '#f59e0b',  // 노랑
+    danger:   '#ef4444',  // 빨강
+    on_duty:  '#22c55e',  // safe와 동일
+    off_duty: '#475569',  // 회색
 };
 
 function workerIcon(status, name) {
@@ -140,28 +140,173 @@ function workerIcon(status, name) {
         className:  '',
     });
 }
-
+ //───────────────────────────────────────────────────────────────────────────────────────────────
 // ─── [SIM] 강제 이동 시뮬레이션 로직 ──────────────────────────
 // USE_SIMULATION: false 로 바꾸면 호출되지 않음
+const WORKER_ROUTES = {
+    2: {  // 이영희 — safe → danger → safe
+        name: '이영희',
+        path: [
+            {x: 2,  y: 15},
+            {x: 6,  y: 10},
+            {x: 8,  y:  5},
+            {x: 10, y:  5},
+            {x: 14, y:  5},
+            {x: 20, y: 10},
+        ],
+        step: 0,
+    },
+    3: {  // 박민준 — safe → warning → danger → safe
+        name: '박민준',
+        path: [
+            {x: 45, y:  2},
+            {x: 35, y:  3},
+            {x: 26, y:  4},
+            {x: 25, y:  5},
+            {x: 25, y: 12},
+            {x: 25, y: 14},
+            {x: 25, y: 15},
+            {x: 30, y: 20},
+        ],
+        step: 0,
+    },
+    4: {  // 최수진 — 항상 safe (대조군)
+        name: '최수진',
+        path: [
+            {x: 40, y:  5},
+            {x: 45, y: 10},
+            {x: 45, y: 20},
+            {x: 40, y: 28},
+            {x: 35, y: 15},
+        ],
+        step: 0,
+    },
+    5: {  // 정도현 — danger 체류 → 탈출 → safe
+        name: '정도현',
+        path: [
+            {x: 15, y: 25},
+            {x: 12, y: 22},
+            {x: 10, y: 20},
+            {x:  5, y: 15},
+            {x:  5, y: 28},
+        ],
+        step: 0,
+    },
+};
+
+let _simTimer = null;
 function simulateWorkerMove() {
-    Object.values(workerMarkers).forEach(w => {
-        const latlng = w.marker.getLatLng();
+    console.log('[sim] simulateWorkerMove 호출됨');
+    console.log('[sim] _simTimer:', _simTimer);
 
-        let newLat = latlng.lat + 0.1;
-        let newLng = latlng.lng + 0.1;
+    if (_simTimer) {
+        console.log('[sim] 이미 실행 중, 스킵');
+        return;
+    }
 
-        // 경계값 체크
-        if (typeof floorWidthMeters !== 'undefined' && newLng > floorWidthMeters) {
-            newLng = 0;
+    console.log('[sim] setInterval 등록 시작');
+
+    _simTimer = setInterval(async () => {
+        console.log('[sim] tick — step 실행');
+
+        const postPromises = Object.entries(WORKER_ROUTES).map(([workerId, route]) => {
+            const pos = route.path[route.step];
+            console.log(`[sim] POST worker_id=${workerId} x=${pos.x} y=${pos.y}`);
+
+            return fetch(`${API_BASE}/worker-locations/dummy/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    worker_id: parseInt(workerId),
+                    x: pos.x,
+                    y: pos.y,
+                    floor_id: currentFloorId,
+                }),
+            });
+        });
+
+        await Promise.all(postPromises);
+        console.log('[sim] POST 완료');
+
+        const res = await fetch(`${API_BASE}/worker-locations/dummy/?floor_id=${currentFloorId}`);
+        if (!res.ok) {
+            console.warn('[sim] GET 실패:', res.status);
+            return;
         }
+        const data = await res.json();
+        console.log('[sim] GET 결과:', data.map(d => `${d.worker_name}:${d.worker_status}`));
 
-        if (typeof floorLengthMeters !== 'undefined' && newLat > floorLengthMeters) {
-            newLat = 0;
-        }
+        data.forEach(loc => renderOrMoveWorker(loc));
 
-        w.marker.setLatLng([newLat, newLng]);
-    });
+        Object.values(WORKER_ROUTES).forEach(route => {
+            route.step = (route.step + 1) % route.path.length;
+        });
+
+    }, 500);
+
+    console.log('[sim] setInterval 등록 완료, _simTimer:', _simTimer);
 }
+// function simulateWorkerMove() {
+//     const API = `${API_BASE}/worker-locations/dummy/`;
+//     const INTERVAL_MS = 2000;  // 2초마다 한 step 이동
+
+//     if (_simTimer) return;  // 중복 실행 방지
+
+//     _simTimer = setInterval(async () => {
+//         const postPromises = Object.entries(WORKER_ROUTES).map(([workerId, route]) => {
+//             const pos = route.path[route.step];
+
+//             return fetch(`${API_BASE}/worker-locations/dummy/`, {
+//                 method: 'POST',
+//                 headers: {'Content-Type': 'application/json',
+//                           'X-CSRFToken': getCookie('csrftoken')},
+//                 body: JSON.stringify({
+//                     worker_id: parseInt(workerId),
+//                     x: pos.x,
+//                     y: pos.y,
+//                     floor_id: currentFloorId,
+//                 }),
+//             });
+//         });
+
+//         // 모든 작업자 위치 POST 완료 후
+//         await Promise.all(postPromises);
+
+//         // GET으로 전체 상태 조회
+//         const res = await fetch(`${API_BASE}/worker-locations/dummy/?floor_id=${currentFloorId}`);
+//         if (!res.ok) return;
+//         const data = await res.json();
+
+//         // 마커 갱신
+//         data.forEach(loc => renderOrMoveWorker(loc));
+
+//         // 다음 step으로 이동 (경로 끝나면 처음으로)
+//         Object.values(WORKER_ROUTES).forEach(route => {
+//             route.step = (route.step + 1) % route.path.length;
+//         });
+
+//     }, INTERVAL_MS);
+// }
+
+function stopSimulation() {
+    if (_simTimer) {
+        clearInterval(_simTimer);
+        _simTimer = null;
+    }
+}
+
+// CSRF 토큰 헬퍼
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+}
+ //───────────────────────────────────────────────────────────────────────────────────────────────
+// ─── 끝 [SIM] 강제 이동 시뮬레이션 로직 ──────────────────────────
 
 // ─── 마커 렌더/이동 ───────────────────────────────────────────
 function renderOrMoveWorker(loc) {
@@ -177,14 +322,30 @@ function renderOrMoveWorker(loc) {
         const dx = Math.abs(prev.lng - loc.snap_x);
         const dy = Math.abs(prev.lat - loc.snap_y);
 
+        // 변경 후
+        const prevStatus = state.marker._locData?.worker_status;
+
         if (dx > 0 || dy > 0) {
             state.marker.setLatLng([loc.snap_y, loc.snap_x]);
-            state.marker.setIcon(workerIcon(loc.worker_status, loc.worker_name));
-            state.marker._locData = loc;
+        }
 
+        // 위치 변경 여부와 무관하게 항상 아이콘/상태 갱신
+        state.marker.setIcon(workerIcon(loc.worker_status, loc.worker_name));
+        state.marker._locData = loc;
+
+        // 이전 상태와 달라졌을 때만 이벤트 발생
+        if (loc.worker_status !== prevStatus) {
             if (loc.worker_status === 'danger') {
                 if (typeof addEvent === 'function') {
-                    addEvent('danger', `${loc.worker_name} 위험구역 진입 감지`);
+                    addEvent('danger', `${loc.worker_name} 위험구역 진입`);
+                }
+            } else if (loc.worker_status === 'warning') {
+                if (typeof addEvent === 'function') {
+                    addEvent('warning', `${loc.worker_name} 주의구역 진입`);
+                }
+            } else if (loc.worker_status === 'safe' && prevStatus !== undefined) {
+                if (typeof addEvent === 'function') {
+                    addEvent('safe', `${loc.worker_name} 안전구역 복귀`);
                 }
             }
         }
@@ -227,12 +388,18 @@ function clearWorkerMarkers() {
 // ─── 작업자 팝업 ─────────────────────────────────────────────
 function showWorkerPopup(marker, loc) {
     const statusLabel = {
-        on_duty: '근무중',
-        danger: '위험',
+        safe:     '안전',
+        warning:  '주의',
+        danger:   '위험',
+        on_duty:  '근무중',
         off_duty: '비근무',
     }[loc.worker_status] || loc.worker_status;
 
-    const statusClass = loc.worker_status === 'danger' ? 'danger' : 'normal';
+    const statusClass = {
+        safe:    'normal',
+        warning: 'warning',
+        danger:  'danger',
+    }[loc.worker_status] || 'normal';
 
     marker.bindPopup(`
         <div class="popup-title">${loc.worker_name}</div>
