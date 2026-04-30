@@ -161,7 +161,8 @@ class DeviceViewSet(viewsets.ModelViewSet):
     def latest_power(self, request, pk=None):
         """GET /api/devices/{id}/latest_power/ - 해당 장비의 채널별 최신 전력값"""
         device   = self.get_object()
-        readings = PowerReading.objects.filter(device=device).order_by('-measured_at')
+        readings = PowerReading.objects.filter(device=device).select_related("channel").order_by('-measured_at')[:200]
+
         # 채널별 최신값만
         latest = {}
         for r in readings:

@@ -21,12 +21,14 @@ document.addEventListener('DOMContentLoaded', function() {
     /* ── 유해가스 테이블 갱신 ── */
     SafetyWS.on('gas_update', function(data) {
         if (typeof gasSensors === 'undefined' || !gasSensors.length) return;
-        const deviceUid = data.device_uid;
-        const device = gasSensors.find(s => s.device_uid === deviceUid);
-        if (device && gasSensors[gasCurrentIndex]?.device_uid === deviceUid) {
-            renderGasTable(data);
+
+        const device = gasSensors.find(s => s.device_uid === data.device_uid);
+        if (!device) return;
+
+        if (gasSensors[gasCurrentIndex]?.device_uid === data.device_uid) {
+            loadLatestGas(device.id);
         }
-        if (device) loadSensorSummary(device);
+        loadSensorSummary(device);
     });
 
     /* ── 전력 현황 갱신 ── */

@@ -505,5 +505,3 @@ document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
         document.getElementById(`tab-${btn.dataset.tab}`)?.classList.add('active');
     });
 });
-
-document.addEventListener('DOMContentLoaded', initGasWidget);
