@@ -22,6 +22,9 @@
 {% endblock %}
 
 {% block content %}
+{# 사용자 관리 영역 탭 (사용자 / 조직 / 직위) #}
+{% include 'admin/_user_management_tabs.html' with active_tab='user' %}
+
 {# ⑧ 검색 필터 영역 #}
 <div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
   <form method="get">

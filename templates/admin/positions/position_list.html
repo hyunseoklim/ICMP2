@@ -24,6 +24,9 @@
 {% endblock %}
 
 {% block content %}
+{# 사용자 관리 영역 탭 (사용자 / 조직 / 직위) #}
+{% include 'admin/_user_management_tabs.html' with active_tab='position' %}
+
 <div class="bg-white rounded-lg border border-slate-200">
 
   {# 카드 상단 헤더: 직위 목록 + 삭제 버튼 / 검색 필드 #}
@@ -96,49 +99,49 @@
           <td class="px-4 py-4 text-center text-slate-700">1</td>
           <td class="px-4 py-4 text-center text-slate-900">대표이사</td>
           <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
         </tr>
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
           <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
           <td class="px-4 py-4 text-center text-slate-700">2</td>
           <td class="px-4 py-4 text-center text-slate-900">이사</td>
           <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
         </tr>
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
           <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
           <td class="px-4 py-4 text-center text-slate-700">3</td>
           <td class="px-4 py-4 text-center text-slate-900">부장</td>
           <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
         </tr>
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
           <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
           <td class="px-4 py-4 text-center text-slate-700">4</td>
           <td class="px-4 py-4 text-center text-slate-900">차장</td>
           <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
         </tr>
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
           <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
           <td class="px-4 py-4 text-center text-slate-700">5</td>
           <td class="px-4 py-4 text-center text-slate-900">과장</td>
           <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
         </tr>
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
           <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
           <td class="px-4 py-4 text-center text-slate-700">6</td>
           <td class="px-4 py-4 text-center text-slate-900">대리</td>
           <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
         </tr>
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
           <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
           <td class="px-4 py-4 text-center text-slate-700">7</td>
           <td class="px-4 py-4 text-center text-slate-900">사원</td>
           <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-500">비활성</span></td>
-          <td class="px-4 py-4 text-center"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
         </tr>
         {% endfor %}
       </tbody>

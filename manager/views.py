@@ -143,3 +143,55 @@ def logout_complete(request):
 def user_list_filter(request):
     """필터 펼친 상태"""
     return render(request, 'admin/users/user_list_filter_open.html')
+
+# ===== 직위 관리 =====
+def position_list(request):
+    """직위 관리 메인 페이지"""
+    return render(request, 'admin/positions/position_list.html')
+
+def position_create(request):
+    """직위 등록 모달"""
+    return render(request, 'admin/positions/position_create.html')
+
+def position_edit(request, pk=0):
+    """직위 수정 모달"""
+    return render(request, 'admin/positions/position_edit.html')
+
+
+# ===== 조직 관리 =====
+def org_list(request):
+    """조직 관리 메인 페이지"""
+    return render(request, 'admin/organizations/org_list.html')
+
+def org_member_select(request):
+    """구성원 선택 모달"""
+    return render(request, 'admin/organizations/org_member_select.html')
+
+def org_dept_move(request):
+    """부서 이동 모달"""
+    return render(request, 'admin/organizations/org_dept_move.html')
+
+def org_confirm(request):
+    """재확인 모달"""
+    return render(request, 'admin/organizations/org_confirm.html')
+
+# ===== 공통 코드 관리 =====
+def code_list(request):
+    """공통 코드 관리 메인 페이지"""
+    return render(request, 'admin/codes/code_list.html')
+
+def code_group_create(request):
+    """코드 그룹 등록 모달"""
+    return render(request, 'admin/codes/code_group_create.html')
+
+def code_group_edit(request):
+    """코드 그룹 수정 모달"""
+    return render(request, 'admin/codes/code_group_edit.html')
+
+def code_value_create(request):
+    """공통 코드 등록 모달"""
+    return render(request, 'admin/codes/code_value_create.html')
+
+def code_value_edit(request):
+    """공통 코드 수정 모달"""
+    return render(request, 'admin/codes/code_value_edit.html')

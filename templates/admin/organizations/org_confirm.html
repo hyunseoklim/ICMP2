@@ -26,12 +26,13 @@
 
       <!-- 버튼 -->
       <div class="flex items-center gap-2 justify-center">
-        <button class="px-6 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">
+       <a href="{% url 'org_list' %}" class="px-6 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">
           취 소
-        </button>
-        <button class="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+        </a>
+        <a href="{% url 'org_list' %}" class="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
           확 인
-        </button>
+        </a>
+        
       </div>
     </div>
   </div>

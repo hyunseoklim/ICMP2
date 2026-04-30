@@ -74,10 +74,13 @@
           취소
         </a>
         {# ⑥ 저장 Btn — 클릭 시 데이터 저장과 동시에 '완료' 팝업 표출 #}
-        <button type="submit"
-                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+     <a href="{% url 'position_list' %}"
+           class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
           저장
-        </button>
+        </a>  
+       
+       
+        
       </div>
     </form>
   </div>

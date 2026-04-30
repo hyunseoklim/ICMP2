@@ -1,0 +1,45 @@
+{% comment %}
+사용자 관리 영역 공통 탭
+
+사용 방법:
+  include 'admin/_user_management_tabs.html' with active_tab='user'
+  include 'admin/_user_management_tabs.html' with active_tab='org'
+  include 'admin/_user_management_tabs.html' with active_tab='position'
+{% endcomment %}
+<div class="border-b border-slate-200 mb-6">
+  <nav class="flex gap-1" aria-label="사용자 관리 탭">
+
+    {# 사용자 관리 탭 #}
+    <a href="{% url 'user_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'user' %}
+                border-blue-600 text-blue-600
+              {% else %}
+                border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300
+              {% endif %}">
+      사용자 관리
+    </a>
+
+    {# 조직 관리 탭 #}
+    <a href="{% url 'org_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'org' %}
+                border-blue-600 text-blue-600
+              {% else %}
+                border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300
+              {% endif %}">
+      조직 관리
+    </a>
+
+    {# 직위 관리 탭 #}
+    <a href="{% url 'position_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'position' %}
+                border-blue-600 text-blue-600
+              {% else %}
+                border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300
+              {% endif %}">
+      직위 관리
+    </a>
+  </nav>
+</div>
