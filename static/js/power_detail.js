@@ -32,8 +32,8 @@ let selectedChannels  = new Set();
 const powerZonePlugin = {
     id: 'powerZoneBackground',
     beforeDraw(chart) {
-        const { ctx, chartArea: area, scales: { y } } = chart;
-        if (!area) return;
+    const { ctx, chartArea: area, scales: { y } } = chart;
+        if (!area || !y) return;   // ← !y 추가
 
         const clamp = v => Math.max(area.top, Math.min(area.bottom, y.getPixelForValue(v)));
 

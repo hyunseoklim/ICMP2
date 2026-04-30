@@ -6,12 +6,12 @@
     </div>
 
     <div class="worker-chart-area">
-        <!-- 도넛 차트 (Chart.js로 렌더링) -->
         <div class="donut-wrapper">
             <canvas id="workerDonut" width="120" height="120"></canvas>
             <div class="donut-center">
-                <span class="donut-label">총 작업자 수</span>
-                <span class="donut-total">{{ worker_stats.total }}명</span>
+                
+                <span class="donut-label" >👷 총 작업자 수</span>
+                <span class="donut-total" id="worker-total">--명</span>
             </div>
         </div>
 
@@ -19,41 +19,111 @@
             <li>
                 <span class="legend-dot dot--danger"></span>
                 <span class="legend-text">위험</span>
-                <span class="legend-count" id="worker-danger">{{ worker_stats.danger }}명</span>
+                <span class="legend-count" id="worker-danger">--명</span>
             </li>
             <li>
                 <span class="legend-dot dot--warning"></span>
                 <span class="legend-text">주의</span>
-                <span class="legend-count" id="worker-warning">{{ worker_stats.warning }}명</span>
+                <span class="legend-count" id="worker-warning">--명</span>
             </li>
             <li>
                 <span class="legend-dot dot--normal"></span>
-                <span class="legend-text">정상</span>
-                <span class="legend-count" id="worker-normal">{{ worker_stats.normal }}명</span>
+                <span class="legend-text">안전</span>
+                <span class="legend-count" id="worker-safe">--명</span>
             </li>
         </ul>
     </div>
 </div>
 
 <script>
-(function() {
-    var ctx = document.getElementById('workerDonut');
-    if (!ctx) return;
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            datasets: [{
-                data: [{{ worker_stats.danger }}, {{ worker_stats.warning }}, {{ worker_stats.normal }}],
-                backgroundColor: ['#e53e3e', '#f6ad55', '#48bb78'],
-                borderWidth: 0,
-                hoverOffset: 4
-            }]
-        },
-        options: {
-            cutout: '70%',
-            plugins: { legend: { display: false }, tooltip: { enabled: true } },
-            animation: { animateRotate: true, duration: 800 }
+(function () {
+    const API_URL = '/facilities/api/workers/';   // 기존 WorkerViewSet 엔드포인트
+    const REFRESH_MS = 30000;
+    let workerChart = null;
+
+    function calcStats(workers) {
+        // safety_status 기준으로 프론트에서 집계
+        return workers.reduce((acc, w) => {
+            acc.total++;
+            if      (w.safety_status === 'danger')  acc.danger++;
+            else if (w.safety_status === 'warning') acc.warning++;
+            else if (w.safety_status === 'safe')    acc.safe++;
+            return acc;
+        }, { total: 0, danger: 0, warning: 0, safe: 0 });
+    }
+
+    function renderChart(stats) {
+        const ctx = document.getElementById('workerDonut');
+        if (!ctx) return;
+
+        const chartData = [stats.danger, stats.warning, stats.safe];
+
+        if (workerChart) {
+            workerChart.data.datasets[0].data = chartData;
+            workerChart.update();
+        } else {
+            workerChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: ['#e53e3e', '#f6ad55', '#48bb78'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            callbacks: {
+                                label: function (ctx) {
+                                    const labels = ['위험', '주의', '안전'];
+                                    return ` ${labels[ctx.dataIndex]}: ${ctx.parsed}명`;
+                                }
+                            }
+                        }
+                    },
+                    animation: { animateRotate: true, duration: 800 }
+                }
+            });
         }
-    });
+    }
+
+    function updateLegend(stats) {
+        document.getElementById('worker-total').textContent   = stats.total   + '명';
+        document.getElementById('worker-danger').textContent  = stats.danger  + '명';
+        document.getElementById('worker-warning').textContent = stats.warning + '명';
+        document.getElementById('worker-safe').textContent    = stats.safe    + '명';
+    }
+
+    function fetchWorkerStats() {
+        fetch(API_URL)
+            .then(res => {
+                if (!res.ok) throw new Error('Network error');
+                return res.json();
+            })
+            .then(data => {
+                // DRF 페이지네이션 대응 (results 키가 있으면 사용)
+                const workers = Array.isArray(data) ? data : (data.results || []);
+                const stats   = calcStats(workers);
+                updateLegend(stats);
+                renderChart(stats);
+            })
+            .catch(err => console.error('[WorkerWidget] 데이터 로딩 실패:', err));
+    }
+
+    function init() {
+        fetchWorkerStats();
+        setInterval(fetchWorkerStats, REFRESH_MS);
+    }
+
+    if (typeof Chart !== 'undefined') {
+        init();
+    } else {
+        window.addEventListener('load', init);
+    }
 })();
 </script>

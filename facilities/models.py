@@ -238,8 +238,17 @@ class Geofence(models.Model):
 
 
 class LocationNode(models.Model):
-    zone = models.ForeignKey(
-        'facilities.Zone', on_delete=models.CASCADE, related_name='location_nodes'
+    floor = models.ForeignKey(          # ← 추가: Floor 직접 참조
+        'facilities.Floor',
+        on_delete=models.CASCADE,
+        related_name='location_nodes',
+        null=True, blank=True
+    )
+    zone = models.ForeignKey(           # ← 변경: null 허용
+        'facilities.Zone',
+        on_delete=models.SET_NULL,      # CASCADE → SET_NULL
+        related_name='location_nodes',
+        null=True, blank=True           # 필수 → 선택
     )
     node_name = models.CharField(max_length=100)
     node_code = models.CharField(max_length=50)
@@ -260,8 +269,8 @@ class LocationNode(models.Model):
         app_label = 'facilities'
 
     def __str__(self):
-        return f'{self.zone.zone_name} - {self.node_name}'
-
+        return f'{self.node_name} @ ({self.x}, {self.y})'
+    
 
 class Worker(models.Model):
     user = models.OneToOneField(
@@ -273,9 +282,15 @@ class Worker(models.Model):
     phone = models.CharField(max_length=20, blank=True)
     current_state = models.CharField(
         max_length=20,
-        choices=[('on_duty', '근무중'), ('off_duty', '비근무'), ('danger', '위험')],
+        choices=[('on_duty', '근무중'), ('off_duty', '비근무') ],
         default='on_duty',
     )
+    safety_status = models.CharField(
+    max_length=20,
+    choices=[('safe', '안전'), ('warning', '주의'), ('danger', '위험')],
+    default='safe',
+    help_text='Geofence 판단 결과',
+)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -354,3 +369,50 @@ class Equipment(models.Model):
 
     def __str__(self):
         return f"[{self.equipment_code}] {self.equipment_name}"
+
+
+class SensorLocation(models.Model):
+    """
+    센서의 물리적 위치 정보.
+    상태(측정값)는 monitoring.Device가 관리하고,
+    위치(어느 층 어느 좌표)는 이 모델이 관리한다.
+    """
+    SENSOR_TYPE_CHOICES = [
+        ('gas',      '가스센서'),
+        ('power',    '전력센서'),
+        ('location', '위치노드'),
+    ]
+
+    device_id = models.IntegerField(
+        unique=True,
+        help_text="monitoring.Device PK — FK 대신 정수로 참조 (앱 간 의존성 분리)"
+    )
+    floor = models.ForeignKey(
+        'facilities.Floor',
+        on_delete=models.CASCADE,
+        related_name='sensor_locations'
+    )
+    sensor_type = models.CharField(
+        max_length=20,
+        choices=SENSOR_TYPE_CHOICES,
+        default='gas'
+    )
+    x = models.FloatField(help_text='센서 x 좌표 (m)')
+    y = models.FloatField(help_text='센서 y 좌표 (m)')
+    device_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text='표시용 이름 (monitoring.Device.device_name 복사)'
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'sensor_locations'
+        verbose_name = '센서 위치'
+        verbose_name_plural = '센서 위치 목록'
+        app_label = 'facilities'
+
+    def __str__(self):
+        return f'[{self.sensor_type}] {self.device_name} @ ({self.x}, {self.y})'
