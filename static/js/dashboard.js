@@ -13,44 +13,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    /* ── 이벤트 목록 실시간 추가 ── */
+    /* ── 이벤트 목록 실시간 추가 (WebSocket) ── */
     SafetyWS.on('event_new', function(payload) {
-        const list = document.getElementById('event-list');
-        if (!list) return;
-
-        const li = document.createElement('li');
-        li.className = `event-item event--${payload.severity}`;
-        li.dataset.id = payload.id;
-        li.innerHTML = `
-            <div class="event-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2L1 21h22L12 2zm0 3.5l8.7 15H3.3L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/>
-                </svg>
-            </div>
-            <div class="event-body">
-                <p class="event-title">${payload.title}</p>
-                <p class="event-desc">${payload.description}</p>
-            </div>
-            <span class="event-time">00:00</span>
-        `;
-        list.prepend(li);
-
-        while (list.children.length > 20) {
-            list.lastChild.remove();
-        }
-
-        if (Notification.permission === 'granted' && payload.severity === 'danger') {
-            new Notification('🚨 위험 이벤트 발생', { body: payload.title });
-        }
+        renderEventList();
     });
 
     /* ── 유해가스 테이블 갱신 ── */
     SafetyWS.on('gas_update', function(data) {
         if (typeof gasSensors === 'undefined' || !gasSensors.length) return;
-
         const deviceUid = data.device_uid;
         const device = gasSensors.find(s => s.device_uid === deviceUid);
-
         if (device && gasSensors[gasCurrentIndex]?.device_uid === deviceUid) {
             renderGasTable(data);
         }
@@ -60,7 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
     /* ── 전력 현황 갱신 ── */
     SafetyWS.on('power_update', function(data) {
         if (typeof powerDevices === 'undefined' || !powerDevices.length) return;
-
         loadLatestPower(powerDevices[powerCurrentIndex]?.id);
     });
 
@@ -89,38 +60,60 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }, 1000);
 
-    /* ── 알람 폴링 (5초마다) ── */
-    async function pollAlarms() {
+    /* ── 이벤트 목록 렌더링 ─────────────────────────────── */
+    function buildWorkerItem() {
+        if (!window.CURRENT_WORKER_NAME) return '';
+        const done       = window.SAFETY_DONE;
+        const stateText  = done ? '작업 전 안전 확인 완료' : '작업 전 안전 확인 미완료';
+        const stateClass = done ? 'safety-done' : 'safety-undone';
+        const iconColor  = done ? 'var(--accent-green)' : 'var(--danger)';
+        return `
+        <li class="event-item event-item--worker event--${done ? 'normal' : 'danger'}">
+            <div class="event-icon event-icon--worker" style="color:${iconColor}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+                </svg>
+            </div>
+            <div class="event-body">
+                <p class="event-title">${window.CURRENT_WORKER_NAME} 작업자</p>
+                <p class="event-desc ${stateClass}">${stateText}</p>
+            </div>
+            <span class="event-time">-</span>
+        </li>`;
+    }
+
+    async function renderEventList() {
+        const list = document.getElementById('event-list');
+        if (!list) return;
+
         try {
-            const res    = await axios.get('/alerts/api/recent/');
-            const alarms = res.data;
-            if (!Array.isArray(alarms) || alarms.length === 0) return;
+            const res    = await axios.get('/alerts/api/recent/?mine=true&minutes=1440&limit=20');
+            const alarms = Array.isArray(res.data) ? res.data : [];
 
-            const list = document.getElementById('event-list');
-            if (!list) return;
-
-            list.innerHTML = alarms.map(a => `
-                <li class="event-item event--${a.severity}">
-                    <div class="event-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2L1 21h22L12 2zm0 3.5l8.7 15H3.3L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/>
-                        </svg>
-                    </div>
+            const alarmItems = alarms.map(a => {
+                const icon = a.severity === 'danger'
+                    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 3.5l8.7 15H3.3L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>`
+                    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+                return `
+                <li class="event-item event--${a.severity}" data-id="${a.id}">
+                    <div class="event-icon">${icon}</div>
                     <div class="event-body">
                         <p class="event-title">${a.title}</p>
                         <p class="event-desc">${a.message || ''}</p>
                     </div>
-                    <span class="event-time">${new Date(a.occurred_at).toLocaleTimeString('ko-KR')}</span>
-                </li>`
-            ).join('');
+                    <span class="event-time" data-start="${a.occurred_at}">00:00</span>
+                </li>`;
+            });
+
+            list.innerHTML = buildWorkerItem() + alarmItems.join('') || '<li class="event-empty">현재 이벤트가 없습니다.</li>';
 
         } catch (e) {
-            console.error('알람 폴링 실패:', e);
+            console.error('[EventList] 로딩 실패:', e);
         }
     }
 
-    pollAlarms();
-    setInterval(pollAlarms, 5000);
+    renderEventList();
+    setInterval(renderEventList, 10000);
 
 });
 

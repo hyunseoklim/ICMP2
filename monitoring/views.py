@@ -62,7 +62,7 @@ def ingest_gas(request):
     if not device:
         return Response({'error': f'장비 없음: {device_uid}'}, status=404)
 
-    GasReading.objects.create(
+    reading = GasReading.objects.create(
         device=device,
         co=request.data.get('co', 0),
         h2s=request.data.get('h2s', 0),
@@ -76,6 +76,10 @@ def ingest_gas(request):
         measured_at=timezone.now(),
     )
     update_last_seen(device)
+
+    from alerts.services import check_gas_thresholds
+    check_gas_thresholds(device, reading)
+
     return Response({'status': 'ok'})
 
 
@@ -108,6 +112,10 @@ def ingest_power(request):
         measured_at=timezone.now(),
     )
     update_last_seen(device)
+
+    from alerts.services import check_power_thresholds
+    check_power_thresholds(device, channel, float(request.data.get('power_w', 0)))
+
     return Response({'status': 'ok'})
 
 
@@ -143,7 +151,7 @@ class DeviceViewSet(viewsets.ModelViewSet):
     def latest_gas(self, request, pk=None):
         """GET /api/devices/{id}/latest_gas/ - 해당 장비의 최신 가스 측정값"""
         device   = self.get_object()
-        reading  = GasReading.objects.filter(device=device).first()
+        reading  = GasReading.objects.filter(device=device).order_by('-measured_at').first()
         if not reading:
             return Response({"detail": "측정값 없음"}, status=404)
         serializer = GasReadingSerializer(reading)
@@ -153,7 +161,7 @@ class DeviceViewSet(viewsets.ModelViewSet):
     def latest_power(self, request, pk=None):
         """GET /api/devices/{id}/latest_power/ - 해당 장비의 채널별 최신 전력값"""
         device   = self.get_object()
-        readings = PowerReading.objects.filter(device=device).select_related("channel")
+        readings = PowerReading.objects.filter(device=device).order_by('-measured_at')
         # 채널별 최신값만
         latest = {}
         for r in readings:

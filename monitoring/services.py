@@ -55,11 +55,11 @@ def get_thresholds() -> dict:
         return DEFAULT_THRESHOLDS
 
     return {
-        p.metric_code: (p.warning_min, p.danger_min)
+        p.metric_code: (p.warning_max, p.danger_max)
         for p in policies
         if p.metric_code != "o2"       # O2는 별도 처리 (아래 calc_danger_level 참고)
-        and p.warning_min is not None
-        and p.danger_min  is not None
+        and p.warning_max is not None
+        and p.danger_max  is not None
     }
 
 

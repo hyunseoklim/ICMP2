@@ -6,5 +6,10 @@
 {# 대시보드는 base의 모든 컴포넌트를 그대로 표시 — 블록 override 없음 #}
 
 {% block script %}
+<script>
+  window.CURRENT_WORKER_ID   = {{ current_worker_id|default:"null" }};
+  window.CURRENT_WORKER_NAME = "{{ current_worker_name|default:'' }}";
+  window.SAFETY_DONE         = {{ safety_done|yesno:"true,false" }};
+</script>
 <script src="{% static 'js/dashboard.js' %}"></script>
 {% endblock %}

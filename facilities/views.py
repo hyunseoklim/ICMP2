@@ -7,7 +7,8 @@ from django.views.generic import TemplateView
 
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from django.views      import View
@@ -341,6 +342,30 @@ class GeofenceViewSet(viewsets.ModelViewSet):
         if is_active is not None:
             qs = qs.filter(is_active=is_active in ['true', '1', 'True'])
         return qs.order_by('-severity')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def worker_safety_status(request):
+    """
+    GET /facilities/api/workers/safety-status/
+    현재 근무 중인 전체 작업자 + 오늘 안전확인 완료 여부 반환
+    """
+    from safety.models import SafetyCheckSession
+    from django.utils import timezone
+
+    today = timezone.localdate()
+    workers = Worker.objects.filter(current_state='on_duty').order_by('worker_name')
+
+    result = []
+    for w in workers:
+        session = SafetyCheckSession.objects.filter(worker=w, check_date=today).first()
+        result.append({
+            'id':          w.id,
+            'worker_name': w.worker_name,
+            'safety_done': session.checklist_completed if session else False,
+        })
+    return Response(result)
 
 
 class EquipmentViewSet(viewsets.ModelViewSet):

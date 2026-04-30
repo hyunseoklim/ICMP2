@@ -15,4 +15,33 @@ def dashboard_view(request):
     except Exception:
         pass
 
-    return render(request, "dashboard.html", {"today_session": today_session})
+    from alerts.services import get_recent_events
+
+    current_worker_id   = None
+    current_worker_name = None
+    safety_done         = False
+
+    try:
+        worker = request.user.worker
+        current_worker_id   = worker.id
+        current_worker_name = worker.worker_name
+        qs = get_recent_events(hours=24).filter(worker=worker)
+        event_summary = {
+            'danger':  qs.filter(severity='danger').count(),
+            'warning': qs.filter(severity='warning').count(),
+        }
+        recent_events = qs[:20]
+        if today_session:
+            safety_done = today_session.checklist_completed
+    except Exception:
+        recent_events = []
+        event_summary = {'danger': 0, 'warning': 0}
+
+    return render(request, "dashboard.html", {
+        "today_session":      today_session,
+        "recent_events":      recent_events,
+        "event_summary":      event_summary,
+        "current_worker_id":  current_worker_id,
+        "current_worker_name": current_worker_name,
+        "safety_done":        safety_done,
+    })

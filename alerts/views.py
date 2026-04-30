@@ -101,10 +101,19 @@ def recent_alarms(request):
     minutes = int(request.GET.get('minutes', 5))
     limit   = int(request.GET.get('limit', 20))
 
-    recent = AlarmEvent.objects.filter(
+    qs = AlarmEvent.objects.filter(
         occurred_at__gte=timezone.now() - timedelta(minutes=minutes),
         event_status='open'
-    ).select_related('device', 'facility').order_by('-occurred_at')[:limit]
+    ).select_related('device', 'facility', 'worker')
+
+    # ?mine=true 이면 로그인 유저의 worker 에 연결된 이벤트만
+    if request.GET.get('mine') == 'true' and request.user.is_authenticated:
+        try:
+            qs = qs.filter(worker=request.user.worker)
+        except Exception:
+            qs = qs.none()
+
+    recent = qs.order_by('-occurred_at')[:limit]
 
     return Response([{
         'id':          e.id,

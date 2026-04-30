@@ -413,6 +413,13 @@ body {
 .event-title { font-size: 12px; font-weight: 600; }
 .event-desc  { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
 
+/* 작업자 안전확인 아이템 */
+.event-item--worker .event-icon--worker { color: var(--text-secondary); }
+.event--normal .event-icon--worker      { color: var(--accent-green); }
+.event--danger .event-icon--worker      { color: var(--danger); }
+.safety-done   { color: var(--accent-green) !important; }
+.safety-undone { color: var(--danger) !important; }
+
 .event-time {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -701,4 +708,137 @@ body {
   width: 100%;
   padding: 10px;
   font-size: 0.95rem;
+}
+
+/* ── 알람 팝업 ──────────────────────────────────────────── */
+@keyframes alertPopupIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.88); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1);    }
+}
+@keyframes alertPopupOut {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1);    }
+  to   { opacity: 0; transform: translate(-50%, -50%) scale(0.88); }
+}
+@keyframes alertOverlayIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes alertOverlayOut { from { opacity: 1; } to { opacity: 0; } }
+
+.alert-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 9999;
+  animation: alertOverlayIn 0.2s ease both;
+}
+.alert-popup-overlay--hiding {
+  animation: alertOverlayOut 0.25s ease both;
+}
+.alert-popup-overlay--hiding .alert-popup-box {
+  animation: alertPopupOut 0.25s ease both;
+}
+
+.alert-popup-box {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  background: #161b22;
+  border-radius: 16px;
+  padding: 32px 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: alertPopupIn 0.25s cubic-bezier(.34,1.56,.64,1) both;
+}
+.alert-popup-box--danger  { border: 1.5px solid var(--danger-border);  box-shadow: 0 0 32px rgba(239,68,68,0.25); }
+.alert-popup-box--warning { border: 1.5px solid var(--warning-border); box-shadow: 0 0 32px rgba(245,158,11,0.2); }
+
+.alert-popup-time {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--bg-panel-2);
+  border-radius: 8px;
+  padding: 7px 12px;
+}
+.alert-popup-time-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  flex-shrink: 0;
+  box-shadow: 0 0 6px var(--accent-green);
+}
+
+.alert-popup-icon { line-height: 0; }
+.alert-popup-icon--danger  { color: var(--danger);  }
+.alert-popup-icon--warning { color: var(--warning); }
+
+.alert-popup-type {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.alert-popup-headline {
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.alert-popup-headline--danger  { color: var(--danger);  }
+.alert-popup-headline--warning { color: var(--warning); }
+
+.alert-popup-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  align-self: stretch;
+  justify-content: center;
+}
+.alert-popup-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.alert-popup-badge--danger  { background: var(--danger-bg);  color: var(--danger);  border: 1px solid var(--danger-border);  }
+.alert-popup-badge--warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+.alert-popup-msg {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.alert-popup-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  width: 100%;
+}
+.alert-popup-btn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  border: none;
+  transition: filter 0.15s;
+}
+.alert-popup-btn:hover { filter: brightness(1.12); }
+.alert-popup-btn--detail {
+  background: var(--bg-panel-2);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+}
+.alert-popup-btn--confirm {
+  background: var(--accent-blue);
+  color: #fff;
 }
