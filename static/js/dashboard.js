@@ -52,13 +52,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /* ── 이벤트 타임 카운터 ── */
+    function timeAgo(dateStr) {
+        const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+        if (diff < 60)         return `${diff}초 전`;
+        if (diff < 3600)       return `${Math.floor(diff / 60)}분 전`;
+        if (diff < 86400)      return `${Math.floor(diff / 3600)}시간 전`;
+        return `${Math.floor(diff / 86400)}일 전`;
+    }
     setInterval(function() {
         document.querySelectorAll('.event-time[data-start]').forEach(function(el) {
-            const start = new Date(el.dataset.start);
-            const diff = Math.floor((Date.now() - start) / 1000);
-            const m = String(Math.floor(diff / 60)).padStart(2, '0');
-            const s = String(diff % 60).padStart(2, '0');
-            el.textContent = `${m}:${s}`;
+            el.textContent = timeAgo(el.dataset.start);
         });
     }, 1000);
 
@@ -103,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <p class="event-title">${a.title}</p>
                         <p class="event-desc">${a.message || ''}</p>
                     </div>
-                    <span class="event-time" data-start="${a.occurred_at}">00:00</span>
+                    <span class="event-time" data-start="${a.occurred_at}">${timeAgo(a.occurred_at)}</span>
                 </li>`;
             });
 

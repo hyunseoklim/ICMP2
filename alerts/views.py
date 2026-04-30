@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from datetime import timedelta
+from django.db.models import Case, When, IntegerField
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -113,7 +114,13 @@ def recent_alarms(request):
         except Exception:
             qs = qs.none()
 
-    recent = qs.order_by('-occurred_at')[:limit]
+    severity_rank = Case(
+        When(severity='danger',  then=0),
+        When(severity='warning', then=1),
+        default=2,
+        output_field=IntegerField(),
+    )
+    recent = qs.annotate(severity_rank=severity_rank).order_by('-occurred_at', 'severity_rank')[:limit]
 
     return Response([{
         'id':          e.id,
