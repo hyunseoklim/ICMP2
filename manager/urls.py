@@ -28,4 +28,12 @@ urlpatterns = [
     path('codes/group/edit/', views.code_group_edit, name='code_group_edit'),
     path('codes/value/create/', views.code_value_create, name='code_value_create'),
     path('codes/value/edit/', views.code_value_edit, name='code_value_edit'),
+
+
+    # ===== 위험 유형 관리 =====
+    path('risks/', views.risk_list, name='risk_list'),
+    path('risks/create/', views.risk_create, name='risk_create'),
+    path('risks/edit/', views.risk_edit, name='risk_edit'),
+    path('risks/group/create/', views.risk_group_create, name='risk_group_create'),
+    path('risks/group/edit/', views.risk_group_edit, name='risk_group_edit'),
 ]

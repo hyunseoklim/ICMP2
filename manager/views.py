@@ -195,3 +195,24 @@ def code_value_create(request):
 def code_value_edit(request):
     """공통 코드 수정 모달"""
     return render(request, 'admin/codes/code_value_edit.html')
+
+# ===== 위험 유형 관리 =====
+def risk_list(request):
+    """위험 유형 관리 메인 페이지"""
+    return render(request, 'admin/risks/risk_list.html')
+
+def risk_create(request):
+    """위험 유형 코드 등록 모달"""
+    return render(request, 'admin/risks/risk_create.html')
+
+def risk_edit(request):
+    """위험 유형 코드 수정 모달"""
+    return render(request, 'admin/risks/risk_edit.html')
+
+def risk_group_create(request):
+    """분류 그룹 등록 모달"""
+    return render(request, 'admin/risks/risk_group_create.html')
+
+def risk_group_edit(request):
+    """분류 그룹 수정 모달"""
+    return render(request, 'admin/risks/risk_group_edit.html')
