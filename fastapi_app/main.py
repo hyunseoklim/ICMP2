@@ -28,7 +28,7 @@ async def _broadcast(message: dict) -> None:
 
 
 async def _data_loop() -> None:
-    """10초마다 센서 데이터 + 전력 데이터 + 위치 데이터 broadcast"""
+    """60초마다 센서 데이터 + 전력 데이터 + 위치 데이터 broadcast"""
     while True:
         # 가스 센서 데이터
         for device in _devices:
@@ -46,7 +46,7 @@ async def _data_loop() -> None:
         location = generate_location_data()
         await _broadcast(location)
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(60)
 
 
 @asynccontextmanager
