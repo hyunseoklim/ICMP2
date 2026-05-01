@@ -1,0 +1,88 @@
+{% extends 'admin/positions/position_list.html' %}
+
+{% block title %}직위 수정 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{# ===== ① 직위 수정 모달 =====
+   '직위 관리' 화면에서 [수정] 클릭 시 표출되는 수정 화면 #}
+{% block modal %}
+{{ block.super }}
+<div id="position-edit-modal"
+     class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
+
+  <div class="bg-white rounded-lg w-full max-w-md shadow-xl">
+
+    {# 모달 헤더 #}
+    <div class="px-6 py-5 border-b border-slate-100">
+      <h3 class="text-xl font-bold text-slate-900">직위 수정</h3>
+      <p class="text-sm text-slate-500 mt-1">선택된 직위의 정보와 상태를 수정합니다.</p>
+    </div>
+
+    {# 폼 #}
+    <form method="post" action="{% url 'position_edit' position.id %}" class="px-6 py-5 space-y-4">
+      {% csrf_token %}
+
+      {# ② 직위명 입력/수정 필드 — 기존 직위명 입력되어 있으며 직접 지우고 수정가능 #}
+      <div class="flex items-center gap-4">
+        <label for="id_name" class="w-20 text-sm font-medium text-slate-700 shrink-0">
+          직위명
+        </label>
+        <input type="text" id="id_name" name="name"
+               value="{{ form.name.value|default:position.name|default:'대리' }}"
+               class="flex-1 px-3 py-2 text-sm border rounded-md text-slate-900
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                      {% if form.name.errors %}border-red-400 bg-red-50/30{% else %}border-slate-200{% endif %}" />
+      </div>
+      {% if form.name.errors %}
+        <p class="ml-24 text-xs text-red-600 -mt-2">{{ form.name.errors.0 }}</p>
+      {% endif %}
+
+      {# ③ 사용 여부 드롭다운 — 사용/비활성을 설정할 수 있는 드롭다운 #}
+      <div class="flex items-center gap-4">
+        <label for="id_is_active" class="w-20 text-sm font-medium text-slate-700 shrink-0">
+          사용 여부
+        </label>
+        <div class="flex-1 relative">
+          <select id="id_is_active" name="is_active"
+                  class="w-full appearance-none px-3 py-2 pr-9 text-sm border rounded-md bg-white text-slate-700
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                         {% if form.is_active.errors %}border-red-400 bg-red-50/30{% else %}border-slate-200{% endif %}">
+            <option value="true" {% if position.is_active|default:True %}selected{% endif %}>사용</option>
+            <option value="false" {% if not position.is_active|default:True %}selected{% endif %}>비활성</option>
+          </select>
+          <i data-lucide="chevron-down"
+             class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+        </div>
+      </div>
+      {% if form.is_active.errors %}
+        <p class="ml-24 text-xs text-red-600 -mt-2">{{ form.is_active.errors.0 }}</p>
+      {% endif %}
+
+      {# ④ 변경 안내 콘텐츠 영역 — 변경 후의 시스템 반영을 안내해주는 텍스트 영역 #}
+      <div class="bg-slate-50 border border-slate-200 rounded-md p-3 mt-2">
+        <p class="text-xs font-medium text-slate-600 mb-1.5">변경 안내</p>
+        <ul class="text-xs text-slate-500 space-y-1 leading-relaxed">
+          <li>- 직위명 변경 시 사용자 목록과 조직 관리 화면에 즉시 반영됩니다.</li>
+          <li>- 미사용 처리 시 신규 사용자 등록 시 선택 목록에서 제외됩니다.</li>
+        </ul>
+      </div>
+
+      {# 버튼 영역 #}
+      <div class="flex items-center justify-end gap-2 pt-4">
+        {# ⑤ 취소 Btn — 클릭 시 팝업 닫고 직위 관리 화면으로 재이동 #}
+        <a href="{% url 'position_list' %}"
+           class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+          취소
+        </a>
+        {# ⑥ 저장 Btn — 클릭 시 데이터 저장과 동시에 '완료' 팝업 표출 #}
+     <a href="{% url 'position_list' %}"
+           class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+          저장
+        </a>  
+       
+       
+        
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
