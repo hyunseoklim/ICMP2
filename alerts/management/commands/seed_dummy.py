@@ -260,7 +260,6 @@ class Command(BaseCommand):
                     defaults={'action_note': '조치 완료 및 정상 복귀 확인'},
                 )
         self.stdout.write('  조치 이력 생성 완료')
-
         # ── 10. 안전 체크리스트 항목 ───────────────────────────────────────
         from django.core.management import call_command
         call_command('loaddata', 'safety/fixtures/safety_check_items.json', verbosity=0)

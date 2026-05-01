@@ -21,6 +21,7 @@ router.register(r'sensor-locations', SensorLocationViewSet,        basename='sen
 urlpatterns = [
     path('api/', include(router.urls)),
     path('api/floors/<int:floor_id>/grid-data/', views.floor_grid_data, name='floor-grid-data'),
+    path('api/workers/safety-status/', views.worker_safety_status, name='worker_safety_status'),
     path('monitoring/', views.monitoring_view, name='map_monitoring'),
     path('', views.monitoring_view, name='index'),
     path("floors/<int:floor_id>/setup/", FloorGridSetupView.as_view(), name="floor-grid-setup"),

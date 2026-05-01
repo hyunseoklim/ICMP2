@@ -488,6 +488,18 @@ window.initGasWidget = async function () {
             gasSensors.forEach(s => loadSensorSummary(s));
         }, 60000);
 
+        if (window.SafetyWS) {
+            SafetyWS.on('gas_update', function(data) {
+                if (!gasSensors.length) return;
+                const device = gasSensors.find(s => s.device_uid === data.device_uid);
+                if (!device) return;
+                if (gasSensors[gasCurrentIndex]?.device_uid === data.device_uid) {
+                    loadLatestGas(device.id);
+                }
+                loadSensorSummary(device);
+            });
+        }
+
     } catch (e) {
         console.error('가스 위젯 초기화 실패:', e);
     }

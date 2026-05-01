@@ -121,7 +121,13 @@ function initPowerChartGrid(channels) {
     const grid = document.getElementById('power-chart-grid');
     if (!grid) return;
 
-    Object.values(powerCharts).forEach(c => c.destroy());
+    // 기존 차트 전부 파괴
+    Object.keys(powerCharts).forEach(code => {
+        if (powerCharts[code]) {
+            powerCharts[code].destroy();
+            delete powerCharts[code];
+        }
+    });
     powerCharts = {};
 
     if (!channels || channels.length === 0) {
@@ -151,8 +157,11 @@ function initPowerChartGrid(channels) {
             </div>`;
     }).join('');
 
+    // DOM 완전히 렌더링 후 차트 생성
     requestAnimationFrame(() => {
-        channels.forEach(ch => createPowerChart(ch));
+        requestAnimationFrame(() => {
+            channels.forEach(ch => createPowerChart(ch));
+        });
     });
 }
 

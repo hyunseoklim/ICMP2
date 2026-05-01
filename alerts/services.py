@@ -5,6 +5,99 @@ from django.utils import timezone
 
 from .models import AlarmEvent, AlarmRule, EventHistory
 
+_SEVERITY_LABEL = {AlarmEvent.Severity.DANGER: '위험', AlarmEvent.Severity.WARNING: '주의'}
+
+
+def check_gas_thresholds(device, reading) -> None:
+    """GasReading 인스턴스 임계치 체크 → AlarmEvent 생성 (5분 중복 방지)"""
+    from monitoring.services import check_threshold_exceeded
+
+    if not device.facility_id:
+        return
+
+    exceeded = check_threshold_exceeded(reading)
+    if not exceeded:
+        return
+
+    severity = (
+        AlarmEvent.Severity.DANGER
+        if any(e['level'] == '위험' for e in exceeded)
+        else AlarmEvent.Severity.WARNING
+    )
+
+    rule = AlarmRule.objects.filter(
+        rule_type=AlarmRule.RuleType.THRESHOLD,
+        is_active=True,
+    ).first()
+    if not rule:
+        return
+
+    already = AlarmEvent.objects.filter(
+        rule=rule,
+        device=device,
+        event_status=AlarmEvent.EventStatus.OPEN,
+        occurred_at__gte=timezone.now() - timedelta(minutes=5),
+    ).exists()
+    if already:
+        return
+
+    gases_str = ', '.join(e['gas'].upper() for e in exceeded)
+    message   = ', '.join(f"{e['gas'].upper()}: {e['value']} ({e['level']})" for e in exceeded)
+    create_alarm_event(
+        rule=rule,
+        facility=device.facility,
+        severity=severity,
+        title=f"[가스] {gases_str} 농도 이상 감지",
+        device=device,
+        message=message,
+    )
+
+
+def check_power_thresholds(device, channel, power_w: float) -> None:
+    """전력 부하율 임계치 체크 → AlarmEvent 생성 (5분 중복 방지)"""
+    if not device.facility_id:
+        return
+
+    rated_w = float(channel.rated_power_w or 1000)
+    if power_w <= 0 or rated_w <= 0:
+        return
+
+    load_rate = (power_w / rated_w) * 100
+
+    if load_rate >= 75:
+        severity = AlarmEvent.Severity.DANGER
+    elif load_rate >= 50:
+        severity = AlarmEvent.Severity.WARNING
+    else:
+        return
+
+    rule = AlarmRule.objects.filter(
+        rule_type=AlarmRule.RuleType.POWER,
+        is_active=True,
+    ).first()
+    if not rule:
+        return
+
+    already = AlarmEvent.objects.filter(
+        rule=rule,
+        device=device,
+        channel=channel,
+        event_status=AlarmEvent.EventStatus.OPEN,
+        occurred_at__gte=timezone.now() - timedelta(minutes=5),
+    ).exists()
+    if already:
+        return
+
+    create_alarm_event(
+        rule=rule,
+        facility=device.facility,
+        severity=severity,
+        title=f"[전력] {channel.channel_name or channel.channel_code} 부하율 {load_rate:.0f}% {_SEVERITY_LABEL[severity]}",
+        device=device,
+        channel=channel,
+        message=f"현재 전력: {power_w}W, 부하율: {load_rate:.1f}%",
+    )
+
 _RULE_TYPE_TO_EVENT_TYPE = {
     AlarmRule.RuleType.THRESHOLD: AlarmEvent.EventType.GAS,
     AlarmRule.RuleType.POWER:     AlarmEvent.EventType.POWER,

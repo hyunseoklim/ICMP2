@@ -1,7 +1,13 @@
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Case, When, IntegerField
 from rest_framework import mixins, viewsets
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 
 from .models import AlarmEvent, EventHistory
 from .serializers import AlarmEventSerializer
@@ -70,8 +76,7 @@ def change_event_status_view(request, pk):
     })
 
 
-
-# ─── 이벤트 API (DRF) ────────────────────────────────────────────────
+# ─── 이벤트 API (DRF) ────────────────────────────────────────────────────────
 
 class AlarmEventViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     serializer_class = AlarmEventSerializer
@@ -83,6 +88,51 @@ class AlarmEventViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
         response = super().list(request, *args, **kwargs)
         response.data['counts'] = get_status_counts()
         return response
+
+
+# ─── 최근 알람 API (대시보드 폴링용) ─────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def recent_alarms(request):
+    """
+    GET /alerts/api/recent/
+    대시보드에서 5초마다 폴링 — 최근 5분 내 open 알람 반환
+    """
+    minutes = int(request.GET.get('minutes', 5))
+    limit   = int(request.GET.get('limit', 20))
+
+    qs = AlarmEvent.objects.filter(
+        occurred_at__gte=timezone.now() - timedelta(minutes=minutes),
+        event_status='open'
+    ).select_related('device', 'facility', 'worker')
+
+    # ?mine=true 이면 로그인 유저의 worker 에 연결된 이벤트만
+    # worker가 없는 유저(admin/manager)는 전체 이벤트 반환
+    if request.GET.get('mine') == 'true' and request.user.is_authenticated:
+        try:
+            qs = qs.filter(worker=request.user.worker)
+        except Exception:
+            pass
+
+    severity_rank = Case(
+        When(severity='danger',  then=0),
+        When(severity='warning', then=1),
+        default=2,
+        output_field=IntegerField(),
+    )
+    recent = qs.annotate(severity_rank=severity_rank).order_by('-occurred_at', 'severity_rank')[:limit]
+
+    return Response([{
+        'id':          e.id,
+        'title':       e.title,
+        'severity':    e.severity,
+        'event_type':  e.event_type,
+        'device':      e.device.device_uid if e.device else None,
+        'facility':    e.facility.facility_name if e.facility else None,
+        'message':     e.message,
+        'occurred_at': e.occurred_at.isoformat(),
+    } for e in recent])
 
 
 # ─── 조치 이력 ───────────────────────────────────────────────────────────────

@@ -6,8 +6,9 @@
  */
 
 const WorkerLayer = {
-    USE_WS: false,          // true: WebSocket 모드, false: Polling 모드
-    USE_SIMULATION: true,  // true: polling 테스트용 자동 이동 사용
+    USE_WS: true,          // true: WebSocket 모드, false: Polling 모드
+    USE_SIMULATION: false,  // true: polling 테스트용 자동 이동 사용
+
 
     _ws:         null,
     _pollTimer:  null,
@@ -92,14 +93,14 @@ const WorkerLayer = {
             console.warn('[layer:worker] WebSocket 끊김 — 3초 후 재연결');
 
             setTimeout(() => {
-                if (this._floorId) {
-                    this._useWS(this._floorId);
-                }
+                if (this._floorId) this._useWS(this._floorId);
             }, 3000);
         };
 
-        this._ws.onerror = (e) => {
-            console.error('[layer:worker] WebSocket 에러:', e);
+        this._ws.onerror = () => {
+            console.warn('[layer:worker] WebSocket 실패 — polling 모드로 전환');
+            this._ws = null;
+            if (this.USE_SIMULATION) simulateWorkerMove();
         };
     },
 };
@@ -144,6 +145,20 @@ function workerIcon(status, name) {
 // ─── [SIM] 강제 이동 시뮬레이션 로직 ──────────────────────────
 // USE_SIMULATION: false 로 바꾸면 호출되지 않음
 const WORKER_ROUTES = {
+
+    1: {  // 김철수 — 위험구역 순찰
+        name: '김철수',
+        path: [
+            {x:  5, y: 10},
+            {x:  8, y:  8},
+            {x: 10, y:  5},
+            {x: 12, y:  8},
+            {x: 10, y: 12},
+            {x:  7, y: 15},
+            {x:  5, y: 12},
+        ],
+        step: 0,
+    },
     2: {  // 이영희 — safe → danger → safe
         name: '이영희',
         path: [

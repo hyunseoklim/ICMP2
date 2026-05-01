@@ -12,3 +12,5 @@ venv/
 
 # __init__.py 파일은 제외하지 않음 (추적 유지)
 !**/migrations/__init__.py
+
+.claude/

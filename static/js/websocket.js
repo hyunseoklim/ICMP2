@@ -1,79 +1,45 @@
 /**
- * websocket.js — WebSocket 연결 관리자
- * 재연결 지수 백오프, 메시지 타입 라우팅
+ * websocket.js — FastAPI WebSocket 클라이언트
+ * P1이 보내는 데이터 수신 → 화면 갱신
  */
+const SafetyWS = {
+    socket: null,
+    handlers: {},
+    reconnectDelay: 3000,
 
-(function() {
-  const WS_URL = (location.protocol === 'https:' ? 'wss' : 'ws')
-                 + '://' + location.host + '/ws/monitoring/';
+    connect() {
+        this.socket = new WebSocket('ws://127.0.0.1:8001/ws');
 
-  let socket = null;
-  let reconnectDelay = 1000;
-  const MAX_DELAY = 30000;
-  const handlers = {};
+        this.socket.onopen = () => {
+            console.log('WebSocket 연결됨');
+            document.dispatchEvent(new Event('wsConnected'));
+        };
 
-  function connect() {
-    socket = new WebSocket(WS_URL);
+        this.socket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (this.handlers[data.type]) {
+                    this.handlers[data.type](data);
+                }
+            } catch (e) {
+                console.error('WS 메시지 파싱 실패:', e);
+            }
+        };
 
-    socket.addEventListener('open', () => {
-      console.info('[WS] 연결됨');
-      reconnectDelay = 1000;
-      document.dispatchEvent(new CustomEvent('wsConnected'));
-    });
+        this.socket.onclose = () => {
+            console.warn('WebSocket 끊김, 재연결 시도...');
+            setTimeout(() => this.connect(), this.reconnectDelay);
+        };
 
-    socket.addEventListener('message', e => {
-      try {
-        const data = JSON.parse(e.data);
-        const type = data.type;
-        if (handlers[type]) {
-          handlers[type].forEach(fn => fn(data.payload));
-        }
-        // 전체 구독자에게도 전달
-        if (handlers['*']) {
-          handlers['*'].forEach(fn => fn(data));
-        }
-      } catch (err) {
-        console.warn('[WS] 메시지 파싱 실패', err);
-      }
-    });
+        this.socket.onerror = (e) => {
+            console.error('WebSocket 오류:', e);
+        };
+    },
 
-    socket.addEventListener('close', () => {
-      console.warn(`[WS] 연결 끊김. ${reconnectDelay}ms 후 재연결`);
-      document.dispatchEvent(new CustomEvent('wsDisconnected'));
-      setTimeout(connect, reconnectDelay);
-      reconnectDelay = Math.min(reconnectDelay * 2, MAX_DELAY);
-    });
-
-    socket.addEventListener('error', err => {
-      console.error('[WS] 오류', err);
-      socket.close();
-    });
-  }
-
-  /**
-   * 특정 메시지 타입 구독
-   * @param {string} type - 'worker_update' | 'gas_alert' | 'power_alert' | 'event_new' | '*'
-   * @param {Function} fn
-   */
-  function on(type, fn) {
-    if (!handlers[type]) handlers[type] = [];
-    handlers[type].push(fn);
-  }
-
-  function off(type, fn) {
-    if (!handlers[type]) return;
-    handlers[type] = handlers[type].filter(h => h !== fn);
-  }
-
-  function send(type, payload) {
-    if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type, payload }));
+    on(type, handler) {
+        this.handlers[type] = handler;
     }
-  }
+};
 
-  // 연결 시작
-  connect();
-
-  // 전역 노출
-  window.SafetyWS = { on, off, send };
-})();
+SafetyWS.connect();
+window.SafetyWS = SafetyWS;

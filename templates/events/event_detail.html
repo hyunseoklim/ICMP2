@@ -132,13 +132,7 @@
               {% if event.worker %}
               <div class="ed-info-row">
                 <span class="ed-info-label">연관 작업자</span>
-                <span class="ed-info-value">{{ event.worker.worker_no }} / {{ event.worker.worker_name }}</span>
-              </div>
-              {% endif %}
-              {% if event.rule %}
-              <div class="ed-info-row">
-                <span class="ed-info-label">알람 규칙</span>
-                <span class="ed-info-value">{{ event.rule.rule_name }}</span>
+                <span class="ed-info-value">{{ event.worker.worker_no }}</span>
               </div>
               {% endif %}
             </div>

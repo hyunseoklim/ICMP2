@@ -7,7 +7,8 @@ from django.views.generic import TemplateView
 
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from django.views      import View
@@ -307,8 +308,9 @@ class WorkerLocationViewSet(viewsets.ModelViewSet):
                         except Exception as e:
                             print(f'[geofence_sync] device_id={device_id} 오류: {e}')
 
-            # 2. on_duty 작업자 geofence 판단
-            workers = Worker.objects.filter(current_state='on_duty')
+
+            # 2. 현장 근무 중인 작업자 geofence 판단 (off_duty 제외)
+            workers = Worker.objects.exclude(current_state='off_duty')
             result  = []
 
             for worker in workers:
@@ -348,16 +350,48 @@ class WorkerLocationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        worker = get_object_or_404(Worker, pk=worker_id)
-        loc    = WorkerLocation.objects.create(
+        worker   = get_object_or_404(Worker, pk=worker_id)
+        floor_id = request.data.get('floor_id')
+        loc      = WorkerLocation.objects.create(
             worker   = worker,
             x        = request.data.get('x', 0),
             y        = request.data.get('y', 0),
             z        = request.data.get('z', 0),
             cell_no  = request.data.get('cell_no', ''),
-            floor_id = request.data.get('floor_id'),
+            floor_id = floor_id,
             zone_id  = request.data.get('zone_id'),
         )
+
+        # floor 에 연결된 WebSocket 클라이언트에 위치 broadcast
+        if floor_id:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            from facilities.services.geofence_checker import sync_worker_status
+
+            worker_status = sync_worker_status(worker, loc)
+
+            service    = FloorGridService(loc.floor)
+            grid_index = service.get_grid_index(loc.x, loc.y)
+            snap       = service.get_snap_point(grid_index) if grid_index is not None else {'snap_x': loc.x, 'snap_y': loc.y}
+
+            payload = {
+                'worker_id':     worker.id,
+                'worker_name':   worker.worker_name,
+                'worker_status': worker_status,
+                'x':             float(loc.x),
+                'y':             float(loc.y),
+                'snap_x':        snap['snap_x'],
+                'snap_y':        snap['snap_y'],
+                'grid_index':    grid_index,
+                'measured_at':   loc.measured_at.isoformat(),
+            }
+
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'floor_{floor_id}_worker',
+                {'type': 'worker.update', 'msg_type': 'delta', 'data': [payload]},
+            )
+
         return Response(
             WorkerLocationSerializer(loc).data,
             status=status.HTTP_201_CREATED
@@ -380,6 +414,30 @@ class GeofenceViewSet(viewsets.ModelViewSet):
         if is_active is not None:
             qs = qs.filter(is_active=is_active in ['true', '1', 'True'])
         return qs.order_by('-severity')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def worker_safety_status(request):
+    """
+    GET /facilities/api/workers/safety-status/
+    현재 근무 중인 전체 작업자 + 오늘 안전확인 완료 여부 반환
+    """
+    from safety.models import SafetyCheckSession
+    from django.utils import timezone
+
+    today = timezone.localdate()
+    workers = Worker.objects.filter(current_state='on_duty').order_by('worker_name')
+
+    result = []
+    for w in workers:
+        session = SafetyCheckSession.objects.filter(worker=w, check_date=today).first()
+        result.append({
+            'id':          w.id,
+            'worker_name': w.worker_name,
+            'safety_done': session.checklist_completed if session else False,
+        })
+    return Response(result)
 
 
 class EquipmentViewSet(viewsets.ModelViewSet):
