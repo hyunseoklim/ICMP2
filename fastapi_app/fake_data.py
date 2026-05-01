@@ -69,7 +69,7 @@ def _spike(low: float, high: float, warn: float, danger: float) -> float:
 # ── 가스 센서 데이터 생성 ─────────────────────────────────────
 def generate_sensor_data(device_id: int, device_uid: str) -> dict:
     return {
-        "type":       "sensor",
+        "type":       "gas_update",
         "device_id":  device_id,
         "device_uid": device_uid,
         # 스파이크 가능 가스 (임계치 명시)
@@ -132,7 +132,7 @@ def generate_power_data() -> dict:
         current_a = round(power_w / voltage_v, 1)
 
     return {
-        "type":         "power",
+        "type":         "power_update",
         "device_uid":   ch["device_uid"],
         "channel_code": ch["channel_code"],
         "current_a":    current_a,
