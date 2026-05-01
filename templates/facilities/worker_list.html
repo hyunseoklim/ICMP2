@@ -34,7 +34,7 @@
                         <span class="dot"></span>
                         주의 <span id="wl-warning">{{ worker_stats.warning|default:0 }}</span>
                     </span>
-                    <span class="filter-badge badge--normal" data-filter="normal">
+                    <span class="filter-badge badge--normal" data-filter="safe">
                         <span class="dot"></span>
                         정상 <span id="wl-normal">{{ worker_stats.normal|default:0 }}</span>
                     </span>
@@ -59,8 +59,8 @@
                     </thead>
                     <tbody id="worker-tbody">
                         {% for worker in workers %}
-                        <tr class="worker-row row--{{ worker.current_state }}"
-                            data-status="{{ worker.current_state }}"
+                        <tr class="worker-row row--{{ worker.safety_status }}"
+                            data-status="{{ worker.safety_status }}"
                             data-worker-id="{{ worker.pk }}"
                             data-name="{{ worker.worker_name }}"
                             data-no="{{ worker.worker_no }}"
@@ -102,12 +102,12 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if worker.current_state == 'danger' %}
+                                {% if worker.safety_status == 'danger' %}
                                     <span class="level-badge level--danger">위험</span>
-                                {% elif worker.current_state == 'on_duty' %}
-                                    <span class="level-badge level--normal">정상</span>
+                                {% elif worker.safety_status == 'warning' %}
+                                    <span class="level-badge level--warning">주의</span>
                                 {% else %}
-                                    <span class="level-badge level--offline">비근무</span>
+                                    <span class="level-badge level--normal">정상</span>
                                 {% endif %}
                             </td>
                         </tr>

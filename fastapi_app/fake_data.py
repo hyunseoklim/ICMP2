@@ -159,7 +159,7 @@ def generate_location_data() -> dict:
     }
 
 
-def generate_all_location_data() -> list[dict]:
+def generate_all_location_data(floor_id: int = 1) -> list[dict]:
     """전체 작업자 위치를 한꺼번에 업데이트해서 반환"""
     result = []
     for worker_id, pos in _worker_positions.items():
@@ -171,5 +171,6 @@ def generate_all_location_data() -> list[dict]:
             "worker_name": pos["name"],
             "x":           pos["x"],
             "y":           pos["y"],
+            "floor_id":    floor_id,
         })
     return result

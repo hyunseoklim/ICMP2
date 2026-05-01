@@ -69,6 +69,7 @@ async def post_location_reading(data: dict) -> None:
         "worker_id": data["worker_id"],
         "x":         data["x"],
         "y":         data["y"],
+        "floor_id":  data.get("floor_id", 1),
     }
     async with httpx.AsyncClient(timeout=3.0) as client:
         try:
