@@ -1,0 +1,39 @@
+{% extends 'base_manage.html' %}
+
+{% block title %}지도 편집 관리 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{# 사이드바에서 '계정/권한 관리' 메뉴 강조 #}
+{% block breadcrumb %}
+<div class="text-xs text-slate-500 mb-3">
+  지도 편집 관리 / <span class="text-slate-700">  </span>
+</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <h2 class="text-2xl font-bold text-slate-900 mb-1.5">사용자 관리</h2>
+    <p class="text-sm text-slate-500">현장 내 설비/유해가스 센서/스마트 전력시스템/위치노드/위험구역을 직접 배치하고 수정합니다.</p>
+  </div>
+  <a href="#" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+    위험구역 추가
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{% endblock %}
+
+{% block extra_script %}
+<script>
+  // 전체 선택 체크박스
+  const checkAll = document.getElementById('check-all');
+  const rowChecks = document.querySelectorAll('.row-check');
+  if (checkAll) {
+    checkAll.addEventListener('change', (e) => {
+      rowChecks.forEach(cb => cb.checked = e.target.checked);
+    });
+  }
+</script>
+{% endblock %}
