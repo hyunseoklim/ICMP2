@@ -1,0 +1,47 @@
+{% load static %}
+
+<!-- {# ─── CSS ──────────────────────────────────────────────────────── #} -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+<link rel="stylesheet" href="{% static 'css/map/map_monitoring.css' %}">
+
+<!-- {# ─── HTML ─────────────────────────────────────────────────────── #} -->
+<div id="map"></div>
+
+<!-- {# ─── JS ───────────────────────────────────────────────────────── #}
+{# include 전에 반드시 선언되어야 하는 변수:                        #}
+{#   API_BASE          {string} — API 기본 경로                     #}
+{#   SAMPLE_IMAGE      {string} — 도면 기본 이미지 경로             #}
+{#   MAP_AUTO_FLOOR_ID {number|null} — 자동 로드할 floor_id         #}
+{#                                     null이면 페이지가 직접 호출  #} -->
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+<script src="{% static 'js/map/map_config.js' %}"></script>
+<script src="{% static 'js/map/map_core.js' %}"></script>
+<script src="{% static 'js/map/map_grid.js' %}"></script>
+<script src="{% static 'js/map/map_zone.js' %}"></script>
+<script src="{% static 'js/map/map_event.js' %}"></script>
+<script src="{% static 'js/map/geofence.js' %}"></script>
+<script src="{% static 'js/map/sensor.js' %}"></script>
+<script src="{% static 'js/map/location_node.js' %}"></script>
+<script src="{% static 'js/map/equipment.js' %}"></script>
+<script src="{% static 'js/map/worker_sim.js' %}"></script>
+<script src="{% static 'js/map/map_init.js' %}"></script>
+
+<script>
+    /* MAP_AUTO_FLOOR_ID 가 숫자로 설정된 경우 → 자동으로 해당 층 로드
+       null 또는 미선언인 경우 → 페이지 전용 JS 가 loadFloorData() 를 호출함
+       예) map_monitoring.html: MAP_AUTO_FLOOR_ID = null → monitoring.js 가 담당
+           worker_list.html:    MAP_AUTO_FLOOR_ID = 1   → 자동 로드             */
+    if (typeof MAP_AUTO_FLOOR_ID !== 'undefined' && MAP_AUTO_FLOOR_ID !== null) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+              loadFloorData(MAP_AUTO_FLOOR_ID);
+            });
+        } else {
+            loadFloorData(MAP_AUTO_FLOOR_ID);
+        }
+    }
+</script>

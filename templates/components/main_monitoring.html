@@ -27,14 +27,12 @@
 
     <!-- 지도 캔버스 -->
     <div class="map-container" id="factory-map" data-tab="all">
-        <canvas id="map-canvas"></canvas>
-        <!-- 위험 구역 오버레이 (서버 데이터 기반) -->
-        {% for zone in danger_zones %}
-        <div class="map-overlay danger-zone-overlay"
-             style="left:{{ zone.x }}%;top:{{ zone.y }}%;width:{{ zone.w }}%;height:{{ zone.h }}%"
-             title="{{ zone.name }}">
-        </div>
-        {% endfor %}
+        <script>
+            const API_BASE = '/facilities/api';
+            const SAMPLE_IMAGE = "{{ MEDIA_URL }}img/sample_floor.png";
+            const MAP_AUTO_FLOOR_ID = 1;  // ← 고정
+        </script>
+        {% include "components/map_only.html" %}
     </div>
 </div>
 

@@ -107,7 +107,8 @@ const WorkerLayer = {
 
 // ─── 마커 상태 저장소 ─────────────────────────────────────────
 const workerMarkers = {};
-
+// 추가 웹소켓 전 확인용임 worker_list.html에서 개인을 추적해서 지도가 따라가도록 하기 위해 전역 조회가 가능하게 하기 위함
+window.workerMarkers = workerMarkers;
 // ─── 마커 아이콘 ──────────────────────────────────────────────
 const WORKER_STATUS_COLOR = {
     safe:     '#22c55e',  // 초록
@@ -382,6 +383,9 @@ function renderOrMoveWorker(loc) {
         });
 
         workerMarkers[loc.worker_id] = { marker };
+    }
+    if (window.selectedWorkerIdForMap === String(loc.worker_id)) {
+       map.panTo([loc.snap_y, loc.snap_x], { animate: true });
     }
 }
 

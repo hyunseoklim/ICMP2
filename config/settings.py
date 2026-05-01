@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'alerts',
     'dashboard',
     'safety',
+    'manager',
     #websocket
     'channels',
 ]
@@ -147,3 +148,5 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 AUTH_USER_MODEL = 'accounts.User'
+
+# LOGOUT_REDIRECT_URL = '/accounts/login/'
