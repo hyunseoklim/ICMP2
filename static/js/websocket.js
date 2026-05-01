@@ -18,19 +18,8 @@ const SafetyWS = {
         this.socket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-
-                if (data.type === 'sensor') {
-                    if (this.handlers['gas_update']) {
-                        this.handlers['gas_update'](data);
-                    }
-                } else if (data.type === 'power') {
-                    if (this.handlers['power_update']) {
-                        this.handlers['power_update'](data);
-                    }
-                } else if (data.type === 'location') {
-                    if (this.handlers['location_update']) {
-                        this.handlers['location_update'](data);
-                    }
+                if (this.handlers[data.type]) {
+                    this.handlers[data.type](data);
                 }
             } catch (e) {
                 console.error('WS 메시지 파싱 실패:', e);

@@ -122,14 +122,3 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(renderEventList, 10000);
 
 });
-
-
-/* ── 유해가스 위젯 초기화 (gas_detail.js에서 정의) ── */
-document.addEventListener('DOMContentLoaded', function () {
-    if (typeof initGasWidget === 'function') initGasWidget();
-});
-
-/* ── 전력 위젯 초기화 (power_detail.js에서 정의) ── */
-document.addEventListener('DOMContentLoaded', function () {
-    if (typeof initPowerWidget === 'function') initPowerWidget();
-});
