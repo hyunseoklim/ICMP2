@@ -19,7 +19,7 @@
                {% if active_menu == 'account' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="users" class="w-5 h-5"></i>
       </a>
-      <a href="admin/map/map.html" title="지도 편집 관리"
+      <a href= "{% url 'map_editor' %}" title="지도 편집 관리"
         class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
                {% if active_menu == 'account' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="users" class="w-5 h-5"></i>

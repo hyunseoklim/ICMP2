@@ -143,3 +143,8 @@ def logout_complete(request):
 def user_list_filter(request):
     """필터 펼친 상태"""
     return render(request, 'admin/users/user_list_filter_open.html')
+
+# 지도 
+def map_editor(request):
+    """필터 펼친 상태"""
+    return render(request, 'admin/map/map.html')
