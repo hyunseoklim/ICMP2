@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'admin/base_admin.html' %}
 
 {% block body %}
 <div class="flex">
@@ -70,7 +70,7 @@
         {# ③ 시스템명 #}
         <h1 class="text-lg font-bold text-slate-900">산재 예방 통합 관제 시스템</h1>
         {# ④ 실시간 관제 홈 버튼 #}
-        <a href="#" class="ml-2 px-3 py-1.5 bg-blue-50 text-blue-600 text-sm rounded-md font-medium flex items-center gap-1.5 hover:bg-blue-100 transition-colors">
+        <a href="{% url 'dashboard' %}" class="ml-2 px-3 py-1.5 bg-blue-50 text-blue-600 text-sm rounded-md font-medium flex items-center gap-1.5 hover:bg-blue-100 transition-colors">
           <span class="w-1.5 h-1.5 bg-blue-500 rounded-full pulse-dot"></span>
           실시간 관제 홈
         </a>
@@ -80,11 +80,13 @@
         {# ⑤ 관리자 정보 #}
         <div class="text-right mr-2">
           <div class="text-sm font-medium text-slate-900">
-            {% if user.is_authenticated %}
+            <span class="user-name">{{ request.user.name|default:request.user.get_full_name|default:request.user.username }}</span>
+            <span class="user-role">{{ request.user.get_user_type_display|default:"관리자" }}</span>
+            <!-- {% if user.is_authenticated %}
               {{ user.get_full_name|default:user.username }} 관리자
             {% else %}
               관리자
-            {% endif %}
+            {% endif %} -->
           </div>
           <div class="text-xs text-slate-500">
             {% if user.is_authenticated %}{{ user.email }}{% else %}-{% endif %}
@@ -94,7 +96,7 @@
           <i data-lucide="home" class="w-4 h-4"></i>
         </a>
         {# ⑥ 로그아웃 #}
-        <a href="#" class="px-4 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+        <a href="#" id = "logout-btn" class="px-4 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
           로그아웃
         </a>
       </div>
@@ -115,5 +117,35 @@
 </div>
 
 {# 모달 영역 (페이지에서 필요 시) #}
-{% block modal %}{% endblock %}
+{% block modal %}
+  {% include "admin/users/logout_complete.html" %}
+  {% include "admin/users/user_create.html" %}
 {% endblock %}
+
+{% block extra_script %}
+<script>
+  // 로그아웃 모달 열기
+  document.getElementById('logout-btn')?.addEventListener('click', function() {
+    document.getElementById('modal-overlay').classList.remove('hidden');
+    document.getElementById('modal-overlay').classList.add('flex');
+  });
+
+  // 등록 모달 열기
+  document.getElementById('register-btn')?.addEventListener('click', function(e) {
+    e.preventDefault();
+    document.getElementById('register-modal').classList.remove('hidden');
+    document.getElementById('register-modal').classList.add('flex');
+  });
+
+  // 등록 모달 닫기
+  document.getElementById('register-cancel')?.addEventListener('click', function(e) {
+    e.preventDefault();
+    document.getElementById('register-modal').classList.add('hidden');
+    document.getElementById('register-modal').classList.remove('flex');
+  });
+</script>
+{% endblock %}
+
+{% endblock %}
+
+

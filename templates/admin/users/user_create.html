@@ -1,9 +1,4 @@
-{% extends 'users/user_list.html' %}
-
-{% block title %}사용자 등록 | 산재 예방 통합 관제 시스템{% endblock %}
-
-{% block modal %}
-<div id="modal-overlay" class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
+<div id="register-modal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="modal-content bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
     <div class="px-8 py-7">
       {# 헤더 #}
@@ -110,11 +105,12 @@
         </div>
 
         <div class="flex items-center justify-end gap-2 mt-6">
-          <a href="#" class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</a>
+          <a href="#" id = "register-cancel" class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</a>
           <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">등록</button>
         </div>
       </form>
     </div>
   </div>
 </div>
-{% endblock %}
+
+
