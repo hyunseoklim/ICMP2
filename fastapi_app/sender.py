@@ -62,3 +62,20 @@ async def post_power_reading(data: dict) -> None:
             print(f"[sender] PowerReading POST 성공: {data['device_uid']} {data['channel_code']}")
         except Exception as e:
             print(f"[sender] PowerReading POST 실패: {e}")
+
+
+async def post_location_reading(data: dict) -> None:
+    payload = {
+        "worker_id": data["worker_id"],
+        "x":         data["x"],
+        "y":         data["y"],
+    }
+    async with httpx.AsyncClient(timeout=3.0) as client:
+        try:
+            await client.post(
+                f"{DJANGO_BASE}/facilities/api/worker-locations/dummy/",
+                json=payload,
+            )
+            print(f"[sender] WorkerLocation POST 성공: worker_id={data['worker_id']}")
+        except Exception as e:
+            print(f"[sender] WorkerLocation POST 실패: {e}")

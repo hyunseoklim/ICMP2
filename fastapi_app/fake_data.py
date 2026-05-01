@@ -157,3 +157,19 @@ def generate_location_data() -> dict:
         "x":           pos["x"],
         "y":           pos["y"],
     }
+
+
+def generate_all_location_data() -> list[dict]:
+    """전체 작업자 위치를 한꺼번에 업데이트해서 반환"""
+    result = []
+    for worker_id, pos in _worker_positions.items():
+        pos["x"] = round(max(0, min(600, pos["x"] + random.uniform(-8, 8))), 2)
+        pos["y"] = round(max(0, min(400, pos["y"] + random.uniform(-8, 8))), 2)
+        result.append({
+            "type":        "location",
+            "worker_id":   worker_id,
+            "worker_name": pos["name"],
+            "x":           pos["x"],
+            "y":           pos["y"],
+        })
+    return result

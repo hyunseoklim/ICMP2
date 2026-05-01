@@ -5,8 +5,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi_app.fake_data import generate_sensor_data, generate_location_data, generate_power_data
-from fastapi_app.sender import fetch_gas_devices, post_gas_reading, post_power_reading
+from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_power_data
+from fastapi_app.sender import fetch_gas_devices, post_gas_reading, post_power_reading, post_location_reading
 
 # 연결된 클라이언트 목록
 _clients: list[WebSocket] = []
@@ -42,9 +42,10 @@ async def _data_loop() -> None:
             await _broadcast(power)
             await post_power_reading(power)
 
-        # 위치 데이터
-        location = generate_location_data()
-        await _broadcast(location)
+        # 위치 데이터 - 전체 작업자 한꺼번에
+        for location in generate_all_location_data():
+            await _broadcast(location)
+            await post_location_reading(location)
 
         await asyncio.sleep(60)
 
