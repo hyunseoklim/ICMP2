@@ -216,3 +216,24 @@ def risk_group_create(request):
 def risk_group_edit(request):
     """분류 그룹 수정 모달"""
     return render(request, 'admin/risks/risk_group_edit.html')
+
+# ===== 위험 기준 관리 =====
+def risk_criteria_list(request):
+    """위험 기준 관리 - 메인 + 등록/수정 모달 통합"""
+    return render(request, 'admin/risk_criteria/risk_criteria_list.html')
+
+# ===== 임계치 기준 관리 =====
+def threshold_list(request):
+    """임계치 기준 관리 메인 페이지 (모든 모달 포함)"""
+    return render(request, 'admin/thresholds/threshold_list.html')
+
+# ===== 안전 확인 관리 =====
+def safety_checklist_list(request):
+    """작업 전 안전 점검 체크리스트 관리"""
+    return render(request, 'admin/safety_checklist/safety_checklist_list.html')
+
+
+# ===== VR 교육 관리 =====
+def vr_education_list(request):
+    """VR 교육 관리 - 메인 + 수정 모달 통합"""
+    return render(request, 'admin/vr_education/vr_education_list.html')

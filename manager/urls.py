@@ -36,4 +36,18 @@ urlpatterns = [
     path('risks/edit/', views.risk_edit, name='risk_edit'),
     path('risks/group/create/', views.risk_group_create, name='risk_group_create'),
     path('risks/group/edit/', views.risk_group_edit, name='risk_group_edit'),
+
+    # ===== 위험 기준 관리 =====
+    path('risk-criteria/', views.risk_criteria_list, name='risk_criteria_list'),
+
+
+    # ===== 임계치 기준 관리 =====
+    path('thresholds/', views.threshold_list, name='threshold_list'),
+
+    # ===== 안전 확인 관리 =====
+    path('safety-checklist/', views.safety_checklist_list, name='safety_checklist_list'),
+
+    # ===== VR 교육 관리 =====
+    path('vr-education/', views.vr_education_list, name='vr_education_list'),
+
 ]
