@@ -143,3 +143,55 @@ def logout_complete(request):
 def user_list_filter(request):
     """필터 펼친 상태"""
     return render(request, 'admin/users/user_list_filter_open.html')
+
+def facility_list(request):
+    """설비 관리 메인 페이지"""
+    return render(request, 'admin/facilities/facility_list.html', {'active_menu': 'facility'})
+
+def gas_list(request):
+    """유해가스 센서 관리 메인 페이지"""
+    return render(request, 'admin/gas/gas_list.html', {'active_menu': 'facility'})
+
+def power_list(request):
+    """스마트 전력 시스템 관리 메인 페이지"""
+    return render(request, 'admin/power/power_list.html', {'active_menu': 'facility'})
+
+def node_list(request):
+    """위치 노드 관리 메인 페이지"""
+    return render(request, 'admin/node/node_list.html', {'active_menu': 'facility'})
+
+def gas_data_list(request):
+    """유해가스 센서 데이터 관리"""
+    return render(request, 'admin/data/gas_data_list.html', {'active_menu': 'data'})
+
+def power_data_list(request):
+    """스마트 전력 시스템 데이터 관리"""
+    return render(request, 'admin/data/power_data_list.html', {'active_menu': 'data'})
+
+def node_data_list(request):
+    """위치 노드 데이터 관리"""
+    return render(request, 'admin/data/node_data_list.html', {'active_menu': 'data'})
+
+def worker_data_list(request):
+    """작업자 위치 데이터 관리"""
+    return render(request, 'admin/data/worker_data_list.html', {'active_menu': 'data'})
+
+def retention_list(request):
+    """데이터 보관 주기 관리"""
+    return render(request, 'admin/data/retention_list.html', {'active_menu': 'data'})
+
+def notice_list(request):
+    """공지사항 관리"""
+    return render(request, 'admin/notice/notice_list.html', {'active_menu': 'notice'})
+
+def notice_detail(request):
+    """공지사항 상세"""
+    return render(request, 'admin/notice/notice_detail.html', {'active_menu': 'notice'})
+
+def notice_create(request):
+    """공지사항 등록"""
+    return render(request, 'admin/notice/notice_create.html', {'active_menu': 'notice'})
+
+def notice_edit(request):
+    """공지사항 수정"""
+    return render(request, 'admin/notice/notice_edit.html', {'active_menu': 'notice'})

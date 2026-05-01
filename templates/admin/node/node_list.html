@@ -1,0 +1,592 @@
+{% extends 'admin/base_manage.html' %}
+{% block title %}위치 노드 관리 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{% block breadcrumb %}
+<div class="text-xs text-slate-500 mb-3">
+  설비/장비 관리 / <span class="text-slate-700">위치 노드 관리</span>
+</div>
+<div class="flex gap-1 mb-6 border-b border-slate-200">
+  <a href="{% url 'facility_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">설비 관리</a>
+  <a href="{% url 'gas_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">유해가스 센서</a>
+  <a href="{% url 'power_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">스마트 전력 시스템</a>
+  <a href="{% url 'node_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-blue-600 text-blue-600 -mb-px">위치 노드 관리</a>
+</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <h2 class="text-2xl font-bold text-slate-900 mb-1.5">위치 노드 관리</h2>
+    <p class="text-sm text-slate-500">위치 노드 목록을 조회하고 점검 상태를 관리합니다.</p>
+  </div>
+  <button type="button" id="node-register-btn"
+    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+    노드 등록
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{% include 'admin/node/node_register.html' %}
+{% include 'admin/node/node_detail.html' %}
+{% include 'admin/node/node_inspect_register.html' %}
+{% include 'admin/node/node_action_register.html' %}
+
+<!-- Delete Confirm Modal -->
+<div id="node-delete-confirm-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm px-8 py-8 text-center">
+    <p class="text-base font-semibold text-slate-900 mb-1">삭제하시겠습니까?</p>
+    <p class="text-xs text-slate-500 mb-6">선택한 위치 노드 <span id="node-delete-count">0</span>건을 삭제하시겠습니까?</p>
+    <div class="flex gap-2">
+      <button type="button" id="node-delete-cancel"
+        class="flex-1 px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
+      <button type="button" id="node-delete-ok"
+        class="flex-1 px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div id="node-success-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm px-8 py-8 text-center">
+    <div class="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="check" class="w-6 h-6 text-emerald-600"></i>
+    </div>
+    <p class="text-base font-semibold text-slate-900 mb-1">삭제되었습니다.</p>
+    <p class="text-xs text-slate-500 mb-6">선택한 노드가 삭제되었습니다.</p>
+    <button type="button" id="node-success-confirm"
+      class="w-full px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+  </div>
+</div>
+
+<!-- Search Filter -->
+<div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+  <div class="grid grid-cols-3 gap-4 mb-4">
+
+    <!-- 노드 ID -->
+    <div class="relative" id="ni-wrap">
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">노드 ID</label>
+      <button type="button" id="ni-toggle"
+        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+        <span id="ni-label" class="text-slate-500">전체</span>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform" id="ni-chevron"></i>
+      </button>
+      <div id="ni-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-y-auto" style="max-height:200px;">
+        <button type="button" class="ni-opt w-full px-3 py-2 text-sm text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="" data-label="전체">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>전체
+        </button>
+        {% for i in "0123456789" %}
+        <button type="button" class="ni-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="NODE-01{{ i }}" data-label="NODE-01{{ i }}">NODE-01{{ i }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- 장비 상태 -->
+    <div class="relative" id="ds-wrap">
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 상태</label>
+      <button type="button" id="ds-toggle"
+        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+        <span id="ds-label" class="text-slate-500">전체</span>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="ds-chevron"></i>
+      </button>
+      <div id="ds-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40">
+        <button type="button" class="ds-opt w-full px-3 py-2 text-sm text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="" data-label="전체">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>전체
+        </button>
+        <button type="button" class="ds-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="active" data-label="활성">활성</button>
+        <button type="button" class="ds-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="inactive" data-label="비활성">비활성</button>
+      </div>
+    </div>
+
+    <!-- 연결 상태 -->
+    <div class="relative" id="cs-wrap">
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 상태</label>
+      <button type="button" id="cs-toggle"
+        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+        <span id="cs-label" class="text-slate-500">전체</span>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="cs-chevron"></i>
+      </button>
+      <div id="cs-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40">
+        <button type="button" class="cs-opt w-full px-3 py-2 text-sm text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="" data-label="전체">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>전체
+        </button>
+        <button type="button" class="cs-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="normal" data-label="정상">정상</button>
+        <button type="button" class="cs-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="disconnected" data-label="연결 끊김">연결 끊김</button>
+      </div>
+    </div>
+
+  </div>
+  <div class="flex justify-end gap-2">
+    <button type="button" id="filter-reset"
+      class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">초기화</button>
+    <button type="button" id="filter-search"
+      class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">검색</button>
+  </div>
+</div>
+
+<!-- List -->
+<div class="bg-white rounded-lg border border-slate-200">
+
+  <!-- List Header -->
+  <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-semibold text-slate-800">전체 <span class="text-blue-600">128</span>건
+        <span class="text-xs font-normal text-slate-400 ml-1">이상 상태 장비는 상단에 우선 노출됩니다.</span>
+      </span>
+      <button type="button" id="node-delete-btn" disabled
+        class="px-3 py-1.5 text-xs font-medium border border-slate-200 text-slate-400 rounded-md cursor-not-allowed transition-colors">
+        삭제
+      </button>
+    </div>
+    <!-- Sort dropdown -->
+    <div class="relative" id="sort-wrap">
+      <button type="button" id="sort-toggle"
+        class="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-800 border border-slate-200 rounded-md px-3 py-1.5 bg-white hover:border-slate-300 transition-colors">
+        <span id="sort-label">노드 ID 오름차순</span>
+        <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400 flex-shrink-0" id="sort-chevron"></i>
+      </button>
+      <div id="sort-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 w-56">
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="node_id_asc" data-label="노드 ID 오름차순">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>노드 ID 오름차순
+        </button>
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="node_id_desc" data-label="노드 ID 내림차순">노드 ID 내림차순</button>
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="recv_new" data-label="마지막 데이터 수신 최신순">마지막 데이터 수신 최신순</button>
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="recv_old" data-label="마지막 데이터 수신 오래된순">마지막 데이터 수신 오래된순</button>
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="inspect_new" data-label="최근 점검일 최신순">최근 점검일 최신순</button>
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="inspect_old" data-label="최근 점검일 오래된순">최근 점검일 오래된순</button>
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="manager_asc" data-label="담당자명 오름차순">담당자명 오름차순</button>
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="manager_desc" data-label="담당자명 내림차순">담당자명 내림차순</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-100">
+          <th class="w-10 px-4 py-3">
+            <input type="checkbox" id="node-select-all"
+              class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">점검 여부</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">노드 ID</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">사용 상태</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">연결 상태</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">마지막 데이터 수신</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">최근 점검일</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">담당자</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- NODE-001: 점검 필요 / 사용 / 연결 끊김 -->
+        <tr class="node-row border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+          data-node-id="NODE-001">
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="node-cb w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-red-50 text-red-600 text-xs font-medium rounded-full">점검 필요</span>
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-700 text-xs">NODE-001</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">사용</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="flex items-center gap-1.5 text-xs font-medium text-red-600">
+              <span class="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></span>연결 끊김
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-04-12 14:12:26</td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-04-11</td>
+          <td class="px-4 py-3 text-xs text-slate-600">최점검</td>
+        </tr>
+
+        <!-- NODE-002: 점검 완료 / 사용 / 정상 -->
+        <tr class="node-row border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+          data-node-id="NODE-002">
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="node-cb w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">점검 완료</span>
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-700 text-xs">NODE-002</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">사용</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="flex items-center gap-1.5 text-xs text-slate-600">
+              <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>정상
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-04-12 14:11:58</td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-03-28</td>
+          <td class="px-4 py-3 text-xs text-slate-600">정운영</td>
+        </tr>
+
+        <!-- NODE-003: 점검 예정 / 사용 / 정상 -->
+        <tr class="node-row border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+          data-node-id="NODE-003">
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="node-cb w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-medium rounded-full">점검 예정</span>
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-700 text-xs">NODE-003</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">사용</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="flex items-center gap-1.5 text-xs text-slate-600">
+              <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>정상
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-04-12 14:11:41</td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-03-28</td>
+          <td class="px-4 py-3 text-xs text-slate-600">정운영</td>
+        </tr>
+
+        <!-- NODE-004: 점검 완료 / 사용 / 정상 -->
+        <tr class="node-row border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+          data-node-id="NODE-004">
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="node-cb w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">점검 완료</span>
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-700 text-xs">NODE-004</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">사용</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="flex items-center gap-1.5 text-xs text-slate-600">
+              <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>정상
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-04-12 14:10:32</td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-03-14</td>
+          <td class="px-4 py-3 text-xs text-slate-600">박관리</td>
+        </tr>
+
+        <!-- NODE-005: 점검 완료 / 사용 / 정상 (선택 강조) -->
+        <tr class="node-row border-t border-slate-100 bg-blue-50 transition-colors cursor-pointer node-active"
+          data-node-id="NODE-005">
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="node-cb w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">점검 완료</span>
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-700 text-xs">NODE-005</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">사용</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="flex items-center gap-1.5 text-xs text-slate-600">
+              <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>정상
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-04-12 14:09:57</td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-03-14</td>
+          <td class="px-4 py-3 text-xs text-slate-600">박관리</td>
+        </tr>
+
+        <!-- NODE-006: 미사용 -->
+        <tr class="node-row border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+          data-node-id="NODE-006">
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="node-cb w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-400">—</td>
+          <td class="px-4 py-3 font-medium text-slate-700 text-xs">NODE-006</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-medium rounded-full">미사용</span>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-400">—</td>
+          <td class="px-4 py-3 text-xs text-slate-400">—</td>
+          <td class="px-4 py-3 text-xs text-slate-400">—</td>
+          <td class="px-4 py-3 text-xs text-slate-400">—</td>
+        </tr>
+
+        <!-- NODE-007: 미사용 -->
+        <tr class="node-row border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+          data-node-id="NODE-007">
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="node-cb w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-400">—</td>
+          <td class="px-4 py-3 font-medium text-slate-700 text-xs">NODE-007</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-medium rounded-full">미사용</span>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-400">—</td>
+          <td class="px-4 py-3 text-xs text-slate-400">—</td>
+          <td class="px-4 py-3 text-xs text-slate-400">—</td>
+          <td class="px-4 py-3 text-xs text-slate-400">—</td>
+        </tr>
+
+        <!-- NODE-008: 점검 완료 / 사용 / 정상 -->
+        <tr class="node-row border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+          data-node-id="NODE-008">
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="node-cb w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">점검 완료</span>
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-700 text-xs">NODE-008</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">사용</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="flex items-center gap-1.5 text-xs text-slate-600">
+              <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>정상
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-04-10 09:22:31</td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-02-28</td>
+          <td class="px-4 py-3 text-xs text-slate-600">정운영</td>
+        </tr>
+
+        <!-- NODE-009: 점검 예정 / 사용 / 정상 -->
+        <tr class="node-row border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+          data-node-id="NODE-009">
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="node-cb w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-medium rounded-full">점검 예정</span>
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-700 text-xs">NODE-009</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">사용</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="flex items-center gap-1.5 text-xs text-slate-600">
+              <span class="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>정상
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-04-10 09:18:44</td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-02-28</td>
+          <td class="px-4 py-3 text-xs text-slate-600">박관리</td>
+        </tr>
+
+        <!-- NODE-010: 점검 완료 / 사용 / 연결 끊김 -->
+        <tr class="node-row border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+          data-node-id="NODE-010">
+          <td class="px-4 py-3" onclick="event.stopPropagation()">
+            <input type="checkbox" class="node-cb w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+          </td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">점검 완료</span>
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-700 text-xs">NODE-010</td>
+          <td class="px-4 py-3">
+            <span class="inline-block px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">사용</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="flex items-center gap-1.5 text-xs font-medium text-red-600">
+              <span class="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></span>연결 끊김
+            </span>
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-04-09 16:45:12</td>
+          <td class="px-4 py-3 text-xs text-slate-600">2026-02-14</td>
+          <td class="px-4 py-3 text-xs text-slate-600">최점검</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+    <span class="text-xs text-slate-500">1 - 10 / 128</span>
+    <div class="flex items-center gap-1">
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+      </button>
+      <button class="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-medium">1</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">2</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">3</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">4</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">5</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  function closeAllMenus() {
+    ['ni-menu','ds-menu','cs-menu','sort-menu'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+    ['ni-chevron','ds-chevron','cs-chevron','sort-chevron'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.style.transform = '';
+    });
+  }
+
+  function initDropdown(toggleId, menuId, chevronId, optClass, labelId) {
+    var toggle  = document.getElementById(toggleId);
+    var menu    = document.getElementById(menuId);
+    var chevron = document.getElementById(chevronId);
+    var label   = document.getElementById(labelId);
+
+    toggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var open = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!open) {
+        menu.classList.remove('hidden');
+        chevron.style.transform = 'rotate(180deg)';
+      }
+    });
+
+    menu.querySelectorAll('.' + optClass).forEach(function(opt) {
+      opt.addEventListener('click', function(e) {
+        e.stopPropagation();
+        menu.querySelectorAll('.' + optClass).forEach(function(o) {
+          o.classList.remove('bg-blue-50', 'text-slate-900');
+          o.classList.add('text-slate-700');
+          var ic = o.querySelector('i');
+          if (ic) ic.style.display = 'none';
+        });
+        this.classList.add('bg-blue-50', 'text-slate-900');
+        this.classList.remove('text-slate-700');
+        var ic = this.querySelector('i');
+        if (ic) ic.style.display = '';
+        if (label) {
+          label.textContent = this.dataset.label || '전체';
+          label.className   = this.dataset.value ? 'text-slate-800' : 'text-slate-500';
+        }
+        closeAllMenus();
+      });
+    });
+  }
+
+  initDropdown('ni-toggle', 'ni-menu', 'ni-chevron', 'ni-opt', 'ni-label');
+  initDropdown('ds-toggle', 'ds-menu', 'ds-chevron', 'ds-opt', 'ds-label');
+  initDropdown('cs-toggle', 'cs-menu', 'cs-chevron', 'cs-opt', 'cs-label');
+  initDropdown('sort-toggle', 'sort-menu', 'sort-chevron', 'sort-opt', 'sort-label');
+
+  document.addEventListener('click', closeAllMenus);
+
+  // Reset filter
+  document.getElementById('filter-reset').addEventListener('click', function() {
+    ['ni-label','ds-label','cs-label'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.textContent = '전체'; el.className = 'text-slate-500'; }
+    });
+    ['ni-menu','ds-menu','cs-menu'].forEach(function(id) {
+      var menu = document.getElementById(id);
+      if (!menu) return;
+      menu.querySelectorAll('[data-value=""]').forEach(function(opt) {
+        opt.classList.add('bg-blue-50','text-slate-900');
+        opt.classList.remove('text-slate-700');
+        var ic = opt.querySelector('i');
+        if (ic) ic.style.display = '';
+      });
+      menu.querySelectorAll('[data-value]:not([data-value=""])').forEach(function(opt) {
+        opt.classList.remove('bg-blue-50','text-slate-900');
+        opt.classList.add('text-slate-700');
+        var ic = opt.querySelector('i');
+        if (ic) ic.style.display = 'none';
+      });
+    });
+  });
+
+  // Checkbox & delete button
+  var deleteBtn   = document.getElementById('node-delete-btn');
+  var deleteModal = document.getElementById('node-delete-confirm-modal');
+  var successModal = document.getElementById('node-success-modal');
+
+  function syncDeleteBtn() {
+    var cnt = document.querySelectorAll('.node-cb:checked').length;
+    document.getElementById('node-delete-count').textContent = cnt;
+    if (cnt > 0) {
+      deleteBtn.disabled = false;
+      deleteBtn.className = 'px-3 py-1.5 text-xs font-medium border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-md cursor-pointer transition-colors';
+    } else {
+      deleteBtn.disabled = true;
+      deleteBtn.className = 'px-3 py-1.5 text-xs font-medium border border-slate-200 text-slate-400 rounded-md cursor-not-allowed transition-colors';
+    }
+  }
+
+  document.getElementById('node-select-all').addEventListener('change', function() {
+    document.querySelectorAll('.node-cb').forEach(function(cb) { cb.checked = this.checked; }.bind(this));
+    syncDeleteBtn();
+  });
+
+  document.querySelectorAll('.node-cb').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var total   = document.querySelectorAll('.node-cb').length;
+      var checked = document.querySelectorAll('.node-cb:checked').length;
+      document.getElementById('node-select-all').indeterminate = (checked > 0 && checked < total);
+      document.getElementById('node-select-all').checked = (checked === total);
+      syncDeleteBtn();
+    });
+  });
+
+  deleteBtn.addEventListener('click', function() {
+    if (this.disabled) return;
+    deleteModal.classList.remove('hidden');
+    deleteModal.classList.add('flex');
+  });
+
+  document.getElementById('node-delete-cancel').addEventListener('click', function() {
+    deleteModal.classList.add('hidden');
+    deleteModal.classList.remove('flex');
+  });
+
+  document.getElementById('node-delete-ok').addEventListener('click', function() {
+    deleteModal.classList.add('hidden');
+    deleteModal.classList.remove('flex');
+    successModal.classList.remove('hidden');
+    successModal.classList.add('flex');
+    lucide.createIcons();
+  });
+
+  document.getElementById('node-success-confirm').addEventListener('click', function() {
+    successModal.classList.add('hidden');
+    successModal.classList.remove('flex');
+  });
+
+  // Row click – highlight + detail popup
+  document.querySelectorAll('.node-row').forEach(function(row) {
+    row.addEventListener('click', function() {
+      document.querySelectorAll('.node-row').forEach(function(r) {
+        r.classList.remove('bg-blue-50', 'node-active');
+        r.classList.add('hover:bg-slate-50');
+      });
+      this.classList.add('bg-blue-50', 'node-active');
+      this.classList.remove('hover:bg-slate-50');
+      var nodeId = this.dataset.nodeId;
+      if (nodeId && typeof window.openNodeDetailModal === 'function') {
+        window.openNodeDetailModal(nodeId);
+      }
+    });
+  });
+
+  document.getElementById('node-register-btn')?.addEventListener('click', function() {
+    if (typeof window.openNodeRegisterModal === 'function') window.openNodeRegisterModal();
+  });
+
+  lucide.createIcons();
+})();
+</script>
+
+{% endblock %}

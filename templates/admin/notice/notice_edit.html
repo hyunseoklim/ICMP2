@@ -1,0 +1,322 @@
+{% extends 'admin/base_manage.html' %}
+{% block title %}공지사항 수정 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{% block breadcrumb %}
+<div class="text-xs text-slate-500 mb-6">공지사항 관리</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="mb-6">
+  <h2 class="text-2xl font-bold text-slate-900 mb-1.5">공지사항 수정</h2>
+  <p class="text-sm text-slate-500">시스템 내 공지사항을 수정합니다.</p>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- 폼 카드 -->
+<div class="bg-white rounded-lg border border-slate-200">
+
+  <!-- 상단: 제목/구분/노출 여부 -->
+  <div class="px-8 py-6 border-b border-slate-100">
+    <div class="flex gap-5 items-end">
+      <!-- 공지 제목 -->
+      <div class="flex-[3]">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">공지 제목 <span class="text-red-500">*</span></label>
+        <input type="text" id="form-title" value="설비 정기 점검 일정 안내"
+          class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+        <p id="err-title" class="hidden text-xs text-red-500 mt-1">공지 제목을 입력해 주세요.</p>
+      </div>
+      <!-- 공지 구분 -->
+      <div class="flex-[1.2]">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">공지 구분 <span class="text-red-500">*</span></label>
+        <div class="relative">
+          <select id="form-category"
+            class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none transition-colors">
+            <option value="">운영 공지 선택</option>
+            <option value="운영 공지" selected>운영 공지</option>
+            <option value="안전 공지">안전 공지</option>
+            <option value="시스템 공지">시스템 공지</option>
+          </select>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+        <p id="err-category" class="hidden text-xs text-red-500 mt-1">공지 구분을 선택해 주세요.</p>
+      </div>
+      <!-- 노출 여부 -->
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">노출 여부 <span class="text-red-500">*</span></label>
+        <div class="flex rounded-md border border-slate-200 overflow-hidden h-[42px]">
+          <button type="button" id="exposed-btn"
+            class="px-5 text-sm font-medium bg-blue-600 text-white transition-colors">노출</button>
+          <button type="button" id="hidden-btn"
+            class="px-5 text-sm font-medium bg-white text-slate-500 hover:bg-slate-50 transition-colors border-l border-slate-200">숨김</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 하단: 공지 내용 + 우측 패널 -->
+  <div class="flex divide-x divide-slate-100">
+
+    <!-- 공지 내용 -->
+    <div class="flex-1 px-8 py-6">
+      <p class="text-xs font-semibold text-slate-700 mb-3">공지 내용</p>
+      <textarea id="form-content" rows="16"
+        class="w-full px-3 py-3 text-sm border border-slate-200 rounded-md bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-colors">설비 점검 일정과 작업자 확인 사항을 아래와 같이 안내드립니다.
+
+1. 4월 15일 22시부터 4월 24시까지 정기 점검이 진행됩니다.
+2. 점검 시간 중 일부 설비는 임시적으로 사용이 제한될 수 있습니다.
+3. 작업 전 담당자는 점검 대상 설비와 우회 경로를 반드시 확인해 주세요.
+4. 점검 완료 후 이상 여부를 확인한 뒤 정상 운영을 재개합니다.
+
+문의 사항은 설비 운영팀으로 전달해 주세요.</textarea>
+    </div>
+
+    <!-- 우측 패널 -->
+    <div class="w-80 flex-shrink-0 px-6 py-6 space-y-6">
+
+      <!-- 첨부파일 드롭존 -->
+      <div>
+        <p class="text-xs font-semibold text-slate-700 mb-3">첨부파일</p>
+        <div id="drop-zone"
+          class="border-2 border-dashed border-slate-200 rounded-lg p-5 flex flex-col items-center justify-center gap-2 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
+          <i data-lucide="paperclip" class="w-5 h-5 text-slate-400"></i>
+          <p class="text-xs text-slate-500 text-center">파일을 끌어오거나 선택해 첨부합니다.<br>
+            <span class="text-[11px] text-slate-400">PDF, JPG, PNG, XLSX, HWP / 최대 10MB</span>
+          </p>
+          <button type="button" id="file-select-btn"
+            class="mt-1 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded bg-white text-slate-600 hover:bg-slate-50 transition-colors">
+            파일 선택
+          </button>
+        </div>
+        <input type="file" id="file-input" multiple accept=".pdf,.jpg,.jpeg,.png,.xlsx,.hwp" class="hidden">
+      </div>
+
+      <!-- 선택된 파일 -->
+      <div id="selected-files-section">
+        <p class="text-xs font-semibold text-slate-700 mb-2">선택된 파일</p>
+        <div id="file-list" class="space-y-2"></div>
+      </div>
+
+      <!-- 등록 정보 -->
+      <div class="space-y-2 text-xs pt-2">
+        <p class="font-semibold text-slate-700 mb-1">등록 정보</p>
+        <div class="flex justify-between">
+          <span class="text-slate-400">등록자</span>
+          <span class="text-slate-700 font-medium">박관리</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">등록일</span>
+          <span class="text-slate-600">2026-04-12</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">수정일</span>
+          <span class="text-slate-400">저장 시 자동 입력</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 버튼 영역 -->
+<div class="flex justify-end gap-2 mt-4">
+  <button type="button" id="cancel-btn"
+    class="px-5 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
+  <button type="button" id="submit-btn"
+    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">수정</button>
+</div>
+
+<!-- 취소 확인 팝업 (z-[60]) -->
+<div id="cancel-confirm-modal" class="hidden fixed inset-0 flex items-center justify-center z-[60]">
+  <div class="absolute inset-0 bg-black/40" id="cancel-confirm-overlay"></div>
+  <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
+    <div class="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+      <i data-lucide="x-circle" class="w-7 h-7 text-slate-500"></i>
+    </div>
+    <p class="text-sm font-semibold text-slate-800 mb-1">작성을 취소하시겠습니까?</p>
+    <p class="text-xs text-slate-500 text-center mb-6">작성 중인 내용이 저장되지 않습니다.</p>
+    <div class="flex gap-2 w-full">
+      <button type="button" id="cancel-confirm-cancel"
+        class="flex-1 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
+      <button type="button" id="cancel-confirm-ok"
+        class="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 수정 확인 팝업 (z-[60]) -->
+<div id="edit-confirm-modal" class="hidden fixed inset-0 flex items-center justify-center z-[60]">
+  <div class="absolute inset-0 bg-black/40" id="edit-confirm-overlay"></div>
+  <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
+    <div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+      <i data-lucide="pencil" class="w-7 h-7 text-blue-500"></i>
+    </div>
+    <p class="text-sm font-semibold text-slate-800 mb-1">수정하시겠습니까?</p>
+    <p class="text-xs text-slate-500 text-center mb-6">공지사항을 수정하시겠습니까?</p>
+    <div class="flex gap-2 w-full">
+      <button type="button" id="edit-confirm-cancel"
+        class="flex-1 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
+      <button type="button" id="edit-confirm-ok"
+        class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 수정 완료 팝업 (z-[65]) -->
+<div id="success-modal" class="hidden fixed inset-0 flex items-center justify-center z-[65]">
+  <div class="absolute inset-0 bg-black/40"></div>
+  <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
+    <div class="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
+      <i data-lucide="check-circle-2" class="w-8 h-8 text-emerald-500"></i>
+    </div>
+    <p class="text-xs text-slate-500 text-center mb-6">수정되었습니다.</p>
+    <button type="button" id="success-close-btn"
+      class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  /* ── 노출 여부 토글 ── */
+  var isExposed = true;
+  var exposedBtn = document.getElementById('exposed-btn');
+  var hiddenBtn  = document.getElementById('hidden-btn');
+
+  function setExposed(v) {
+    isExposed = v;
+    if (v) {
+      exposedBtn.className = 'px-5 text-sm font-medium bg-blue-600 text-white transition-colors';
+      hiddenBtn.className  = 'px-5 text-sm font-medium bg-white text-slate-500 hover:bg-slate-50 transition-colors border-l border-slate-200';
+    } else {
+      hiddenBtn.className  = 'px-5 text-sm font-medium bg-blue-600 text-white transition-colors border-l border-slate-200';
+      exposedBtn.className = 'px-5 text-sm font-medium bg-white text-slate-500 hover:bg-slate-50 transition-colors';
+    }
+  }
+  exposedBtn.addEventListener('click', function() { setExposed(true); });
+  hiddenBtn.addEventListener('click',  function() { setExposed(false); });
+
+  /* ── 파일 첨부 ── */
+  var attachedFiles = [
+    { name:'정기점검_안내문.pdf',    ext:'pdf',  size:'1.8MB' },
+    { name:'점검대상_설비목록.xlsx', ext:'xlsx', size:'420KB' },
+  ];
+
+  function extIcon(name) {
+    var ext = name.split('.').pop().toLowerCase();
+    if (ext === 'pdf')  return '<div class="w-7 h-7 rounded bg-red-100 flex items-center justify-center flex-shrink-0"><i data-lucide="file-text" class="w-3.5 h-3.5 text-red-500"></i></div>';
+    if (ext === 'xlsx') return '<div class="w-7 h-7 rounded bg-emerald-100 flex items-center justify-center flex-shrink-0"><i data-lucide="table-2" class="w-3.5 h-3.5 text-emerald-600"></i></div>';
+    if (ext === 'hwp')  return '<div class="w-7 h-7 rounded bg-blue-100 flex items-center justify-center flex-shrink-0"><i data-lucide="file" class="w-3.5 h-3.5 text-blue-500"></i></div>';
+    return '<div class="w-7 h-7 rounded bg-slate-100 flex items-center justify-center flex-shrink-0"><i data-lucide="image" class="w-3.5 h-3.5 text-slate-500"></i></div>';
+  }
+
+  function formatSize(bytes) {
+    if (bytes >= 1024*1024) return (bytes / (1024*1024)).toFixed(1) + 'MB';
+    return Math.round(bytes / 1024) + 'KB';
+  }
+
+  function renderFiles() {
+    var list = document.getElementById('file-list');
+    list.innerHTML = '';
+    attachedFiles.forEach(function(f, idx) {
+      var div = document.createElement('div');
+      div.className = 'flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50';
+      div.innerHTML = extIcon(f.name) +
+        '<div class="flex-1 min-w-0">' +
+          '<p class="text-xs font-medium text-slate-700 truncate">' + f.name + '</p>' +
+          '<p class="text-[11px] text-slate-400 mt-0.5">' + f.ext.toUpperCase() + ' · ' + f.size + '</p>' +
+        '</div>' +
+        '<button type="button" class="file-del text-xs text-red-500 hover:text-red-700 font-medium flex-shrink-0" data-idx="' + idx + '">삭제</button>';
+      list.appendChild(div);
+    });
+    lucide.createIcons();
+    document.getElementById('selected-files-section').style.display = attachedFiles.length ? '' : 'none';
+  }
+
+  document.getElementById('file-list').addEventListener('click', function(e) {
+    var btn = e.target.closest('.file-del');
+    if (!btn) return;
+    attachedFiles.splice(parseInt(btn.dataset.idx), 1);
+    renderFiles();
+  });
+
+  function addFiles(files) {
+    var allowed = ['pdf','jpg','jpeg','png','xlsx','hwp'];
+    Array.from(files).forEach(function(f) {
+      var ext = f.name.split('.').pop().toLowerCase();
+      if (allowed.indexOf(ext) === -1) return;
+      attachedFiles.push({ name: f.name, ext: ext, size: formatSize(f.size) });
+    });
+    renderFiles();
+  }
+
+  document.getElementById('file-select-btn').addEventListener('click', function() {
+    document.getElementById('file-input').click();
+  });
+  document.getElementById('file-input').addEventListener('change', function() {
+    addFiles(this.files);
+    this.value = '';
+  });
+
+  var dz = document.getElementById('drop-zone');
+  dz.addEventListener('dragover',  function(e) { e.preventDefault(); dz.classList.add('border-blue-400','bg-blue-50'); });
+  dz.addEventListener('dragleave', function()  { dz.classList.remove('border-blue-400','bg-blue-50'); });
+  dz.addEventListener('drop', function(e) {
+    e.preventDefault();
+    dz.classList.remove('border-blue-400','bg-blue-50');
+    addFiles(e.dataTransfer.files);
+  });
+
+  /* ── 유효성 검사 ── */
+  function validate() {
+    var ok = true;
+    ['title','category'].forEach(function(f) {
+      document.getElementById('err-'+f).classList.add('hidden');
+    });
+    if (!document.getElementById('form-title').value.trim()) {
+      document.getElementById('err-title').classList.remove('hidden'); ok = false;
+    }
+    if (!document.getElementById('form-category').value) {
+      document.getElementById('err-category').classList.remove('hidden'); ok = false;
+    }
+    return ok;
+  }
+
+  /* ── [취소] 흐름: 확인 → notice_detail ── */
+  document.getElementById('cancel-btn').addEventListener('click', function() {
+    document.getElementById('cancel-confirm-modal').classList.remove('hidden');
+  });
+  document.getElementById('cancel-confirm-cancel').addEventListener('click', function() {
+    document.getElementById('cancel-confirm-modal').classList.add('hidden');
+  });
+  document.getElementById('cancel-confirm-overlay').addEventListener('click', function() {
+    document.getElementById('cancel-confirm-modal').classList.add('hidden');
+  });
+  document.getElementById('cancel-confirm-ok').addEventListener('click', function() {
+    window.location.href = '{% url "notice_detail" %}';
+  });
+
+  /* ── [수정] 흐름: 검증 → 확인 팝업 → 완료 → notice_detail ── */
+  document.getElementById('submit-btn').addEventListener('click', function() {
+    if (!validate()) return;
+    document.getElementById('edit-confirm-modal').classList.remove('hidden');
+  });
+  document.getElementById('edit-confirm-cancel').addEventListener('click', function() {
+    document.getElementById('edit-confirm-modal').classList.add('hidden');
+  });
+  document.getElementById('edit-confirm-overlay').addEventListener('click', function() {
+    document.getElementById('edit-confirm-modal').classList.add('hidden');
+  });
+  document.getElementById('edit-confirm-ok').addEventListener('click', function() {
+    document.getElementById('edit-confirm-modal').classList.add('hidden');
+    document.getElementById('success-modal').classList.remove('hidden');
+  });
+  document.getElementById('success-close-btn').addEventListener('click', function() {
+    window.location.href = '{% url "notice_detail" %}';
+  });
+
+  renderFiles();
+  lucide.createIcons();
+})();
+</script>
+{% endblock %}

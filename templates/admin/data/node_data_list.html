@@ -1,0 +1,424 @@
+{% extends 'admin/base_manage.html' %}
+{% block title %}위치 노드 데이터 관리 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{% block breadcrumb %}
+<div class="text-xs text-slate-500 mb-3">
+  운영 데이터 관리 / <span class="text-slate-700">위치 노드 데이터 관리</span>
+</div>
+<div class="flex gap-1 mb-6 border-b border-slate-200">
+  <a href="{% url 'gas_data_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">유해가스 센서 데이터</a>
+  <a href="{% url 'power_data_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">스마트 전력 시스템 데이터</a>
+  <a href="{% url 'node_data_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-blue-600 text-blue-600 -mb-px">위치 노드 데이터</a>
+  <a href="{% url 'worker_data_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">작업자 위치 데이터</a>
+  <a href="{% url 'retention_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">데이터 보관 주기</a>
+</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <h2 class="text-2xl font-bold text-slate-900 mb-1.5">위치 노드 데이터 관리</h2>
+    <p class="text-sm text-slate-500">위치 노드 수신 로그를 조회합니다.</p>
+  </div>
+  <button type="button" id="export-btn"
+    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+    로그 내보내기
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter -->
+<div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+  <div class="flex gap-4 items-end">
+
+    <!-- 조회 기간 -->
+    <div class="flex-1">
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">조회 기간</label>
+      <div class="relative" id="date-picker-wrap">
+        <button type="button" id="date-display"
+          class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+          <span id="date-display-text" class="text-slate-700">2026-04-06 ~ 2026-04-12</span>
+          <i data-lucide="calendar" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
+        </button>
+        <!-- Calendar popup -->
+        <div id="date-picker-popup" class="hidden absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-4" style="width:290px;">
+          <!-- Quick buttons -->
+          <div class="flex gap-1.5 mb-4">
+            <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" data-type="today">오늘</button>
+            <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" data-type="yesterday">어제</button>
+            <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md bg-blue-600 text-white font-medium transition-colors" data-type="7days">최근 7일</button>
+            <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" data-type="month">이번달</button>
+          </div>
+          <!-- Month nav -->
+          <div class="flex items-center justify-between mb-3">
+            <button type="button" id="cal-prev" class="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 transition-colors text-base">&lsaquo;</button>
+            <span id="cal-month-label" class="text-sm font-semibold text-slate-800">2026년 4월</span>
+            <button type="button" id="cal-next" class="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 transition-colors text-base">&rsaquo;</button>
+          </div>
+          <!-- Day headers -->
+          <div class="grid grid-cols-7 mb-1">
+            <div class="text-center text-[11px] font-medium text-red-400 py-1">일</div>
+            <div class="text-center text-[11px] font-medium text-slate-500 py-1">월</div>
+            <div class="text-center text-[11px] font-medium text-slate-500 py-1">화</div>
+            <div class="text-center text-[11px] font-medium text-slate-500 py-1">수</div>
+            <div class="text-center text-[11px] font-medium text-slate-500 py-1">목</div>
+            <div class="text-center text-[11px] font-medium text-slate-500 py-1">금</div>
+            <div class="text-center text-[11px] font-medium text-blue-400 py-1">토</div>
+          </div>
+          <!-- Day grid -->
+          <div id="cal-grid" class="grid grid-cols-7 gap-y-1"></div>
+          <!-- Info -->
+          <div class="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-400 leading-relaxed">
+            보관 기간: 최근 1개월<br>검색 기간은 최대 1개월로 조회
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 장비명 -->
+    <div style="width:200px;" class="relative" id="device-wrap">
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명</label>
+      <button type="button" id="device-toggle"
+        class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+        <span id="device-label" class="text-slate-500">전체</span>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="device-chevron"></i>
+      </button>
+      <div id="device-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-y-auto" style="max-height:200px;">
+        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="" data-label="전체">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>전체
+        </button>
+        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="NODE-001" data-label="NODE-001">NODE-001</button>
+        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="NODE-003" data-label="NODE-003">NODE-003</button>
+        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="NODE-007" data-label="NODE-007">NODE-007</button>
+        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="NODE-012" data-label="NODE-012">NODE-012</button>
+        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="NODE-015" data-label="NODE-015">NODE-015</button>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex gap-2">
+      <button type="button" id="filter-reset"
+        class="px-5 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">초기화</button>
+      <button type="button" id="filter-search"
+        class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">검색</button>
+    </div>
+  </div>
+</div>
+
+<!-- List -->
+<div class="bg-white rounded-lg border border-slate-200">
+  <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div>
+      <span class="text-sm font-semibold text-slate-800">전체 <span class="text-blue-600">5</span>건</span>
+      <span class="text-xs text-slate-400 ml-2">표출된 리스트를 기준으로 로그 내보내기가 수행됩니다.</span>
+    </div>
+    <!-- Sort -->
+    <div class="relative" id="sort-wrap">
+      <button type="button" id="sort-toggle"
+        class="flex items-center gap-1.5 text-xs text-slate-600 border border-slate-200 rounded-md px-3 py-1.5 bg-white hover:border-slate-300 transition-colors">
+        <span id="sort-label">수신 시각 최신순</span>
+        <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400" id="sort-chevron"></i>
+      </button>
+      <div id="sort-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 w-48">
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="new" data-label="수신 시각 최신순">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>수신 시각 최신순
+        </button>
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="old" data-label="수신 시각 오래된순">수신 시각 오래된순</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm" id="node-table">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-100">
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">수집 시각</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">장비명</th>
+          <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">위도</th>
+          <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">경도</th>
+          <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">수신 강도(dBm)</th>
+          <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 whitespace-nowrap">연결 상태</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-12 14:12:26</td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">NODE-001</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">37.496900</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">127.026000</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">-72</td>
+          <td class="px-4 py-3 text-center">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700">연결됨</span>
+          </td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-12 14:12:01</td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">NODE-003</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">37.497100</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">127.025800</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">-68</td>
+          <td class="px-4 py-3 text-center">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700">연결됨</span>
+          </td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-12 14:11:45</td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">NODE-007</td>
+          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
+          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
+          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
+          <td class="px-4 py-3 text-center">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-600">연결 끊김</span>
+          </td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-12 14:10:32</td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">NODE-012</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">37.497000</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">127.026100</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">-85</td>
+          <td class="px-4 py-3 text-center">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700">연결됨</span>
+          </td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-12 14:09:57</td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">NODE-015</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">37.497200</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">127.025900</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-right">-91</td>
+          <td class="px-4 py-3 text-center">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700">연결됨</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+    <span class="text-xs text-slate-500">1 - 5 / 5</span>
+    <div class="flex items-center gap-1">
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+      </button>
+      <button class="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-medium">1</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">2</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">3</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">4</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">5</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  /* ── 달력 상태 ── */
+  var CAL = {
+    year: 2026, month: 3,
+    startDate: '2026-04-06', endDate: '2026-04-12',
+    activeQuick: '7days', picking: 'start'
+  };
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function todayKey() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
+  }
+
+  function addDays(key, n) {
+    var d = new Date(key);
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
+  }
+
+  function updateDisplay() {
+    document.getElementById('date-display-text').textContent = CAL.startDate + ' ~ ' + CAL.endDate;
+  }
+
+  function renderCalendar() {
+    var MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+    document.getElementById('cal-month-label').textContent = CAL.year + '년 ' + MONTHS[CAL.month];
+
+    document.querySelectorAll('.quick-btn').forEach(function(btn) {
+      btn.className = btn.dataset.type === CAL.activeQuick
+        ? 'quick-btn flex-1 py-1.5 text-xs rounded-md bg-blue-600 text-white font-medium transition-colors'
+        : 'quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors';
+    });
+
+    var grid = document.getElementById('cal-grid');
+    grid.innerHTML = '';
+    var firstDay = new Date(CAL.year, CAL.month, 1).getDay();
+    var daysInMonth = new Date(CAL.year, CAL.month + 1, 0).getDate();
+
+    for (var i = 0; i < firstDay; i++) {
+      grid.appendChild(document.createElement('div'));
+    }
+
+    for (var d = 1; d <= daysInMonth; d++) {
+      var key = CAL.year + '-' + pad2(CAL.month+1) + '-' + pad2(d);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = d;
+      btn.dataset.date = key;
+      var dow = new Date(CAL.year, CAL.month, d).getDay();
+      var base = 'w-8 h-8 text-xs rounded-full flex items-center justify-center mx-auto transition-colors ';
+      if (key === CAL.startDate || key === CAL.endDate) {
+        btn.className = base + 'bg-blue-600 text-white font-semibold';
+      } else if (key > CAL.startDate && key < CAL.endDate) {
+        btn.className = base + 'bg-blue-50 text-blue-700';
+      } else {
+        var color = dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-slate-700';
+        btn.className = base + color + ' hover:bg-slate-100';
+      }
+      btn.addEventListener('click', function(){ onDayClick(this.dataset.date); });
+      grid.appendChild(btn);
+    }
+  }
+
+  function onDayClick(key) {
+    if (CAL.picking === 'start') {
+      CAL.startDate = CAL.endDate = key;
+      CAL.picking = 'end';
+      CAL.activeQuick = null;
+    } else {
+      if (key < CAL.startDate) { CAL.endDate = CAL.startDate; CAL.startDate = key; }
+      else { CAL.endDate = key; }
+      CAL.picking = 'start';
+      closePicker();
+    }
+    renderCalendar();
+    updateDisplay();
+  }
+
+  function setQuick(type) {
+    var today = todayKey();
+    if (type === 'today')     { CAL.startDate = CAL.endDate = today; }
+    else if (type === 'yesterday') { var y = addDays(today, -1); CAL.startDate = CAL.endDate = y; }
+    else if (type === '7days') { CAL.startDate = addDays(today, -6); CAL.endDate = today; }
+    else if (type === 'month') {
+      var now = new Date();
+      CAL.startDate = now.getFullYear() + '-' + pad2(now.getMonth()+1) + '-01';
+      CAL.endDate = today;
+    }
+    CAL.activeQuick = type;
+    CAL.picking = 'start';
+    var ed = new Date(CAL.endDate);
+    CAL.year = ed.getFullYear(); CAL.month = ed.getMonth();
+    renderCalendar();
+    updateDisplay();
+    closePicker();
+  }
+
+  function openPicker() {
+    document.getElementById('date-picker-popup').classList.remove('hidden');
+    renderCalendar();
+  }
+  function closePicker() {
+    document.getElementById('date-picker-popup').classList.add('hidden');
+  }
+
+  document.getElementById('date-display')?.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var popup = document.getElementById('date-picker-popup');
+    if (popup.classList.contains('hidden')) openPicker(); else closePicker();
+  });
+  document.getElementById('date-picker-popup')?.addEventListener('click', function(e) { e.stopPropagation(); });
+
+  document.querySelectorAll('.quick-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { setQuick(this.dataset.type); });
+  });
+
+  document.getElementById('cal-prev')?.addEventListener('click', function() {
+    CAL.month--; if (CAL.month < 0) { CAL.month = 11; CAL.year--; }
+    renderCalendar();
+  });
+  document.getElementById('cal-next')?.addEventListener('click', function() {
+    CAL.month++; if (CAL.month > 11) { CAL.month = 0; CAL.year++; }
+    renderCalendar();
+  });
+
+  /* ── 드롭다운 공통 ── */
+  function closeAllMenus() {
+    ['device-menu','sort-menu'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
+  }
+
+  function initDropdown(toggleId, menuId, chevronId, optClass, labelId) {
+    var toggle = document.getElementById(toggleId);
+    var menu   = document.getElementById(menuId);
+    var chev   = document.getElementById(chevronId);
+    var label  = document.getElementById(labelId);
+    if (!toggle) return;
+    toggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var open = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!open) { menu.classList.remove('hidden'); if(chev) chev.style.transform = 'rotate(180deg)'; }
+      else if(chev) chev.style.transform = '';
+    });
+    menu.querySelectorAll('.' + optClass).forEach(function(opt) {
+      opt.addEventListener('click', function(e) {
+        e.stopPropagation();
+        menu.querySelectorAll('.' + optClass).forEach(function(o) {
+          o.classList.remove('bg-blue-50','text-slate-900'); o.classList.add('text-slate-700');
+          var ic = o.querySelector('i'); if(ic) ic.style.display = 'none';
+        });
+        this.classList.add('bg-blue-50','text-slate-900'); this.classList.remove('text-slate-700');
+        var ic = this.querySelector('i'); if(ic) ic.style.display = '';
+        if(label) { label.textContent = this.dataset.label || '전체'; label.className = this.dataset.value ? 'text-slate-800' : 'text-slate-500'; }
+        closeAllMenus(); if(chev) chev.style.transform = '';
+      });
+    });
+  }
+
+  initDropdown('device-toggle','device-menu','device-chevron','dev-opt','device-label');
+  initDropdown('sort-toggle','sort-menu','sort-chevron','sort-opt','sort-label');
+
+  document.addEventListener('click', function() { closeAllMenus(); closePicker(); });
+
+  /* ── 초기화 ── */
+  document.getElementById('filter-reset')?.addEventListener('click', function() {
+    setQuick('7days');
+    var dl = document.getElementById('device-label');
+    if(dl) { dl.textContent = '전체'; dl.className = 'text-slate-500'; }
+    document.querySelectorAll('.dev-opt').forEach(function(o, i) {
+      if(i === 0) { o.classList.add('bg-blue-50','text-slate-900'); o.classList.remove('text-slate-700'); var ic=o.querySelector('i');if(ic)ic.style.display=''; }
+      else { o.classList.remove('bg-blue-50','text-slate-900'); o.classList.add('text-slate-700'); var ic=o.querySelector('i');if(ic)ic.style.display='none'; }
+    });
+  });
+
+  /* ── CSV 내보내기 ── */
+  document.getElementById('export-btn')?.addEventListener('click', function() {
+    var headers = ['수집 시각','장비명','위도','경도','수신 강도(dBm)','연결 상태'];
+    var rows = [];
+    document.querySelectorAll('#node-table tbody tr').forEach(function(tr) {
+      var cells = tr.querySelectorAll('td');
+      rows.push(Array.from(cells).map(function(td) { return '"' + td.textContent.trim() + '"'; }).join(','));
+    });
+    var csv = '﻿' + headers.join(',') + '\n' + rows.join('\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'node_data_' + CAL.startDate + '_' + CAL.endDate + '.csv';
+    link.click();
+  });
+
+  lucide.createIcons();
+  renderCalendar();
+})();
+</script>
+{% endblock %}

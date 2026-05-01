@@ -1,0 +1,365 @@
+{% extends 'admin/base_manage.html' %}
+{% block title %}공지사항 관리 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{% block breadcrumb %}
+<div class="text-xs text-slate-500 mb-6">공지사항 관리</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <h2 class="text-2xl font-bold text-slate-900 mb-1.5">공지사항 관리</h2>
+    <p class="text-sm text-slate-500">공지사항을 조회하고 등록, 수정합니다.</p>
+  </div>
+  <a href="{% url 'notice_create' %}"
+    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+    공지 등록
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- 검색 필터 -->
+<div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+  <div class="flex gap-4 items-end">
+    <!-- 공지 제목 -->
+    <div class="flex-[2]">
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">공지 제목</label>
+      <input type="text" id="filter-title" placeholder="공지 제목 입력"
+        class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+    </div>
+    <!-- 게시 구분 -->
+    <div class="flex-1">
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">게시 구분</label>
+      <div class="relative">
+        <select id="filter-category"
+          class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none transition-colors">
+          <option value="">전체</option>
+          <option value="운영 공지">운영 공지</option>
+          <option value="안전 공지">안전 공지</option>
+          <option value="시스템 공지">시스템 공지</option>
+        </select>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+      </div>
+    </div>
+    <!-- 노출 여부 -->
+    <div class="flex-1">
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">노출 여부</label>
+      <div class="relative">
+        <select id="filter-exposed"
+          class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none transition-colors">
+          <option value="">전체</option>
+          <option value="노출">노출</option>
+          <option value="숨김">숨김</option>
+        </select>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button type="button" id="filter-reset"
+        class="px-5 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">초기화</button>
+      <button type="button" id="filter-search"
+        class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">검색</button>
+    </div>
+  </div>
+</div>
+
+<!-- 목록 -->
+<div class="bg-white rounded-lg border border-slate-200">
+  <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div>
+        <span class="text-sm font-semibold text-slate-800">전체 <span id="total-count" class="text-blue-600">7</span>건</span>
+        <span class="text-xs text-slate-400 ml-2">등록된 공지사항을 조회할 수 있습니다.</span>
+      </div>
+      <span id="selected-label" class="hidden text-xs font-medium text-slate-600"></span>
+      <button type="button" id="delete-btn" disabled
+        class="px-3 py-1.5 text-xs font-medium rounded-md border transition-colors bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed">삭제</button>
+    </div>
+    <!-- 정렬 -->
+    <div class="relative">
+      <button type="button" id="sort-toggle"
+        class="flex items-center gap-1.5 text-xs text-slate-600 border border-slate-200 rounded-md px-3 py-1.5 bg-white hover:border-slate-300 transition-colors">
+        <span id="sort-label">최근 수정일순</span>
+        <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400" id="sort-chevron"></i>
+      </button>
+      <div id="sort-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 w-44">
+        <button class="sort-opt w-full px-3 py-2 text-xs text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="date-desc" data-label="최근 수정일순">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>최근 수정일순
+        </button>
+        <button class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="date-asc" data-label="오래된 수정일순">오래된 수정일순</button>
+        <button class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="title-asc" data-label="공지 제목 오름차순">공지 제목 오름차순</button>
+        <button class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="title-desc" data-label="공지 제목 내림차순">공지 제목 내림차순</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-100">
+          <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 w-12">
+            <input type="checkbox" id="check-all" class="w-3.5 h-3.5 rounded border-slate-300 accent-blue-600">
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-slate-500">공지 제목</th>
+          <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 whitespace-nowrap">게시 구분</th>
+          <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 whitespace-nowrap">노출 여부</th>
+          <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 whitespace-nowrap">작성자</th>
+          <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 whitespace-nowrap">수정일</th>
+        </tr>
+      </thead>
+      <tbody id="notice-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+    <span class="text-xs text-slate-500" id="pagination-info">1 - 7 / 7</span>
+    <div class="flex items-center gap-1">
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+      </button>
+      <button class="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-medium">1</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">2</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">3</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">4</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">5</button>
+      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 삭제 확인 (z-[60]) -->
+<div id="delete-confirm-modal" class="hidden fixed inset-0 flex items-center justify-center z-[60]">
+  <div class="absolute inset-0 bg-black/40" id="delete-confirm-overlay"></div>
+  <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
+    <div class="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-4">
+      <i data-lucide="trash-2" class="w-7 h-7 text-red-500"></i>
+    </div>
+    <p class="text-sm font-semibold text-slate-800 mb-1">삭제하시겠습니까?</p>
+    <p class="text-xs text-slate-500 text-center mb-6" id="delete-confirm-desc"></p>
+    <div class="flex gap-2 w-full">
+      <button type="button" id="delete-cancel-btn"
+        class="flex-1 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
+      <button type="button" id="delete-ok-btn"
+        class="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 삭제 완료 (z-[65]) -->
+<div id="success-modal" class="hidden fixed inset-0 flex items-center justify-center z-[65]">
+  <div class="absolute inset-0 bg-black/40"></div>
+  <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
+    <div class="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
+      <i data-lucide="check-circle-2" class="w-8 h-8 text-emerald-500"></i>
+    </div>
+    <p class="text-xs text-slate-500 text-center mb-6" id="success-desc">삭제되었습니다.</p>
+    <button type="button" id="success-close-btn"
+      class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  var ROWS = [
+    { id:1, title:'4월 정기 점검 일정 안내',    hasAttachment:true,  category:'운영 공지',   exposed:false, author:'박관리', modDate:'2026-04-12' },
+    { id:2, title:'위험구역 B-02 출입 통제 안내', hasAttachment:true,  category:'안전 공지',   exposed:true,  author:'김관리', modDate:'2026-04-11' },
+    { id:3, title:'알림 서비스 점검 안내',        hasAttachment:false, category:'시스템 공지', exposed:true,  author:'정관리', modDate:'2026-04-10' },
+    { id:4, title:'월간 전력 사용량 보고서 게시', hasAttachment:false, category:'운영 공지',   exposed:true,  author:'이관리', modDate:'2026-04-08' },
+    { id:5, title:'위험작업 승인 절차 변경 안내', hasAttachment:true,  category:'안전 공지',   exposed:false, author:'최관리', modDate:'2026-04-05' },
+    { id:6, title:'월간 전력 사용량 보고서 게시', hasAttachment:false, category:'운영 공지',   exposed:true,  author:'이관리', modDate:'2026-04-08' },
+    { id:7, title:'월간 전력 사용량 보고서 게시', hasAttachment:false, category:'운영 공지',   exposed:true,  author:'이관리', modDate:'2026-04-08' },
+  ];
+
+  var currentRows = ROWS.slice();
+  var filteredRows = ROWS.slice();
+  var checkedIds = {};
+
+  /* ── 테이블 렌더링 ── */
+  function renderRows(rows) {
+    var tbody = document.getElementById('notice-tbody');
+    tbody.innerHTML = '';
+    rows.forEach(function(row) {
+      var tr = document.createElement('tr');
+      tr.className = 'border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer';
+
+      var attachIcon = row.hasAttachment
+        ? '<i data-lucide="paperclip" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 ml-1.5 inline-block"></i>'
+        : '';
+
+      var exposedCell = row.exposed
+        ? '<span class="text-xs text-emerald-600">노출</span>'
+        : '<span class="text-xs text-slate-400">숨김</span>';
+
+      tr.innerHTML = [
+        '<td class="px-4 py-3.5 text-center" onclick="event.stopPropagation()">',
+          '<input type="checkbox" class="row-check w-3.5 h-3.5 rounded border-slate-300 accent-blue-600" data-id="' + row.id + '">',
+        '</td>',
+        '<td class="px-4 py-3.5">',
+          '<div class="flex items-center">',
+            '<span class="text-sm text-slate-800">' + row.title + '</span>',
+            attachIcon,
+          '</div>',
+        '</td>',
+        '<td class="px-4 py-3.5 text-xs text-slate-600 text-center whitespace-nowrap">' + row.category + '</td>',
+        '<td class="px-4 py-3.5 text-center">' + exposedCell + '</td>',
+        '<td class="px-4 py-3.5 text-xs text-slate-600 text-center whitespace-nowrap">' + row.author + '</td>',
+        '<td class="px-4 py-3.5 text-xs text-slate-500 text-center whitespace-nowrap">' + row.modDate + '</td>',
+      ].join('');
+
+      tr.addEventListener('click', function() {
+        window.location.href = '{% url "notice_detail" %}?id=' + row.id;
+      });
+
+      var cb = tr.querySelector('.row-check');
+      if (checkedIds[row.id]) cb.checked = true;
+      cb.addEventListener('change', function() {
+        checkedIds[row.id] = this.checked;
+        updateCheckState();
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('total-count').textContent = rows.length;
+    document.getElementById('pagination-info').textContent = '1 - ' + rows.length + ' / ' + rows.length;
+    updateCheckState();
+    lucide.createIcons();
+  }
+
+  /* ── 체크박스 상태 ── */
+  function updateCheckState() {
+    var count = Object.keys(checkedIds).filter(function(k) { return checkedIds[k]; }).length;
+    var lbl = document.getElementById('selected-label');
+    var btn = document.getElementById('delete-btn');
+    if (count > 0) {
+      lbl.textContent = count + '건 선택';
+      lbl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.className = 'px-3 py-1.5 text-xs font-medium rounded-md border transition-colors bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer';
+    } else {
+      lbl.classList.add('hidden');
+      btn.disabled = true;
+      btn.className = 'px-3 py-1.5 text-xs font-medium rounded-md border transition-colors bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed';
+    }
+    var allCbs = document.querySelectorAll('.row-check');
+    var allChk = document.getElementById('check-all');
+    allChk.checked = count > 0 && count === allCbs.length;
+    allChk.indeterminate = count > 0 && count < allCbs.length;
+  }
+
+  document.getElementById('check-all').addEventListener('change', function() {
+    var v = this.checked;
+    document.querySelectorAll('.row-check').forEach(function(cb) {
+      cb.checked = v;
+      checkedIds[cb.dataset.id] = v;
+    });
+    updateCheckState();
+  });
+
+  /* ── 필터 ── */
+  function applyFilter() {
+    var title    = document.getElementById('filter-title').value.trim().toLowerCase();
+    var category = document.getElementById('filter-category').value;
+    var exposed  = document.getElementById('filter-exposed').value;
+
+    filteredRows = currentRows.filter(function(r) {
+      if (title && r.title.toLowerCase().indexOf(title) === -1) return false;
+      if (category && r.category !== category) return false;
+      if (exposed) {
+        var rowExposed = r.exposed ? '노출' : '숨김';
+        if (rowExposed !== exposed) return false;
+      }
+      return true;
+    });
+    checkedIds = {};
+    renderRows(filteredRows);
+  }
+
+  document.getElementById('filter-search').addEventListener('click', applyFilter);
+  document.getElementById('filter-title').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') applyFilter();
+  });
+  document.getElementById('filter-reset').addEventListener('click', function() {
+    document.getElementById('filter-title').value = '';
+    document.getElementById('filter-category').value = '';
+    document.getElementById('filter-exposed').value = '';
+    filteredRows = currentRows.slice();
+    checkedIds = {};
+    renderRows(filteredRows);
+  });
+
+  /* ── 삭제 흐름 ── */
+  document.getElementById('delete-btn').addEventListener('click', function() {
+    if (this.disabled) return;
+    var count = Object.keys(checkedIds).filter(function(k) { return checkedIds[k]; }).length;
+    document.getElementById('delete-confirm-desc').textContent = count + '건을 삭제하시겠습니까?';
+    document.getElementById('delete-confirm-modal').classList.remove('hidden');
+  });
+  document.getElementById('delete-cancel-btn').addEventListener('click', function() {
+    document.getElementById('delete-confirm-modal').classList.add('hidden');
+  });
+  document.getElementById('delete-confirm-overlay').addEventListener('click', function() {
+    document.getElementById('delete-confirm-modal').classList.add('hidden');
+  });
+  document.getElementById('delete-ok-btn').addEventListener('click', function() {
+    var toDelete = Object.keys(checkedIds).filter(function(k) { return checkedIds[k]; }).map(Number);
+    currentRows  = currentRows.filter(function(r)  { return toDelete.indexOf(r.id) === -1; });
+    filteredRows = filteredRows.filter(function(r) { return toDelete.indexOf(r.id) === -1; });
+    checkedIds = {};
+    document.getElementById('delete-confirm-modal').classList.add('hidden');
+    renderRows(filteredRows);
+    document.getElementById('success-modal').classList.remove('hidden');
+  });
+  document.getElementById('success-close-btn').addEventListener('click', function() {
+    document.getElementById('success-modal').classList.add('hidden');
+  });
+
+  /* ── 정렬 드롭다운 ── */
+  document.getElementById('sort-toggle').addEventListener('click', function(e) {
+    e.stopPropagation();
+    var menu = document.getElementById('sort-menu');
+    var open = !menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', open);
+    document.getElementById('sort-chevron').style.transform = open ? '' : 'rotate(180deg)';
+  });
+
+  document.querySelectorAll('.sort-opt').forEach(function(opt) {
+    opt.addEventListener('click', function(e) {
+      e.stopPropagation();
+      document.querySelectorAll('.sort-opt').forEach(function(o) {
+        o.classList.remove('bg-blue-50', 'text-slate-900');
+        o.classList.add('text-slate-700');
+        var ic = o.querySelector('i'); if (ic) ic.style.display = 'none';
+      });
+      this.classList.add('bg-blue-50', 'text-slate-900');
+      this.classList.remove('text-slate-700');
+      var ic = this.querySelector('i'); if (ic) ic.style.display = '';
+      document.getElementById('sort-label').textContent = this.dataset.label;
+      document.getElementById('sort-menu').classList.add('hidden');
+      document.getElementById('sort-chevron').style.transform = '';
+      sortRows(this.dataset.value);
+    });
+  });
+
+  document.addEventListener('click', function() {
+    document.getElementById('sort-menu').classList.add('hidden');
+    document.getElementById('sort-chevron').style.transform = '';
+  });
+
+  function sortRows(val) {
+    if      (val === 'date-desc')  filteredRows.sort(function(a,b) { return b.modDate.localeCompare(a.modDate); });
+    else if (val === 'date-asc')   filteredRows.sort(function(a,b) { return a.modDate.localeCompare(b.modDate); });
+    else if (val === 'title-asc')  filteredRows.sort(function(a,b) { return a.title.localeCompare(b.title, 'ko'); });
+    else if (val === 'title-desc') filteredRows.sort(function(a,b) { return b.title.localeCompare(a.title, 'ko'); });
+    renderRows(filteredRows);
+  }
+
+  renderRows(filteredRows);
+  lucide.createIcons();
+})();
+</script>
+{% endblock %}

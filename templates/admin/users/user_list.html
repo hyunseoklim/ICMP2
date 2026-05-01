@@ -46,20 +46,20 @@
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-700 mb-1.5">권한</label>
-        <select name="role" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+        <select name="user_type" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
           <option value="">전체</option>
-          <option value="super">슈퍼관리자</option>
+          <option value="superuser">슈퍼관리자</option>
           <option value="admin">관리자</option>
-          <option value="user">일반사용자</option>
+          <option value="manager">현장 관리자</option>
+          <option value="worker">작업자</option>
         </select>
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-700 mb-1.5">계정 상태</label>
-        <select name="status" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+        <select name="is_active" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
           <option value="">전체</option>
-          <option value="active">사용</option>
-          <option value="locked">잠금</option>
-          <option value="inactive">비활성</option>
+          <option value="true">사용</option>
+          <option value="false">비활성</option>
         </select>
       </div>
     </div>
@@ -128,29 +128,29 @@
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
           <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" value="{{ u.id }}" /></td>
           <td class="px-4 py-3 text-slate-900 font-medium">{{ u.name }}</td>
-          <td class="px-4 py-3 text-slate-600">{{ u.dept|default:"-" }}</td>
+          <td class="px-4 py-3 text-slate-600">{{ u.department.name|default:"-" }}</td>
           <td class="px-4 py-3 text-slate-600">{{ u.position|default:"-" }}</td>
           <td class="px-4 py-3 text-slate-600 font-mono text-xs">{{ u.username }}</td>
           <td class="px-4 py-3">
-            {% if u.role == 'super' %}
+            {% if u.is_superuser %}
               <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-purple-100 text-purple-700">슈퍼관리자</span>
-            {% elif u.role == 'admin' %}
+            {% elif u.user_type == 'admin' %}
               <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span>
+            {% elif u.user_type == 'manager' %}
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-cyan-100 text-cyan-700">현장 관리자</span>
             {% else %}
-              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">일반사용자</span>
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">작업자</span>
             {% endif %}
           </td>
           <td class="px-4 py-3">
-            {% if u.status == 'active' %}
+            {% if u.is_active %}
               <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span>
-            {% elif u.status == 'locked' %}
-              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-orange-100 text-orange-700">잠금</span>
             {% else %}
               <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-red-100 text-red-700">비활성</span>
             {% endif %}
           </td>
           <td class="px-4 py-3 text-slate-600 text-xs">{{ u.phone|default:"-" }}</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">{{ u.last_login|date:"Y-m-d H:i:s"|default:"-" }}</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">{{ u.last_login_at|date:"Y-m-d H:i:s"|default:"-" }}</td>
           <td class="px-4 py-3 text-slate-600 text-xs">{{ u.date_joined|date:"Y-m-d"|default:"-" }}</td>
           <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
         </tr>

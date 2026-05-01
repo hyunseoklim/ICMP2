@@ -1,0 +1,197 @@
+<!-- Node Inspect Register Success Modal -->
+<div id="nir-success-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[75] items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm px-8 py-8 text-center">
+    <div class="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="check" class="w-6 h-6 text-emerald-600"></i>
+    </div>
+    <p class="text-base font-semibold text-slate-900 mb-1">저장되었습니다.</p>
+    <p class="text-xs text-slate-500 mb-6">점검 결과가 이력에 반영되었습니다.</p>
+    <button type="button" id="nir-success-confirm"
+      class="w-full px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+  </div>
+</div>
+
+<!-- Node Inspect Register Modal -->
+<div id="node-insp-reg-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[65] items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-xl">
+
+    <!-- Header -->
+    <div class="px-8 pt-7 pb-5">
+      <h3 class="text-xl font-bold text-slate-900 mb-1">점검 등록</h3>
+      <p class="text-xs text-slate-500">해당 장비의 점검 결과를 등록합니다.</p>
+    </div>
+
+    <div class="px-8 pb-6 space-y-5">
+
+      <!-- 점검 대상 -->
+      <div>
+        <p class="text-xs font-semibold text-slate-700 mb-2">점검 대상</p>
+        <div class="border border-slate-200 rounded-lg px-5 py-4 flex items-start justify-between bg-slate-50">
+          <p class="text-base font-bold text-slate-900 mr-6 flex-shrink-0" id="nir-node-id">NODE-001</p>
+          <div class="text-right">
+            <p class="text-xs text-slate-600" id="nir-device-info">위치 노드 · —</p>
+            <p class="text-xs text-slate-500 mt-0.5">담당자 : <span id="nir-manager-name">—</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 점검 기본 정보 -->
+      <div>
+        <p class="text-xs font-semibold text-slate-700 mb-3">점검 기본 정보</p>
+        <form id="node-insp-reg-form" novalidate class="space-y-3">
+
+          <!-- Row 1: 점검 구분 | 점검일 | 점검자 -->
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">점검 구분 <span class="text-red-500">*</span></label>
+              <select id="nir-type"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700">
+                <option value="">선택</option>
+                <option value="regular">정기 점검</option>
+                <option value="abnormal">이상 점검</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">점검일</label>
+              <input type="text" id="nir-date" disabled
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">점검자</label>
+              <input type="text" id="nir-inspector" disabled
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
+            </div>
+          </div>
+
+          <!-- Row 2: 점검 상태 | 예상 조치일 (조건부) -->
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">점검 상태 <span class="text-red-500">*</span></label>
+              <select id="nir-status"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700">
+                <option value="">선택</option>
+                <option value="action">조치 필요</option>
+                <option value="normal">정상</option>
+              </select>
+            </div>
+            <div class="col-span-2" id="nir-expected-wrap" style="display:none;">
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">예상 조치일 <span class="text-red-500">*</span></label>
+              <input type="text" id="nir-expected-date" placeholder="YYYY.MM.DD"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+            </div>
+          </div>
+
+          <!-- Row 3: 점검 의견 -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">점검 의견 <span class="text-red-500">*</span></label>
+            <textarea id="nir-note" rows="4" placeholder="조치 필요 이상 상태"
+              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 resize-none"></textarea>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex items-center justify-end gap-2 px-8 py-5 border-t border-slate-100">
+      <button type="button" id="nir-cancel"
+        class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+        취소
+      </button>
+      <button type="button" id="nir-submit" disabled
+        class="px-5 py-2 bg-slate-300 text-slate-500 text-sm font-medium rounded-md cursor-not-allowed transition-colors">
+        저장
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function() {
+  var modal        = document.getElementById('node-insp-reg-modal');
+  var successModal = document.getElementById('nir-success-modal');
+  var submitBtn    = document.getElementById('nir-submit');
+  var statusSel    = document.getElementById('nir-status');
+  var expectedWrap = document.getElementById('nir-expected-wrap');
+  var expectedDate = document.getElementById('nir-expected-date');
+
+  // 오늘 날짜 (YYYY.MM.DD)
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '.' +
+      String(d.getMonth() + 1).padStart(2, '0') + '.' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  // 저장 버튼 활성화 검사
+  function checkSaveBtn() {
+    var type   = document.getElementById('nir-type').value;
+    var status = statusSel.value;
+    var note   = document.getElementById('nir-note').value.trim();
+    var ok = type && status && note;
+    if (status === 'action') {
+      ok = ok && !!expectedDate.value.trim();
+    }
+    submitBtn.disabled = !ok;
+    submitBtn.className = ok
+      ? 'px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors'
+      : 'px-5 py-2 bg-slate-300 text-slate-500 text-sm font-medium rounded-md cursor-not-allowed transition-colors';
+  }
+
+  // 점검 상태 변경 → 예상 조치일 토글
+  statusSel?.addEventListener('change', function() {
+    var show = this.value === 'action';
+    expectedWrap.style.display = show ? '' : 'none';
+    if (!show) expectedDate.value = '';
+    checkSaveBtn();
+  });
+
+  // 필수 필드 변경 감지
+  ['nir-type', 'nir-note'].forEach(function(id) {
+    document.getElementById(id)?.addEventListener('change', checkSaveBtn);
+    document.getElementById(id)?.addEventListener('input',  checkSaveBtn);
+  });
+  expectedDate?.addEventListener('input', checkSaveBtn);
+
+  function resetForm() {
+    document.getElementById('node-insp-reg-form')?.reset();
+    expectedWrap.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.className = 'px-5 py-2 bg-slate-300 text-slate-500 text-sm font-medium rounded-md cursor-not-allowed transition-colors';
+  }
+
+  window.openNodeInspRegModal = function(nodeId, managerName, deviceId) {
+    resetForm();
+    document.getElementById('nir-node-id').textContent      = nodeId      || '—';
+    document.getElementById('nir-device-info').textContent  = '위치 노드 · ' + (deviceId || '—');
+    document.getElementById('nir-manager-name').textContent = managerName || '—';
+    document.getElementById('nir-date').value               = todayStr();
+    document.getElementById('nir-inspector').value          = managerName || '—';
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    lucide.createIcons();
+  };
+
+  function closeModal() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  document.getElementById('nir-cancel')?.addEventListener('click', closeModal);
+
+  submitBtn?.addEventListener('click', function() {
+    if (this.disabled) return;
+    closeModal();
+    successModal.classList.remove('hidden');
+    successModal.classList.add('flex');
+    lucide.createIcons();
+  });
+
+  document.getElementById('nir-success-confirm')?.addEventListener('click', function() {
+    successModal.classList.add('hidden');
+    successModal.classList.remove('flex');
+  });
+})();
+</script>

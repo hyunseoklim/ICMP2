@@ -23,12 +23,12 @@
                {% if active_menu == 'org' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="building-2" class="w-5 h-5"></i>
       </a>
-      <a href="#" title="설비/장비 관리"
+      <a href="{% url 'facility_list' %}" title="설비/장비 관리"
         class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
                {% if active_menu == 'facility' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="wrench" class="w-5 h-5"></i>
       </a>
-      <a href="#" title="데이터 관리"
+      <a href="{% url 'gas_data_list' %}" title="데이터 관리"
         class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
                {% if active_menu == 'data' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="database" class="w-5 h-5"></i>
@@ -38,7 +38,7 @@
                {% if active_menu == 'log' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="scroll-text" class="w-5 h-5"></i>
       </a>
-      <a href="#" title="공지사항 등록/관리"
+      <a href="{% url 'notice_list' %}" title="공지사항 등록/관리"
         class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
                {% if active_menu == 'notice' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="bell" class="w-5 h-5"></i>
@@ -74,16 +74,15 @@
         {# ⑤ 관리자 정보 #}
         <div class="text-right mr-2">
           <div class="text-sm font-medium text-slate-900">
-            <span class="user-name">{{ request.user.name|default:request.user.get_full_name|default:request.user.username }}</span>
-            <span class="user-role">{{ request.user.get_user_type_display|default:"관리자" }}</span>
-            <!-- {% if user.is_authenticated %}
-              {{ user.get_full_name|default:user.username }} 관리자
+            {% if user.is_authenticated %}
+              <span class="user-name">{{ user.name|default:user.username }}</span>
+              <span class="user-role">{{ user.get_user_type_display|default:"관리자" }}</span>
             {% else %}
-              관리자
-            {% endif %} -->
+              <span class="user-name">게스트</span>
+            {% endif %}
           </div>
           <div class="text-xs text-slate-500">
-            {% if user.is_authenticated %}{{ user.email }}{% else %}-{% endif %}
+            {% if user.is_authenticated %}{{ user.email|default:"-" }}{% else %}-{% endif %}
           </div>
         </div>
         <a href="#" title="홈" class="w-9 h-9 border border-slate-200 rounded-md flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors">

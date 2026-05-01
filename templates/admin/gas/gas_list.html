@@ -1,0 +1,546 @@
+{% extends 'admin/base_manage.html' %}
+{% block title %}유해가스 센서 관리 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{% block breadcrumb %}
+<div class="text-xs text-slate-500 mb-3">
+  설비/장비 관리 / <span class="text-slate-700">유해가스 센서 관리</span>
+</div>
+<div class="flex gap-1 mb-6 border-b border-slate-200">
+  <a href="{% url 'facility_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">
+    설비 관리
+  </a>
+  <a href="{% url 'gas_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-blue-600 text-blue-600 -mb-px">
+    유해가스 센서
+  </a>
+  <a href="{% url 'power_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">
+    스마트 전력 시스템
+  </a>
+  <a href="{% url 'node_list' %}"
+    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">
+    위치 노드 관리
+  </a>
+</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <h2 class="text-2xl font-bold text-slate-900 mb-1.5">유해가스 센서 관리</h2>
+    <p class="text-sm text-slate-500">유해가스 센서의 ID, 연결 상태, 데이터 수신 상태와 점검 여부를 확인합니다.</p>
+  </div>
+  <button type="button" id="gas-register-btn"
+    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+    장비 등록
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+  <form method="get" id="filter-form">
+    <input type="hidden" name="sensor_id" id="hidden-sensor-id" value="{{ request.GET.sensor_id }}" />
+    <input type="hidden" name="status" id="hidden-status" value="{{ request.GET.status }}" />
+    <input type="hidden" name="connection" id="hidden-connection" value="{{ request.GET.connection }}" />
+
+    <div class="grid grid-cols-3 gap-4 mb-4">
+      {# 장비명 드롭다운 #}
+      <div class="relative" id="sid-dropdown-wrap">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명</label>
+        <button type="button" id="sid-toggle"
+          class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+          <span id="sid-label" class="text-slate-500">전체</span>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform"
+            id="sid-chevron"></i>
+        </button>
+        <div id="sid-menu"
+          class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-y-auto"
+          style="max-height: 200px;">
+          <button type="button"
+            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-900 bg-blue-50 flex items-center gap-2"
+            data-value="">
+            <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>전체
+          </button>
+          {% for sensor in sensors %}
+          <button type="button"
+            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="{{ sensor.sensor_id }}">{{ sensor.sensor_id }}</button>
+          {% empty %}
+          <button type="button"
+            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="GAS-001">GAS-001</button>
+          <button type="button"
+            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="GAS-002">GAS-002</button>
+          <button type="button"
+            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="GAS-003">GAS-003</button>
+          <button type="button"
+            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="GAS-004">GAS-004</button>
+          <button type="button"
+            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="GAS-005">GAS-005</button>
+          <button type="button"
+            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="GAS-006">GAS-006</button>
+          <button type="button"
+            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="GAS-007">GAS-007</button>
+          {% endfor %}
+        </div>
+      </div>
+
+      {# 사용 상태 드롭다운 #}
+      <div class="relative" id="st-dropdown-wrap">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 상태</label>
+        <button type="button" id="st-toggle"
+          class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+          <span id="st-label" class="text-slate-500">전체</span>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform"
+            id="st-chevron"></i>
+        </button>
+        <div id="st-menu"
+          class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40">
+          <button type="button"
+            class="st-option w-full px-3 py-2 text-sm text-left text-slate-900 bg-blue-50 flex items-center gap-2"
+            data-value="">
+            <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>전체
+          </button>
+          <button type="button"
+            class="st-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="active">사용</button>
+          <button type="button"
+            class="st-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="inactive">미사용</button>
+        </div>
+      </div>
+
+      {# 연결 상태 드롭다운 #}
+      <div class="relative" id="cn-dropdown-wrap">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 상태</label>
+        <button type="button" id="cn-toggle"
+          class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+          <span id="cn-label" class="text-slate-500">전체</span>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform"
+            id="cn-chevron"></i>
+        </button>
+        <div id="cn-menu"
+          class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40">
+          <button type="button"
+            class="cn-option w-full px-3 py-2 text-sm text-left text-slate-900 bg-blue-50 flex items-center gap-2"
+            data-value="">
+            <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>전체
+          </button>
+          <button type="button"
+            class="cn-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="normal">정상</button>
+          <button type="button"
+            class="cn-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
+            data-value="disconnected">연결 끊김</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-2">
+      <button type="button" id="filter-reset-btn"
+        class="px-5 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1.5">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        초기화
+      </button>
+      <button type="submit"
+        class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors flex items-center gap-1.5">
+        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+        검색
+      </button>
+    </div>
+  </form>
+</div>
+
+<div class="bg-white rounded-lg border border-slate-200">
+  <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-semibold text-slate-900">
+        전체 <span class="text-blue-600">{{ total_count|default:68 }}</span>건
+      </span>
+      <button type="button" id="gas-delete-btn" disabled
+        class="px-3 py-1.5 text-xs font-medium rounded transition-colors bg-slate-100 text-slate-400 cursor-not-allowed disabled:opacity-60">
+        삭제
+      </button>
+    </div>
+
+    {# 정렬 드롭다운 #}
+    <div class="relative" id="sort-dropdown-wrap">
+      <button type="button" id="sort-toggle"
+        class="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors">
+        <span id="sort-label">노드 ID 오름차순</span>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+      </button>
+      <div id="sort-menu"
+        class="hidden absolute right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-md shadow-lg py-1 z-30 min-w-[210px]">
+        <button class="sort-option w-full px-4 py-2 text-sm text-left bg-blue-50 text-blue-700 flex items-center gap-2"
+          data-value="sensor_id">
+          <i data-lucide="check" class="w-3.5 h-3.5"></i>센서 ID 오름차순
+        </button>
+        <button class="sort-option w-full px-4 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-9"
+          data-value="-sensor_id">센서 ID 내림차순</button>
+        <button class="sort-option w-full px-4 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-9"
+          data-value="-last_received_at">마지막 데이터 수신 최신순</button>
+        <button class="sort-option w-full px-4 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-9"
+          data-value="last_received_at">마지막 데이터 수신 오래된순</button>
+        <button class="sort-option w-full px-4 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-9"
+          data-value="-last_inspected_at">최근 점검일 최신순</button>
+        <button class="sort-option w-full px-4 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-9"
+          data-value="last_inspected_at">최근 점검일 오래된순</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-slate-50 text-slate-600 text-xs">
+          <th class="px-4 py-3 text-left w-10">
+            <input type="checkbox" id="check-all" class="rounded border-slate-300" />
+          </th>
+          <th class="px-4 py-3 text-left font-medium w-32">장비명</th>
+          <th class="px-4 py-3 text-left font-medium w-28">연결 상태</th>
+          <th class="px-4 py-3 text-left font-medium w-44">마지막 데이터 수신</th>
+          <th class="px-4 py-3 text-left font-medium w-28">점검 상태</th>
+          <th class="px-4 py-3 text-left font-medium w-24">사용 상태</th>
+          <th class="px-4 py-3 text-left font-medium w-32">최근 점검일</th>
+        </tr>
+      </thead>
+      <tbody id="gas-tbody">
+        {% for s in sensors %}
+        <tr
+          class="border-t border-slate-100 hover:bg-slate-50 transition-colors sensor-row {% if s.connection == 'disconnected' or s.inspection_status == 'required' %}bg-red-50/30{% endif %}"
+          data-sensor-id="{{ s.sensor_id }}" data-device-type="{{ s.device_type|default:'GAS' }}"
+          data-device-code="{{ s.device_code|default:'' }}" data-mac="{{ s.mac|default:'' }}"
+          data-install-date="{{ s.install_date|date:'Y.m.d'|default:'' }}" data-dept="{{ s.department_id|default:'' }}"
+          data-manager="{{ s.manager_id|default:'' }}" data-ip="{{ s.ip|default:'' }}"
+          data-port="{{ s.port|default:'' }}" data-status="{{ s.status|default:'' }}"
+          data-conn-verified="{% if s.connection == 'normal' %}true{% else %}false{% endif %}"
+          data-conn-date="{{ s.last_received_at|date:'Y.m.d H:i:s'|default:'' }}" data-note="{{ s.note|default:'' }}">
+          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300"
+              value="{{ s.id }}" /></td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">{{ s.sensor_id }}</td>
+          <td class="px-4 py-3 w-28">
+            {% if s.connection == 'normal' %}
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상
+            </span>
+            {% elif s.connection == 'disconnected' %}
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-500">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>연결 끊김
+            </span>
+            {% else %}
+            <span class="text-slate-400 text-xs">-</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-44">{{ s.last_received_at|default:"-" }}</td>
+          <td class="px-4 py-3 w-28">
+            {% if s.inspection_status == 'completed' %}
+            <span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span>
+            {% elif s.inspection_status == 'required' %}
+            <span class="px-2 py-0.5 text-xs font-medium rounded bg-red-50 text-red-500">점검 필요</span>
+            {% elif s.inspection_status == 'scheduled' %}
+            <span class="px-2 py-0.5 text-xs font-medium rounded bg-yellow-50 text-yellow-600">점검 예정</span>
+            {% else %}
+            <span class="text-slate-400 text-xs">-</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 w-24">
+            {% if s.status == 'active' %}
+            <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span>
+            {% else %}
+            <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-500">미사용</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-32">{{ s.last_inspected_at|default:"-" }}</td>
+        </tr>
+        {% empty %}
+        <tr class="border-t border-slate-100 bg-blue-50/40 cursor-pointer sensor-row"
+          data-sensor-id="GAS-001" data-device-type="GAS" data-device-code="001"
+          data-mac="00:1A:7D:DA:71:13" data-install-date="2026.03.28"
+          data-dept="maint" data-manager="u1"
+          data-ip="192.168.0.101" data-port="8080"
+          data-status="active" data-conn-verified="false"
+          data-conn-date="2026.04.12 09:42:18" data-note="">
+          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" checked /></td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-001</td>
+          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-500"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>연결 끊김</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:42:18</td>
+          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-red-50 text-red-500">점검 필요</span></td>
+          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-11</td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-002" data-device-type="GAS" data-device-code="002" data-mac="00:1A:7D:DA:71:14" data-install-date="2026.03.01" data-dept="maint" data-manager="u2" data-ip="192.168.0.102" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:41:05" data-note="">
+          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-002</td>
+          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:41:05</td>
+          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
+          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-09</td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-003" data-device-type="GAS" data-device-code="003" data-mac="00:1A:7D:DA:71:15" data-install-date="2026.02.15" data-dept="safety" data-manager="u2" data-ip="192.168.0.103" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:40:31" data-note="">
+          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-003</td>
+          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:40:31</td>
+          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-yellow-50 text-yellow-600">점검 예정</span></td>
+          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-07</td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-004" data-device-type="GAS" data-device-code="004" data-mac="00:1A:7D:DA:71:16" data-install-date="2026.02.01" data-dept="maint" data-manager="u3" data-ip="192.168.0.104" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:39:42" data-note="">
+          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-004</td>
+          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:39:42</td>
+          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
+          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-05</td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-005" data-device-type="GAS" data-device-code="005" data-mac="00:1A:7D:DA:71:17" data-install-date="2026.01.20" data-dept="prod" data-manager="u3" data-ip="192.168.0.105" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:38:07" data-note="">
+          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-005</td>
+          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:38:07</td>
+          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
+          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-03</td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-006" data-device-type="GAS" data-device-code="006" data-mac="00:1A:7D:DA:71:18" data-install-date="2026.01.10" data-dept="env" data-manager="u4" data-ip="192.168.0.106" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:37:54" data-note="">
+          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-006</td>
+          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:37:54</td>
+          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
+          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-01</td>
+        </tr>
+        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-007" data-device-type="GAS" data-device-code="007" data-mac="" data-install-date="" data-dept="" data-manager="" data-ip="" data-port="" data-status="inactive" data-conn-verified="false" data-conn-date="" data-note="">
+          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-007</td>
+          <td class="px-4 py-3 w-28"><span class="text-slate-400 text-xs">-</span></td>
+          <td class="px-4 py-3 text-slate-400 text-xs w-44">-</td>
+          <td class="px-4 py-3 w-28"><span class="text-slate-400 text-xs">-</span></td>
+          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-500">미사용</span></td>
+          <td class="px-4 py-3 text-slate-400 text-xs w-32">-</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# 페이지네이션 #}
+  <div class="flex items-center justify-between px-6 py-4 border-t border-slate-200">
+    <div class="text-xs text-slate-500">
+      {% if page_obj %}
+      {{ page_obj.start_index }} - {{ page_obj.end_index }} / {{ page_obj.paginator.count }}
+      {% else %}
+      1 - 10 / 128
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-1">
+      {% if page_obj %}
+      <a href="{% if page_obj.has_previous %}?page={{ page_obj.previous_page_number }}{% else %}#{% endif %}"
+        class="w-8 h-8 flex items-center justify-center rounded transition-colors {% if page_obj.has_previous %}text-slate-600 hover:bg-slate-100{% else %}text-slate-300 cursor-not-allowed{% endif %}">
+        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+      </a>
+      {% for num in page_obj.paginator.page_range %}
+      <a href="?page={{ num }}"
+        class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium transition-colors
+                    {% if page_obj.number == num %}bg-slate-900 text-white{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
+        {{ num }}
+      </a>
+      {% endfor %}
+      <a href="{% if page_obj.has_next %}?page={{ page_obj.next_page_number }}{% else %}#{% endif %}"
+        class="w-8 h-8 flex items-center justify-center rounded transition-colors {% if page_obj.has_next %}text-slate-600 hover:bg-slate-100{% else %}text-slate-300 cursor-not-allowed{% endif %}">
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </a>
+      {% else %}
+      {% with current_page=request.GET.page|default:"1" %}
+      <a href="?page={{ current_page|add:" -1" }}"
+        class="w-8 h-8 flex items-center justify-center rounded transition-colors {% if current_page == '1' %}text-slate-300 cursor-not-allowed pointer-events-none{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
+        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+      </a>
+      {% for num in "12345"|make_list %}
+      <a href="?page={{ num }}"
+        class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium transition-colors
+                    {% if current_page == num %}bg-slate-900 text-white{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
+        {{ num }}
+      </a>
+      {% endfor %}
+      <a href="?page={{ current_page|add:" 1" }}"
+        class="w-8 h-8 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </a>
+      {% endwith %}
+      {% endif %}
+    </div>
+    <div class="w-16"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block modal %}
+{% include "admin/users/logout_complete.html" %}
+{% include "admin/gas/gas_utils.html" %}
+{% include "admin/gas/gas_success.html" %}
+{% include "admin/gas/gas_register.html" %}
+{% include "admin/gas/gas_detail.html" %}
+{% include "admin/gas/gas_inspect_register.html" %}
+{% include "admin/gas/gas_action_register.html" %}
+{% endblock %}
+
+{% block extra_script %}
+{{ block.super }}
+<script>
+  document.getElementById('gas-tbody')?.addEventListener('click', function(e) {
+    var row = e.target.closest('.sensor-row');
+    if (!row || e.target.tagName === 'INPUT') return;
+    window.openDetailModal(row.dataset);
+  });
+  function makeDropdown({ wrapId, toggleId, menuId, chevronId, optionClass, hiddenInputId, labelId }) {
+    var wrap = document.getElementById(wrapId);
+    var toggle = document.getElementById(toggleId);
+    var menu = document.getElementById(menuId);
+    var chevron = document.getElementById(chevronId);
+
+    function open() {
+      menu.classList.remove('hidden');
+      chevron?.classList.add('rotate-180');
+    }
+    function close() {
+      menu.classList.add('hidden');
+      chevron?.classList.remove('rotate-180');
+    }
+
+    toggle?.addEventListener('click', function (e) {
+      e.stopPropagation();
+      menu.classList.contains('hidden') ? open() : close();
+    });
+
+    menu?.querySelectorAll('.' + optionClass).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var val = btn.dataset.value;
+        var text = btn.textContent.trim();
+        if (hiddenInputId) document.getElementById(hiddenInputId).value = val;
+        var labelEl = document.getElementById(labelId);
+        if (labelEl) {
+          labelEl.textContent = text;
+          labelEl.classList.toggle('text-slate-500', !val);
+          labelEl.classList.toggle('text-slate-900', !!val);
+        }
+        menu.querySelectorAll('.' + optionClass).forEach(function (b) {
+          var isActive = b.dataset.value === val;
+          b.classList.toggle('bg-blue-50', isActive);
+          b.classList.toggle('text-blue-700', isActive);
+          b.classList.remove('pl-8');
+          if (isActive) {
+            if (!b.querySelector('i')) {
+              var icon = document.createElement('i');
+              icon.setAttribute('data-lucide', 'check');
+              icon.className = 'w-3.5 h-3.5 text-blue-600 inline-block mr-1.5';
+              b.prepend(icon);
+              lucide.createIcons();
+            }
+          } else {
+            b.querySelector('i')?.remove();
+            b.classList.add('pl-8');
+            b.classList.remove('text-blue-700');
+          }
+        });
+        close();
+      });
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!wrap?.contains(e.target)) close();
+    });
+  }
+
+  makeDropdown({ wrapId: 'sid-dropdown-wrap', toggleId: 'sid-toggle', menuId: 'sid-menu', chevronId: 'sid-chevron', optionClass: 'sid-option', hiddenInputId: 'hidden-sensor-id', labelId: 'sid-label' });
+  makeDropdown({ wrapId: 'st-dropdown-wrap', toggleId: 'st-toggle', menuId: 'st-menu', chevronId: 'st-chevron', optionClass: 'st-option', hiddenInputId: 'hidden-status', labelId: 'st-label' });
+  makeDropdown({ wrapId: 'cn-dropdown-wrap', toggleId: 'cn-toggle', menuId: 'cn-menu', chevronId: 'cn-chevron', optionClass: 'cn-option', hiddenInputId: 'hidden-connection', labelId: 'cn-label' });
+
+  (function restoreFilterLabels() {
+    var params = new URLSearchParams(window.location.search);
+    var sidVal = params.get('sensor_id');
+    if (sidVal) { var b = document.querySelector('.sid-option[data-value="' + sidVal + '"]'); if (b) b.click(); }
+    var stVal = params.get('status');
+    if (stVal) { var b = document.querySelector('.st-option[data-value="' + stVal + '"]'); if (b) b.click(); }
+    var cnVal = params.get('connection');
+    if (cnVal) { var b = document.querySelector('.cn-option[data-value="' + cnVal + '"]'); if (b) b.click(); }
+  })();
+
+  (function initSortDropdown() {
+    var wrap = document.getElementById('sort-dropdown-wrap');
+    var toggle = document.getElementById('sort-toggle');
+    var menu = document.getElementById('sort-menu');
+
+    toggle?.addEventListener('click', function (e) {
+      e.stopPropagation();
+      menu.classList.toggle('hidden');
+    });
+
+    document.querySelectorAll('.sort-option').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.getElementById('sort-label').textContent = btn.textContent.trim();
+        document.querySelectorAll('.sort-option').forEach(function (b) {
+          b.classList.remove('bg-blue-50', 'text-blue-700');
+          b.classList.add('text-slate-700', 'hover:bg-slate-50');
+          b.querySelector('i')?.remove();
+        });
+        btn.classList.add('bg-blue-50', 'text-blue-700');
+        btn.classList.remove('text-slate-700', 'hover:bg-slate-50');
+        menu.classList.add('hidden');
+        var params = new URLSearchParams(window.location.search);
+        params.set('sort', btn.dataset.value);
+        window.location.href = window.location.pathname + '?' + params.toString();
+      });
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!wrap?.contains(e.target)) menu?.classList.add('hidden');
+    });
+  })();
+
+  var checkAll = document.getElementById('check-all');
+  var deleteBtn = document.getElementById('gas-delete-btn');
+
+  function updateDeleteBtn() {
+    var anyChecked = [...document.querySelectorAll('.row-check')].some(function (cb) { return cb.checked; });
+    deleteBtn.disabled = !anyChecked;
+    if (anyChecked) {
+      deleteBtn.classList.replace('bg-slate-100', 'bg-red-50');
+      deleteBtn.classList.replace('text-slate-400', 'text-red-600');
+      deleteBtn.classList.remove('cursor-not-allowed');
+      deleteBtn.classList.add('hover:bg-red-100', 'cursor-pointer');
+    } else {
+      deleteBtn.classList.replace('bg-red-50', 'bg-slate-100');
+      deleteBtn.classList.replace('text-red-600', 'text-slate-400');
+      deleteBtn.classList.remove('hover:bg-red-100', 'cursor-pointer');
+      deleteBtn.classList.add('cursor-not-allowed');
+    }
+  }
+
+  checkAll?.addEventListener('change', function (e) {
+    document.querySelectorAll('.row-check').forEach(function (cb) { cb.checked = e.target.checked; });
+    updateDeleteBtn();
+  });
+  document.addEventListener('change', function (e) {
+    if (e.target.classList.contains('row-check')) updateDeleteBtn();
+  });
+
+  document.getElementById('filter-reset-btn')?.addEventListener('click', function () {
+    window.location.href = window.location.pathname;
+  });
+
+  updateDeleteBtn();
+</script>
+{% endblock %}

@@ -1,0 +1,195 @@
+<div id="facility-edit-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-lg">
+    <div class="px-8 py-7">
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-slate-900 mb-1">설비 정보 수정</h3>
+        <p class="text-xs text-slate-500">등록된 설비 정보를 수정하는 팝업입니다.</p>
+      </div>
+
+      <form id="facility-edit-form" novalidate>
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">설비 코드</label>
+              <input type="text" id="edit-equipment-code" name="equipment_code" disabled
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-500 font-mono cursor-not-allowed" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                설비명 <span class="text-red-500">*</span>
+              </label>
+              <input type="text" id="edit-equipment-name" name="equipment_name" required
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="edit-name-error">설비명을 입력해주세요.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                연결 전력 시스템 <span class="text-red-500">*</span>
+              </label>
+              <div class="relative" id="edit-ps-wrap">
+                <button type="button" id="edit-ps-toggle"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                  <span id="edit-ps-label" class="text-slate-400">선택</span>
+                  <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="edit-ps-chevron"></i>
+                </button>
+                <div id="edit-ps-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-50 overflow-y-auto" style="max-height:180px;">
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-01">PWR-SYS-01</button>
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-02">PWR-SYS-02</button>
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-03">PWR-SYS-03</button>
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-04">PWR-SYS-04</button>
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-05">PWR-SYS-05</button>
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-06">PWR-SYS-06</button>
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-07">PWR-SYS-07</button>
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-08">PWR-SYS-08</button>
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-09">PWR-SYS-09</button>
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-10">PWR-SYS-10</button>
+                </div>
+                <input type="hidden" id="edit-ps-value" name="power_system" />
+              </div>
+              <p class="hidden mt-1 text-[11px] text-red-500" id="edit-ps-error">전력 시스템을 선택해주세요.</p>
+              <p class="mt-1 text-[11px] text-slate-400">다른 설비에 연결된 전력 시스템은 선택할 수 없습니다.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                사용 여부 <span class="text-red-500">*</span>
+              </label>
+              <div class="flex items-center gap-5 pt-2.5">
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                  <input type="checkbox" id="edit-status-active"
+                    class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />사용
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                  <input type="checkbox" id="edit-status-inactive"
+                    class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />미사용
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">비고</label>
+            <textarea id="edit-note" name="note" rows="4" placeholder="비고 입력"
+              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 resize-none"></textarea>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 mt-6">
+          <button type="button" id="facility-edit-cancel"
+            class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
+          <button type="submit"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  var editModal = document.getElementById('facility-edit-modal');
+
+  function openEditModal(data) {
+    document.getElementById('edit-equipment-code').value = data.code;
+    document.getElementById('edit-equipment-name').value = data.name;
+    document.getElementById('edit-note').value = data.note || '';
+    document.getElementById('edit-status-active').checked   = (data.status === 'active');
+    document.getElementById('edit-status-inactive').checked = (data.status !== 'active');
+
+    var editPsLabel = document.getElementById('edit-ps-label');
+    var editPsValue = document.getElementById('edit-ps-value');
+    if (data.system) {
+      editPsLabel.textContent = data.system;
+      editPsLabel.classList.remove('text-slate-400');
+      editPsLabel.classList.add('text-slate-900');
+      editPsValue.value = data.system;
+      document.querySelectorAll('.edit-ps-option').forEach(function(b) {
+        b.classList.toggle('bg-blue-50', b.dataset.value === data.system);
+        b.classList.toggle('text-blue-700', b.dataset.value === data.system);
+      });
+    } else {
+      editPsLabel.textContent = '선택';
+      editPsLabel.classList.add('text-slate-400');
+      editPsValue.value = '';
+    }
+    document.getElementById('edit-name-error').classList.add('hidden');
+    document.getElementById('edit-ps-error').classList.add('hidden');
+    editModal.classList.remove('hidden');
+    editModal.classList.add('flex');
+  }
+
+  function closeEditModal() {
+    editModal.classList.add('hidden');
+    editModal.classList.remove('flex');
+  }
+
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.edit-btn');
+    if (btn) openEditModal(btn.dataset);
+  });
+
+  document.getElementById('facility-edit-cancel')?.addEventListener('click', closeEditModal);
+
+  var editPsToggle  = document.getElementById('edit-ps-toggle');
+  var editPsMenu    = document.getElementById('edit-ps-menu');
+  var editPsChevron = document.getElementById('edit-ps-chevron');
+
+  editPsToggle?.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var hidden = editPsMenu.classList.contains('hidden');
+    editPsMenu.classList.toggle('hidden', !hidden);
+    editPsChevron?.classList.toggle('rotate-180', hidden);
+  });
+
+  document.querySelectorAll('.edit-ps-option').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var val = btn.dataset.value;
+      document.getElementById('edit-ps-value').value = val;
+      var label = document.getElementById('edit-ps-label');
+      label.textContent = val;
+      label.classList.remove('text-slate-400');
+      label.classList.add('text-slate-900');
+      editPsMenu.classList.add('hidden');
+      editPsChevron?.classList.remove('rotate-180');
+      document.getElementById('edit-ps-error').classList.add('hidden');
+      document.querySelectorAll('.edit-ps-option').forEach(function(b) {
+        b.classList.toggle('bg-blue-50', b === btn);
+        b.classList.toggle('text-blue-700', b === btn);
+      });
+    });
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('edit-ps-wrap')?.contains(e.target)) {
+      editPsMenu?.classList.add('hidden');
+      editPsChevron?.classList.remove('rotate-180');
+    }
+  });
+
+  var editCbActive   = document.getElementById('edit-status-active');
+  var editCbInactive = document.getElementById('edit-status-inactive');
+  editCbActive?.addEventListener('change', function() { if (editCbActive.checked) editCbInactive.checked = false; });
+  editCbInactive?.addEventListener('change', function() { if (editCbInactive.checked) editCbActive.checked = false; });
+
+  document.getElementById('facility-edit-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var valid = true;
+    if (!document.getElementById('edit-equipment-name').value.trim()) {
+      document.getElementById('edit-name-error').classList.remove('hidden');
+      valid = false;
+    } else {
+      document.getElementById('edit-name-error').classList.add('hidden');
+    }
+    if (!document.getElementById('edit-ps-value').value) {
+      document.getElementById('edit-ps-error').classList.remove('hidden');
+      valid = false;
+    } else {
+      document.getElementById('edit-ps-error').classList.add('hidden');
+    }
+    if (!valid) return;
+    closeEditModal();
+  });
+})();
+</script>

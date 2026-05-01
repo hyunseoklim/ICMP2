@@ -1,0 +1,28 @@
+<script>
+window.PWR = window.PWR || {};
+
+PWR.MANAGER_NAMES = { m1: '박관리', m2: '김현장', m3: '김반장' };
+
+PWR.todayStr = function() {
+  var d = new Date();
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '.' + pad(d.getMonth() + 1) + '.' + pad(d.getDate());
+};
+
+PWR.resolveManager = function(id) {
+  return PWR.MANAGER_NAMES[id] || id || '';
+};
+
+PWR.showSuccess = function(msg, sub) {
+  var sm = document.getElementById('pwr-success-modal');
+  if (!sm) return;
+  document.getElementById('pwr-success-msg').textContent = msg || '등록되었습니다.';
+  document.getElementById('pwr-success-sub').textContent = sub || '장비가 목록에 추가되었습니다.';
+  sm.classList.remove('hidden');
+  sm.classList.add('flex');
+  lucide.createIcons();
+};
+
+PWR.openModal = function(el) { el.classList.remove('hidden'); el.classList.add('flex'); };
+PWR.closeModal = function(el) { el.classList.add('hidden'); el.classList.remove('flex'); };
+</script>

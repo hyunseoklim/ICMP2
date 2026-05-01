@@ -1,0 +1,500 @@
+<!-- Detail Save Confirm Modal -->
+<div id="pwr-detail-confirm-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm px-8 py-8 text-center">
+    <p class="text-base font-semibold text-slate-900 mb-1">수정하시겠습니까?</p>
+    <p class="text-xs text-slate-500 mb-6">수정한 스마트 전력 시스템 정보를 저장하시겠습니까?</p>
+    <div class="flex gap-2">
+      <button type="button" id="pwr-detail-confirm-cancel"
+        class="flex-1 px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
+      <button type="button" id="pwr-detail-confirm-ok"
+        class="flex-1 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div id="pwr-detail-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="px-8 py-7">
+
+      <div class="mb-5">
+        <h3 class="text-xl font-bold text-slate-900 mb-1" id="pwr-detail-title">스마트 전력 시스템 PWR-001</h3>
+        <p class="text-xs text-slate-500" id="pwr-detail-subtitle">스마트 전력 시스템의 등록 정보를 확인하고 수정할 수 있습니다.</p>
+      </div>
+
+      <div class="flex gap-2 mb-6">
+        <button type="button" id="pwr-tab-basic-btn"
+          class="px-5 py-2 text-sm font-medium rounded-md transition-colors bg-blue-600 text-white">
+          기본 정보
+        </button>
+        <button type="button" id="pwr-tab-inspect-btn"
+          class="px-5 py-2 text-sm font-medium rounded-md transition-colors text-slate-600 hover:bg-slate-100">
+          점검 실행 및 이력
+        </button>
+      </div>
+
+      <!-- 기본 정보 탭 -->
+      <div id="pwr-tab-basic">
+        <form id="pwr-detail-form" novalidate>
+          <div class="space-y-4">
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 유형 <span class="text-red-500">*</span></label>
+                <input type="text" disabled value="스마트 전력 시스템"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-type-error">장비 구분을 선택해주세요.</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비코드 <span class="text-red-500">*</span></label>
+                <input type="text" id="pwr-detail-device-code" disabled
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 font-mono cursor-not-allowed" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명</label>
+                <input type="text" id="pwr-detail-device-name"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pwr-detail-field" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 ID(MAC) <span class="text-red-500">*</span></label>
+                <input type="text" id="pwr-detail-mac" placeholder="AA:BB:CC:DD:EE:FF"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 pwr-detail-field" />
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-mac-error">장비 ID(MAC)를 입력해주세요.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">관리 부서 <span class="text-red-500">*</span></label>
+                <select id="pwr-detail-dept"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 pwr-detail-field">
+                  <option value="">부서 선택</option>
+                  <option value="equip">설비관리팀</option>
+                  <option value="prod1">생산1팀</option>
+                  <option value="prod2">생산2팀</option>
+                </select>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-dept-error">관리 부서를 선택해주세요.</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">담당자 <span class="text-red-500">*</span></label>
+                <select id="pwr-detail-manager"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 pwr-detail-field">
+                  <option value="">담당자 선택</option>
+                  <option value="m1">박관리</option>
+                  <option value="m2">김현장</option>
+                  <option value="m3">김반장</option>
+                </select>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-manager-error">담당자를 선택해주세요.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 설비 <span class="text-red-500">*</span></label>
+                <select id="pwr-detail-facility"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 pwr-detail-field">
+                  <option value="">연결 설비 선택</option>
+                  <option value="fac1">냉각 설비 1호</option>
+                  <option value="fac2">컴프레서 B-02</option>
+                  <option value="fac3">혼합 설비 1호</option>
+                  <option value="fac4">컨베이어 D-01</option>
+                  <option value="fac5">혼합 설비 E-01</option>
+                </select>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-facility-error">연결 설비를 선택해주세요.</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
+                <div class="flex items-center gap-5 pt-2">
+                  <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                    <input type="checkbox" id="pwr-detail-status-active"
+                      class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 pwr-detail-field" />사용
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                    <input type="checkbox" id="pwr-detail-status-inactive"
+                      class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 pwr-detail-field" />미사용
+                  </label>
+                </div>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-status-error">사용 여부를 선택해 주세요.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">서버 주소(IP) / PORT <span class="text-red-500">*</span></label>
+                <input type="text" id="pwr-detail-ip" placeholder="서버 주소 입력"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 mb-2 pwr-detail-field" />
+                <input type="text" id="pwr-detail-port" placeholder="PORT 입력"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 pwr-detail-field" />
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-comm-error"></p>
+                <button type="button" id="pwr-detail-conn-check"
+                  class="mt-2 px-4 py-2 text-xs font-medium border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition-colors">
+                  연결 확인
+                </button>
+              </div>
+              <div class="flex flex-col gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 확인 상태 / 마지막 확인일시</label>
+                  <div class="flex items-center gap-2 mt-1">
+                    <input type="checkbox" id="pwr-detail-conn-verified" disabled
+                      class="w-4 h-4 rounded border-slate-300 flex-shrink-0" />
+                    <label class="text-xs text-slate-500 flex-shrink-0" id="pwr-detail-conn-label">미확인</label>
+                    <input type="text" id="pwr-detail-conn-date" disabled
+                      class="flex-1 px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1.5">비고</label>
+                  <textarea id="pwr-detail-note" rows="3" placeholder="운영 메모를 입력하세요"
+                    class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 resize-none pwr-detail-field"></textarea>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="flex items-center justify-end gap-2 mt-6">
+            <button type="button" id="pwr-detail-cancel"
+              class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+              취소
+            </button>
+            <button type="submit" id="pwr-detail-save-btn" disabled
+              class="px-5 py-2 rounded-md text-sm font-medium transition-colors bg-slate-200 text-slate-400 cursor-not-allowed">
+              수정
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 점검 실행 및 이력 탭 -->
+      <div id="pwr-tab-inspect" class="hidden">
+
+        <!-- 장비 요약 -->
+        <div class="mb-4">
+          <h4 class="text-xs font-semibold text-slate-700 mb-2">장비 요약</h4>
+          <div class="flex items-center justify-between px-4 py-4 bg-blue-50 border border-blue-100 rounded-lg">
+            <div>
+              <p class="text-[11px] text-slate-500 mb-1">장비 코드</p>
+              <p class="text-sm font-semibold text-slate-800" id="pwr-inspect-device-main"></p>
+              <p class="text-xs text-slate-500 mt-1" id="pwr-inspect-facility-manager"></p>
+            </div>
+            <button type="button" id="pwr-inspect-register-btn"
+              class="flex-shrink-0 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors">
+              점검 등록
+            </button>
+          </div>
+        </div>
+
+        <!-- 최근 점검 상태 -->
+        <div class="mb-4">
+          <h4 class="text-xs font-semibold text-slate-700 mb-2">최근 점검 상태</h4>
+          <div class="grid grid-cols-4 gap-3">
+            <div class="px-4 py-3 border border-slate-200 rounded-lg">
+              <p class="text-[11px] text-slate-400 mb-1">점검 여부</p>
+              <p class="text-sm font-semibold text-red-600">점검 필요</p>
+            </div>
+            <div class="px-4 py-3 border border-slate-200 rounded-lg">
+              <p class="text-[11px] text-slate-400 mb-1">최근 점검일</p>
+              <p class="text-sm font-semibold text-slate-700">2026-04-11</p>
+            </div>
+            <div class="px-4 py-3 border border-slate-200 rounded-lg">
+              <p class="text-[11px] text-slate-400 mb-1">다음 점검 예정일</p>
+              <p class="text-sm font-semibold text-slate-700">2026-04-28</p>
+            </div>
+            <div class="px-4 py-3 border border-slate-200 rounded-lg">
+              <p class="text-[11px] text-slate-400 mb-1">조치 상태</p>
+              <p class="text-sm font-semibold text-red-600">조치 필요</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 점검 이력 -->
+        <div>
+          <h4 class="text-xs font-semibold text-slate-700 mb-2">점검 이력</h4>
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-100">
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">점검 구분</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">조치 상태</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">점검일</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">점검자</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">조치 담당자</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500">점검/조치 내용</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[11px] font-medium">이상</span></td>
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[11px] font-medium">조치 필요</span></td>
+                  <td class="px-3 py-2.5 text-slate-600">2026-04-11</td>
+                  <td class="px-3 py-2.5 text-slate-600">박관리</td>
+                  <td class="px-3 py-2.5">
+                    <button type="button"
+                      class="pwr-action-trigger text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                      data-inspect-type="abnormal"
+                      data-inspect-date="2026.04.11"
+                      data-inspect-person="박관리"
+                      data-inspect-note="전송 실패 확인 및 재연결 필요">
+                      조치 등록
+                    </button>
+                  </td>
+                  <td class="px-3 py-2.5 text-slate-600">전송 실패 확인 및 재연결 필요</td>
+                </tr>
+                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">정기</span></td>
+                  <td class="px-3 py-2.5 text-slate-400">—</td>
+                  <td class="px-3 py-2.5 text-slate-600">2026-03-14</td>
+                  <td class="px-3 py-2.5 text-slate-600">박관리</td>
+                  <td class="px-3 py-2.5 text-slate-600">김현장</td>
+                  <td class="px-3 py-2.5 text-slate-600">전원 듀스·수신 상태 정상</td>
+                </tr>
+                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">정기</span></td>
+                  <td class="px-3 py-2.5 text-slate-400">—</td>
+                  <td class="px-3 py-2.5 text-slate-600">2026-02-28</td>
+                  <td class="px-3 py-2.5 text-slate-600">김현장</td>
+                  <td class="px-3 py-2.5 text-slate-400">—</td>
+                  <td class="px-3 py-2.5 text-slate-600">설비 연동 및 전송 상태 정상</td>
+                </tr>
+                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[11px] font-medium">이상</span></td>
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[11px] font-medium">조치 완료</span></td>
+                  <td class="px-3 py-2.5 text-slate-600">2026-02-14</td>
+                  <td class="px-3 py-2.5 text-slate-600">박관리</td>
+                  <td class="px-3 py-2.5 text-slate-600">김현장</td>
+                  <td class="px-3 py-2.5 text-slate-600">응급 조치 후 전송 정상화</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+          <button type="button" id="pwr-inspect-tab-confirm"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+            확인
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  var detailModal  = document.getElementById('pwr-detail-modal');
+  var confirmModal = document.getElementById('pwr-detail-confirm-modal');
+  var saveBtn      = document.getElementById('pwr-detail-save-btn');
+  var commChecked  = true;
+  var ipAtOpen     = '';
+  var portAtOpen   = '';
+  var isDirty      = false;
+
+  var TAB_SUBTITLES = {
+    basic:   '스마트 전력 시스템의 등록 정보를 확인하고 수정할 수 있습니다.',
+    inspect: '스마트 전력 시스템 점검 상태를 확인하고 이력을 조회하거나 점검을 등록할 수 있습니다.'
+  };
+
+  function activateTab(name) {
+    var isBasic = (name === 'basic');
+    document.getElementById('pwr-tab-basic-btn').className   = 'px-5 py-2 text-sm font-medium rounded-md transition-colors ' + (isBasic  ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100');
+    document.getElementById('pwr-tab-inspect-btn').className = 'px-5 py-2 text-sm font-medium rounded-md transition-colors ' + (!isBasic ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100');
+    document.getElementById('pwr-tab-basic').classList.toggle('hidden', !isBasic);
+    document.getElementById('pwr-tab-inspect').classList.toggle('hidden', isBasic);
+    document.getElementById('pwr-detail-subtitle').textContent = TAB_SUBTITLES[name];
+  }
+  document.getElementById('pwr-tab-basic-btn')?.addEventListener('click',   function() { activateTab('basic'); });
+  document.getElementById('pwr-tab-inspect-btn')?.addEventListener('click', function() { activateTab('inspect'); });
+
+  function setDirty() {
+    if (isDirty) return;
+    isDirty = true;
+    saveBtn.disabled = false;
+    saveBtn.className = 'px-5 py-2 rounded-md text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white cursor-pointer';
+  }
+  function resetDirty() {
+    isDirty = false;
+    saveBtn.disabled = true;
+    saveBtn.className = 'px-5 py-2 rounded-md text-sm font-medium transition-colors bg-slate-200 text-slate-400 cursor-not-allowed';
+  }
+
+  document.getElementById('pwr-detail-form')?.addEventListener('input',  setDirty);
+  document.getElementById('pwr-detail-form')?.addEventListener('change', setDirty);
+
+  window.openPwrDetailModal = function(data) {
+    var managerName = PWR.resolveManager(data.manager);
+
+    document.getElementById('pwr-detail-title').textContent        = '스마트 전력 시스템 ' + (data.deviceId || '');
+    document.getElementById('pwr-detail-device-code').value        = data.deviceId   || '';
+    document.getElementById('pwr-detail-device-name').value        = data.deviceName || '';
+    document.getElementById('pwr-detail-mac').value                = data.mac        || '';
+    document.getElementById('pwr-detail-dept').value               = data.dept       || '';
+    document.getElementById('pwr-detail-manager').value            = data.manager    || '';
+    document.getElementById('pwr-detail-facility').value           = data.facility   || '';
+    document.getElementById('pwr-detail-ip').value                 = data.ip         || '';
+    document.getElementById('pwr-detail-port').value               = data.port       || '';
+    document.getElementById('pwr-detail-status-active').checked    = (data.status !== 'inactive');
+    document.getElementById('pwr-detail-status-inactive').checked  = (data.status === 'inactive');
+    document.getElementById('pwr-detail-conn-verified').checked    = (data.connVerified === 'true');
+    document.getElementById('pwr-detail-conn-label').textContent   = (data.connVerified === 'true') ? '정상' : '미확인';
+    document.getElementById('pwr-detail-conn-date').value          = data.connDate   || '';
+    document.getElementById('pwr-detail-note').value               = data.note       || '';
+
+    var deviceMain = (data.deviceId || '') + ' · 스마트 전력 시스템';
+    if (data.deviceName && data.deviceName !== data.deviceId) {
+      deviceMain += ' · ' + data.deviceName;
+    }
+    document.getElementById('pwr-inspect-device-main').textContent    = deviceMain;
+    document.getElementById('pwr-inspect-facility-manager').textContent =
+      '연결 설비: ' + (data.facilityName || '—') + ' / 담당자: ' + managerName;
+
+    window.currentPwrData = data;
+    ipAtOpen    = data.ip   || '';
+    portAtOpen  = data.port || '';
+    commChecked = true;
+
+    clearAllErrors();
+    resetDirty();
+    activateTab('basic');
+    detailModal.classList.remove('hidden');
+    detailModal.classList.add('flex');
+    lucide.createIcons();
+  };
+
+  function closeDetailModal() {
+    detailModal.classList.add('hidden');
+    detailModal.classList.remove('flex');
+  }
+
+  function clearAllErrors() {
+    ['pwr-detail-mac-error','pwr-detail-dept-error','pwr-detail-manager-error','pwr-detail-facility-error','pwr-detail-comm-error','pwr-detail-status-error'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+    ['pwr-detail-ip','pwr-detail-port','pwr-detail-mac'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.classList.remove('border-red-400'); el.classList.add('border-slate-200'); }
+    });
+  }
+  function showError(errId, msg, fieldId) {
+    var e = document.getElementById(errId);
+    if (e) { e.textContent = msg; e.classList.remove('hidden'); }
+    if (fieldId) { var f = document.getElementById(fieldId); if (f) { f.classList.add('border-red-400'); f.classList.remove('border-slate-200'); } }
+  }
+  function hideError(errId, fieldId) {
+    var e = document.getElementById(errId);
+    if (e) e.classList.add('hidden');
+    if (fieldId) { var f = document.getElementById(fieldId); if (f) { f.classList.remove('border-red-400'); f.classList.add('border-slate-200'); } }
+  }
+
+  function validate() {
+    clearAllErrors();
+    var valid = true;
+    if (!document.getElementById('pwr-detail-mac').value.trim()) {
+      showError('pwr-detail-mac-error', '장비 ID(MAC)를 입력해주세요.', 'pwr-detail-mac'); valid = false;
+    }
+    if (!document.getElementById('pwr-detail-dept').value) {
+      showError('pwr-detail-dept-error', '관리 부서를 선택해주세요.'); valid = false;
+    }
+    if (!document.getElementById('pwr-detail-manager').value) {
+      showError('pwr-detail-manager-error', '담당자를 선택해주세요.'); valid = false;
+    }
+    if (!document.getElementById('pwr-detail-facility').value) {
+      showError('pwr-detail-facility-error', '연결 설비를 선택해주세요.'); valid = false;
+    }
+    if (!document.getElementById('pwr-detail-ip').value.trim()) {
+      showError('pwr-detail-comm-error', '서버 주소(IP)를 입력해주세요.', 'pwr-detail-ip'); valid = false;
+    }
+    if (!document.getElementById('pwr-detail-port').value.trim()) {
+      showError('pwr-detail-comm-error', 'PORT를 입력해주세요.', 'pwr-detail-port'); valid = false;
+    }
+    var cbActive   = document.getElementById('pwr-detail-status-active');
+    var cbInactive = document.getElementById('pwr-detail-status-inactive');
+    if (!cbActive.checked && !cbInactive.checked) {
+      showError('pwr-detail-status-error', '사용 여부를 선택해 주세요.'); valid = false;
+    }
+    return valid;
+  }
+
+  document.getElementById('pwr-detail-cancel')?.addEventListener('click', closeDetailModal);
+  document.getElementById('pwr-inspect-tab-confirm')?.addEventListener('click', closeDetailModal);
+
+  document.getElementById('pwr-inspect-register-btn')?.addEventListener('click', function() {
+    if (typeof window.openPwrInspectRegister === 'function') window.openPwrInspectRegister();
+  });
+
+  document.querySelectorAll('.pwr-action-trigger').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (typeof window.openPwrActionRegister === 'function') {
+        window.openPwrActionRegister({
+          type:   btn.dataset.inspectType,
+          date:   btn.dataset.inspectDate,
+          person: btn.dataset.inspectPerson,
+          note:   btn.dataset.inspectNote
+        });
+      }
+    });
+  });
+
+  var cbActive   = document.getElementById('pwr-detail-status-active');
+  var cbInactive = document.getElementById('pwr-detail-status-inactive');
+  cbActive?.addEventListener('change',   function() { if (cbActive.checked)   cbInactive.checked = false; });
+  cbInactive?.addEventListener('change', function() { if (cbInactive.checked) cbActive.checked   = false; });
+
+  document.getElementById('pwr-detail-conn-check')?.addEventListener('click', function() {
+    var ip   = document.getElementById('pwr-detail-ip').value.trim();
+    var port = document.getElementById('pwr-detail-port').value.trim();
+    if (!ip) { showError('pwr-detail-comm-error', '서버 주소(IP)를 입력해주세요.', 'pwr-detail-ip'); return; }
+    var ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(ip) || ip.split('.').some(function(n) { return parseInt(n) > 255; })) {
+      showError('pwr-detail-comm-error', 'IP 주소 형식이 올바르지 않습니다.', 'pwr-detail-ip'); return;
+    }
+    hideError('pwr-detail-comm-error', 'pwr-detail-ip');
+    if (!port) { showError('pwr-detail-comm-error', 'PORT를 입력해주세요.', 'pwr-detail-port'); return; }
+    if (!/^\d+$/.test(port)) { showError('pwr-detail-comm-error', 'PORT 형식이 올바르지 않습니다.', 'pwr-detail-port'); return; }
+    var pn = parseInt(port);
+    if (pn < 1 || pn > 65535) { showError('pwr-detail-comm-error', 'PORT는 1~65535 범위로 입력해 주세요.', 'pwr-detail-port'); return; }
+    hideError('pwr-detail-comm-error', 'pwr-detail-port');
+    commChecked = true;
+    document.getElementById('pwr-detail-conn-verified').checked = true;
+    document.getElementById('pwr-detail-conn-label').textContent = '정상';
+    var now = new Date();
+    var pad = function(n) { return String(n).padStart(2,'0'); };
+    document.getElementById('pwr-detail-conn-date').value =
+      now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) + ' ' +
+      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    setDirty();
+  });
+
+  ['pwr-detail-ip','pwr-detail-port'].forEach(function(id) {
+    document.getElementById(id)?.addEventListener('input', function() {
+      var curIp   = document.getElementById('pwr-detail-ip').value.trim();
+      var curPort = document.getElementById('pwr-detail-port').value.trim();
+      commChecked = (curIp === ipAtOpen && curPort === portAtOpen);
+    });
+  });
+
+  document.getElementById('pwr-detail-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!validate()) return;
+    confirmModal.classList.remove('hidden');
+    confirmModal.classList.add('flex');
+  });
+
+  document.getElementById('pwr-detail-confirm-cancel')?.addEventListener('click', function() {
+    confirmModal.classList.add('hidden');
+    confirmModal.classList.remove('flex');
+  });
+
+  document.getElementById('pwr-detail-confirm-ok')?.addEventListener('click', function() {
+    confirmModal.classList.add('hidden');
+    confirmModal.classList.remove('flex');
+    closeDetailModal();
+    PWR.showSuccess('수정되었습니다.', '장비 정보가 수정되었습니다.');
+  });
+})();
+</script>
