@@ -161,18 +161,16 @@
 
 {% block script %}
 <script>
-
 (function() {
-
     'use strict';
 
     // ── 상태 ────────────────────────────────────────────
     let selectedWorkerId = null;
     let activeFilter = null;
-    let pushTargetIds = [];  // 알림 대상 ID 목록
-    let pushMode = 'single'; // 'single' | 'selected' | 'all'
+    let pushTargetIds = [];
+    let pushMode = 'single';
 
-    // ── DOM refs ─────────────────────────────────────────
+    // ── DOM refs ────────────────────────────────────────
     const tbody         = document.getElementById('worker-tbody');
     const chkAll        = document.getElementById('chk-all');
     const btnSelected   = document.getElementById('btn-selected-push');
@@ -184,13 +182,12 @@
     const msgCount      = document.getElementById('msg-count');
     const modalCancel   = document.getElementById('modal-cancel');
     const modalSend     = document.getElementById('modal-send');
-    const API_URL = '/facilities/api/workers/';   // 기존 WorkerViewSet 엔드포인트
-    const REFRESH_MS = 30000;
 
     // ── 필터 배지 ────────────────────────────────────────
     document.querySelectorAll('.filter-badge').forEach(function(badge) {
         badge.addEventListener('click', function() {
             const f = this.dataset.filter;
+
             if (activeFilter === f) {
                 activeFilter = null;
                 this.classList.remove('active');
@@ -199,6 +196,7 @@
                 activeFilter = f;
                 this.classList.add('active');
             }
+
             applyFilter();
         });
     });
@@ -210,49 +208,126 @@
         });
     }
 
-    // ── 행 선택 (단일 클릭 → 우측 패널) ────────────────
-    tbody.addEventListener('click', function(e) {
-        const row = e.target.closest('.worker-row');
-        if (!row) return;
+    // ── 작업자 행 선택 ───────────────────────────────────
+    if (tbody) {
+        tbody.addEventListener('click', function(e) {
+            const row = e.target.closest('.worker-row');
+            if (!row) return;
 
-        // 체크박스 클릭은 행 선택 이벤트 별도 처리
-        if (e.target.classList.contains('wl-checkbox')) return;
+            if (e.target.classList.contains('wl-checkbox')) return;
 
-        document.querySelectorAll('.worker-row.selected').forEach(r => r.classList.remove('selected'));
-        row.classList.add('selected');
-        selectedWorkerId = row.dataset.workerId;
-        updateDetailPanel(row);
-    });
+            document.querySelectorAll('.worker-row.selected').forEach(r => {
+                r.classList.remove('selected');
+            });
+
+            row.classList.add('selected');
+            selectedWorkerId = row.dataset.workerId;
+
+            updateDetailPanel(row);
+        });
+    }
 
     // ── 체크박스 ─────────────────────────────────────────
-    chkAll.addEventListener('change', function() {
-        document.querySelectorAll('.row-chk').forEach(function(chk) {
-            const row = chk.closest('tr');
-            if (row.style.display !== 'none') chk.checked = chkAll.checked;
-        });
-        updateSelectedBtn();
-    });
+    if (chkAll) {
+        chkAll.addEventListener('change', function() {
+            document.querySelectorAll('.row-chk').forEach(function(chk) {
+                const row = chk.closest('tr');
+                if (row && row.style.display !== 'none') {
+                    chk.checked = chkAll.checked;
+                }
+            });
 
-    tbody.addEventListener('change', function(e) {
-        if (!e.target.classList.contains('row-chk')) return;
-        updateSelectedBtn();
-        // 전체 체크 동기화
-        const all = document.querySelectorAll('.row-chk:not([style*="none"])');
-        const checked = document.querySelectorAll('.row-chk:checked');
-        chkAll.indeterminate = checked.length > 0 && checked.length < all.length;
-        chkAll.checked = checked.length === all.length;
-    });
+            updateSelectedBtn();
+        });
+    }
+
+    if (tbody) {
+        tbody.addEventListener('change', function(e) {
+            if (!e.target.classList.contains('row-chk')) return;
+
+            updateSelectedBtn();
+
+            const visibleChecks = Array.from(document.querySelectorAll('.row-chk')).filter(chk => {
+                const row = chk.closest('tr');
+                return row && row.style.display !== 'none';
+            });
+
+            const checked = visibleChecks.filter(chk => chk.checked);
+
+            if (chkAll) {
+                chkAll.indeterminate = checked.length > 0 && checked.length < visibleChecks.length;
+                chkAll.checked = visibleChecks.length > 0 && checked.length === visibleChecks.length;
+            }
+        });
+    }
 
     function updateSelectedBtn() {
         const checked = document.querySelectorAll('.row-chk:checked');
-        btnSelected.disabled = checked.length === 0;
+        if (btnSelected) {
+            btnSelected.disabled = checked.length === 0;
+        }
     }
 
-    // ── 우측 패널 업데이트 ───────────────────────────────
+    // ── 지도 포커스 ──────────────────────────────────────
+    function focusWorkerOnMap(workerId) {
+        if (!window.workerMarkers) return false;
+
+        const state = window.workerMarkers[workerId];
+        if (!state) return false;
+
+        const marker = state.marker || state;
+        if (!marker || typeof marker.getLatLng !== 'function') return false;
+
+        const latlng = marker.getLatLng();
+
+        if (window.map && typeof map.setView === 'function') {
+            map.setView(latlng, map.getZoom(), { animate: true });
+        }
+
+        if (typeof marker.openPopup === 'function') {
+            marker.openPopup();
+        }
+
+        return true;
+    }
+
+    function focusWorkerOnMapRetry(workerId, retry = 10) {
+        const ok = focusWorkerOnMap(workerId);
+        if (ok) return;
+
+        if (retry <= 0) {
+            console.warn('[worker-map] 작업자 마커를 찾지 못했습니다:', workerId);
+            return;
+        }
+
+        setTimeout(function() {
+            focusWorkerOnMapRetry(workerId, retry - 1);
+        }, 300);
+    }
+
+    // ── 우측 상세 패널 업데이트 ──────────────────────────
     function updateDetailPanel(row) {
-        document.getElementById('wl-right').classList.add('visible');
-        document.getElementById('wl-left').classList.add('shrink');  // ← 추가
-        
+        const right = document.getElementById('wl-right');
+        const left  = document.getElementById('wl-left');
+
+        if (right) right.classList.add('visible');
+        if (left) left.classList.add('shrink');
+
+        if (!window.__workerMapLoaded) {
+            if (typeof loadFloorData === 'function') {
+                loadFloorData(1);
+                window.__workerMapLoaded = true;
+            }
+        }
+
+        const workerId = row.dataset.workerId;
+        window.selectedWorkerIdForMap = workerId;
+
+        setTimeout(function() {
+        focusWorkerOnMapRetry(workerId);
+        }, 500);
+        focusWorkerOnMapRetry(workerId);
+
         const name  = row.dataset.name  || '—';
         const no    = row.dataset.no    || '—';
         const dept  = row.dataset.dept  || '—';
@@ -260,29 +335,30 @@
         const email = row.dataset.email || '—';
         const role  = row.dataset.role  || '—';
 
-        // 지도 타이틀
-        document.getElementById('map-title').textContent = '작업자 위치 모니터링 - ' + name;
-        document.getElementById('profile-title').textContent = '작업자 프로필 - ' + name;
-        document.getElementById('risk-title').textContent = '작업자 위험 현황 - ' + name;
+        const mapTitle     = document.getElementById('map-title');
+        const profileTitle = document.getElementById('profile-title');
+        const riskTitle    = document.getElementById('risk-title');
+        const profileBody  = document.getElementById('profile-body');
+        const placeholder  = document.getElementById('map-placeholder');
 
-        // 프로필
-        document.getElementById('profile-body').innerHTML = `
-            <div class="profile-row"><span class="profile-label">이름</span><span class="profile-value">${name}</span></div>
-            <div class="profile-row"><span class="profile-label">ID</span><span class="profile-value mono">${no}</span></div>
-            <div class="profile-row"><span class="profile-label">소속</span><span class="profile-value">${dept}</span></div>
-            <div class="profile-row"><span class="profile-label">직급</span><span class="profile-value">${role}</span></div>
-            <div class="profile-row"><span class="profile-label">이메일</span><span class="profile-value">${email}</span></div>
-            <div class="profile-row"><span class="profile-label">연락처</span><span class="profile-value mono">${phone}</span></div>
-        `;
+        if (mapTitle) mapTitle.textContent = '작업자 위치 모니터링 - ' + name;
+        if (profileTitle) profileTitle.textContent = '작업자 프로필 - ' + name;
+        if (riskTitle) riskTitle.textContent = '작업자 위험 현황 - ' + name;
 
-        // 지도 플레이스홀더 숨김
-        document.getElementById('map-placeholder').style.display = 'none';
-        drawWorkerMap(row);
+        if (profileBody) {
+            profileBody.innerHTML = `
+                <div class="profile-row"><span class="profile-label">이름</span><span class="profile-value">${name}</span></div>
+                <div class="profile-row"><span class="profile-label">ID</span><span class="profile-value mono">${no}</span></div>
+                <div class="profile-row"><span class="profile-label">소속</span><span class="profile-value">${dept}</span></div>
+                <div class="profile-row"><span class="profile-label">직급</span><span class="profile-value">${role}</span></div>
+                <div class="profile-row"><span class="profile-label">이메일</span><span class="profile-value">${email}</span></div>
+                <div class="profile-row"><span class="profile-label">연락처</span><span class="profile-value mono">${phone}</span></div>
+            `;
+        }
 
-        // 개별 알림 버튼 활성화
-        btnIndividual.disabled = false;
+        if (placeholder) placeholder.style.display = 'none';
+        if (btnIndividual) btnIndividual.disabled = false;
 
-        // 위험 현황 (임시 데모 - 실제는 API 연동)
         updateRiskIcons(row.dataset.status);
     }
 
@@ -291,132 +367,103 @@
         const checkbox = document.getElementById('risk-check');
         const vrbox    = document.getElementById('risk-vr');
 
-        // 실제 데이터는 API에서 가져와야 함 (현재는 상태 기반 임시 표시)
         const isDanger = status === 'danger';
-        ppebox.className   = 'risk-icon-box ' + (isDanger ? 'fail' : 'ok');
-        checkbox.className = 'risk-icon-box ok';
-        vrbox.className    = 'risk-icon-box ok';
+
+        if (ppebox)   ppebox.className   = 'risk-icon-box ' + (isDanger ? 'fail' : 'ok');
+        if (checkbox) checkbox.className = 'risk-icon-box ok';
+        if (vrbox)    vrbox.className    = 'risk-icon-box ok';
     }
 
-    // ── Canvas 지도 ──────────────────────────────────────
-    const canvas = document.getElementById('worker-map-canvas');
-    const ctx = canvas.getContext('2d');
-
-    function resizeCanvas() {
-        const parent = canvas.parentElement;
-        canvas.width  = parent.offsetWidth;
-        canvas.height = parent.offsetHeight;
-    }
-
-    function drawWorkerMap(row) {
-        resizeCanvas();
-        const W = canvas.width, H = canvas.height;
-        ctx.clearRect(0, 0, W, H);
-
-        // 배경 그리드
-        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 10; i++) {
-            ctx.beginPath(); ctx.moveTo(W * i / 10, 0); ctx.lineTo(W * i / 10, H); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, H * i / 10); ctx.lineTo(W, H * i / 10); ctx.stroke();
-        }
-
-        // 작업자 위치 (임시: 중앙 근처 랜덤 — 실제 좌표로 교체 필요)
-        const px = W * 0.5 + (Math.random() - 0.5) * W * 0.3;
-        const py = H * 0.5 + (Math.random() - 0.5) * H * 0.3;
-        const status = row.dataset.status;
-        const color = status === 'danger' ? '#ef4444' : status === 'warning' ? '#f59e0b' : '#34d399';
-
-        // 위험 반경 글로우
-        const grd = ctx.createRadialGradient(px, py, 0, px, py, 60);
-        grd.addColorStop(0, color.replace(')', ',0.15)').replace('rgb', 'rgba'));
-        grd.addColorStop(1, 'transparent');
-        ctx.beginPath(); ctx.arc(px, py, 60, 0, Math.PI * 2);
-        ctx.fillStyle = grd; ctx.fill();
-
-        // 작업자 마커
-        ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2);
-        ctx.fillStyle = color; ctx.fill();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
-
-        // 이름 라벨
-        ctx.fillStyle = '#fff';
-        ctx.font = '11px "Noto Sans KR", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('작업자 ' + row.dataset.name, px, py - 14);
-    }
-
-    window.addEventListener('resize', function() {
-        if (selectedWorkerId) {
-            const row = document.querySelector('.worker-row.selected');
-            if (row) drawWorkerMap(row);
-        }
-    });
-
-    // ── 팝업 열기 ────────────────────────────────────────
+    // ── 모달 ─────────────────────────────────────────────
     function openModal(mode, targetLabel) {
         pushMode = mode;
-        modalTarget.textContent = '👤 대상 작업자 : ' + targetLabel;
-        modalMsg.value = '';
-        msgCount.textContent = '0';
-        modal.classList.add('active');
-        modalMsg.focus();
+
+        if (modalTarget) modalTarget.textContent = '👤 대상 작업자 : ' + targetLabel;
+        if (modalMsg) modalMsg.value = '';
+        if (msgCount) msgCount.textContent = '0';
+        if (modal) modal.classList.add('active');
+        if (modalMsg) modalMsg.focus();
     }
 
     function closeModal() {
-        modal.classList.remove('active');
+        if (modal) modal.classList.remove('active');
     }
 
     // 선택 알림
-    btnSelected.addEventListener('click', function() {
-        const checked = document.querySelectorAll('.row-chk:checked');
-        const names = Array.from(checked).map(function(chk) {
-            return chk.closest('tr').dataset.name;
+    if (btnSelected) {
+        btnSelected.addEventListener('click', function() {
+            const checked = document.querySelectorAll('.row-chk:checked');
+
+            const names = Array.from(checked).map(function(chk) {
+                const row = chk.closest('tr');
+                return row ? row.dataset.name : '';
+            }).filter(Boolean);
+
+            pushTargetIds = Array.from(checked).map(chk => chk.dataset.id);
+
+            openModal('selected', names.join(', '));
         });
-        pushTargetIds = Array.from(checked).map(chk => chk.dataset.id);
-        openModal('selected', names.join(', '));
-    });
+    }
 
     // 전체 알림
-    btnAll.addEventListener('click', function() {
-        pushTargetIds = [];
-        openModal('all', '전체 작업자');
-    });
+    if (btnAll) {
+        btnAll.addEventListener('click', function() {
+            pushTargetIds = [];
+            openModal('all', '전체 작업자');
+        });
+    }
 
     // 개별 알림
-    btnIndividual.addEventListener('click', function() {
-        const row = document.querySelector('.worker-row.selected');
-        if (!row) return;
-        pushTargetIds = [row.dataset.workerId];
-        openModal('single', row.dataset.name + ' (' + row.dataset.no + ')');
-    });
+    if (btnIndividual) {
+        btnIndividual.addEventListener('click', function() {
+            const row = document.querySelector('.worker-row.selected');
+            if (!row) return;
 
-    modalCancel.addEventListener('click', closeModal);
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) closeModal();
-    });
+            pushTargetIds = [row.dataset.workerId];
+            openModal('single', row.dataset.name + ' (' + row.dataset.no + ')');
+        });
+    }
 
-    // 글자수 카운터
-    modalMsg.addEventListener('input', function() {
-        const len = this.value.length;
-        msgCount.textContent = len;
-        msgCount.parentElement.classList.toggle('over', len >= 100);
-    });
+    if (modalCancel) {
+        modalCancel.addEventListener('click', closeModal);
+    }
 
-    // 발송
-    modalSend.addEventListener('click', function() {
-        const msg = modalMsg.value.trim();
-        if (!msg) { modalMsg.focus(); return; }
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeModal();
+        });
+    }
 
-        // TODO: 실제 API 연동
-        // axios.post('/api/push/', { targets: pushTargetIds, mode: pushMode, message: msg })
-        console.log('푸시 발송:', { mode: pushMode, targets: pushTargetIds, message: msg });
-        alert('알림이 발송되었습니다.');
-        closeModal();
-    });
+    if (modalMsg && msgCount) {
+        modalMsg.addEventListener('input', function() {
+            const len = this.value.length;
+            msgCount.textContent = len;
 
-    // ── 요약 수치 업데이트 (API 폴링 — 선택적) ──────────
-    // 실제 운영 시 setInterval로 /api/workers/stats/ 폴링 가능
+            if (msgCount.parentElement) {
+                msgCount.parentElement.classList.toggle('over', len >= 100);
+            }
+        });
+    }
+
+    if (modalSend) {
+        modalSend.addEventListener('click', function() {
+            const msg = modalMsg ? modalMsg.value.trim() : '';
+            if (!msg) {
+                if (modalMsg) modalMsg.focus();
+                return;
+            }
+
+            console.log('푸시 발송:', {
+                mode: pushMode,
+                targets: pushTargetIds,
+                message: msg
+            });
+
+            alert('알림이 발송되었습니다.');
+            closeModal();
+        });
+    }
+
 })();
 </script>
 {% endblock %}

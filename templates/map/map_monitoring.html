@@ -1,11 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/map/map_monitoring.css' %}">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
-{% endblock %}  
+{% block extra_css %}{% endblock %}  
 
 {% block page_content %}
 
@@ -115,10 +111,9 @@
 
     <!-- 지도 -->
     <div class="map-wrap">
-      <div id="map">
 
+      {% include "components/map_only.html" %}
 
-    </div>
       <!-- 격자 설정 -->
       <div class="panel-section">
         <div class="panel-label">격자 설정</div>
@@ -155,7 +150,9 @@
         </div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:6px" id="zone-cell-info"></div>
       </div>
-      </div>   <!-- 지도 -->
+
+    </div><!-- /지도 -->
+
     <!-- 우측 패널 -->
     <div class="right-panel">
 
@@ -211,30 +208,15 @@
 {% endblock %}
 
 {% block script %}
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<!-- leaflet.js 바로 아래에 추가 -->
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script>
-  const FLOOR_ID = null;
-  const API_BASE = '/facilities/api'; 
-  const SAMPLE_IMAGE = "{{ MEDIA_URL }}img/sample_floor.png";
+    const FLOOR_ID         = null;
+    const API_BASE         = '/facilities/api';
+    const SAMPLE_IMAGE     = "{{ MEDIA_URL }}img/sample_floor.png";
+    const MAP_AUTO_FLOOR_ID = null;  /**{# 층 선택은 monitoring.js의 셀렉트박스가 담당 #}**/
 </script>
 
-<script src="{% static 'js/map/map_config.js' %}"></script>
-<script src="{% static 'js/map/map_core.js' %}"></script>
-<script src="{% static 'js/map/map_grid.js' %}"></script>
-<script src="{% static 'js/map/map_zone.js' %}"></script>
-<script src="{% static 'js/map/map_event.js' %}"></script>
-<script src="{% static 'js/map/geofence.js' %}"></script>
-<script src="{% static 'js/map/sensor.js' %}"></script>
-<script src="{% static 'js/map/location_node.js' %}"></script>
-<script src="{% static 'js/map/equipment.js' %}"></script>
-<script src="{% static 'js/map/worker_sim.js' %}"></script>
+
+
+{# map_monitoring 전용 — 셀렉트박스 연동 + 탭 필터 #}
 <script src="{% static 'js/map/monitoring.js' %}"></script>
-<script src="{% static 'js/map/map_init.js' %}"></script>
 {% endblock %}
-
-
-
-
-

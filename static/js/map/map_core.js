@@ -10,18 +10,25 @@
  *                        floorLengthMeters, MapManager)
  * 로드 순서: map_config.js 다음
  *
+ * [수정] containerId 파라미터 추가 — worker_list 등 재사용 가능
+ *
  * 함수 목록:
- *   initMap()    — 지도·레이어 골조 초기화 (시스템 시작 시 1회)
- *   fitMapView() — 전체 도면이 보이도록 뷰 초기화
- *   zoomIn()     — 줌 +1
- *   zoomOut()    — 줌 -1
+ *   initMap(crs, containerId) — 지도·레이어 골조 초기화 (시스템 시작 시 1회)
+ *   fitMapView()              — 전체 도면이 보이도록 뷰 초기화
+ *   zoomIn()                  — 줌 +1
+ *   zoomOut()                 — 줌 -1
  */
 
 // ─── 지도 초기화 ──────────────────────────────────────────────
 
 /**
  * initMap
- * 입력: 없음
+ * 입력:
+ *   crs         {L.CRS}  — 좌표계 (기본값: L.CRS.Simple)
+ *                          기존 호출 방식 유지: map_init.js → initMap()
+ *                                              map_event.js → initMap(CustomCRS)
+ *   containerId {string} — 지도를 마운트할 DOM id (기본값: 'map')
+ *                          worker_list 등 재사용 시: initMap(null, 'map')
  * 출력: map 생성, MapManager를 통해 모든 레이어 Pane·LayerGroup 확보
  *
  * 주의:
@@ -29,49 +36,31 @@
  *     실제 도면 URL과 bounds는 loadFloorData()에서 설정한다.
  *   - 마우스 이벤트 등록은 map_init.js의 initZoneEvents()에서 수행한다.
  *   - 격자·구역 데이터 주입은 loadFloorData() 호출 시 각 담당 파일이 수행한다.
+ *
+ * 호출 패턴:
+ *   initMap()               — map_init.js (초기화, id='map', CRS.Simple)
+ *   initMap(CustomCRS)      — map_event.js (층 변경 시 재생성, id='map')
+ *   initMap(null, 'map')    — worker_list_map.js 등 동일 id 재사용 시
  */
+function initMap(crs, containerId) {
+    // containerId 기본값: 'map' — 기존 모든 호출 방식과 호환
+    const targetId = containerId || 'map';
 
-function initMap(crs) {  // ← crs 파라미터 추가
     if (map) {
         map.remove();
         map = null;
     }
-    map = L.map('map', {
-        crs:         crs || L.CRS.Simple,  // ← 수정
+
+    map = L.map(targetId, {
+        crs:         crs || L.CRS.Simple,
         minZoom:     -3,
         maxZoom:     3,
         zoomControl: false,
     });
+
     MapManager.syncLayers(map);
     imageOverlay = L.imageOverlay('', [[0,0],[1,1]], { opacity: 0.85 }).addTo(map);
 }
-// function initMap() {
-//     map = L.map('map', {
-//         crs:         L.CRS.Simple,
-//         minZoom:     -3,
-//         maxZoom:     3,
-//         zoomControl: false,
-//     });
-
-//     // MAP_LAYERS 등록부를 순회하여 Pane과 LayerGroup을 일괄 생성
-//     MapManager.syncLayers(map);
-
-//     const bounds = [[0, 0], [floorLengthMeters, floorWidthMeters]];
-//     imageOverlay = L.imageOverlay(SAMPLE_IMAGE, bounds, { opacity: 0.85 }).addTo(map);
-
-//     map.fitBounds(bounds, { padding: [0, 0] });
-//     map.setMaxBounds(bounds);
-
-//     map.once('moveend', function() {
-//     loadGridLayer();       // ← moveend 이후로 이동!
-//     loadZoneLayer(currentFloorId);
-//     });
-//     // 도면 데이터가 없는 초기 상태에서도 지도를 표시할 수 있도록
-//     // imageOverlay를 빈 bounds로 미리 생성해 둔다.
-//     // 실제 URL과 크기는 loadFloorData()에서 setBounds/setUrl로 교체한다.
-//     // const initialBounds = [[0, 0], [1, 1]];
-//     // imageOverlay = L.imageOverlay('', initialBounds, { opacity: 0.85 }).addTo(map);
-// }
 
 // ─── 지도 조작 ────────────────────────────────────────────────
 // HTML에서 onclick="fitMapView()" / onclick="zoomIn()" 형태로 직접 호출됨
