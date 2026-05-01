@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 
 # 작업자별 현재 위치
 _worker_positions: dict[int, dict] = {
-    1: {"x": 100.0, "y": 150.0, "name": "김철수"},
-    2: {"x": 300.0, "y": 200.0, "name": "이영희"},
-    3: {"x": 450.0, "y": 100.0, "name": "박민준"},
-    4: {"x": 200.0, "y": 300.0, "name": "최수진"},
-    5: {"x": 380.0, "y": 280.0, "name": "정도현"},
+    1: {"x":  5.0, "y": 15.0, "name": "김철수"},
+    2: {"x": 20.0, "y": 10.0, "name": "이영희"},
+    3: {"x": 45.0, "y":  3.0, "name": "박민준"},
+    4: {"x": 40.0, "y": 20.0, "name": "최수진"},
+    5: {"x": 15.0, "y": 25.0, "name": "정도현"},
 }
 
 # ── 정상 범위 (임계치보다 충분히 낮게) ──────────────────────────
@@ -147,8 +147,8 @@ def generate_location_data() -> dict:
     worker_id = random.choice(list(_worker_positions.keys()))
     pos = _worker_positions[worker_id]
 
-    pos["x"] = round(max(0, min(600, pos["x"] + random.uniform(-8, 8))), 2)
-    pos["y"] = round(max(0, min(400, pos["y"] + random.uniform(-8, 8))), 2)
+    pos["x"] = round(max(0.5, min(49.5, pos["x"] + random.uniform(-2, 2))), 2)
+    pos["y"] = round(max(0.5, min(29.5, pos["y"] + random.uniform(-2, 2))), 2)
 
     return {
         "type":        "location",
@@ -163,8 +163,8 @@ def generate_all_location_data(floor_id: int = 1) -> list[dict]:
     """전체 작업자 위치를 한꺼번에 업데이트해서 반환"""
     result = []
     for worker_id, pos in _worker_positions.items():
-        pos["x"] = round(max(0, min(600, pos["x"] + random.uniform(-8, 8))), 2)
-        pos["y"] = round(max(0, min(400, pos["y"] + random.uniform(-8, 8))), 2)
+        pos["x"] = round(max(0.5, min(49.5, pos["x"] + random.uniform(-2, 2))), 2)
+        pos["y"] = round(max(0.5, min(29.5, pos["y"] + random.uniform(-2, 2))), 2)
         result.append({
             "type":        "location",
             "worker_id":   worker_id,
