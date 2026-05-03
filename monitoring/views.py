@@ -80,6 +80,61 @@ def ingest_gas(request):
     from alerts.services import check_gas_thresholds
     check_gas_thresholds(device, reading)
 
+    # ─── sensor WebSocket broadcast ───────────────────────
+    try:
+        from facilities.models import SensorLocation
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+        from monitoring.services import calc_danger_level
+
+        sensor = SensorLocation.objects.filter(
+            device_id = device.id,
+            is_active = True,
+        ).first()
+
+        if sensor:
+            level_kr = calc_danger_level(reading)
+            status = {
+                '위험': 'danger',
+                '주의': 'warning',
+                '정상': 'normal',
+            }.get(level_kr, 'normal')
+
+            payload = {
+                'id':          sensor.id,
+                'device_id':   device.id,
+                'sensor_type': sensor.sensor_type,
+                'x':           float(sensor.x),
+                'y':           float(sensor.y),
+                'device_name': sensor.device_name,
+                'is_active':   sensor.is_active,
+                'status':      status,
+                'latest_value': {
+                    'co':  reading.co,
+                    'h2s': reading.h2s,
+                    'co2': reading.co2,
+                    'o2':  reading.o2,
+                    'no2': reading.no2,
+                    'so2': reading.so2,
+                    'o3':  reading.o3,
+                    'nh3': reading.nh3,
+                    'voc': reading.voc,
+                },
+            }
+
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'floor_{sensor.floor_id}_sensor',
+                {
+                    'type':     'sensor.update',
+                    'msg_type': 'delta',
+                    'data':     [payload],
+                },
+            )
+    except Exception as e:
+        print(f'[sensor_ws] broadcast 실패: {e}')
+    # ─── sensor WebSocket broadcast 끝 ────────────────────
+
     return Response({'status': 'ok'})
 
 

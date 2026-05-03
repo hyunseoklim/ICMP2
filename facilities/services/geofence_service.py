@@ -61,11 +61,15 @@ def update_geofence_from_gas(reading) -> None:
 
     # 3. 정상이면 기존 자동 생성 지오펜스 비활성화
     if severity == 'safe':
-        Geofence.objects.filter(
+        updated = Geofence.objects.filter(
             floor=sensor.floor,
             name=_auto_name(sensor),
             is_active=True,
-        ).update(is_active=False)
+        )
+        for g in updated:
+            g.is_active = False
+            g.save(update_fields=['is_active'])
+            _broadcast_geofence(g, msg_type='delta')  # ← 추가
         return
 
     # 4. 주의/위험 — 생성 또는 갱신
@@ -111,7 +115,40 @@ def update_geofence_from_gas(reading) -> None:
 
         if update_fields:
             geofence.save(update_fields=update_fields)
+    _broadcast_geofence(geofence, msg_type='delta')  # ← 추가
 
+def _broadcast_geofence(geofence, msg_type='delta') -> None:
+    """
+    geofence 변경사항을 WebSocket으로 broadcast.
+    msg_type: 'delta' — 변경분만, 'full' — 전체 재로드 신호
+    """
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        payload = {
+            'id':            geofence.id,
+            'name':          geofence.name,
+            'geofence_type': geofence.geofence_type,
+            'severity':      geofence.severity,
+            'is_active':     geofence.is_active,
+            'center_x':      geofence.center_x,
+            'center_y':      geofence.center_y,
+            'radius':        geofence.radius,
+            'polygon_data':  geofence.polygon_data,
+        }
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'floor_{geofence.floor_id}_geofence',
+            {
+                'type':     'geofence.update',
+                'msg_type': msg_type,
+                'data':     [payload],
+            },
+        )
+    except Exception as e:
+        print(f'[geofence_ws] broadcast 실패: {e}')
 
 def _auto_name(sensor) -> str:
     """

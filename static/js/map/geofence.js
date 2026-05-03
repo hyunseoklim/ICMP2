@@ -44,7 +44,7 @@ const _geofenceCache = {};
 // ─── GeofenceLayer 객체 ───────────────────────────────────────
 
 const GeofenceLayer = {
-    USE_WS: false, /** 웹소켓 전환: false → true */
+    USE_WS: true, /** 웹소켓 전환: false → true */
 
     _ws:             null,
     _pollTimer:      null,
@@ -108,6 +108,14 @@ const GeofenceLayer = {
 
         this._ws.onopen = () => {
             console.info('[layer:geofence] WebSocket 연결됨');
+            const apiUrl = floorId
+                ? `${API_BASE}/geofences/?floor_id=${floorId}&is_active=true`
+                : `${API_BASE}/geofences/?is_active=true`;
+
+            fetch(apiUrl)
+                .then(r => r.json())
+                .then(data => _processFullData(data.results))
+                .catch(err => console.warn('[layer:geofence] 초기 로드 실패:', err));
         };
 
         this._ws.onmessage = (e) => {

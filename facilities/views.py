@@ -430,24 +430,6 @@ class WorkerLocationViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
-class GeofenceViewSet(viewsets.ModelViewSet):
-    """
-    Geofence CRUD.
-    PATCH /api/geofences/<id>/  로 center_x / center_y / radius 를 업데이트하면
-    프론트에서 CSS transition 으로 원이 부드럽게 이동/확산한다.
-    """
-    serializer_class = GeofenceSerializer
-
-    def get_queryset(self):
-        qs = Geofence.objects.all()
-        floor_id = self.request.query_params.get('floor_id')
-        is_active = self.request.query_params.get('is_active')
-        if floor_id:
-            qs = qs.filter(floor_id=floor_id)
-        if is_active is not None:
-            qs = qs.filter(is_active=is_active in ['true', '1', 'True'])
-        return qs.order_by('-severity')
-
 
 
 class EquipmentViewSet(viewsets.ModelViewSet):
@@ -504,9 +486,13 @@ class SensorLocationViewSet(viewsets.ModelViewSet):
             qs = qs.filter(is_active=True)  # 기본값: 활성 센서만
 
         return qs.order_by('sensor_type', 'id')
-    
 
 class GeofenceViewSet(viewsets.ModelViewSet):
+    """
+    Geofence CRUD.
+    PATCH /api/geofences/<id>/  로 center_x / center_y / radius 를 업데이트하면
+    프론트에서 CSS transition 으로 원이 부드럽게 이동/확산한다.
+    """
     serializer_class = GeofenceSerializer
 
     def get_queryset(self):
@@ -520,31 +506,38 @@ class GeofenceViewSet(viewsets.ModelViewSet):
         return qs.order_by('-severity')
 
     def list(self, request, *args, **kwargs):
-        """
-        Geofence 목록 반환 전 가스 수치 기반 자동 갱신 수행.
-        floor_id가 있을 때만 실행 (지도 화면 폴링 대상).
-        """
         floor_id = request.query_params.get('floor_id')
         if floor_id:
             self._sync_gas_geofences(floor_id)
         return super().list(request, *args, **kwargs)
 
+    def perform_create(self, serializer):
+        geofence = serializer.save()
+        self._broadcast(geofence, 'delta')
+
+    def perform_update(self, serializer):
+        geofence = serializer.save()
+        self._broadcast(geofence, 'delta')
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save(update_fields=['is_active'])
+        self._broadcast(instance, 'delta')
+
+    def _broadcast(self, geofence, msg_type):
+        from facilities.services.geofence_service import _broadcast_geofence
+        _broadcast_geofence(geofence, msg_type)
+
     def _sync_gas_geofences(self, floor_id):
-        """
-        해당 floor의 가스 센서별 최신 GasReading을 조회하여
-        지오펜스를 자동 생성/갱신/비활성화한다.
-        """
         from monitoring.models import GasReading
         from facilities.services.geofence_service import update_geofence_from_gas
 
-        # 해당 floor에 등록된 가스 센서 device_id 목록
         sensor_device_ids = SensorLocation.objects.filter(
             floor_id=floor_id,
             sensor_type='gas',
             is_active=True,
         ).values_list('device_id', flat=True)
 
-        # 센서별 최신 GasReading 1건씩 조회 후 갱신
         for device_id in sensor_device_ids:
             reading = GasReading.objects.filter(
                 device_id=device_id
@@ -555,4 +548,3 @@ class GeofenceViewSet(viewsets.ModelViewSet):
                     update_geofence_from_gas(reading)
                 except Exception as e:
                     print(f'[geofence_sync] device_id={device_id} 오류: {e}')
-

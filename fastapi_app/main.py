@@ -47,7 +47,7 @@ async def _data_loop() -> None:
             await _broadcast(location)
             await post_location_reading(location)
 
-        await asyncio.sleep(60)
+        await asyncio.sleep(5)
 
 
 @asynccontextmanager
