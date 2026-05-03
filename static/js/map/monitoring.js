@@ -109,39 +109,62 @@ window.applyPendingFocus = function() {
         else if (type === 'sensor')    _focusSensor(id);
         else if (type === 'equipment') _focusEquipment(id);
         else if (type === 'geofence')  _focusGeofence(id);
-    }, 800);
+    }, 300);
 };
-
-function _focusWorker(id) {
-    const state = workerMarkers[id];
-    if (!state) { console.warn('[focus] worker not found:', id); return; }
-    map.setView(state.marker.getLatLng(), 2, { animate: true });
-    setTimeout(() => state.marker.fire('click'), 400);
-}
 
 function _focusSensor(id) {
     const marker = sensorMarkers[id];
-    if (!marker) { console.warn('[focus] sensor not found:', id); return; }
+    if (!marker) {
+        if (!_focusSensor._retry) _focusSensor._retry = 0;
+        if (_focusSensor._retry < 10) {
+            _focusSensor._retry++;
+            setTimeout(() => _focusSensor(id), 500);
+        } else {
+            _focusSensor._retry = 0;
+            console.warn('[focus] sensor 마커 대기 초과:', id);
+        }
+        return;
+    }
+    _focusSensor._retry = 0;
     map.setView(marker.getLatLng(), 2, { animate: true });
     setTimeout(() => marker.fire('click'), 400);
 }
 
 function _focusEquipment(id) {
     const state = equipmentMarkers[id];
-    if (!state) { console.warn('[focus] equipment not found:', id); return; }
+    if (!state) {
+        if (!_focusEquipment._retry) _focusEquipment._retry = 0;
+        if (_focusEquipment._retry < 10) {
+            _focusEquipment._retry++;
+            setTimeout(() => _focusEquipment(id), 500);
+        } else {
+            _focusEquipment._retry = 0;
+            console.warn('[focus] equipment 마커 대기 초과:', id);
+        }
+        return;
+    }
+    _focusEquipment._retry = 0;
     map.setView(state.rect.getBounds().getCenter(), 2, { animate: true });
     setTimeout(() => state.rect.fire('click'), 400);
 }
 
 function _focusGeofence(id) {
     const state = geofenceState[id];
-    if (!state) { console.warn('[focus] geofence not found:', id); return; }
+    if (!state) {
+        if (!_focusGeofence._retry) _focusGeofence._retry = 0;
+        if (_focusGeofence._retry < 10) {
+            _focusGeofence._retry++;
+            setTimeout(() => _focusGeofence(id), 500);
+        } else {
+            _focusGeofence._retry = 0;
+            console.warn('[focus] geofence 마커 대기 초과:', id);
+        }
+        return;
+    }
+    _focusGeofence._retry = 0;
     const center = state.shape.getBounds
         ? state.shape.getBounds().getCenter()
         : state.shape.getLatLng();
     map.setView(center, 2, { animate: true });
     setTimeout(() => state.shape.fire('click'), 400);
 }
-
-
-

@@ -330,6 +330,11 @@ class WorkerLocation(models.Model):
         'facilities.Zone', on_delete=models.SET_NULL, null=True, blank=True
     )
     cell_no = models.CharField(max_length=20, blank=True, help_text="'row-col' 형식 예: '3-5'")
+    safety_status = models.CharField(
+        max_length=20,
+        choices=[('safe', '안전'), ('warning', '주의'), ('danger', '위험')],
+        default='safe',
+    )
     x = models.FloatField(default=0)
     y = models.FloatField(default=0)
     z = models.FloatField(null=True, blank=True)

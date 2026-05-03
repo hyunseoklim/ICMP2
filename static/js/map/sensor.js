@@ -24,7 +24,7 @@
  /** 웹 소켓 개발이 완료되면 아래의 USE_WS를 True로 바꿔 놓으면 websocket 로직이 적용됨 */
 
 const SensorLayer = {
-    USE_WS: false,/** 웹소켓 전환 False -> True */
+    USE_WS: true,/** 웹소켓 전환 False -> True */
 
     _ws:        null,
     _pollTimer: null,
