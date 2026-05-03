@@ -278,7 +278,13 @@ class Worker(models.Model):
     )
     worker_no = models.CharField(max_length=50, unique=True)
     worker_name = models.CharField(max_length=50)
-    department = models.CharField(max_length=100, blank=True, default="")
+    department = models.ForeignKey(
+    "accounts.Department",
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="workers"
+    )
     phone = models.CharField(max_length=20, blank=True)
     current_state = models.CharField(
         max_length=20,

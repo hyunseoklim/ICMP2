@@ -155,8 +155,45 @@ function renderOrUpdateSensor(sensor) {
             title: sensor.device_name,
         }).addTo(layer);
 
-        marker._sensorData = sensor;
+        marker.on('mouseover', function() {
+            const el = this.getElement();
+            if (el) {
+                const inner = el.querySelector('div');
+                if (inner) {
+                    inner.style.border       = '2px solid #ffffff';
+                    inner.style.boxShadow    = `0 0 10px #ffffff88`;
+                    inner.style.transform    = 'scale(1.25)';
+                    inner.style.transition   = 'transform 0.15s ease, box-shadow 0.15s ease';
+                }
+            }
+            // 호버 팝오버 — tooltip 방식
+            this.bindTooltip(`
+                <div style="font-size:11px;font-weight:600">${sensor.device_name}</div>
+                <div style="font-size:10px;color:#94a3b8">${sensor.sensor_type} · ${sensor.status || 'normal'}</div>
+            `, { sticky: true, opacity: 0.95 }).openTooltip();
+        });
+
+        marker.on('mouseout', function() {
+            const el = this.getElement();
+            if (el) {
+                const inner = el.querySelector('div');
+                if (inner) {
+                    // 원래 아이콘 색으로 복원
+                    const color = STATUS_COLOR[sensor.status || 'normal'] || '#64748b';
+                    inner.style.border    = `2px solid #0f1117`;
+                    inner.style.boxShadow = `0 0 6px ${color}66`;
+                    inner.style.transform = 'scale(1)';
+                }
+            }
+            this.closeTooltip();
+        });
+        // ─── 호버 끝 ────────────────────────────────────────
+
         marker.on('click', () => {
+            if (window._MAP_CLICK_NAVIGATE) {
+                location.href = `/facilities/monitoring/?type=sensor&id=${sensor.id}&floor_id=${window._MAP_FLOOR_ID || currentFloorId}`;
+                return;
+            }
             if (typeof showDetail === 'function') showDetail('sensor', sensor);
             showSensorPopup(marker, sensor);
         });

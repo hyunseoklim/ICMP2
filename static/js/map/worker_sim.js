@@ -118,27 +118,29 @@ const WORKER_STATUS_COLOR = {
     off_duty: '#475569',  // 회색
 };
 
+
 function workerIcon(status, name) {
-    const color = WORKER_STATUS_COLOR[status] || '#f59e0b';
-    const initial = name ? name[0] : 'W';
+    const color = WORKER_STATUS_COLOR[status] || '#22c55e';
+    const label = name ? name[0] : '';
+
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="52" viewBox="0 0 40 52">
+            <circle cx="20" cy="18" r="16" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
+            <text x="20" y="11" text-anchor="middle" font-size="8" font-weight="700"
+                fill="${color}" font-family="sans-serif">⛑</text>
+            <circle cx="20" cy="20" r="5" fill="${color}"/>
+            <path d="M11,30 Q20,26 29,30 L27,36 Q20,38 13,36 Z" fill="${color}"/>
+            <polygon points="20,50 14,38 26,38" fill="${color}" fill-opacity="0.7"/>
+            <rect x="2" y="40" width="36" height="12" rx="3" fill="${color}22" stroke="${color}" stroke-width="0.8"/>
+            <text x="20" y="50" text-anchor="middle" font-size="9" font-weight="700"
+                fill="${color}" font-family="sans-serif">${name || ''}</text>
+        </svg>
+    `;
 
     return L.divIcon({
-        html: `<div style="
-            width:18px;
-            height:18px;
-            border-radius:3px;
-            background:${color};
-            border:2px solid #0f1117;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-size:9px;
-            font-weight:700;
-            color:#0f1117;
-            box-shadow:0 0 4px ${color}88;
-        ">${initial}</div>`,
-        iconSize:   [18, 18],
-        iconAnchor: [9, 9],
+        html: svg,
+        iconSize:   [40, 52],
+        iconAnchor: [20, 52],
         className:  '',
     });
 }
@@ -374,11 +376,44 @@ function renderOrMoveWorker(loc) {
 
         marker._locData = loc;
 
-        marker.on('click', () => {
-            if (typeof showDetail === 'function') {
-                showDetail('worker', loc);
+        marker.on('mouseover', function() {
+            const el = this.getElement();
+            if (el) {
+                const circle = el.querySelector('circle');
+                if (circle) {
+                    circle.style.filter = 'brightness(1.4)';
+                }
+                // SVG 전체 확대
+                const svg = el.querySelector('svg');
+                if (svg) {
+                    svg.style.transform  = 'scale(1.2)';
+                    svg.style.transition = 'transform 0.15s ease';
+                    svg.style.transformOrigin = 'bottom center';
+                }
             }
+            const color = WORKER_STATUS_COLOR[loc.worker_status] || '#22c55e';
+            this.bindTooltip(`
+                <div style="font-size:11px;font-weight:600">${loc.worker_name}</div>
+                <div style="font-size:10px;color:#94a3b8">상태: ${loc.worker_status || '-'}</div>
+            `, { sticky: true, opacity: 0.95 }).openTooltip();
+        });
 
+        marker.on('mouseout', function() {
+            const el = this.getElement();
+            if (el) {
+                const svg = el.querySelector('svg');
+                if (svg) svg.style.transform = 'scale(1)';
+            }
+            this.closeTooltip();
+        });
+        // ─── 호버 끝 ────────────────────────────────────────
+
+        marker.on('click', () => {
+            if (window._MAP_CLICK_NAVIGATE) {
+                location.href = `/facilities/monitoring/?type=worker&id=${loc.worker_id}&floor_id=${window._MAP_FLOOR_ID || currentFloorId}`;
+                return;
+            }
+            if (typeof showDetail === 'function') showDetail('worker', loc);
             showWorkerPopup(marker, loc);
         });
 

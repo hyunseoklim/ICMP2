@@ -7,11 +7,22 @@
  *        (base.html이 전역으로 로드하는 js/monitoring.js 와 다른 파일임에 주의)
  */
 
-document.addEventListener('DOMContentLoaded', () => {
+// ─── URL 파라미터 파싱 ─────────────────────────────────────────
+const params       = new URLSearchParams(location.search);
+const focusType    = params.get('type');
+const focusId      = params.get('id');
+const focusFloorId = params.get('floor_id');
 
-    // ─── 셀렉트박스 연동 ───────────────────────────────────────
-    // [수정] null 체크 — sel-facility가 없는 페이지에서는 전체 블록 skip
+// ─── 초기화 함수 ───────────────────────────────────────────────
+function _initMonitoring() {
 
+    // URL 파라미터로 층 자동 로드
+    if (focusFloorId) {
+        window._PENDING_FOCUS = { type: focusType, id: focusId };
+        loadFloorData(focusFloorId);
+    }
+
+    // ─── 셀렉트박스 연동 ──────────────────────────────────────
     const selFacility = document.getElementById('sel-facility');
     const selBuilding = document.getElementById('sel-building');
     const selFloor    = document.getElementById('sel-floor');
@@ -63,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ─── 탭 필터 ───────────────────────────────────────────────
+    // ─── 탭 필터 ──────────────────────────────────────────────
     document.querySelectorAll('.tab-btn-map').forEach(btn => {
         btn.addEventListener('click', function () {
             document.querySelectorAll('.tab-btn-map').forEach(b => b.classList.remove('active'));
@@ -71,4 +82,66 @@ document.addEventListener('DOMContentLoaded', () => {
             applyTabFilter(this.dataset.filter);
         });
     });
-});
+}
+
+// ─── 실행 시점 제어 ────────────────────────────────────────────
+// DOMContentLoaded가 이미 지난 경우(readyState: complete) 즉시 실행
+// 아직 로딩 중이면 이벤트 대기
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _initMonitoring);
+} else {
+    _initMonitoring();
+}
+
+// ─── 포커스 처리 ──────────────────────────────────────────────
+// map_event.js의 moveend 콜백 마지막에서 호출됨
+
+window.applyPendingFocus = function() {
+    const focus = window._PENDING_FOCUS;
+    if (!focus || !focus.type || !focus.id) return;
+    window._PENDING_FOCUS = null;
+
+    const id   = String(focus.id);
+    const type = focus.type;
+
+    setTimeout(() => {
+        if      (type === 'worker')    _focusWorker(id);
+        else if (type === 'sensor')    _focusSensor(id);
+        else if (type === 'equipment') _focusEquipment(id);
+        else if (type === 'geofence')  _focusGeofence(id);
+    }, 800);
+};
+
+function _focusWorker(id) {
+    const state = workerMarkers[id];
+    if (!state) { console.warn('[focus] worker not found:', id); return; }
+    map.setView(state.marker.getLatLng(), 2, { animate: true });
+    setTimeout(() => state.marker.fire('click'), 400);
+}
+
+function _focusSensor(id) {
+    const marker = sensorMarkers[id];
+    if (!marker) { console.warn('[focus] sensor not found:', id); return; }
+    map.setView(marker.getLatLng(), 2, { animate: true });
+    setTimeout(() => marker.fire('click'), 400);
+}
+
+function _focusEquipment(id) {
+    const state = equipmentMarkers[id];
+    if (!state) { console.warn('[focus] equipment not found:', id); return; }
+    map.setView(state.rect.getBounds().getCenter(), 2, { animate: true });
+    setTimeout(() => state.rect.fire('click'), 400);
+}
+
+function _focusGeofence(id) {
+    const state = geofenceState[id];
+    if (!state) { console.warn('[focus] geofence not found:', id); return; }
+    const center = state.shape.getBounds
+        ? state.shape.getBounds().getCenter()
+        : state.shape.getLatLng();
+    map.setView(center, 2, { animate: true });
+    setTimeout(() => state.shape.fire('click'), 400);
+}
+
+
+

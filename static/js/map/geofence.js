@@ -463,9 +463,36 @@ function renderGeofence(g) {
     geofenceState[g.id].labelMarker = labelMarker;
 
     shape.on('click', () => {
+        if (window._MAP_CLICK_NAVIGATE) {
+            location.href = `/facilities/monitoring/?type=geofence&id=${g.id}&floor_id=${window._MAP_FLOOR_ID || currentFloorId}`;
+            return;
+        }
         if (typeof showDetail === 'function') showDetail('geofence', g);
         _showGeofencePopup(shape, g);
     });
+
+        // ─── 호버 ───────────────────────────────────────────
+    shape.on('mouseover', function() {
+        this.setStyle({
+            weight:      3,
+            color:       '#ffffff',
+            fillOpacity: 0.35,
+        });
+        this.bindTooltip(`
+            <div style="font-size:11px;font-weight:600">${g.name}</div>
+            <div style="font-size:10px;color:#94a3b8">${g.severity} · ${g.geofence_type === 'circle' ? '원형 ' + g.radius + 'm' : '폴리곤'}</div>
+        `, { sticky: true, opacity: 0.95 }).openTooltip();
+    });
+
+    shape.on('mouseout', function() {
+        this.setStyle({
+            weight:      1.5,
+            color:       colors.stroke,
+            fillOpacity: 1,
+        });
+        this.closeTooltip();
+    });
+    // ─── 호버 끝 ────────────────────────────────────────
 
     shape.on('contextmenu', () => {
         if (confirm(`'${g.name}' 위험구역을 삭제하시겠습니까?`)) {

@@ -73,20 +73,32 @@ function loadFloorData(floorId) {
             const bounds = [[0, 0], [floorLengthMeters, floorWidthMeters]];
             imageOverlay.setUrl(g.floor_image || (typeof SAMPLE_IMAGE !== 'undefined' ? SAMPLE_IMAGE : ''));
             imageOverlay.setBounds(bounds);
-            map.fitBounds(bounds, { padding: [0, 0] });
             map.setMaxBounds(bounds);
+
+            // // 임시용 console 로그 확인
+            // console.log('moveend 등록 전');
+            // map.once('moveend', function() {
+            //     console.log('moveend 콜백 실행됨');
+            //     try { loadGridLayer(); }
+            //     catch(e) { console.error('[layer:grid] 실패', e); }
+            //     // ... 나머지 동일
+            // });
+            // console.log('fitBounds 호출 전');
+            // map.fitBounds(bounds, { padding: [0, 0] });
+            // console.log('fitBounds 호출 후');
 
             // 5. 좌표계 확정 후 렌더링 — 각각 독립 실행
             map.once('moveend', function() {
+                
                 try { loadGridLayer(); }
                 catch(e) { console.error('[layer:grid] 실패', e); }
-
+                
                 try { loadZoneLayer(floorId); }
                 catch(e) { console.error('[layer:zone] 실패', e); }
-
+                
                 try { if (window.loadGeofences) loadGeofences(floorId); }
                 catch(e) { console.error('[layer:geofence] 실패', e); }
-
+                
                 try { if (window.loadSensors) loadSensors(floorId); }
                 catch(e) { console.error('[layer:sensor] 실패', e); }
                 
@@ -98,7 +110,11 @@ function loadFloorData(floorId) {
 
                 try { if (window.startWorkerSim) startWorkerSim(); }
                 catch(e) { console.error('[layer:worker] 실패', e); }
+
+                if (window.applyPendingFocus) window.applyPendingFocus();
+               
             });
+            map.fitBounds(bounds, { padding: [0, 0] });
         })
         .catch(e => console.error('[loadFloorData] grid-data fetch 실패 — 지도 초기화 중단', e));
 }

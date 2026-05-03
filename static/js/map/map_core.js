@@ -45,6 +45,7 @@
 function initMap(crs, containerId) {
     // containerId 기본값: 'map' — 기존 모든 호출 방식과 호환
     const targetId = containerId || 'map';
+    const locked = (window._MAP_LOCKED === true);
 
     if (map) {
         map.remove();
@@ -56,6 +57,13 @@ function initMap(crs, containerId) {
         minZoom:     -3,
         maxZoom:     3,
         zoomControl: false,
+        dragging:        !locked,
+        scrollWheelZoom: !locked,
+        doubleClickZoom: !locked,
+        boxZoom:         !locked,
+        touchZoom:       !locked,
+        keyboard:        !locked,
+        inertia:         !locked,
     });
 
     MapManager.syncLayers(map);
@@ -76,5 +84,13 @@ function fitMapView() {
     map.fitBounds(bounds, { padding: [0, 0] });
 }
 
-function zoomIn()  { map.zoomIn();  }
-function zoomOut() { map.zoomOut(); }
+function zoomIn() {
+    if (window._MAP_LOCKED === true) return;
+    map.zoomIn();
+}
+
+function zoomOut() {
+    if (window._MAP_LOCKED === true) return;
+    map.zoomOut();
+}
+

@@ -45,6 +45,29 @@ function renderEquipment(eq, layer) {
         }
     ).addTo(layer);
 
+    // ─── 호버 ───────────────────────────────────────────
+    rect.on('mouseover', function() {
+        this.setStyle({
+            weight:      2.5,
+            color:       '#ffffff',
+            fillOpacity: 0.45,
+        });
+        this.bindTooltip(`
+            <div style="font-size:11px;font-weight:600">${eq.equipment_name}</div>
+            <div style="font-size:10px;color:#94a3b8">${eq.equipment_code} · ${eq.status}</div>
+        `, { sticky: true, opacity: 0.95 }).openTooltip();
+    });
+
+    rect.on('mouseout', function() {
+        this.setStyle({
+            weight:      1.5,
+            color:       color,
+            fillOpacity: 0.25,
+        });
+        this.closeTooltip();
+    });
+    // ─── 호버 끝 ────────────────────────────────────────
+
     // 이름 라벨
     const labelIcon = L.divIcon({
         html:      `<div style="font-size:10px;font-weight:600;color:${color};white-space:nowrap;text-shadow:0 0 3px #0f1117">${eq.equipment_name}</div>`,
@@ -57,6 +80,10 @@ function renderEquipment(eq, layer) {
     }).addTo(layer);
 
     rect.on('click', () => {
+        if (window._MAP_CLICK_NAVIGATE) {
+            location.href = `/facilities/monitoring/?type=equipment&id=${eq.id}&floor_id=${window._MAP_FLOOR_ID || currentFloorId}`;
+            return;
+        }
         rect.bindPopup(`
             <div class="popup-title">${eq.equipment_name}</div>
             <div class="popup-row">

@@ -4,7 +4,7 @@ from django.shortcuts import render, get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
-
+from django.utils import timezone
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
@@ -17,7 +17,8 @@ from .models import (
     Zone, Geofence, LocationNode, Worker, WorkerLocation, Equipment,
     SensorLocation
 )
-   
+from safety.models import SafetyCheckSession
+
 from .serializers import (
     FacilitySerializer, BuildingSerializer, FloorSerializer,
     FloorGridSerializer,
@@ -34,16 +35,26 @@ from .repositories import IndexGridWriter, IndexGridReader
 
 @login_required(login_url="login")
 def worker_list(request):
-    workers = Worker.objects.all().order_by('worker_name')
-    
+    workers = Worker.objects.select_related('user', 'department').order_by('worker_name')
+
+    today = timezone.localdate()
+
+    today_sessions = {
+        s.worker_id: s
+        for s in SafetyCheckSession.objects.filter(check_date=today)
+    }
+
+    for worker in workers:
+        worker.today_session = today_sessions.get(worker.pk)
+
     context = {
         'workers': workers,
         'worker_stats': {
             'total':   workers.count(),
-            'checkin': workers.filter(current_state='on_duty').count(),  # 근무중
-            'danger':  workers.filter(safety_status='danger').count(),   # safety_status 기준
+            'checkin': workers.filter(current_state='on_duty').count(),
+            'danger':  workers.filter(safety_status='danger').count(),
             'warning': workers.filter(safety_status='warning').count(),
-            'normal':  workers.filter(safety_status='safe').count(),
+            'safe':    workers.filter(safety_status='safe').count(),
         }
     }
     return render(request, "facilities/worker_list.html", context)
@@ -261,6 +272,28 @@ class WorkerViewSet(viewsets.ModelViewSet):
     queryset = Worker.objects.all().order_by('worker_name')
     serializer_class = WorkerSerializer
 
+    @action(detail=False, methods=['get'], url_path='safety-status')
+    def safety_status(self, request):
+        """
+        GET /api/workers/safety-status/
+        on_duty 작업자만 반환 + safety_status 포함
+        """
+        from django.utils import timezone
+        from safety.models import SafetyCheckSession
+
+        today = timezone.localdate()
+        workers = Worker.objects.filter(current_state='on_duty').order_by('worker_name')
+
+        result = []
+        for w in workers:
+            session = SafetyCheckSession.objects.filter(worker=w, check_date=today).first()
+            result.append({
+                'id':            w.id,
+                'worker_name':   w.worker_name,
+                'safety_status': w.safety_status,
+                'safety_done':   session.checklist_completed if session else False,
+            })
+        return Response(result)
 
 class WorkerLocationViewSet(viewsets.ModelViewSet):
     """
@@ -415,29 +448,6 @@ class GeofenceViewSet(viewsets.ModelViewSet):
             qs = qs.filter(is_active=is_active in ['true', '1', 'True'])
         return qs.order_by('-severity')
 
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def worker_safety_status(request):
-    """
-    GET /facilities/api/workers/safety-status/
-    현재 근무 중인 전체 작업자 + 오늘 안전확인 완료 여부 반환
-    """
-    from safety.models import SafetyCheckSession
-    from django.utils import timezone
-
-    today = timezone.localdate()
-    workers = Worker.objects.filter(current_state='on_duty').order_by('worker_name')
-
-    result = []
-    for w in workers:
-        session = SafetyCheckSession.objects.filter(worker=w, check_date=today).first()
-        result.append({
-            'id':          w.id,
-            'worker_name': w.worker_name,
-            'safety_done': session.checklist_completed if session else False,
-        })
-    return Response(result)
 
 
 class EquipmentViewSet(viewsets.ModelViewSet):
