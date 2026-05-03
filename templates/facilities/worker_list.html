@@ -36,7 +36,7 @@
                     </span>
                     <span class="filter-badge badge--normal" data-filter="safe">
                         <span class="dot"></span>
-                        정상 <span id="wl-normal">{{ worker_stats.normal|default:0 }}</span>
+                        정상 <span id="wl-normal">{{ worker_stats.safe|default:0 }}</span>
                     </span>
                 </div>
             </div>
@@ -59,55 +59,57 @@
                     </thead>
                     <tbody id="worker-tbody">
                         {% for worker in workers %}
-                        <tr class="worker-row row--{{ worker.current_state }}"
-                            data-status="{{ worker.current_state }}"
+                        <tr class="worker-row row--{{ worker.safety_status }}{% if worker.current_state == 'off_duty' %} row--off_duty{% endif %}"
+                            data-status="{% if worker.current_state == 'off_duty' %}off_duty{% else %}{{ worker.safety_status }}{% endif %}"
                             data-worker-id="{{ worker.pk }}"
                             data-name="{{ worker.worker_name }}"
                             data-no="{{ worker.worker_no }}"
-                            data-dept="{{ worker.department }}"
+                            data-dept="{{ worker.department.name|default:'' }}"
                             data-phone="{{ worker.phone }}"
                             data-email="{{ worker.user.email|default:'' }}"
-                            data-role="{{ worker.user.get_full_name|default:'' }}">
+                            data-role="{{ worker.user.position|default:'' }}"
+                            data-checklist-completed="{{ worker.today_session.checklist_completed|yesno:'true,false,false' }}"
+                            data-vr-completed="{{ worker.today_session.vr_completed|yesno:'true,false,false' }}">
                             <td>
                                 <input type="checkbox" class="wl-checkbox row-chk" data-id="{{ worker.pk }}">
                             </td>
-                            <td>
-                                <div class="worker-name-cell">
-                                    <span class="worker-avatar">{{ worker.worker_name|first }}</span>
-                                    {{ worker.worker_name }}
-                                </div>
-                            </td>
-                            <td>{{ worker.department|default:"—" }}</td>
                             <td class="mono text-muted">{{ worker.worker_no }}</td>
+                            <td> {{ worker.worker_name }}</td>
+                            <td>{{ worker.department.name|default:"—" }}</td>
                             <td class="mono text-muted">
                                 {% if worker.updated_at %}
                                     {{ worker.updated_at|date:"Y-01-15 H:i:s" }}
                                 {% else %}—{% endif %}
                             </td>
                             <td>
-                                {% if worker.current_state != 'off_duty' %}
+                                {% if worker.current_state == 'off_duty' %}
+                                    <span class="conn-icon conn-icon--off">—</span>
+                                {% else %}
                                     <span class="conn-icon conn-icon--ok">
                                         <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
                                             <circle cx="5" cy="5" r="4"/>
                                         </svg>
                                         연결 정상
                                     </span>
+                                {% endif %}{% if worker.current_state != 'off_duty' %}
                                 {% else %}
                                     <span class="conn-icon conn-icon--off">
-                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                                            <circle cx="5" cy="5" r="4"/>
-                                        </svg>
-                                        오프라인
+
+                                        
                                     </span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if worker.safety_status == 'danger' %}
-                                    <span class="level-badge level--danger">위험</span>
-                                {% elif worker.safety_status == 'warning' %}
-                                    <span class="level-badge level--warning">주의</span>
+                                {% if worker.current_state == 'off_duty' %}
+                                    <span class="level-badge level--offline"></span>
                                 {% else %}
-                                    <span class="level-badge level--normal">정상</span>
+                                    {% if worker.safety_status == 'danger' %}
+                                        <span class="level-badge level--danger">위험</span>
+                                    {% elif worker.safety_status == 'warning' %}
+                                        <span class="level-badge level--warning">주의</span>
+                                    {% else %}
+                                        <span class="level-badge level--normal">정상</span>
+                                    {% endif %}
                                 {% endif %}
                             </td>
                         </tr>
@@ -164,13 +166,11 @@
 (function() {
     'use strict';
 
-    // ── 상태 ────────────────────────────────────────────
     let selectedWorkerId = null;
     let activeFilter = null;
     let pushTargetIds = [];
     let pushMode = 'single';
 
-    // ── DOM refs ────────────────────────────────────────
     const tbody         = document.getElementById('worker-tbody');
     const chkAll        = document.getElementById('chk-all');
     const btnSelected   = document.getElementById('btn-selected-push');
@@ -183,7 +183,18 @@
     const modalCancel   = document.getElementById('modal-cancel');
     const modalSend     = document.getElementById('modal-send');
 
-    // ── 필터 배지 ────────────────────────────────────────
+    // ── ② 정렬: 페이지 로드 시 danger → warning → normal → off_duty 순 ──
+    const STATUS_ORDER = { danger: 0, warning: 1, safe: 2, off_duty: 3 };
+
+    function sortWorkerRows() {
+        const rows = [...document.querySelectorAll('#worker-tbody .worker-row')];
+        rows.sort((a, b) =>
+            (STATUS_ORDER[a.dataset.status] ?? 9) - (STATUS_ORDER[b.dataset.status] ?? 9)
+        );
+        rows.forEach(r => tbody.appendChild(r));
+    }
+
+    // ── ① 필터 ──────────────────────────────────────────
     document.querySelectorAll('.filter-badge').forEach(function(badge) {
         badge.addEventListener('click', function() {
             const f = this.dataset.filter;
@@ -198,6 +209,8 @@
             }
 
             applyFilter();
+            // 필터 변경 시 체크박스 초기화
+            uncheckAll();
         });
     });
 
@@ -208,21 +221,22 @@
         });
     }
 
+    function uncheckAll() {
+        document.querySelectorAll('.row-chk').forEach(chk => chk.checked = false);
+        if (chkAll) { chkAll.checked = false; chkAll.indeterminate = false; }
+        updateSelectedBtn();
+    }
+
     // ── 작업자 행 선택 ───────────────────────────────────
     if (tbody) {
         tbody.addEventListener('click', function(e) {
             const row = e.target.closest('.worker-row');
             if (!row) return;
-
             if (e.target.classList.contains('wl-checkbox')) return;
 
-            document.querySelectorAll('.worker-row.selected').forEach(r => {
-                r.classList.remove('selected');
-            });
-
+            document.querySelectorAll('.worker-row.selected').forEach(r => r.classList.remove('selected'));
             row.classList.add('selected');
             selectedWorkerId = row.dataset.workerId;
-
             updateDetailPanel(row);
         });
     }
@@ -232,11 +246,8 @@
         chkAll.addEventListener('change', function() {
             document.querySelectorAll('.row-chk').forEach(function(chk) {
                 const row = chk.closest('tr');
-                if (row && row.style.display !== 'none') {
-                    chk.checked = chkAll.checked;
-                }
+                if (row && row.style.display !== 'none') chk.checked = chkAll.checked;
             });
-
             updateSelectedBtn();
         });
     }
@@ -244,14 +255,12 @@
     if (tbody) {
         tbody.addEventListener('change', function(e) {
             if (!e.target.classList.contains('row-chk')) return;
-
             updateSelectedBtn();
 
-            const visibleChecks = Array.from(document.querySelectorAll('.row-chk')).filter(chk => {
+            const visibleChecks = [...document.querySelectorAll('.row-chk')].filter(chk => {
                 const row = chk.closest('tr');
                 return row && row.style.display !== 'none';
             });
-
             const checked = visibleChecks.filter(chk => chk.checked);
 
             if (chkAll) {
@@ -263,55 +272,38 @@
 
     function updateSelectedBtn() {
         const checked = document.querySelectorAll('.row-chk:checked');
-        if (btnSelected) {
-            btnSelected.disabled = checked.length === 0;
-        }
+        if (btnSelected) btnSelected.disabled = checked.length === 0;
     }
 
     // ── 지도 포커스 ──────────────────────────────────────
     function focusWorkerOnMap(workerId) {
         if (!window.workerMarkers) return false;
-
         const state = window.workerMarkers[workerId];
         if (!state) return false;
-
         const marker = state.marker || state;
         if (!marker || typeof marker.getLatLng !== 'function') return false;
-
         const latlng = marker.getLatLng();
-
         if (window.map && typeof map.setView === 'function') {
             map.setView(latlng, map.getZoom(), { animate: true });
         }
-
-        if (typeof marker.openPopup === 'function') {
-            marker.openPopup();
-        }
-
+        if (typeof marker.openPopup === 'function') marker.openPopup();
         return true;
     }
 
     function focusWorkerOnMapRetry(workerId, retry = 10) {
         const ok = focusWorkerOnMap(workerId);
         if (ok) return;
-
-        if (retry <= 0) {
-            console.warn('[worker-map] 작업자 마커를 찾지 못했습니다:', workerId);
-            return;
-        }
-
-        setTimeout(function() {
-            focusWorkerOnMapRetry(workerId, retry - 1);
-        }, 300);
+        if (retry <= 0) { console.warn('[worker-map] 마커 없음:', workerId); return; }
+        setTimeout(() => focusWorkerOnMapRetry(workerId, retry - 1), 300);
     }
 
-    // ── 우측 상세 패널 업데이트 ──────────────────────────
+    // ── 우측 상세 패널 업데이트 정보 업데이트(views.에서  오고 여기서 세부 설정 필요──────────────────────────
     function updateDetailPanel(row) {
         const right = document.getElementById('wl-right');
         const left  = document.getElementById('wl-left');
 
         if (right) right.classList.add('visible');
-        if (left) left.classList.add('shrink');
+        if (left)  left.classList.add('shrink');
 
         if (!window.__workerMapLoaded) {
             if (typeof loadFloorData === 'function') {
@@ -322,10 +314,7 @@
 
         const workerId = row.dataset.workerId;
         window.selectedWorkerIdForMap = workerId;
-
-        setTimeout(function() {
-        focusWorkerOnMapRetry(workerId);
-        }, 500);
+        setTimeout(() => focusWorkerOnMapRetry(workerId), 500);
         focusWorkerOnMapRetry(workerId);
 
         const name  = row.dataset.name  || '—';
@@ -341,9 +330,9 @@
         const profileBody  = document.getElementById('profile-body');
         const placeholder  = document.getElementById('map-placeholder');
 
-        if (mapTitle) mapTitle.textContent = '작업자 위치 모니터링 - ' + name;
+        if (mapTitle)     mapTitle.textContent     = '작업자 위치 모니터링 - ' + name;
         if (profileTitle) profileTitle.textContent = '작업자 프로필 - ' + name;
-        if (riskTitle) riskTitle.textContent = '작업자 위험 현황 - ' + name;
+        if (riskTitle)    riskTitle.textContent     = '작업자 위험 현황 - ' + name;
 
         if (profileBody) {
             profileBody.innerHTML = `
@@ -358,31 +347,39 @@
 
         if (placeholder) placeholder.style.display = 'none';
         if (btnIndividual) btnIndividual.disabled = false;
-
-        updateRiskIcons(row.dataset.status);
+        updateRiskIcons(row);
+        // updateRiskIcons(row.dataset.status);
     }
 
-    function updateRiskIcons(status) {
+    function updateRiskIcons(row) {
         const ppebox   = document.getElementById('risk-ppe');
         const checkbox = document.getElementById('risk-check');
         const vrbox    = document.getElementById('risk-vr');
 
-        const isDanger = status === 'danger';
+        const isDanger = row.dataset.status === 'danger';
+        const checklistCompleted = row.dataset.checklistCompleted === 'true';
+        const vrCompleted = row.dataset.vrCompleted === 'true';
 
-        if (ppebox)   ppebox.className   = 'risk-icon-box ' + (isDanger ? 'fail' : 'ok');
-        if (checkbox) checkbox.className = 'risk-icon-box ok';
-        if (vrbox)    vrbox.className    = 'risk-icon-box ok';
+        if (ppebox) {
+            ppebox.className = 'risk-icon-box ' + (isDanger ? 'fail' : 'ok');
+        }
+
+        if (checkbox) {
+            checkbox.className = 'risk-icon-box ' + (checklistCompleted ? 'ok' : 'fail');
+        }
+
+        if (vrbox) {
+            vrbox.className = 'risk-icon-box ' + (vrCompleted ? 'ok' : 'fail');
+        }
     }
-
     // ── 모달 ─────────────────────────────────────────────
     function openModal(mode, targetLabel) {
         pushMode = mode;
-
         if (modalTarget) modalTarget.textContent = '👤 대상 작업자 : ' + targetLabel;
-        if (modalMsg) modalMsg.value = '';
-        if (msgCount) msgCount.textContent = '0';
-        if (modal) modal.classList.add('active');
-        if (modalMsg) modalMsg.focus();
+        if (modalMsg)    modalMsg.value = '';
+        if (msgCount)    msgCount.textContent = '0';
+        if (modal)       modal.classList.add('active');
+        if (modalMsg)    modalMsg.focus();
     }
 
     function closeModal() {
@@ -393,23 +390,36 @@
     if (btnSelected) {
         btnSelected.addEventListener('click', function() {
             const checked = document.querySelectorAll('.row-chk:checked');
-
-            const names = Array.from(checked).map(function(chk) {
+            const names = [...checked].map(chk => {
                 const row = chk.closest('tr');
                 return row ? row.dataset.name : '';
             }).filter(Boolean);
-
-            pushTargetIds = Array.from(checked).map(chk => chk.dataset.id);
-
+            pushTargetIds = [...checked].map(chk => chk.dataset.id);
             openModal('selected', names.join(', '));
         });
     }
 
-    // 전체 알림
+    // ── ③ 전체 발송: 필터 적용 시 보이는 인원만 대상 ──
     if (btnAll) {
         btnAll.addEventListener('click', function() {
-            pushTargetIds = [];
-            openModal('all', '전체 작업자');
+            const visibleRows = [...document.querySelectorAll('#worker-tbody .worker-row')]
+                .filter(r => r.style.display !== 'none');
+
+            // 보이는 행 체크박스 전체 체크
+            visibleRows.forEach(row => {
+                const chk = row.querySelector('.row-chk');
+                if (chk) chk.checked = true;
+            });
+
+            if (chkAll) { chkAll.checked = true; chkAll.indeterminate = false; }
+            updateSelectedBtn();
+
+            // 발송 대상: 현재 보이는 작업자만
+            pushTargetIds = visibleRows.map(r => r.dataset.workerId);
+            const label = activeFilter
+                ? `필터된 작업자 ${visibleRows.length}명`
+                : `전체 작업자 ${visibleRows.length}명`;
+            openModal('all', label);
         });
     }
 
@@ -418,15 +428,12 @@
         btnIndividual.addEventListener('click', function() {
             const row = document.querySelector('.worker-row.selected');
             if (!row) return;
-
             pushTargetIds = [row.dataset.workerId];
             openModal('single', row.dataset.name + ' (' + row.dataset.no + ')');
         });
     }
 
-    if (modalCancel) {
-        modalCancel.addEventListener('click', closeModal);
-    }
+    if (modalCancel) modalCancel.addEventListener('click', closeModal);
 
     if (modal) {
         modal.addEventListener('click', function(e) {
@@ -438,7 +445,6 @@
         modalMsg.addEventListener('input', function() {
             const len = this.value.length;
             msgCount.textContent = len;
-
             if (msgCount.parentElement) {
                 msgCount.parentElement.classList.toggle('over', len >= 100);
             }
@@ -448,21 +454,15 @@
     if (modalSend) {
         modalSend.addEventListener('click', function() {
             const msg = modalMsg ? modalMsg.value.trim() : '';
-            if (!msg) {
-                if (modalMsg) modalMsg.focus();
-                return;
-            }
-
-            console.log('푸시 발송:', {
-                mode: pushMode,
-                targets: pushTargetIds,
-                message: msg
-            });
-
+            if (!msg) { if (modalMsg) modalMsg.focus(); return; }
+            console.log('푸시 발송:', { mode: pushMode, targets: pushTargetIds, message: msg });
             alert('알림이 발송되었습니다.');
             closeModal();
         });
     }
+
+    // ── 초기화: 정렬 실행 ────────────────────────────────
+    sortWorkerRows();
 
 })();
 </script>
