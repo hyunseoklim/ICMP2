@@ -74,6 +74,12 @@ urlpatterns = [
     path('alarm/event-history/', views.event_history_list, name='event_history_list'),
     path('alarm/send-history/', views.alarm_send_history_list, name='alarm_send_history_list'),
 
-    #지도관리
-    path('map/', views.map_editor, name='map_editor'),    
+    # 로그 및 연동 관리
+    path('log/system/', views.system_log_list, name='system_log_list'),
+    path('log/user-activity/', views.user_activity_log_list, name='user_activity_log_list'),
+    path('log/integration/', views.integration_log_list, name='integration_log_list'),
+    path('log/map-edit/', views.map_edit_log_list, name='map_edit_log_list'),
+
+    # 지도 관리
+    path('map/', views.map_editor, name='map_editor'),
 ]

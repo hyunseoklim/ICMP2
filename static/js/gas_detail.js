@@ -4,28 +4,28 @@
  */
 
 const GAS_THRESHOLDS = {
-    co:  { warn: 25,   danger: 200,  max: 300,  reverse: false },
-    h2s: { warn: 10,   danger: 15,   max: 25,   reverse: false },
+    co: { warn: 25, danger: 200, max: 300, reverse: false },
+    h2s: { warn: 10, danger: 15, max: 25, reverse: false },
     co2: { warn: 1000, danger: 5000, max: 6000, reverse: false },
-    o2:  { warn: 18,   danger: 16,   max: 25,   reverse: true, high: 23.5 }, // 23.5 초과 주의
-    no2: { warn: 3,    danger: 5,    max: 10,   reverse: false },
-    so2: { warn: 2,    danger: 5,    max: 10,   reverse: false },
-    o3:  { warn: 0.06, danger: 0.12, max: 0.2,  reverse: false },
-    nh3: { warn: 25,   danger: 35,   max: 50,   reverse: false },
-    voc: { warn: 0.5,  danger: 1.0,  max: 1.5,  reverse: false },
+    o2: { warn: 18, danger: 16, max: 25, reverse: true, high: 23.5 }, // 23.5 초과 주의
+    no2: { warn: 3, danger: 5, max: 10, reverse: false },
+    so2: { warn: 2, danger: 5, max: 10, reverse: false },
+    o3: { warn: 0.06, danger: 0.12, max: 0.2, reverse: false },
+    nh3: { warn: 25, danger: 35, max: 50, reverse: false },
+    voc: { warn: 0.5, danger: 1.0, max: 1.5, reverse: false },
 };
 
 const LEVEL_COLOR = {
-    danger:  'rgba(239,68,68,0.85)',
+    danger: 'rgba(239,68,68,0.85)',
     warning: 'rgba(245,158,11,0.85)',
-    normal:  'rgba(16,185,129,0.85)',
+    normal: 'rgba(16,185,129,0.85)',
 };
 
-let gasSensors      = [];
+let gasSensors = [];
 let gasCurrentIndex = 0;
-let gasCharts       = {};
-let currentReading  = null;
-let selectedGas     = null;
+let gasCharts = {};
+let currentReading = null;
+let selectedGas = null;
 
 
 // ══════════════════════════════════════════════════════════
@@ -44,8 +44,8 @@ const zoneBackgroundPlugin = {
 
         if (t.reverse) {
             const dangerY = clamp(t.danger);
-            const warnY   = clamp(t.warn);
-            const highY   = t.high ? clamp(t.high) : area.top;
+            const warnY = clamp(t.warn);
+            const highY = t.high ? clamp(t.high) : area.top;
 
             // 23.5 초과 주의 구역 (기준 미정)
             if (t.high) {
@@ -62,7 +62,7 @@ const zoneBackgroundPlugin = {
             ctx.fillStyle = 'rgba(239,68,68,0.25)';
             ctx.fillRect(area.left, dangerY, area.right - area.left, area.bottom - dangerY);
         } else {
-            const warnY   = clamp(t.warn);
+            const warnY = clamp(t.warn);
             const dangerY = clamp(t.danger);
             ctx.fillStyle = 'rgba(239,68,68,0.25)';
             ctx.fillRect(area.left, area.top, area.right - area.left, dangerY - area.top);
@@ -92,12 +92,12 @@ function calcPerGasLevels(reading) {
 
         if (t.reverse) {
             // O2: 낮을수록 위험, 23.5 초과도 주의(기준 미정)
-            levels[gas] = value < t.danger        ? 'danger'  :
-                          value < t.warn          ? 'warning' :
-                          (t.high && value > t.high) ? 'warning' : 'normal';
+            levels[gas] = value < t.danger ? 'danger' :
+                value < t.warn ? 'warning' :
+                    (t.high && value > t.high) ? 'warning' : 'normal';
         } else {
-            levels[gas] = value >= t.danger ? 'danger'  :
-                          value >= t.warn   ? 'warning' : 'normal';
+            levels[gas] = value >= t.danger ? 'danger' :
+                value >= t.warn ? 'warning' : 'normal';
         }
     });
     return levels;
@@ -174,7 +174,7 @@ function createGasChart(gas) {
                 y: {
                     min: 0,
                     max: t?.max ?? 100,
-                    grid:  { color: 'rgba(255,255,255,0.04)' },
+                    grid: { color: 'rgba(255,255,255,0.04)' },
                     ticks: { color: '#4b5563', font: { size: 9 }, maxTicksLimit: 6 },
                     border: { color: 'rgba(255,255,255,0.1)' },
                 }
@@ -190,11 +190,11 @@ function updateGasCharts(reading, gasLevels) {
     if (!reading) return;
 
     Object.keys(GAS_META).forEach(gas => {
-        const card  = document.getElementById(`card-${gas}`);
+        const card = document.getElementById(`card-${gas}`);
         const badge = document.getElementById(`badge-${gas}`);
 
-        const value   = reading[gas];
-        const level   = (gasLevels && gasLevels[gas]) || 'normal';
+        const value = reading[gas];
+        const level = (gasLevels && gasLevels[gas]) || 'normal';
         const levelKo = level === 'danger' ? '위험' : level === 'warning' ? '주의' : '정상';
 
         if (gasCharts[gas]) {
@@ -206,14 +206,14 @@ function updateGasCharts(reading, gasLevels) {
         const chart = gasCharts[gas];
         if (!chart) return;
 
-        chart.data.datasets[0].data            = [value ?? 0];
+        chart.data.datasets[0].data = [value ?? 0];
         chart.data.datasets[0].backgroundColor = LEVEL_COLOR[level];
         chart.update();
 
-        if (card)  card.className  = `gas-chart-card gas-chart-card--${level}`;
+        if (card) card.className = `gas-chart-card gas-chart-card--${level}`;
         if (badge) {
             badge.textContent = levelKo;
-            badge.className   = `gas-chart-card__badge level-badge level--${level}`;
+            badge.className = `gas-chart-card__badge level-badge level--${level}`;
         }
     });
 }
@@ -240,11 +240,11 @@ function renderGasTable(reading) {
     reading._gasLevels = gasLevels;
 
     tbody.innerHTML = Object.keys(GAS_META).map(gas => {
-        const meta    = GAS_META[gas];
-        const value   = reading[gas];
-        const level   = gasLevels[gas] || 'normal';
+        const meta = GAS_META[gas];
+        const value = reading[gas];
+        const level = gasLevels[gas] || 'normal';
         const levelKo = level === 'danger' ? '위험' : level === 'warning' ? '주의' : '정상';
-        const dv      = (value !== null && value !== undefined) ? value : '-';
+        const dv = (value !== null && value !== undefined) ? value : '-';
 
         return `
             <tr class="row--${level} gas-table-row" data-gas="${gas}">
@@ -314,17 +314,17 @@ function renderSensorList(sensors) {
 
 async function loadSensorSummary(sensor) {
     try {
-        const res    = await DeviceAPI.getLatestGas(sensor.id);
-        const data   = res.data;
+        const res = await DeviceAPI.getLatestGas(sensor.id);
+        const data = res.data;
 
         const levels = (data.gas_levels && Object.keys(data.gas_levels).length > 0)
             ? data.gas_levels
             : calcPerGasLevels(data);
 
-        const dangerGases  = Object.entries(levels).filter(([, v]) => v === 'danger');
+        const dangerGases = Object.entries(levels).filter(([, v]) => v === 'danger');
         const warningGases = Object.entries(levels).filter(([, v]) => v === 'warning');
-        const mainGasEl    = document.getElementById(`main-gas-${sensor.id}`);
-        const badgeEl      = document.getElementById(`level-badge-${sensor.id}`);
+        const mainGasEl = document.getElementById(`main-gas-${sensor.id}`);
+        const badgeEl = document.getElementById(`level-badge-${sensor.id}`);
 
         if (dangerGases.length > 0) {
             const gas = dangerGases[0][0];
@@ -348,14 +348,14 @@ async function loadSensorSummary(sensor) {
 
     } catch (e) {
         const mainGasEl = document.getElementById(`main-gas-${sensor.id}`);
-        const badgeEl   = document.getElementById(`level-badge-${sensor.id}`);
+        const badgeEl = document.getElementById(`level-badge-${sensor.id}`);
         if (e.response?.status === 404) {
             if (mainGasEl) mainGasEl.textContent = '-';
-            if (badgeEl)   badgeEl.innerHTML =
+            if (badgeEl) badgeEl.innerHTML =
                 '<span class="level-badge level--normal">-</span>';
         } else {
             if (mainGasEl) mainGasEl.textContent = '-';
-            if (badgeEl)   badgeEl.innerHTML =
+            if (badgeEl) badgeEl.innerHTML =
                 '<span class="conn-status conn-status--err">수신 오류</span>';
         }
     }
@@ -365,12 +365,12 @@ function updateGasSummaryBadges() {
     const rows = document.querySelectorAll('#sensor-list .sensor-list__item');
     let danger = 0, warning = 0, normal = 0;
     rows.forEach(row => {
-        const id    = row.dataset.id;
+        const id = row.dataset.id;
         const badge = document.querySelector(`#level-badge-${id} .level-badge`);
         if (!badge) return;
-        if (badge.classList.contains('level--danger'))       danger++;
+        if (badge.classList.contains('level--danger')) danger++;
         else if (badge.classList.contains('level--warning')) warning++;
-        else                                                  normal++;
+        else normal++;
     });
     const dEl = document.getElementById('summary-danger');
     const wEl = document.getElementById('summary-warning');
@@ -387,13 +387,13 @@ function updateGasSummaryBadges() {
 async function loadLatestGas(deviceId) {
     if (!deviceId) return;
     try {
-        const res       = await DeviceAPI.getLatestGas(deviceId);
-        const data      = res.data;
+        const res = await DeviceAPI.getLatestGas(deviceId);
+        const data = res.data;
         renderGasTable(data);
 
-        const device    = gasSensors[gasCurrentIndex];
+        const device = gasSensors[gasCurrentIndex];
         const gasLevels = data._gasLevels || calcPerGasLevels(data);
-        const level     = data.danger_level;
+        const level = data.danger_level;
 
         if (device && (level === '위험' || level === '주의')) {
             const affectedGases = Object.entries(gasLevels)
@@ -415,21 +415,21 @@ async function loadLatestGas(deviceId) {
 }
 
 function updateAlertBar(sensorId, msg, action, time, level) {
-    const bar      = document.getElementById('alert-bar');
+    const bar = document.getElementById('alert-bar');
     const sensorEl = document.getElementById('alert-sensor');
-    const msgEl    = document.getElementById('alert-msg');
+    const msgEl = document.getElementById('alert-msg');
     const actionEl = document.getElementById('alert-action');
-    const timeEl   = document.getElementById('alert-time');
+    const timeEl = document.getElementById('alert-time');
 
     if (!bar) return;
     if (!level || level === '정상') { bar.style.display = 'none'; return; }
 
     bar.style.display = 'flex';
-    bar.className     = `alert-bar alert-bar--${level === '위험' ? 'danger' : 'warning'}`;
+    bar.className = `alert-bar alert-bar--${level === '위험' ? 'danger' : 'warning'}`;
     if (sensorEl) sensorEl.textContent = sensorId;
-    if (msgEl)    msgEl.textContent    = msg;
+    if (msgEl) msgEl.textContent = msg;
     if (actionEl) actionEl.textContent = action;
-    if (timeEl)   timeEl.textContent   = time;
+    if (timeEl) timeEl.textContent = time;
 }
 
 
@@ -440,11 +440,11 @@ function updateGasNav() {
     const device = gasSensors[gasCurrentIndex];
     if (!device) return;
 
-    const nameEl    = document.getElementById('gas-sensor-name');
-    const pageEl    = document.getElementById('gas-page');
+    const nameEl = document.getElementById('gas-sensor-name');
+    const pageEl = document.getElementById('gas-page');
     const currentEl = document.getElementById('current-sensor-name');
-    if (nameEl)    nameEl.textContent    = device.device_name;
-    if (pageEl)    pageEl.textContent    = `${gasCurrentIndex + 1} / ${gasSensors.length}`;
+    if (nameEl) nameEl.textContent = device.device_name;
+    if (pageEl) pageEl.textContent = `${gasCurrentIndex + 1} / ${gasSensors.length}`;
     if (currentEl) currentEl.textContent = device.device_uid;
 
     loadLatestGas(device.id);

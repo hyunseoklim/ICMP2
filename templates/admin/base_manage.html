@@ -28,10 +28,11 @@
                {% if active_menu == 'facility' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="wrench" class="w-5 h-5"></i>
       </a>
-      <a href= "{% url 'map_editor' %}" title="지도 편집 관리"
+      <a href="{% url 'map_editor' %}" title="지도 편집 관리"
         class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
                {% if active_menu == 'map_editor' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="map" class="w-5 h-5"></i>
+      </a>
       <a href="{% url 'code_list' %}" title="기준정보 관리"
         class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
                {% if active_menu == 'reference' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
@@ -57,7 +58,7 @@
                {% if active_menu == 'safety' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="shield-check" class="w-5 h-5"></i>
       </a>
-      <a href="#" title="로그 관리"
+      <a href="{% url 'system_log_list' %}" title="로그 및 연동 관리"
         class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
                {% if active_menu == 'log' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="scroll-text" class="w-5 h-5"></i>

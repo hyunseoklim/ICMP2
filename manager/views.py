@@ -308,7 +308,25 @@ def event_history_list(request):
 def alarm_send_history_list(request):
     """알림 발송 이력"""
     return render(request, 'admin/alarm/alarm_send_history_list.html', {'active_menu': 'alarm'})
-# 지도 
+
+# ===== 로그 및 연동 관리 =====
+def system_log_list(request):
+    """시스템 로그"""
+    return render(request, 'admin/log/system_log_list.html', {'active_menu': 'log'})
+
+def user_activity_log_list(request):
+    """사용자 활동 로그"""
+    return render(request, 'admin/log/user_activity_log_list.html', {'active_menu': 'log'})
+
+def integration_log_list(request):
+    """연동 로그"""
+    return render(request, 'admin/log/integration_log_list.html', {'active_menu': 'log'})
+
+def map_edit_log_list(request):
+    """지도 편집 로그"""
+    return render(request, 'admin/log/map_edit_log_list.html', {'active_menu': 'log'})
+
+# ===== 지도 관리 =====
 def map_editor(request):
-    """필터 펼친 상태"""
+    """지도 편집 관리"""
     return render(request, 'admin/map/map.html')
