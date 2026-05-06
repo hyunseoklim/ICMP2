@@ -68,4 +68,9 @@ urlpatterns = [
 
     # 메뉴 관리
     path('menu-manage/', views.menu_manage, name='menu_manage'),
+
+    # 알림/이벤트 관리
+    path('alarm/policy/', views.alarm_policy_list, name='alarm_policy_list'),
+    path('alarm/event-history/', views.event_history_list, name='event_history_list'),
+    path('alarm/send-history/', views.alarm_send_history_list, name='alarm_send_history_list'),
 ]

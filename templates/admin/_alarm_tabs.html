@@ -1,0 +1,26 @@
+{% comment %}
+알림/이벤트 관리 공통 탭
+
+사용 방법:
+  include 'admin/_alarm_tabs.html' with active_tab='policy'
+  include 'admin/_alarm_tabs.html' with active_tab='history'
+{% endcomment %}
+<div class="border-b border-slate-200 mb-6">
+  <nav class="flex gap-1" aria-label="알림/이벤트 관리 탭">
+    <a href="{% url 'alarm_policy_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'policy' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      알림 정책 관리
+    </a>
+    <a href="{% url 'event_history_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'history' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      이벤트 이력 조회
+    </a>
+    <a href="{% url 'alarm_send_history_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'send' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      알림 발송 이력
+    </a>
+  </nav>
+</div>

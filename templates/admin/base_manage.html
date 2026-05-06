@@ -43,9 +43,9 @@
                {% if active_menu == 'notice' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="bell" class="w-5 h-5"></i>
       </a>
-      <a href="#" title="이벤트 관리"
+      <a href="{% url 'alarm_policy_list' %}" title="알림/이벤트 관리"
         class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
-               {% if active_menu == 'event' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
+               {% if active_menu == 'alarm' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
         <i data-lucide="layout-grid" class="w-5 h-5"></i>
       </a>
       <a href="{% url 'safety_checklist_list' %}" title="안전 확인 관리"
