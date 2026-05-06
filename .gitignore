@@ -7,10 +7,10 @@ db.sqlite3
 .DS_Store
 .venv/
 venv/
-# 모든 마이그레이션 파일을 무시하되
-**/migrations/*.py
+# # 모든 마이그레이션 파일을 무시하되
+# **/migrations/*.py
 
-# __init__.py 파일은 제외하지 않음 (추적 유지)
-!**/migrations/__init__.py
+# # __init__.py 파일은 제외하지 않음 (추적 유지)
+# !**/migrations/__init__.py
 
 .claude/
