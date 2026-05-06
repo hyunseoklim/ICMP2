@@ -437,11 +437,40 @@ function renderOrMoveWorker(loc) {
         if (dangerEl)  dangerEl.textContent  = dangerCount;
         if (warningEl) warningEl.textContent = warningCount;
         if (normalEl)  normalEl.textContent  = safeCount;
+
     }
+        (function updateWorkerWidget() {
+        const markers = window.workerMarkers || {};
+        let danger = 0, warning = 0, safe = 0;
+        Object.values(markers).forEach(function(state) {
+            const status = state.marker?._locData?.worker_status;
+            if      (status === 'danger')  danger++;
+            else if (status === 'warning') warning++;
+            else                           safe++;
+        });
+        const total = danger + warning + safe;
+        const dEl = document.getElementById('worker-danger');
+        const wEl = document.getElementById('worker-warning');
+        const sEl = document.getElementById('worker-safe');
+        const tEl = document.getElementById('worker-total');
+        if (dEl) dEl.textContent = danger  + '명';
+        if (wEl) wEl.textContent = warning + '명';
+        if (sEl) sEl.textContent = safe    + '명';
+        if (tEl) tEl.textContent = total   + '명';
+        if (typeof Chart !== 'undefined') {
+            const chart = Chart.getChart('workerDonut');
+            if (chart) {
+                chart.data.datasets[0].data = [danger, warning, safe];
+                chart.update('none');
+            }
+        }
+    })();
+
     if (window.selectedWorkerIdForMap === String(loc.worker_id)) {
        map.panTo([loc.snap_y, loc.snap_x], { animate: true });
     }
 }
+
 
 // ─── 마커 제거 ───────────────────────────────────────────────
 function clearWorkerMarkers() {
