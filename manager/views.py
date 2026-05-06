@@ -118,67 +118,67 @@ from .mixins import AdminRequiredMixin, ManagerRequiredMixin, RoleRequiredMixin,
     
 def user_list(request):
     """사용자 관리 메인 페이지"""
-    return render(request, 'admin/users/user_list.html')
+    return render(request, 'admin/users/user_list.html', {'active_menu': 'account'})
 
 def user_create(request):
     """사용자 등록 모달"""
-    return render(request, 'admin/users/user_create.html')
+    return render(request, 'admin/users/user_create.html', {'active_menu': 'account'})
 
 def user_create_error(request):
     """사용자 등록 - 유효성 에러"""
-    return render(request, 'admin/users/user_create_error.html')
+    return render(request, 'admin/users/user_create_error.html', {'active_menu': 'account'})
 
 def user_detail(request):
     """사용자 정보 조회"""
-    return render(request, 'admin/users/user_detail.html')
+    return render(request, 'admin/users/user_detail.html', {'active_menu': 'account'})
 
 def user_edit(request):
     """사용자 정보 수정"""
-    return render(request, 'admin/users/user_edit.html')
+    return render(request, 'admin/users/user_edit.html', {'active_menu': 'account'})
 
 def logout_complete(request):
     """로그아웃 완료"""
-    return render(request, 'admin/users/logout_complete.html')
+    return render(request, 'admin/users/logout_complete.html', {'active_menu': 'account'})
 
 def user_list_filter(request):
     """필터 펼친 상태"""
-    return render(request, 'admin/users/user_list_filter_open.html')
+    return render(request, 'admin/users/user_list_filter_open.html', {'active_menu': 'account'})
 
 # ===== 직위 관리 =====
 def position_list(request):
     """직위 관리 메인 페이지"""
-    return render(request, 'admin/positions/position_list.html')
+    return render(request, 'admin/positions/position_list.html', {'active_menu': 'account'})
 
 def position_create(request):
     """직위 등록 모달"""
-    return render(request, 'admin/positions/position_create.html')
+    return render(request, 'admin/positions/position_create.html', {'active_menu': 'account'})
 
 def position_edit(request, pk=0):
     """직위 수정 모달"""
-    return render(request, 'admin/positions/position_edit.html')
+    return render(request, 'admin/positions/position_edit.html', {'active_menu': 'account', 'pk': pk})
 
 
 # ===== 조직 관리 =====
 def org_list(request):
     """조직 관리 메인 페이지"""
-    return render(request, 'admin/organizations/org_list.html')
+    return render(request, 'admin/organizations/org_list.html', {'active_menu': 'account'})
 
 def org_member_select(request):
     """구성원 선택 모달"""
-    return render(request, 'admin/organizations/org_member_select.html')
+    return render(request, 'admin/organizations/org_member_select.html', {'active_menu': 'account'})
 
 def org_dept_move(request):
     """부서 이동 모달"""
-    return render(request, 'admin/organizations/org_dept_move.html')
+    return render(request, 'admin/organizations/org_dept_move.html', {'active_menu': 'account'})
 
 def org_confirm(request):
     """재확인 모달"""
-    return render(request, 'admin/organizations/org_confirm.html')
+    return render(request, 'admin/organizations/org_confirm.html', {'active_menu': 'account'})
 
 # ===== 공통 코드 관리 =====
 def code_list(request):
     """공통 코드 관리 메인 페이지"""
-    return render(request, 'admin/codes/code_list.html')
+    return render(request, 'admin/codes/code_list.html', {'active_menu': 'reference'})
 
 def code_group_create(request):
     """코드 그룹 등록 모달"""
@@ -199,7 +199,7 @@ def code_value_edit(request):
 # ===== 위험 유형 관리 =====
 def risk_list(request):
     """위험 유형 관리 메인 페이지"""
-    return render(request, 'admin/risks/risk_list.html')
+    return render(request, 'admin/risks/risk_list.html', {'active_menu': 'reference'})
 
 def risk_create(request):
     """위험 유형 코드 등록 모달"""
@@ -220,22 +220,22 @@ def risk_group_edit(request):
 # ===== 위험 기준 관리 =====
 def risk_criteria_list(request):
     """위험 기준 관리 - 메인 + 등록/수정 모달 통합"""
-    return render(request, 'admin/risk_criteria/risk_criteria_list.html')
+    return render(request, 'admin/risk_criteria/risk_criteria_list.html', {'active_menu': 'reference'})
 
 # ===== 임계치 기준 관리 =====
 def threshold_list(request):
     """임계치 기준 관리 메인 페이지 (모든 모달 포함)"""
-    return render(request, 'admin/thresholds/threshold_list.html')
+    return render(request, 'admin/thresholds/threshold_list.html', {'active_menu': 'reference'})
 
 # ===== 안전 확인 관리 =====
 def safety_checklist_list(request):
     """작업 전 안전 점검 체크리스트 관리"""
-    return render(request, 'admin/safety_checklist/safety_checklist_list.html')
+    return render(request, 'admin/safety_checklist/safety_checklist_list.html', {'active_menu': 'safety'})
 
 # ===== VR 교육 관리 =====
 def vr_education_list(request):
     """VR 교육 관리 - 메인 + 수정 모달 통합"""
-    return render(request, 'admin/vr_education/vr_education_list.html')
+    return render(request, 'admin/vr_education/vr_education_list.html', {'active_menu': 'safety'})
 
 # ===== 설비 관리 =====
 def facility_list(request):
@@ -291,3 +291,8 @@ def notice_create(request):
 def notice_edit(request):
     """공지사항 수정"""
     return render(request, 'admin/notice/notice_edit.html', {'active_menu': 'notice'})
+
+# ===== 메뉴 관리 =====
+def menu_manage(request):
+    """메뉴 관리 (슈퍼관리자 전용)"""
+    return render(request, 'admin/menu_manage/menu_manage.html', {'active_menu': 'menu_manage'})

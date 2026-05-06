@@ -65,4 +65,7 @@ urlpatterns = [
     path('notice/detail/', views.notice_detail, name='notice_detail'),
     path('notice/create/', views.notice_create, name='notice_create'),
     path('notice/edit/', views.notice_edit, name='notice_edit'),
+
+    # 메뉴 관리
+    path('menu-manage/', views.menu_manage, name='menu_manage'),
 ]

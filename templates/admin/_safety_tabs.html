@@ -1,0 +1,21 @@
+{% comment %}
+안전 확인 관리 공통 탭
+
+사용 방법:
+  include 'admin/_safety_tabs.html' with active_tab='checklist'
+  include 'admin/_safety_tabs.html' with active_tab='vr'
+{% endcomment %}
+<div class="border-b border-slate-200 mb-6">
+  <nav class="flex gap-1" aria-label="안전 확인 관리 탭">
+    <a href="{% url 'safety_checklist_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'checklist' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      안전 점검 체크리스트 관리
+    </a>
+    <a href="{% url 'vr_education_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'vr' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      VR 교육 관리
+    </a>
+  </nav>
+</div>
