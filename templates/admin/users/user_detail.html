@@ -1,4 +1,4 @@
-{% extends 'users/user_list.html' %}
+{% extends 'admin/users/user_list.html' %}
 
 {% block title %}사용자 정보 조회 | 산재 예방 통합 관제 시스템{% endblock %}
 
@@ -29,17 +29,17 @@
         </div>
         <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
           <span class="text-xs font-medium text-slate-700">소속</span>
-          <input type="text" value="{{ target_user.dept|default:'관제운영팀' }}" disabled
+          <input type="text" value="{{ target_user.department.name|default:'-' }}" disabled
             class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
         </div>
         <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
           <span class="text-xs font-medium text-slate-700">직위</span>
-          <input type="text" value="{{ target_user.position|default:'과장' }}" disabled
+          <input type="text" value="{{ target_user.position|default:'-' }}" disabled
             class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
         </div>
         <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
           <span class="text-xs font-medium text-slate-700">계정 상태</span>
-          <input type="text" value="{{ target_user.status|default:'사용' }}" disabled
+          <input type="text" value="{% if target_user.is_active %}사용{% else %}비활성{% endif %}" disabled
             class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
         </div>
         <div class="grid grid-cols-[80px_1fr] gap-3 items-center">

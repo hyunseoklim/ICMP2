@@ -1,0 +1,306 @@
+<div id="gas-register-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="px-8 py-7">
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-slate-900 mb-1">장비 등록</h3>
+        <p class="text-xs text-slate-500">현장 내 유해가스 센서를 등록합니다.</p>
+      </div>
+
+      <form id="gas-register-form" novalidate>
+        <div class="space-y-4">
+
+          {# 장비 유형 / 장비 코드 #}
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 유형 <span class="text-red-500">*</span></label>
+              <select id="reg-device-type" name="device_type"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-500 transition-colors">
+                <option value="">장비 유형 선택</option>
+                <option value="GAS">유해가스 센서</option>
+                <option value="PWR">스마트 전력 시스템</option>
+                <option value="LOC">위치 노드</option>
+              </select>
+              <p class="hidden mt-1 text-[11px] text-red-500" id="reg-type-error">장비 유형을 선택해주세요.</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 코드 <span class="text-red-500">*</span></label>
+              <input type="text" id="reg-device-code" name="device_code" disabled
+                placeholder="장비 유형 선택 후 자동 생성"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 placeholder-slate-400 font-mono cursor-not-allowed" />
+            </div>
+          </div>
+
+          {# 장비명 / 장비 ID(MAC) #}
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명 <span class="text-red-500">*</span></label>
+              <input type="text" id="reg-device-name" name="device_name"
+                placeholder="장비 유형 선택 시 자동 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="reg-name-error"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 ID(MAC) <span class="text-red-500">*</span></label>
+              <input type="text" id="reg-device-mac" name="device_mac"
+                placeholder="ID 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="reg-mac-error"></p>
+            </div>
+          </div>
+
+          {# 관리 부서 / 관리 담당자 #}
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">관리 부서 <span class="text-red-500">*</span></label>
+              <select id="reg-dept" name="department"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-500">
+                <option value="">부서 선택</option>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}">{{ dept.name }}</option>
+                {% empty %}
+                <option value="prod">생산부</option>
+                <option value="safety">안전관리부</option>
+                <option value="maint">설비보전부</option>
+                <option value="env">환경관리부</option>
+                {% endfor %}
+              </select>
+              <p class="hidden mt-1 text-[11px] text-red-500" id="reg-dept-error">관리 부서를 선택해 주세요.</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">관리 담당자 <span class="text-red-500">*</span></label>
+              <select id="reg-manager" name="manager"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-500">
+                <option value="">담당자 선택</option>
+                {% for user in managers %}
+                <option value="{{ user.id }}">{{ user.name }}</option>
+                {% empty %}
+                <option value="u1">김민준</option>
+                <option value="u2">이서현</option>
+                <option value="u3">박지훈</option>
+                <option value="u4">최아영</option>
+                {% endfor %}
+              </select>
+              <p class="hidden mt-1 text-[11px] text-red-500" id="reg-manager-error">관리 담당자를 선택해 주세요.</p>
+            </div>
+          </div>
+
+          {# 장비 통신 IP/PORT / 사용 여부 + 연결 상태 #}
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 통신 IP / PORT <span class="text-red-500">*</span></label>
+              <input type="text" id="reg-ip" name="ip"
+                placeholder="IP 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 mb-2" />
+              <input type="text" id="reg-port" name="port"
+                placeholder="PORT 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="reg-comm-error"></p>
+              <button type="button" id="reg-comm-check"
+                class="mt-2 px-4 py-2 text-xs font-medium border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition-colors">
+                통신 확인
+              </button>
+            </div>
+            <div class="flex flex-col gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
+                <div class="flex items-center gap-5 pt-1">
+                  <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                    <input type="checkbox" id="reg-status-active" checked
+                      class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />사용
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                    <input type="checkbox" id="reg-status-inactive"
+                      class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />미사용
+                  </label>
+                </div>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="reg-status-error">사용 여부를 선택해 주세요.</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 확인 상태 / 마지막 연결일시</label>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" id="reg-conn-verified" disabled
+                    class="w-4 h-4 rounded border-slate-300 flex-shrink-0" />
+                  <input type="text" id="reg-conn-date" disabled
+                    placeholder="통신 확인 후 표시"
+                    class="flex-1 px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-500 placeholder-slate-400 cursor-not-allowed" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {# 비고 #}
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">비고</label>
+            <textarea id="reg-note" name="note" rows="3" placeholder="운영 메모를 입력하세요"
+              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 resize-none"></textarea>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 mt-6">
+          <button type="button" id="gas-register-cancel"
+            class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+            취소
+          </button>
+          <button type="submit"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+            등록
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  var registerModal = document.getElementById('gas-register-modal');
+  var successModal  = document.getElementById('gas-success-modal');
+  var commChecked   = false;
+
+  var TYPE_CODES = { GAS: 'GAS-008', PWR: 'PWR-001', LOC: 'LOC-001' };
+  var TYPE_NAMES = { GAS: '유해가스 센서', PWR: '스마트 전력 시스템', LOC: '위치 노드' };
+
+  function openRegisterModal() {
+    registerModal.classList.remove('hidden');
+    registerModal.classList.add('flex');
+  }
+  function closeRegisterModal() {
+    registerModal.classList.add('hidden');
+    registerModal.classList.remove('flex');
+    resetForm();
+  }
+  function resetForm() {
+    document.getElementById('gas-register-form').reset();
+    document.getElementById('reg-device-code').value = '';
+    document.getElementById('reg-conn-verified').checked = false;
+    document.getElementById('reg-conn-date').value = '';
+    commChecked = false;
+    clearAllErrors();
+    document.getElementById('reg-status-active').checked = true;
+    document.getElementById('reg-status-inactive').checked = false;
+  }
+  function clearAllErrors() {
+    ['reg-type-error','reg-name-error','reg-mac-error','reg-dept-error','reg-manager-error','reg-comm-error','reg-status-error'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+    ['reg-device-type','reg-ip','reg-port','reg-device-name','reg-device-mac'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.classList.remove('border-red-400'); el.classList.add('border-slate-200'); }
+    });
+  }
+
+  function showError(errId, msg, fieldId) {
+    var errEl = document.getElementById(errId);
+    if (errEl) { errEl.textContent = msg; errEl.classList.remove('hidden'); }
+    if (fieldId) {
+      var fEl = document.getElementById(fieldId);
+      if (fEl) { fEl.classList.add('border-red-400'); fEl.classList.remove('border-slate-200'); }
+    }
+  }
+  function hideError(errId, fieldId) {
+    var errEl = document.getElementById(errId);
+    if (errEl) errEl.classList.add('hidden');
+    if (fieldId) {
+      var fEl = document.getElementById(fieldId);
+      if (fEl) { fEl.classList.remove('border-red-400'); fEl.classList.add('border-slate-200'); }
+    }
+  }
+
+  // 장비 유형 → 코드 자동 생성
+  document.getElementById('reg-device-type')?.addEventListener('change', function() {
+    var val = this.value;
+    var codeEl = document.getElementById('reg-device-code');
+    var nameEl = document.getElementById('reg-device-name');
+    if (val && TYPE_CODES[val]) {
+      codeEl.value = TYPE_CODES[val];
+      nameEl.placeholder = TYPE_NAMES[val];
+      hideError('reg-type-error', 'reg-device-type');
+    } else {
+      codeEl.value = '';
+      nameEl.placeholder = '장비 유형 선택 시 자동 입력';
+    }
+    commChecked = false;
+  });
+
+  // 통신 확인
+  document.getElementById('reg-comm-check')?.addEventListener('click', function() {
+    var ip   = document.getElementById('reg-ip').value.trim();
+    var port = document.getElementById('reg-port').value.trim();
+
+    if (!ip) { showError('reg-comm-error', 'IP 주소를 입력해 주세요.', 'reg-ip'); return; }
+    var ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(ip) || ip.split('.').some(function(n) { return parseInt(n) > 255; })) {
+      showError('reg-comm-error', 'IP 주소 형식이 올바르지 않습니다.', 'reg-ip'); return;
+    }
+    hideError('reg-comm-error', 'reg-ip');
+
+    if (!port) { showError('reg-comm-error', '포트 번호를 입력해 주세요.', 'reg-port'); return; }
+    if (!/^\d+$/.test(port)) { showError('reg-comm-error', '포트 번호 형식이 올바르지 않습니다.', 'reg-port'); return; }
+    var portNum = parseInt(port);
+    if (portNum < 1 || portNum > 65535) { showError('reg-comm-error', '포트 번호는 1~65535 범위로 입력해 주세요.', 'reg-port'); return; }
+    hideError('reg-comm-error', 'reg-port');
+
+    commChecked = true;
+    document.getElementById('reg-conn-verified').checked = true;
+    var now = new Date();
+    var pad = function(n) { return String(n).padStart(2,'0'); };
+    document.getElementById('reg-conn-date').value =
+      now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) + ' ' +
+      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+  });
+
+  // 사용/미사용 단일 선택
+  var cbActive   = document.getElementById('reg-status-active');
+  var cbInactive = document.getElementById('reg-status-inactive');
+  cbActive?.addEventListener('change', function()   { if (cbActive.checked)   cbInactive.checked = false; });
+  cbInactive?.addEventListener('change', function() { if (cbInactive.checked) cbActive.checked   = false; });
+
+  // 폼 제출 유효성 검사
+  document.getElementById('gas-register-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    clearAllErrors();
+    var valid = true;
+
+    if (!document.getElementById('reg-device-type').value) {
+      showError('reg-type-error', '장비 유형을 선택해주세요.', 'reg-device-type'); valid = false;
+    }
+
+    var nameVal = document.getElementById('reg-device-name').value.trim();
+    if (!nameVal) {
+      showError('reg-name-error', '장비명을 입력해 주세요.'); valid = false;
+    } else if (nameVal.length > 50) {
+      showError('reg-name-error', '장비명은 50자 이내로 입력해 주세요.'); valid = false;
+    }
+
+    if (!document.getElementById('reg-device-mac').value.trim()) {
+      showError('reg-mac-error', '장비 ID를 입력해 주세요.'); valid = false;
+    }
+
+    if (!document.getElementById('reg-dept').value) {
+      showError('reg-dept-error', '관리 부서를 선택해 주세요.'); valid = false;
+    }
+
+    if (!document.getElementById('reg-manager').value) {
+      showError('reg-manager-error', '관리 담당자를 선택해 주세요.'); valid = false;
+    }
+
+    if (!commChecked) {
+      showError('reg-comm-error', '저장 전에 연결 확인이 필요합니다.'); valid = false;
+    }
+
+    if (!cbActive.checked && !cbInactive.checked) {
+      showError('reg-status-error', '사용 여부를 선택해 주세요.'); valid = false;
+    }
+
+    if (!valid) return;
+
+    closeRegisterModal();
+    successModal.classList.remove('hidden');
+    successModal.classList.add('flex');
+    lucide.createIcons();
+  });
+
+  document.getElementById('gas-register-btn')?.addEventListener('click', openRegisterModal);
+  document.getElementById('gas-register-cancel')?.addEventListener('click', closeRegisterModal);
+})();
+</script>

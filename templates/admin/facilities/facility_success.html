@@ -1,0 +1,20 @@
+<div id="facility-success-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-xs text-center px-8 py-8">
+    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="check" class="w-6 h-6 text-green-600"></i>
+    </div>
+    <p class="text-base font-semibold text-slate-900 mb-1">등록되었습니다.</p>
+    <p class="text-xs text-slate-500 mb-6">설비가 목록에 추가되었습니다.</p>
+    <button type="button" id="facility-success-confirm"
+      class="w-full px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+      확인
+    </button>
+  </div>
+</div>
+<script>
+document.getElementById('facility-success-confirm')?.addEventListener('click', function() {
+  var m = document.getElementById('facility-success-modal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+});
+</script>

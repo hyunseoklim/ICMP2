@@ -2,815 +2,882 @@
 
 {% block title %}지도 편집 관리 | 산재 예방 통합 관제 시스템{% endblock %}
 
-{# 사이드바에서 '계정/권한 관리' 메뉴 강조 #}
+{% block extra_head %}
+<style>
+  /* ── 캔버스 배경 그리드 ── */
+  #map-canvas {
+    background-color: #f1f5f9;
+    background-image:
+      linear-gradient(rgba(148,163,184,0.25) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,0.25) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* ── 객체 선택 패널 슬라이드 ── */
+  #object-panel {
+    transition: width 0.25s ease, opacity 0.25s ease;
+    overflow: hidden;
+  }
+  #object-panel.panel-hidden {
+    width: 0 !important;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ── 객체 리스트 스크롤바 ── */
+  #object-list::-webkit-scrollbar { width: 4px; }
+  #object-list::-webkit-scrollbar-track { background: transparent; }
+  #object-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+  /* ── 배치 완료 항목 ── */
+  .object-item[data-placed="true"] {
+    opacity: 0.5;
+  }
+  .object-item[data-placed="true"] .object-code {
+    text-decoration: line-through;
+  }
+
+  /* ── 배치된 객체 카드 (캔버스 위) ── */
+  .canvas-object {
+    position: absolute;
+    cursor: grab;
+    user-select: none;
+    transition: box-shadow 0.15s ease;
+  }
+  .canvas-object:active { cursor: grabbing; }
+  .canvas-object:hover { z-index: 50; }
+
+  /* ── 위험구역 원형 오버레이 ── */
+  .danger-zone {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px dashed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    pointer-events: none;
+  }
+
+  /* ── 편집 모드 상태 ── */
+  #map-canvas[data-mode="edit"] {
+    cursor: crosshair;
+  }
+  #map-canvas[data-mode="edit"] .canvas-object {
+    outline: 2px dashed #3b82f6;
+    outline-offset: 2px;
+  }
+
+  /* ── 탭 버튼 공통 ── */
+  .tab-btn {
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { background: #f1f5f9; color: #334155; }
+  .tab-btn[aria-selected="true"] {
+    background: #fff;
+    color: #1e40af;
+    border-color: #bfdbfe;
+    box-shadow: 0 1px 3px rgba(59,130,246,0.12);
+  }
+
+  /* ── 배치 상태 탭 ── */
+  .status-tab {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    color: #64748b;
+    background: #f1f5f9;
+  }
+  .status-tab[aria-selected="true"] {
+    background: #1e293b;
+    color: #fff;
+  }
+
+  /* ── 뱃지 스타일 ── */
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .badge[data-type="facility"]  { background: #dbeafe; color: #1d4ed8; }
+  .badge[data-type="gas"]       { background: #fef3c7; color: #b45309; }
+  .badge[data-type="power"]     { background: #d1fae5; color: #065f46; }
+  .badge[data-type="node"]      { background: #ede9fe; color: #6d28d9; }
+  .badge[data-type="zone"]      { background: #fee2e2; color: #b91c1c; }
+
+  /* ── 줌 컨트롤 버튼 ── */
+  .zoom-btn {
+    width: 32px; height: 32px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: #475569;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .zoom-btn:hover { background: #f8fafc; color: #1e293b; border-color: #cbd5e1; }
+
+  /* ── 편집 모드 버튼 ── */
+  #edit-mode-btn {
+    transition: all 0.2s;
+  }
+  #edit-mode-btn[aria-pressed="true"] {
+    background: #1e40af;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.3);
+  }
+
+  /* ── 캔버스 객체 카드 스타일 ── */
+  .obj-card-facility {
+    background: white;
+    border: 2px solid #93c5fd;
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-width: 140px;
+    box-shadow: 0 2px 8px rgba(59,130,246,0.12);
+  }
+  .obj-card-gas {
+    background: white;
+    border: 2px solid #fbbf24;
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-width: 140px;
+    box-shadow: 0 2px 8px rgba(251,191,36,0.15);
+  }
+  .obj-card-power {
+    background: #1e293b;
+    border: 2px solid #334155;
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-width: 140px;
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .obj-card-node {
+    background: white;
+    border: 2px solid #a5b4fc;
+    border-radius: 10px;
+    padding: 8px 12px;
+    min-width: 110px;
+    box-shadow: 0 2px 6px rgba(99,102,241,0.12);
+  }
+
+  /* ── 툴팁 팝업 ── */
+  .obj-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: white;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 100;
+  }
+  .canvas-object:hover .obj-tooltip { opacity: 1; }
+
+  /* ── 패널 열기 버튼 ── */
+  #panel-open-btn {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  #panel-open-btn:hover { background: #f8fafc; color: #334155; }
+  #panel-open-btn.hidden { display: none; }
+</style>
+{% endblock %}
+
 {% block breadcrumb %}
 <div class="text-xs text-slate-500 mb-3">
-  지도 편집 관리 / <span class="text-slate-700">  </span>
+  지도 편집 관리 / <span class="text-slate-700">전체 지도</span>
 </div>
 {% endblock %}
 
 {% block page_header %}
-<div class="flex items-start justify-between mb-6">
+<div class="flex items-start justify-between mb-4">
   <div>
-    <h2 class="text-2xl font-bold text-slate-900 mb-1.5">사용자 관리</h2>
-    <p class="text-sm text-slate-500">현장 내 설비/유해가스 센서/스마트 전력시스템/위치노드/위험구역을 직접 배치하고 수정합니다.</p>
+    <h2 class="text-2xl font-bold text-slate-900 mb-1.5">지도 편집 관리</h2>
+    <p class="text-sm text-slate-500">현장 내 설비/유해가스 센서/스마트 전력 시스템/위치 노드/위험구역을 직접 배치하고 수정합니다.</p>
   </div>
-  <a href="#" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
-    위험구역 추가
+  <a href="#"
+     id="add-zone-btn"
+     class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+    <i data-lucide="plus" class="w-4 h-4"></i>
+    위험 구역 추가
   </a>
 </div>
 {% endblock %}
 
-
-  <style>
-    .map-page-root,
-    .map-page-root * {
-      box-sizing: border-box;
-    }
-
-    .map-page-root {
-      min-height: 100vh;
-      margin: 0;
-      background: #f4f7fb;
-      color: #172033;
-      font-family: "Pretendard", "Noto Sans KR", Arial, sans-serif;
-    }
-
-    .map-page-root button,
-    .map-page-root input,
-    .map-page-root select {
-      font-family: inherit;
-    }
-
-    .map-page-root .layout {
-      display: flex;
-      min-height: 100vh;
-    }
-
-    .map-page-root .sidebar {
-      width: 60px;
-      background: #ffffff;
-      border-right: 1px solid #e1e6ef;
-      padding: 14px 8px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .map-page-root .logo {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
-      background: #121a2b;
-      color: #fff;
-      display: grid;
-      place-items: center;
-      font-size: 14px;
-      margin-bottom: 16px;
-    }
-
-    .map-page-root .side-btn {
-      width: 38px;
-      height: 38px;
-      border: 1px solid #e1e6ef;
-      background: #fff;
-      border-radius: 12px;
-      cursor: pointer;
-      position: relative;
-    }
-
-    .map-page-root .side-btn::after {
-      content: "";
-      width: 12px;
-      height: 12px;
-      border-radius: 4px;
-      background: #b9c3d3;
-      position: absolute;
-      inset: 0;
-      margin: auto;
-    }
-
-    .map-page-root .side-btn.active {
-      background: #eef4ff;
-      border-color: #3768ff;
-    }
-
-    .map-page-root .side-btn.active::after {
-      background: #3768ff;
-    }
-
-    .map-page-root .main {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .map-page-root .topbar {
-      height: 60px;
-      background: #ffffff;
-      border-bottom: 1px solid #e1e6ef;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 28px;
-    }
-
-    .map-page-root .top-left {
-      display: flex;
-      align-items: center;
-      gap: 18px;
-    }
-
-    .map-page-root .top-left h1 {
-      margin: 0;
-      font-size: 18px;
-      font-weight: 800;
-    }
-
-    .map-page-root .live-status {
-      font-size: 12px;
-      color: #3768ff;
-      background: #f4f7ff;
-      border: 1px solid #e1e6ef;
-      border-radius: 8px;
-      padding: 8px 12px;
-    }
-
-    .map-page-root .user-area {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      font-size: 12px;
-    }
-
-    .map-page-root .user-area strong {
-      display: block;
-      font-size: 13px;
-    }
-
-    .map-page-root .user-area span {
-      color: #8490a3;
-    }
-
-    .map-page-root .logout-btn {
-      border: 1px solid #dce3ef;
-      background: #fff;
-      border-radius: 8px;
-      padding: 8px 18px;
-      cursor: pointer;
-    }
-
-    .map-page-root .page-head {
-      padding: 30px 28px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-    }
-
-    .map-page-root .breadcrumb {
-      font-size: 12px;
-      color: #8b96a8;
-    }
-
-    .map-page-root .page-head h2 {
-      margin: 9px 0 8px;
-      font-size: 25px;
-      font-weight: 800;
-    }
-
-    .map-page-root .page-head p {
-      margin: 0;
-      font-size: 13px;
-      color: #7d889a;
-    }
-
-    .map-page-root .primary-btn {
-      border: 0;
-      background: #3768ff;
-      color: #fff;
-      border-radius: 9px;
-      padding: 13px 24px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .map-page-root .content-card {
-      margin: 0 28px 28px;
-      background: #ffffff;
-      border: 1px solid #e1e6ef;
-      border-radius: 16px;
-      padding: 20px;
-      min-height: 540px;
-      display: flex;
-    }
-
-    .map-page-root .object-panel {
-      width: 250px;
-      padding-right: 18px;
-      border-right: 1px solid #e1e6ef;
-      flex-shrink: 0;
-    }
-
-    .map-page-root .object-panel h3 {
-      margin: 0 0 6px;
-      font-size: 16px;
-      font-weight: 800;
-    }
-
-    .map-page-root .object-panel p {
-      margin: 0 0 14px;
-      font-size: 12px;
-      color: #8490a3;
-    }
-
-    .map-page-root .filter-select,
-    .map-page-root .search-input {
-      width: 100%;
-      height: 34px;
-      border: 1px solid #dce3ef;
-      border-radius: 7px;
-      padding: 0 10px;
-      font-size: 12px;
-      background: #fff;
-    }
-
-    .map-page-root .search-row {
-      display: flex;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    .map-page-root .search-row .search-input {
-      flex: 1;
-    }
-
-    .map-page-root .search-btn {
-      width: 52px;
-      border: 0;
-      background: #3768ff;
-      color: #fff;
-      border-radius: 7px;
-      font-size: 12px;
-      cursor: pointer;
-    }
-
-    .map-page-root .summary-chips {
-      display: flex;
-      gap: 6px;
-      margin: 14px 0;
-      flex-wrap: wrap;
-    }
-
-    .map-page-root .summary-chips span {
-      font-size: 11px;
-      padding: 6px 8px;
-      border-radius: 999px;
-      background: #f2f5fa;
-      color: #5f6b7d;
-    }
-
-    .map-page-root .object-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      max-height: 360px;
-      overflow-y: auto;
-    }
-
-    .map-page-root .object-list li {
-      min-height: 34px;
-      border-bottom: 1px solid #f0f3f7;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: #273348;
-    }
-
-    .map-page-root .object-list input {
-      width: 13px;
-      height: 13px;
-    }
-
-    .map-page-root .object-list b {
-      margin-left: auto;
-      padding: 3px 7px;
-      border-radius: 999px;
-      background: #222b3b;
-      color: #fff;
-      font-size: 10px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .map-page-root .map-section {
-      flex: 1;
-      min-width: 0;
-      padding-left: 20px;
-    }
-
-    .map-page-root .map-tabs {
-      display: flex;
-      justify-content: center;
-      gap: 14px;
-      margin-bottom: 18px;
-      flex-wrap: wrap;
-    }
-
-    .map-page-root .map-tabs button {
-      height: 30px;
-      min-width: 84px;
-      padding: 0 14px;
-      border: 1px solid #dce3ef;
-      background: #fff;
-      border-radius: 999px;
-      font-size: 12px;
-      cursor: pointer;
-    }
-
-    .map-page-root .map-tabs button.active {
-      background: #7b7cff;
-      color: #fff;
-      border-color: #7b7cff;
-      font-weight: 700;
-    }
-
-    .map-page-root .map-canvas {
-      position: relative;
-      height: 445px;
-      border: 1px solid #dce3ef;
-      border-radius: 14px;
-      background:
-        linear-gradient(#f7faff, #f7faff),
-        repeating-linear-gradient(0deg, transparent, transparent 39px, #eef3fa 40px),
-        repeating-linear-gradient(90deg, transparent, transparent 39px, #eef3fa 40px);
-      overflow: hidden;
-    }
-
-    .map-page-root .facility {
-      position: absolute;
-      border-radius: 11px;
-      background: rgba(30, 40, 55, 0.10);
-      border: 1px solid rgba(30, 40, 55, 0.20);
-      display: grid;
-      place-items: center;
-      color: #566173;
-      font-size: 12px;
-      font-weight: 800;
-      text-align: center;
-      cursor: pointer;
-    }
-
-    .map-page-root .facility.selected {
-      border: 3px solid #273cff;
-      background: rgba(30, 40, 55, 0.12);
-    }
-
-    .map-page-root .fac-1 {
-      left: 165px;
-      top: 50px;
-      width: 235px;
-      height: 130px;
-    }
-
-    .map-page-root .fac-2 {
-      right: 245px;
-      top: 95px;
-      width: 160px;
-      height: 100px;
-    }
-
-    .map-page-root .fac-3 {
-      left: 235px;
-      bottom: 88px;
-      width: 230px;
-      height: 120px;
-    }
-
-    .map-page-root .fac-4 {
-      right: 74px;
-      bottom: 112px;
-      width: 158px;
-      height: 96px;
-    }
-
-    .map-page-root .fac-5 {
-      left: -20px;
-      bottom: 92px;
-      width: 230px;
-      height: 105px;
-    }
-
-    .map-page-root .danger-zone {
-      position: absolute;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      text-align: center;
-      font-size: 12px;
-      font-weight: 800;
-      padding: 12px;
-    }
-
-    .map-page-root .danger-red {
-      width: 132px;
-      height: 132px;
-      right: 135px;
-      top: 25px;
-      background: rgba(255, 77, 79, 0.12);
-      border: 2px solid rgba(255, 77, 79, 0.65);
-      color: #d9363e;
-    }
-
-    .map-page-root .danger-orange {
-      width: 158px;
-      height: 158px;
-      right: 120px;
-      bottom: 12px;
-      background: rgba(247, 168, 75, 0.16);
-      border: 2px solid rgba(247, 168, 75, 0.65);
-      color: #cf7a00;
-    }
-
-    .map-page-root .tag {
-      position: absolute;
-      background: #fff;
-      border-radius: 999px;
-      padding: 5px 9px;
-      font-size: 11px;
-      font-weight: 800;
-      white-space: nowrap;
-      box-shadow: 0 3px 8px rgba(20, 30, 45, 0.08);
-    }
-
-    .map-page-root .tag-orange {
-      border: 1px solid #f2a84d;
-      color: #c97900;
-    }
-
-    .map-page-root .tag-green {
-      border: 1px solid #4fd18b;
-      color: #178c56;
-    }
-
-    .map-page-root .tag-blue {
-      border: 1px solid #6fa8ff;
-      color: #2367d1;
-    }
-
-    .map-page-root .gas-013 {
-      right: 78px;
-      top: 84px;
-    }
-
-    .map-page-root .gas-012 {
-      right: 178px;
-      top: 198px;
-    }
-
-    .map-page-root .node-003 {
-      left: 230px;
-      bottom: 165px;
-    }
-
-    .map-page-root .node-004 {
-      left: 42px;
-      bottom: 113px;
-    }
-
-    .map-page-root .pwr-004 {
-      left: 365px;
-      bottom: 145px;
-    }
-
-    .map-page-root .tooltip {
-      position: absolute;
-      width: 148px;
-      background: rgba(32, 36, 45, 0.88);
-      color: #fff;
-      border-radius: 11px;
-      padding: 12px;
-      font-size: 11px;
-      z-index: 5;
-      box-shadow: 0 8px 18px rgba(20, 30, 45, 0.18);
-    }
-
-    .map-page-root .tooltip strong {
-      display: block;
-      margin: 7px 0 5px;
-      font-size: 12px;
-    }
-
-    .map-page-root .tooltip p,
-    .map-page-root .tooltip small {
-      margin: 0;
-      color: #cfd5de;
-    }
-
-    .map-page-root .pill {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 999px;
-      font-size: 10px;
-      color: #fff;
-      font-weight: 700;
-    }
-
-    .map-page-root .pill-red {
-      background: #c94d4d;
-    }
-
-    .map-page-root .pill-dark-red {
-      background: #8c3131;
-    }
-
-    .map-page-root .tip-1 {
-      left: 272px;
-      top: 164px;
-    }
-
-    .map-page-root .tip-2 {
-      right: 43px;
-      top: 124px;
-    }
-
-    .map-page-root .tip-3 {
-      left: 270px;
-      bottom: 68px;
-    }
-
-    .map-page-root .control-box {
-      position: absolute;
-      right: 14px;
-      top: 14px;
-      display: grid;
-      grid-template-columns: 46px 46px;
-      gap: 8px;
-      z-index: 10;
-    }
-
-    .map-page-root .control-box button {
-      height: 54px;
-      border: 1px solid #dce3ef;
-      background: #fff;
-      border-radius: 10px;
-      color: #3768ff;
-      font-weight: 800;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(20, 30, 45, 0.10);
-    }
-
-    .map-page-root .control-box span {
-      display: block;
-      margin-top: 4px;
-      color: #5f6b7d;
-      font-size: 10px;
-      font-weight: 600;
-    }
-
-    .map-page-root .control-box button:last-child {
-      grid-column: span 2;
-    }
-
-    .map-page-root .edit-btn {
-      position: absolute;
-      right: 14px;
-      bottom: 14px;
-      border: 0;
-      background: #3768ff;
-      color: #fff;
-      border-radius: 9px;
-      padding: 12px 28px;
-      font-size: 13px;
-      font-weight: 800;
-      cursor: pointer;
-      z-index: 10;
-    }
-
-    @media (max-width: 1100px) {
-      .map-page-root .content-card {
-        flex-direction: column;
-      }
-
-      .map-page-root .object-panel {
-        width: 100%;
-        border-right: 0;
-        border-bottom: 1px solid #e1e6ef;
-        padding-right: 0;
-        padding-bottom: 16px;
-        margin-bottom: 16px;
-      }
-
-      .map-page-root .map-section {
-        padding-left: 0;
-      }
-    }
-  </style>
-
 {% block content %}
 
-<body>
-  <div class="map-page-root">
-    <div class="layout">
+<!-- {# =============================================
+   최상위 래퍼 : 지도 편집 전체 영역
+============================================= #} -->
+<section
+  aria-label="지도 편집 영역"
+  class="flex border-2 border-amber-400 rounded-xl overflow-hidden bg-white shadow-sm"
+  style="height: calc(100vh - 230px); min-height: 520px;"
+>
 
-      <aside class="sidebar">
-        <div class="logo">■</div>
-        <button class="side-btn active" type="button"></button>
-        <button class="side-btn" type="button"></button>
-        <button class="side-btn" type="button"></button>
-        <button class="side-btn" type="button"></button>
-        <button class="side-btn" type="button"></button>
-        <button class="side-btn" type="button"></button>
-        <button class="side-btn" type="button"></button>
-      </aside>
+  <!-- {# =============================================
+     [좌측] 객체 선택 패널
+  ============================================= #} -->
+  <aside
+    id="object-panel"
+    aria-label="객체 선택 패널"
+    class="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col"
+  >
 
-      <main class="main">
-        <header class="topbar">
-          <div class="top-left">
-            <h1>산재 예방 통합 관제 시스템</h1>
-            <span class="live-status">■ 실시간 관제 중</span>
-          </div>
-
-          <div class="user-area">
-            <div>
-              <strong>홍길동 관리자</strong>
-              <span>super.admin@system.co.kr</span>
-            </div>
-            <button class="logout-btn" type="button">로그아웃</button>
-          </div>
-        </header>
-
-        <section class="page-head">
-          <div>
-            <span class="breadcrumb">지도 편집 관리</span>
-            <h2>지도 편집 관리</h2>
-            <p>현재 내 서비스/유해가스 센서/스마트 장비 시스템/위치 노드/위험 구역을 직접 배치하고 수정합니다.</p>
-          </div>
-
-          <button class="primary-btn" type="button">위험 구역 추가</button>
-        </section>
-
-        <section class="content-card">
-
-          <aside class="object-panel">
-            <h3>객체 선택</h3>
-            <p>지도에 배치할 항목을 선택하세요.</p>
-
-            <select class="filter-select">
-              <option>전체</option>
-              <option>설비</option>
-              <option>유해가스 센서</option>
-              <option>스마트 전력 시스템</option>
-              <option>위치 노드</option>
-              <option>위험 구역</option>
-            </select>
-
-            <div class="search-row">
-              <input class="search-input" type="text" placeholder="객체명 또는 객체 코드 검색">
-              <button class="search-btn" type="button">검색</button>
-            </div>
-
-            <div class="summary-chips">
-              <span>전체 48</span>
-              <span>배치 완료 45</span>
-              <span>미배치 3</span>
-            </div>
-
-            <ul class="object-list">
-              <li><input type="checkbox"> FAC-001 전기기 라인 <b>설비</b></li>
-              <li><input type="checkbox"> GAS-001 <b>유해가스 센서</b></li>
-              <li><input type="checkbox"> PWR-001 <b>전력</b></li>
-              <li><input type="checkbox"> NODE-003 <b>위치 노드</b></li>
-              <li><input type="checkbox"> FAC-021 전기기 라인 <b>설비</b></li>
-              <li><input type="checkbox"> GAS-013 <b>가스</b></li>
-              <li><input type="checkbox"> DG_RED_001 <b>위험 구역</b></li>
-              <li><input type="checkbox"> NODE-004 <b>위치 노드</b></li>
-              <li><input type="checkbox"> FAC-040 전력관로 <b>설비</b></li>
-            </ul>
-          </aside>
-
-          <div class="map-section">
-            <nav class="map-tabs">
-              <button class="active" type="button" data-filter="all">전체</button>
-              <button type="button" data-filter="facility">설비</button>
-              <button type="button" data-filter="gas">유해가스 센서</button>
-              <button type="button" data-filter="power">스마트 전력 시스템</button>
-              <button type="button" data-filter="node">위치 노드</button>
-              <button type="button" data-filter="danger">위험 구역</button>
-            </nav>
-
-            <div class="map-canvas">
-
-              <div class="facility fac-1 selected" data-type="facility">FAC-021<br>전기기 라인</div>
-              <div class="facility fac-2" data-type="facility">FAC-024<br>레드 구간</div>
-              <div class="facility fac-3" data-type="facility">FAC-040<br>전력관로</div>
-              <div class="facility fac-4" data-type="facility">FAC-055<br>여과 로터</div>
-              <div class="facility fac-5" data-type="facility">FAC-03<br>압력제어 설비</div>
-
-              <div class="danger-zone danger-red" data-type="danger">
-                <span>덕트 주변<br>주의 구역</span>
-              </div>
-
-              <div class="danger-zone danger-orange" data-type="danger">
-                <span>여과 로터<br>주변 구역</span>
-              </div>
-
-              <div class="tag tag-orange gas-013" data-type="gas">유해가스 센서 GAS-013</div>
-              <div class="tag tag-orange gas-012" data-type="gas">유해가스 센서 GAS-012</div>
-              <div class="tag tag-green node-003" data-type="node">위치 노드 NODE-003</div>
-              <div class="tag tag-blue pwr-004" data-type="power">스마트 전력 시스템 PWR-004</div>
-              <div class="tag tag-green node-004" data-type="node">위치 노드 NODE-004</div>
-
-              <div class="tooltip tip-1">
-                <span class="pill pill-red">설비</span>
-                <strong>FAC-021 전기기 라인</strong>
-                <p>콘트롤 패널 장비</p>
-                <small>미배치</small>
-              </div>
-
-              <div class="tooltip tip-2">
-                <span class="pill pill-dark-red">위험구역</span>
-                <strong>덕트 주변 구역 - 위험</strong>
-                <p>위험구역 ID</p>
-                <small>DG_RED_001</small>
-              </div>
-
-              <div class="tooltip tip-3">
-                <span class="pill pill-red">스마트 전력 시스템</span>
-                <strong>PWR-004</strong>
-                <p>연결 설비 및 상태</p>
-                <small>FAC-021 / 양호</small>
-              </div>
-
-              <div class="control-box">
-                <button type="button">＋<span>확대</span></button>
-                <button type="button">－<span>축소</span></button>
-                <button type="button">＋<span>확대</span></button>
-                <button type="button">－<span>축소</span></button>
-                <button type="button">↻<span>되돌리기</span></button>
-              </div>
-
-              <button class="edit-btn" type="button">편집</button>
-            </div>
-          </div>
-        </section>
-      </main>
+    {# 패널 헤더 #}
+    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+      <div>
+        <h3 class="text-sm font-semibold text-slate-800">객체 선택</h3>
+        <p class="text-xs text-slate-400 mt-0.5">지도에 배치할 장목을 선택하세요.</p>
+      </div>
+      <button
+        id="panel-close-btn"
+        aria-label="패널 닫기"
+        aria-controls="object-panel"
+        aria-expanded="true"
+        class="w-7 h-7 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+      >
+        <i data-lucide="panel-left-close" class="w-4 h-4"></i>
+      </button>
     </div>
-  </div>
+
+    {# 필터 컨트롤 : 드롭다운 + 검색 #}
+    <div
+      role="search"
+      aria-label="객체 필터 및 검색"
+      class="px-4 py-3 border-b border-slate-100 flex flex-col gap-2 flex-shrink-0"
+    >
+      <select
+        id="type-filter"
+        aria-label="객체 유형 선택"
+        class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      >
+        <option value="all">전체</option>
+        <option value="facility">설비</option>
+        <option value="gas">유해가스 센서</option>
+        <option value="power">스마트 전력 시스템</option>
+        <option value="node">위치 노드</option>
+        <option value="zone">위험 구역</option>
+      </select>
+
+      <div class="flex gap-2">
+        <input
+          id="search-input"
+          type="search"
+          placeholder="객체명 또는 코드 검색"
+          aria-label="객체명 또는 코드 검색"
+          class="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400"
+        />
+        <button
+          id="search-btn"
+          type="button"
+          class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          검색
+        </button>
+      </div>
+    </div>
+
+    {# 배치 상태 필터 탭 #}
+    <div
+      role="tablist"
+      aria-label="배치 상태 필터"
+      class="px-4 py-2.5 border-b border-slate-100 flex gap-1.5 flex-shrink-0"
+    >
+      <button role="tab" aria-selected="true"  data-status="all"    class="status-tab">전체 48</button>
+      <button role="tab" aria-selected="false" data-status="placed"  class="status-tab">배치 완료 45</button>
+      <button role="tab" aria-selected="false" data-status="unplaced" class="status-tab">미배치 3</button>
+    </div>
+
+    {# 객체 리스트 #}
+    <ul
+      id="object-list"
+      role="listbox"
+      aria-label="배치 가능한 객체 목록"
+      aria-multiselectable="false"
+      class="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-1"
+    >
+      <!--
+        Django 템플릿 연동 시 아래 하드코딩 li 블록을 for 루프로 교체:
+        for obj in objects
+          li role="option" data-id="{{ obj.code }}" data-type="{{ obj.type }}" data-placed="{{ obj.is_placed|yesno:'true,false' }}"
+        endfor
+      -->
+
+      {# ── 설비 ── #}
+      <li role="option" aria-selected="false" data-id="FAC-001" data-type="facility" data-placed="true"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">FAC-001</span>
+            <span class="badge" data-type="facility">설비</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">집진기 라인</p>
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
+        </div>
+      </li>
+
+      <li role="option" aria-selected="false" data-id="FAC-002" data-type="facility" data-placed="true"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">FAC-024</span>
+            <span class="badge" data-type="facility">설비</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">덕트 구간</p>
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
+        </div>
+      </li>
+
+      <li role="option" aria-selected="false" data-id="FAC-040" data-type="facility" data-placed="true"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">FAC-040</span>
+            <span class="badge" data-type="facility">설비</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">전력 분전</p>
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
+        </div>
+      </li>
+
+      {# ── 유해가스 센서 ── #}
+      <li role="option" aria-selected="false" data-id="GAS-001" data-type="gas" data-placed="true"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">GAS-001</span>
+            <span class="badge" data-type="gas">유해가스 센서</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">유해가스 센서 A</p>
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
+        </div>
+      </li>
+
+      <li role="option" aria-selected="false" data-id="GAS-012" data-type="gas" data-placed="true"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">GAS-012</span>
+            <span class="badge" data-type="gas">유해가스 센서</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">유해가스 센서 B</p>
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
+        </div>
+      </li>
+
+      {# ── 스마트 전력 시스템 ── #}
+      <li role="option" aria-selected="false" data-id="PWR-001" data-type="power" data-placed="true"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">PWR-001</span>
+            <span class="badge" data-type="power">스마트 전력 시스템</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">전력 시스템 A</p>
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
+        </div>
+      </li>
+
+      <li role="option" aria-selected="false" data-id="PWR-004" data-type="power" data-placed="false"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">PWR-004</span>
+            <span class="badge" data-type="power">스마트 전력 시스템</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">전력 시스템 B</p>
+        </div>
+        <div class="flex-shrink-0">
+          <span class="text-xs font-semibold text-amber-500">미배치</span>
+        </div>
+      </li>
+
+      {# ── 위치 노드 ── #}
+      <li role="option" aria-selected="false" data-id="NODE-003" data-type="node" data-placed="true"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">NODE-003</span>
+            <span class="badge" data-type="node">위치 노드</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">위치 노드 C</p>
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
+        </div>
+      </li>
+
+      <li role="option" aria-selected="false" data-id="NODE-004" data-type="node" data-placed="false"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">NODE-004</span>
+            <span class="badge" data-type="node">위치 노드</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">위치 노드 D</p>
+        </div>
+        <div class="flex-shrink-0">
+          <span class="text-xs font-semibold text-amber-500">미배치</span>
+        </div>
+      </li>
+
+      {# ── 위험 구역 ── #}
+      <li role="option" aria-selected="false" data-id="DG-RED-001" data-type="zone" data-placed="true"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">DG_RED_001</span>
+            <span class="badge" data-type="zone">위험 구역</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">덕트 구간 주변 구역</p>
+        </div>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
+          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
+        </div>
+      </li>
+
+      <li role="option" aria-selected="false" data-id="DG-RED-002" data-type="zone" data-placed="false"
+          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="object-code text-xs font-mono font-semibold text-slate-500">DG_RED_002</span>
+            <span class="badge" data-type="zone">위험 구역</span>
+          </div>
+          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">여과 모터 주변 구역</p>
+        </div>
+        <div class="flex-shrink-0">
+          <span class="text-xs font-semibold text-amber-500">미배치</span>
+        </div>
+      </li>
+
+    </ul>
+
+  </aside>
+
+  <!-- {# =============================================
+     [우측] 지도 캔버스 영역
+  ============================================= #} -->
+  <div
+    id="map-canvas-area"
+    role="application"
+    aria-label="지도 편집 캔버스"
+    class="flex-1 flex flex-col relative overflow-hidden"
+  >
+
+    {# 캔버스 상단 툴바 #}
+    <div class="flex items-center gap-2 px-4 py-2.5 bg-white border-b border-slate-200 flex-shrink-0">
+
+      {# 패널 닫혔을 때 열기 버튼 #}
+      <button
+        id="panel-open-btn"
+        aria-label="객체 선택 패널 열기"
+        aria-controls="object-panel"
+        aria-expanded="false"
+        class="hidden"
+        title="패널 열기"
+      >
+        <i data-lucide="panel-left-open" class="w-4 h-4"></i>
+      </button>
+
+      {# 캔버스 뷰 필터 탭 #}
+      <nav
+        role="tablist"
+        aria-label="캔버스 객체 유형 필터"
+        class="flex items-center gap-1 flex-1"
+      >
+        <button role="tab" aria-selected="true"  data-canvas-filter="all"      class="tab-btn">전체</button>
+        <button role="tab" aria-selected="false" data-canvas-filter="facility" class="tab-btn">설비</button>
+        <button role="tab" aria-selected="false" data-canvas-filter="gas"      class="tab-btn">유해가스 센서</button>
+        <button role="tab" aria-selected="false" data-canvas-filter="power"    class="tab-btn">스마트 전력 시스템</button>
+        <button role="tab" aria-selected="false" data-canvas-filter="node"     class="tab-btn">위치 노드</button>
+        <button role="tab" aria-selected="false" data-canvas-filter="zone"     class="tab-btn">위험 구역</button>
+      </nav>
+
+      {# 편집 모드 상태 표시 뱃지 #}
+      <div id="mode-badge" class="hidden items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-600 text-xs font-semibold rounded-full border border-blue-200">
+        <span class="w-1.5 h-1.5 bg-blue-500 rounded-full pulse-dot"></span>
+        편집 중
+      </div>
+    </div>
+
+    {# 실제 캔버스 #}
+    <div
+      id="map-canvas"
+      data-mode="view"
+      aria-label="객체 배치 캔버스. 편집 모드에서 드래그하여 객체를 배치합니다."
+      class="flex-1 relative overflow-hidden"
+    >
+
+      {# ── 위험 구역 (원형 오버레이) ── #}
+      <div class="danger-zone" data-type="zone" data-id="DG-RED-001"
+           style="width:220px;height:220px;top:30px;left:480px;background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.4);color:#dc2626;">
+        <span>덕트 구간 주변 구역</span>
+      </div>
+      <div class="danger-zone" data-type="zone" data-id="DG-RED-002"
+           style="width:260px;height:260px;bottom:30px;right:80px;background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.5);color:#b45309;">
+        <span>여과 모터 주변 구역</span>
+      </div>
+
+      {# ── 설비 카드 : FAC-021 ── #}
+      <div class="canvas-object" data-type="facility" data-id="FAC-021"
+           style="left:60px;top:50px;">
+        <div class="obj-card-facility relative">
+          <div class="obj-tooltip">FAC-021 집진기 라인</div>
+          <span class="text-xs font-mono text-blue-400 font-semibold">FAC-021</span>
+          <p class="text-sm font-bold text-slate-800 mt-0.5">집진기 라인</p>
+          <p class="text-xs text-slate-400 mt-1">설비 관리 및 상태</p>
+          <div class="mt-2 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+            <span class="text-xs text-slate-500">정상</span>
+          </div>
+        </div>
+      </div>
+
+      {# ── 설비 카드 : FAC-024 ── #}
+      <div class="canvas-object" data-type="facility" data-id="FAC-024"
+           style="left:460px;top:60px;">
+        <div class="obj-card-facility relative">
+          <div class="obj-tooltip">FAC-024 덕트 구간</div>
+          <span class="text-xs font-mono text-blue-400 font-semibold">FAC-024</span>
+          <p class="text-sm font-bold text-slate-800 mt-0.5">덕트 구간</p>
+          <div class="mt-2 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+            <span class="text-xs text-slate-500">정상</span>
+          </div>
+        </div>
+      </div>
+
+      {# ── 유해가스 센서 : GAS-012 ── #}
+      <div class="canvas-object" data-type="gas" data-id="GAS-012"
+           style="left:560px;top:150px;">
+        <div class="obj-card-gas relative">
+          <div class="obj-tooltip">GAS-012 유해가스 센서</div>
+          <span class="text-xs font-mono text-amber-500 font-semibold">GAS-012</span>
+          <p class="text-sm font-bold text-slate-800 mt-0.5">유해가스 센서 B</p>
+          <div class="mt-2 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
+            <span class="text-xs text-slate-500">감지 중</span>
+          </div>
+        </div>
+      </div>
+
+      {# ── 스마트 전력 : PWR-004 ── #}
+      <div class="canvas-object" data-type="power" data-id="PWR-004"
+           style="left:310px;bottom:100px;">
+        <div class="obj-card-power relative">
+          <div class="obj-tooltip">PWR-004 스마트 전력 시스템</div>
+          <span class="text-xs font-mono text-emerald-400 font-semibold">PWR-004</span>
+          <p class="text-sm font-bold text-white mt-0.5">스마트 전력 시스템</p>
+          <p class="text-xs text-slate-400 mt-1">전력 관리 및 상태</p>
+          <div class="mt-2 flex items-center gap-1">
+            <span class="text-xs text-slate-400">FAC-021 연결</span>
+          </div>
+        </div>
+      </div>
+
+      {# ── 위치 노드 : NODE-003 ── #}
+      <div class="canvas-object" data-type="node" data-id="NODE-003"
+           style="left:270px;bottom:140px;">
+        <div class="obj-card-node relative">
+          <div class="obj-tooltip">NODE-003 위치 노드</div>
+          <span class="text-xs font-mono text-violet-500 font-semibold">NODE-003</span>
+          <p class="text-sm font-semibold text-slate-700 mt-0.5">위치 노드 C</p>
+        </div>
+      </div>
+
+    </div>{# /map-canvas #}
+
+    {# ── 줌 컨트롤 (우측 상단 고정) ── #}
+    <div
+      role="group"
+      aria-label="캔버스 줌 컨트롤"
+      class="absolute top-14 right-4 flex flex-col gap-1.5 z-20"
+    >
+      <button class="zoom-btn" id="zoom-in-btn"    aria-label="확대" title="확대">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+      </button>
+      <button class="zoom-btn" id="zoom-out-btn"   aria-label="축소" title="축소">
+        <i data-lucide="minus" class="w-4 h-4"></i>
+      </button>
+      <button class="zoom-btn" id="zoom-reset-btn" aria-label="초기화" title="초기화">
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+
+    {# ── 편집 버튼 (우측 하단 고정) ── #}
+    <div class="absolute bottom-5 right-5 z-20">
+      <button
+        id="edit-mode-btn"
+        aria-label="편집 모드로 전환"
+        aria-pressed="false"
+        class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg shadow-lg flex items-center gap-2 transition-colors"
+      >
+        <i data-lucide="pencil" class="w-4 h-4"></i>
+        편집
+      </button>
+    </div>
+
+  </div>{# /map-canvas-area #}
+
+</section>
+
 {% endblock %}
 
 {% block extra_script %}
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const root = document.querySelector(".map-page-root");
+<script>
+  // ── Lucide 재렌더 ──
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 
-      const tabButtons = root.querySelectorAll(".map-tabs button");
-      const mapItems = root.querySelectorAll("[data-type]");
+  // ================================================================
+  // 1. 패널 토글
+  // ================================================================
+  const panel        = document.getElementById('object-panel');
+  const closeBtn     = document.getElementById('panel-close-btn');
+  const openBtn      = document.getElementById('panel-open-btn');
 
-      tabButtons.forEach(function (button) {
-        button.addEventListener("click", function () {
-          const filter = button.dataset.filter;
+  function closePanel() {
+    panel.classList.add('panel-hidden');
+    openBtn.classList.remove('hidden');
+    closeBtn.setAttribute('aria-expanded', 'false');
+    openBtn.setAttribute('aria-expanded', 'false');
+  }
+  function openPanel() {
+    panel.classList.remove('panel-hidden');
+    openBtn.classList.add('hidden');
+    closeBtn.setAttribute('aria-expanded', 'true');
+  }
 
-          tabButtons.forEach(function (item) {
-            item.classList.remove("active");
-          });
+  closeBtn?.addEventListener('click', closePanel);
+  openBtn?.addEventListener('click', openPanel);
 
-          button.classList.add("active");
+  // ================================================================
+  // 2. 배치 상태 탭 필터 (좌측 패널)
+  // ================================================================
+  document.querySelectorAll('[data-status]').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('[data-status]').forEach(b => b.setAttribute('aria-selected', 'false'));
+      this.setAttribute('aria-selected', 'true');
 
-          mapItems.forEach(function (item) {
-            if (filter === "all" || item.dataset.type === filter) {
-              item.style.display = "";
-            } else {
-              item.style.display = "none";
-            }
-          });
-        });
-      });
-
-      const facilities = root.querySelectorAll(".facility");
-
-      facilities.forEach(function (facility) {
-        facility.addEventListener("click", function () {
-          facilities.forEach(function (item) {
-            item.classList.remove("selected");
-          });
-
-          facility.classList.add("selected");
-        });
-      });
-
-      const sideButtons = root.querySelectorAll(".side-btn");
-
-      sideButtons.forEach(function (button) {
-        button.addEventListener("click", function () {
-          sideButtons.forEach(function (item) {
-            item.classList.remove("active");
-          });
-
-          button.classList.add("active");
-        });
+      const status = this.dataset.status;
+      document.querySelectorAll('.object-item').forEach(item => {
+        const placed = item.dataset.placed;
+        if (status === 'all')     item.style.display = '';
+        else if (status === 'placed')   item.style.display = placed === 'true'  ? '' : 'none';
+        else if (status === 'unplaced') item.style.display = placed === 'false' ? '' : 'none';
       });
     });
-  </script>
+  });
+
+  // ================================================================
+  // 3. 유형 드롭다운 필터 (좌측 패널)
+  // ================================================================
+  document.getElementById('type-filter')?.addEventListener('change', function () {
+    const val = this.value;
+    document.querySelectorAll('.object-item').forEach(item => {
+      item.style.display = (val === 'all' || item.dataset.type === val) ? '' : 'none';
+    });
+  });
+
+  // ================================================================
+  // 4. 검색 필터 (좌측 패널)
+  // ================================================================
+  document.getElementById('search-btn')?.addEventListener('click', function () {
+    const q = document.getElementById('search-input').value.trim().toLowerCase();
+    document.querySelectorAll('.object-item').forEach(item => {
+      const code = item.querySelector('.object-code')?.textContent.toLowerCase() || '';
+      const name = item.querySelector('p')?.textContent.toLowerCase() || '';
+      item.style.display = (!q || code.includes(q) || name.includes(q)) ? '' : 'none';
+    });
+  });
+
+  // ================================================================
+  // 5. 캔버스 뷰 필터 탭
+  // ================================================================
+  document.querySelectorAll('[data-canvas-filter]').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('[data-canvas-filter]').forEach(b => b.setAttribute('aria-selected', 'false'));
+      this.setAttribute('aria-selected', 'true');
+
+      const filter = this.dataset.canvasFilter;
+      document.querySelectorAll('#map-canvas .canvas-object, #map-canvas .danger-zone').forEach(el => {
+        el.style.display = (filter === 'all' || el.dataset.type === filter) ? '' : 'none';
+      });
+    });
+  });
+
+  // ================================================================
+  // 6. 편집 모드 토글
+  // ================================================================
+  const editBtn   = document.getElementById('edit-mode-btn');
+  const canvas    = document.getElementById('map-canvas');
+  const modeBadge = document.getElementById('mode-badge');
+
+  editBtn?.addEventListener('click', function () {
+    const isEdit = canvas.dataset.mode === 'edit';
+    if (isEdit) {
+      canvas.dataset.mode = 'view';
+      editBtn.setAttribute('aria-pressed', 'false');
+      editBtn.innerHTML = '<i data-lucide="pencil" class="w-4 h-4"></i> 편집';
+      editBtn.classList.replace('bg-blue-600', 'bg-slate-800');
+      editBtn.classList.replace('hover:bg-blue-700', 'hover:bg-slate-700');
+      modeBadge.classList.add('hidden');
+      modeBadge.classList.remove('flex');
+    } else {
+      canvas.dataset.mode = 'edit';
+      editBtn.setAttribute('aria-pressed', 'true');
+      editBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> 완료';
+      editBtn.classList.replace('bg-slate-800', 'bg-blue-600');
+      editBtn.classList.replace('hover:bg-slate-700', 'hover:bg-blue-700');
+      modeBadge.classList.remove('hidden');
+      modeBadge.classList.add('flex');
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  });
+
+  // ================================================================
+  // 7. 객체 리스트 항목 클릭 → 패널 닫힘 + 편집 모드 전환
+  // ================================================================
+  document.querySelectorAll('.object-item').forEach(item => {
+    item.addEventListener('click', function () {
+      closePanel();
+      // 편집 모드로 전환
+      canvas.dataset.mode = 'edit';
+      editBtn?.setAttribute('aria-pressed', 'true');
+      modeBadge?.classList.remove('hidden');
+      modeBadge?.classList.add('flex');
+    });
+  });
+
+  // ================================================================
+  // 8. 캔버스 객체 클릭 → 편집 모드 전환
+  // ================================================================
+  document.querySelectorAll('.canvas-object').forEach(obj => {
+    obj.addEventListener('click', function () {
+      if (canvas.dataset.mode !== 'edit') {
+        canvas.dataset.mode = 'edit';
+        editBtn?.setAttribute('aria-pressed', 'true');
+        modeBadge?.classList.remove('hidden');
+        modeBadge?.classList.add('flex');
+        if (editBtn) {
+          editBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> 완료';
+          editBtn.classList.replace('bg-slate-800', 'bg-blue-600');
+          editBtn.classList.replace('hover:bg-slate-700', 'hover:bg-blue-700');
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
+    });
+  });
+
+  // ================================================================
+  // 9. 드래그 앤 드롭 (캔버스 객체 이동)
+  //    - 편집 모드일 때만 활성화
+  //    - 겹침 감지는 서버 저장 시점에서 백엔드가 처리
+  // ================================================================
+  let dragging = null;
+  let offsetX = 0, offsetY = 0;
+
+  document.querySelectorAll('.canvas-object').forEach(obj => {
+    obj.addEventListener('mousedown', function (e) {
+      if (canvas.dataset.mode !== 'edit') return;
+      dragging = this;
+      const rect = this.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+      this.style.zIndex = 999;
+      e.preventDefault();
+    });
+  });
+
+  canvas?.addEventListener('mousemove', function (e) {
+    if (!dragging) return;
+    const canvasRect = canvas.getBoundingClientRect();
+    let x = e.clientX - canvasRect.left - offsetX;
+    let y = e.clientY - canvasRect.top  - offsetY;
+    // 캔버스 경계 클램핑
+    x = Math.max(0, Math.min(x, canvasRect.width  - dragging.offsetWidth));
+    y = Math.max(0, Math.min(y, canvasRect.height - dragging.offsetHeight));
+    dragging.style.left   = x + 'px';
+    dragging.style.top    = y + 'px';
+    dragging.style.bottom = 'auto';
+    dragging.style.right  = 'auto';
+  });
+
+  document.addEventListener('mouseup', function () {
+    if (dragging) {
+      dragging.style.zIndex = '';
+      dragging = null;
+    }
+  });
+
+  // ================================================================
+  // 10. 줌 컨트롤 (CSS transform 기반)
+  // ================================================================
+  let scale = 1;
+  const SCALE_STEP = 0.15;
+  const SCALE_MIN  = 0.4;
+  const SCALE_MAX  = 2.5;
+
+  function applyScale() {
+    canvas.style.transform       = `scale(${scale})`;
+    canvas.style.transformOrigin = 'top left';
+  }
+
+  document.getElementById('zoom-in-btn')?.addEventListener('click',    () => { scale = Math.min(scale + SCALE_STEP, SCALE_MAX); applyScale(); });
+  document.getElementById('zoom-out-btn')?.addEventListener('click',   () => { scale = Math.max(scale - SCALE_STEP, SCALE_MIN); applyScale(); });
+  document.getElementById('zoom-reset-btn')?.addEventListener('click', () => { scale = 1; applyScale(); });
+</script>
 {% endblock %}

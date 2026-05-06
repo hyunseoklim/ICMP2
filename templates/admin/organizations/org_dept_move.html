@@ -1,0 +1,110 @@
+{% extends 'admin/organizations/org_list.html' %}
+
+{% block title %}조직 관리 - 부서 이동 팝업 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{# ===== 부서 이동 팝업 =====
+   '조직 관리' 화면에서 해당 액션 클릭 시 표출되는 모달 #}
+{% block modal %}
+{{ block.super }}
+<!-- ===== 부서 이동 팝업 ===== -->
+  <div class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl">
+
+      <!-- 모달 헤더 -->
+      <div class="px-8 pt-7 pb-4">
+        <h3 class="text-xl font-bold text-slate-900 mb-1">부서 선택</h3>
+        <p class="text-sm text-slate-500">변경할 부서를 선택하고 저장합니다.</p>
+      </div>
+
+      <!-- 모달 바디: 2컬럼 레이아웃 -->
+      <div class="px-8 pb-4">
+        <div class="grid grid-cols-2 gap-3">
+
+          <!-- 1. 조직 목록 (트리, 체크박스) -->
+          <div class="bg-slate-50 rounded-lg border border-slate-200 p-4 h-72 overflow-y-auto custom-scroll">
+            <h4 class="text-sm font-semibold text-slate-800 mb-3">조직 목록</h4>
+
+            <!-- 회사 -->
+            <label class="flex items-center gap-2 px-2 py-1.5 cursor-pointer">
+              <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
+              <span class="text-sm font-medium text-slate-800">(주)가람이앤지</span>
+            </label>
+
+            <!-- 부서 리스트 -->
+            <div class="ml-4 mt-1 space-y-1">
+              <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-white rounded-md cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
+                <span class="text-sm text-slate-700">시스템운영팀(4)</span>
+              </label>
+              <!-- 클릭 불가 (현재 소속 부서) -->
+              <label class="flex items-center gap-2 px-3 py-1.5 rounded-md opacity-40 cursor-not-allowed">
+                <input type="checkbox" disabled class="w-4 h-4 rounded border-slate-300" />
+                <span class="text-sm text-slate-500">경영지원팀 (2)</span>
+              </label>
+              <!-- 선택된 부서 (강조) -->
+              <label class="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-300 rounded-md cursor-pointer">
+                <input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" />
+                <span class="text-sm font-medium text-blue-700">영업팀 (1)</span>
+              </label>
+              <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-white rounded-md cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
+                <span class="text-sm text-slate-700">사업기획팀 (0)</span>
+              </label>
+              <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-white rounded-md cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
+                <span class="text-sm text-slate-700">기술연구소 (3)</span>
+              </label>
+              <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-white rounded-md cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
+                <span class="text-sm text-slate-700">개발팀 (1)</span>
+              </label>
+              <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-white rounded-md cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
+                <span class="text-sm text-slate-700">관제운영팀 (1)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 2. 선택 부서 영역 -->
+          <div class="bg-slate-50 rounded-lg border border-slate-200 p-4 h-72 overflow-y-auto custom-scroll">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-sm font-semibold text-slate-800">선택 부서</h4>
+              <button class="text-xs text-slate-500 px-2 py-1 border border-slate-200 rounded-md hover:bg-white">
+                모두 해제
+              </button>
+            </div>
+            <div class="space-y-2">
+              <div class="px-3 py-2.5 bg-white rounded-md border border-slate-200">
+                <div class="text-sm text-slate-700">(주)가람이앤지 &gt; 영업팀</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 모달 푸터 -->
+      <div class="flex items-center justify-between px-8 py-5 border-t border-slate-100">
+        <!-- 이전 소속 부서 유지 체크박스 -->
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
+          <span class="text-sm text-slate-600">이전 소속 부서 유지(겸직)</span>
+        </label>
+
+        <!-- 버튼 영역 -->
+        <div class="flex items-center gap-2">
+          <a href="{% url 'org_list' %}" class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">
+            취소
+          </a>
+          <!-- 부서 선택 시 활성화 -->
+          <a href="{% url 'org_confirm' %}" class="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+            확인
+          </a>
+          
+          
+          
+          
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

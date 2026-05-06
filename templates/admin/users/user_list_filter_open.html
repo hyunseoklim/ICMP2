@@ -1,4 +1,4 @@
-{% extends 'base_manage.html' %}
+{% extends 'admin/base_manage.html' %}
 
 {% block title %}사용자 관리 (필터) | 산재 예방 통합 관제 시스템{% endblock %}
 
@@ -58,9 +58,10 @@
           <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>
           전체
         </button>
-        <button class="w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8">슈퍼관리자</button>
-        <button class="w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8">관리자</button>
-        <button class="w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8">일반사용자</button>
+        <button class="w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="superuser">슈퍼관리자</button>
+        <button class="w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="admin">관리자</button>
+        <button class="w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="manager">현장 관리자</button>
+        <button class="w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="worker">작업자</button>
       </div>
     </div>
 

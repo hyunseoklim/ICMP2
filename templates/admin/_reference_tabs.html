@@ -1,0 +1,33 @@
+{% comment %}
+기준정보 관리 공통 탭
+
+사용 방법:
+  include 'admin/_reference_tabs.html' with active_tab='code'
+  include 'admin/_reference_tabs.html' with active_tab='risk'
+  include 'admin/_reference_tabs.html' with active_tab='threshold'
+  include 'admin/_reference_tabs.html' with active_tab='risk_criteria'
+{% endcomment %}
+<div class="border-b border-slate-200 mb-6">
+  <nav class="flex gap-1" aria-label="기준정보 관리 탭">
+    <a href="{% url 'code_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'code' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      공통 코드 관리
+    </a>
+    <a href="{% url 'risk_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'risk' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      위험 유형 관리
+    </a>
+    <a href="{% url 'threshold_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'threshold' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      임계치 기준 관리
+    </a>
+    <a href="{% url 'risk_criteria_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'risk_criteria' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      위험 기준 관리
+    </a>
+  </nav>
+</div>

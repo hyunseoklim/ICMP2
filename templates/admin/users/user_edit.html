@@ -1,4 +1,4 @@
-{% extends 'users/user_list.html' %}
+{% extends 'admin/users/user_list.html' %}
 
 {% block title %}사용자 정보 수정 | 산재 예방 통합 관제 시스템{% endblock %}
 
@@ -38,24 +38,26 @@
 
           <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
             <span class="text-xs font-medium text-slate-700">소속 <span class="text-red-500">*</span></span>
-            <select name="dept" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-              <option value="관제운영팀" selected>관제운영팀</option>
+            <select name="department" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              {% for dept in departments %}
+                <option value="{{ dept.id }}" {% if dept == target_user.department %}selected{% endif %}>{{ dept.name }}</option>
+              {% empty %}
+                <option value="" disabled>부서 없음</option>
+              {% endfor %}
             </select>
           </div>
 
           <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
             <span class="text-xs font-medium text-slate-700">직위</span>
-            <select name="position" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-              <option value="과장" selected>과장</option>
-            </select>
+            <input type="text" name="position" value="{{ target_user.position|default:'' }}"
+              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
           </div>
 
           <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
             <span class="text-xs font-medium text-slate-700">계정 상태 <span class="text-red-500">*</span></span>
-            <select name="status" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-              <option value="active" selected>사용</option>
-              <option value="locked">잠금</option>
-              <option value="inactive">비활성</option>
+            <select name="is_active" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="true" {% if target_user.is_active %}selected{% endif %}>사용</option>
+              <option value="false" {% if not target_user.is_active %}selected{% endif %}>비활성</option>
             </select>
           </div>
 

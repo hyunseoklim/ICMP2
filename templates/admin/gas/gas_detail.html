@@ -1,0 +1,453 @@
+<div id="gas-detail-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div class="px-8 py-7">
+
+      <div class="mb-5">
+        <h3 class="text-xl font-bold text-slate-900 mb-1" id="detail-title">유해가스 센서 GAS-001</h3>
+        <p class="text-xs text-slate-500">해당 장비의 기본 정보와 점검 실행 및 이력을 확인합니다.</p>
+      </div>
+
+      <div class="flex gap-2 mb-6">
+        <button type="button" id="tab-basic-btn"
+          class="px-5 py-2 text-sm font-medium rounded-md transition-colors bg-blue-600 text-white">
+          기본 정보
+        </button>
+        <button type="button" id="tab-inspect-btn"
+          class="px-5 py-2 text-sm font-medium rounded-md transition-colors text-slate-600 hover:bg-slate-100">
+          점검 실행 및 이력
+        </button>
+      </div>
+
+      <div id="tab-basic">
+        <form id="gas-detail-form" novalidate>
+          <div class="space-y-4">
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 유형 <span class="text-red-500">*</span></label>
+                <select id="detail-device-type" name="device_type"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 detail-field">
+                  <option value="GAS">유해가스 센서</option>
+                  <option value="PWR">스마트 전력 시스템</option>
+                  <option value="LOC">위치 노드</option>
+                </select>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="detail-type-error">장비 유형을 선택해주세요.</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비코드 <span class="text-red-500">*</span></label>
+                <input type="text" id="detail-device-code" name="device_code" disabled
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 font-mono cursor-not-allowed" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">센서명(MAC) <span class="text-red-500">*</span></label>
+                <input type="text" id="detail-mac" name="mac"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent detail-field" />
+                <p class="hidden mt-1 text-[11px] text-red-500" id="detail-mac-error"></p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">설치 일자 <span class="text-red-500">*</span></label>
+                <input type="text" id="detail-install-date" name="install_date" placeholder="YYYY.MM.DD"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 detail-field" />
+                <p class="hidden mt-1 text-[11px] text-red-500" id="detail-date-error"></p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">관리 부서 <span class="text-red-500">*</span></label>
+                <select id="detail-dept" name="department"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 detail-field">
+                  <option value="">부서 선택</option>
+                  {% for dept in departments %}
+                  <option value="{{ dept.id }}">{{ dept.name }}</option>
+                  {% empty %}
+                  <option value="maint">유지보수팀</option>
+                  <option value="prod">생산부</option>
+                  <option value="safety">안전관리부</option>
+                  <option value="env">환경관리부</option>
+                  {% endfor %}
+                </select>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="detail-dept-error">관리 부서를 선택해 주세요.</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">관리 담당자 <span class="text-red-500">*</span></label>
+                <select id="detail-manager" name="manager"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 detail-field">
+                  <option value="">담당자 선택</option>
+                  {% for user in managers %}
+                  <option value="{{ user.id }}">{{ user.name }}</option>
+                  {% empty %}
+                  <option value="u1">최점검</option>
+                  <option value="u2">정운영</option>
+                  <option value="u3">김민준</option>
+                  <option value="u4">이서현</option>
+                  {% endfor %}
+                </select>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="detail-manager-error">관리 담당자를 선택해 주세요.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 통신IP <span class="text-red-500">*</span></label>
+                <input type="text" id="detail-ip" name="ip"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2 detail-field" />
+                <input type="text" id="detail-port" name="port"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent detail-field" />
+                <p class="hidden mt-1 text-[11px] text-red-500" id="detail-comm-error"></p>
+                <button type="button" id="detail-comm-check"
+                  class="mt-2 px-4 py-2 text-xs font-medium border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition-colors">
+                  통신 확인
+                </button>
+              </div>
+              <div class="flex flex-col gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
+                  <div class="flex items-center gap-5 pt-1">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                      <input type="checkbox" id="detail-status-active"
+                        class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 detail-field" />사용
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                      <input type="checkbox" id="detail-status-inactive"
+                        class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 detail-field" />미사용
+                    </label>
+                  </div>
+                  <p class="hidden mt-1 text-[11px] text-red-500" id="detail-status-error">사용 여부를 선택해 주세요.</p>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 상태/마지막 연결일시 <span class="text-red-500">*</span></label>
+                  <div class="flex items-center gap-2">
+                    <input type="checkbox" id="detail-conn-verified" disabled
+                      class="w-4 h-4 rounded border-slate-300 flex-shrink-0" />
+                    <label class="text-xs text-slate-600 flex-shrink-0" for="detail-conn-verified">사용</label>
+                    <input type="text" id="detail-conn-date" disabled
+                      class="flex-1 px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">비고</label>
+              <textarea id="detail-note" name="note" rows="3" placeholder="운영 메모를 입력하세요"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 resize-none detail-field"></textarea>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 mt-6">
+            <button type="button" id="gas-detail-cancel"
+              class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+              취소
+            </button>
+            <button type="submit" id="detail-save-btn" disabled
+              class="px-5 py-2 rounded-md text-sm font-medium transition-colors bg-slate-200 text-slate-400 cursor-not-allowed">
+              저장
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div id="tab-inspect" class="hidden">
+
+        <!-- 센서 요약 -->
+        <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg mb-4">
+          <div class="flex items-center gap-3">
+            <span class="px-2 py-0.5 bg-slate-800 text-white text-xs font-bold rounded" id="inspect-sensor-id"></span>
+            <div>
+              <p class="text-sm font-medium text-slate-700" id="inspect-device-info"></p>
+              <p class="text-xs text-slate-500 mt-0.5" id="inspect-manager-info"></p>
+            </div>
+          </div>
+          <button type="button" id="inspect-register-btn"
+            class="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded-md text-slate-700 hover:bg-white transition-colors">
+            점검 등록
+          </button>
+        </div>
+
+        <!-- 최근 점검 상태 -->
+        <div class="mb-4">
+          <h4 class="text-xs font-semibold text-slate-700 mb-2">최근 점검 상태</h4>
+          <div class="grid grid-cols-4 gap-3">
+            <div class="px-4 py-3 border border-slate-200 rounded-lg">
+              <p class="text-[11px] text-slate-400 mb-1">점검 여부</p>
+              <p class="text-sm font-semibold text-red-600">점검 필요</p>
+            </div>
+            <div class="px-4 py-3 border border-slate-200 rounded-lg">
+              <p class="text-[11px] text-slate-400 mb-1">최근 점검일</p>
+              <p class="text-sm font-semibold text-slate-700">2026-03-28</p>
+            </div>
+            <div class="px-4 py-3 border border-slate-200 rounded-lg">
+              <p class="text-[11px] text-slate-400 mb-1">다음 점검 예정일</p>
+              <p class="text-sm font-semibold text-slate-700">2026-04-28</p>
+            </div>
+            <div class="px-4 py-3 border border-slate-200 rounded-lg">
+              <p class="text-[11px] text-slate-400 mb-1">현재 상태</p>
+              <p class="text-sm font-semibold text-red-600">조치 필요</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 점검 이력 -->
+        <div>
+          <h4 class="text-xs font-semibold text-slate-700 mb-2">점검 이력</h4>
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-100">
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">점검 구분</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">조치 여부</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">점검일</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">점검자</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">조치 담당자</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500">내용</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[11px] font-medium">이상</span></td>
+                  <td class="px-3 py-2.5">
+                    <button type="button"
+                      class="action-register-trigger px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[11px] font-medium hover:bg-red-100 transition-colors"
+                      data-inspect-type="abnormal"
+                      data-inspect-date="2026.03.28"
+                      data-inspect-person="최점검"
+                      data-inspect-note="센서 통신 끊김 문제 재연결 완료">
+                      조치 필요
+                    </button>
+                  </td>
+                  <td class="px-3 py-2.5 text-slate-600">2026-03-28</td>
+                  <td class="px-3 py-2.5 text-slate-600">최점검</td>
+                  <td class="px-3 py-2.5 text-slate-400">—</td>
+                  <td class="px-3 py-2.5 text-slate-600">센서 통신 끊김 문제 재연결 완료</td>
+                </tr>
+                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">정기</span></td>
+                  <td class="px-3 py-2.5 text-slate-400">—</td>
+                  <td class="px-3 py-2.5 text-slate-600">2026-03-14</td>
+                  <td class="px-3 py-2.5 text-slate-600">최점검</td>
+                  <td class="px-3 py-2.5 text-slate-400">—</td>
+                  <td class="px-3 py-2.5 text-slate-600">정기 점검 결과 이상 없음</td>
+                </tr>
+                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">정기</span></td>
+                  <td class="px-3 py-2.5 text-slate-400">—</td>
+                  <td class="px-3 py-2.5 text-slate-600">2026-02-28</td>
+                  <td class="px-3 py-2.5 text-slate-600">정운영</td>
+                  <td class="px-3 py-2.5 text-slate-400">—</td>
+                  <td class="px-3 py-2.5 text-slate-600">정기 점검 결과 이상 없음</td>
+                </tr>
+                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[11px] font-medium">이상</span></td>
+                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[11px] font-medium">조치 완료</span></td>
+                  <td class="px-3 py-2.5 text-slate-600">2026-02-14</td>
+                  <td class="px-3 py-2.5 text-slate-600">최점검</td>
+                  <td class="px-3 py-2.5 text-slate-600">최점검</td>
+                  <td class="px-3 py-2.5 text-slate-600">측정값 수신 상태 정상 확인</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+          <button type="button" id="inspect-tab-confirm"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+            확인
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  var detailModal = document.getElementById('gas-detail-modal');
+  var saveBtn     = document.getElementById('detail-save-btn');
+  var commChecked = true;
+  var ipAtOpen    = '';
+  var portAtOpen  = '';
+  var isDirty     = false;
+
+  function activateTab(name) {
+    var isBasic = (name === 'basic');
+    document.getElementById('tab-basic-btn').className   = 'px-5 py-2 text-sm font-medium rounded-md transition-colors ' + (isBasic  ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100');
+    document.getElementById('tab-inspect-btn').className = 'px-5 py-2 text-sm font-medium rounded-md transition-colors ' + (!isBasic ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100');
+    document.getElementById('tab-basic').classList.toggle('hidden', !isBasic);
+    document.getElementById('tab-inspect').classList.toggle('hidden', isBasic);
+  }
+  document.getElementById('tab-basic-btn')?.addEventListener('click',   function() { activateTab('basic'); });
+  document.getElementById('tab-inspect-btn')?.addEventListener('click', function() { activateTab('inspect'); });
+
+  function setDirty() {
+    if (isDirty) return;
+    isDirty = true;
+    saveBtn.disabled = false;
+    saveBtn.className = 'px-5 py-2 rounded-md text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white cursor-pointer';
+  }
+  function resetDirty() {
+    isDirty = false;
+    saveBtn.disabled = true;
+    saveBtn.className = 'px-5 py-2 rounded-md text-sm font-medium transition-colors bg-slate-200 text-slate-400 cursor-not-allowed';
+  }
+
+  document.getElementById('gas-detail-form')?.addEventListener('input',  setDirty);
+  document.getElementById('gas-detail-form')?.addEventListener('change', setDirty);
+
+
+  window.openDetailModal = function(data) {
+    document.getElementById('detail-title').textContent      = '유해가스 센서 ' + (data.sensorId || '');
+    document.getElementById('detail-device-type').value      = data.deviceType  || 'GAS';
+    document.getElementById('detail-device-code').value      = data.deviceCode  || '';
+    document.getElementById('detail-mac').value              = data.mac         || '';
+    document.getElementById('detail-install-date').value     = data.installDate || '';
+    document.getElementById('detail-dept').value             = data.dept        || '';
+    document.getElementById('detail-manager').value          = data.manager     || '';
+    document.getElementById('detail-ip').value               = data.ip          || '';
+    document.getElementById('detail-port').value             = data.port        || '';
+    document.getElementById('detail-status-active').checked  = (data.status !== 'inactive');
+    document.getElementById('detail-status-inactive').checked= (data.status === 'inactive');
+    document.getElementById('detail-conn-verified').checked  = (data.connVerified === 'true');
+    document.getElementById('detail-conn-date').value        = data.connDate    || '';
+    document.getElementById('detail-note').value             = data.note        || '';
+
+    var typeLabel   = GAS.resolveDeviceType(data.deviceType);
+    var managerName = GAS.resolveManager(data.manager);
+    document.getElementById('inspect-sensor-id').textContent    = data.sensorId || '';
+    document.getElementById('inspect-device-info').textContent  = typeLabel + (data.mac ? ' · MAC ' + data.mac : '');
+    document.getElementById('inspect-manager-info').textContent = '담당자 : ' + managerName;
+
+    window.currentSensorData = data;
+
+    ipAtOpen    = data.ip   || '';
+    portAtOpen  = data.port || '';
+    commChecked = true;
+
+    clearAllErrors();
+    resetDirty();
+    activateTab('basic');
+    detailModal.classList.remove('hidden');
+    detailModal.classList.add('flex');
+  };
+
+  function closeDetailModal() {
+    detailModal.classList.add('hidden');
+    detailModal.classList.remove('flex');
+  }
+
+  function clearAllErrors() {
+    ['detail-type-error','detail-mac-error','detail-date-error','detail-dept-error','detail-manager-error','detail-comm-error','detail-status-error'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+    ['detail-device-type','detail-ip','detail-port','detail-mac','detail-install-date'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.classList.remove('border-red-400'); el.classList.add('border-slate-200'); }
+    });
+  }
+  function showError(errId, msg, fieldId) {
+    var e = document.getElementById(errId);
+    if (e) { e.textContent = msg; e.classList.remove('hidden'); }
+    if (fieldId) { var f = document.getElementById(fieldId); if (f) { f.classList.add('border-red-400'); f.classList.remove('border-slate-200'); } }
+  }
+  function hideError(errId, fieldId) {
+    var e = document.getElementById(errId);
+    if (e) e.classList.add('hidden');
+    if (fieldId) { var f = document.getElementById(fieldId); if (f) { f.classList.remove('border-red-400'); f.classList.add('border-slate-200'); } }
+  }
+
+  document.getElementById('gas-detail-cancel')?.addEventListener('click', closeDetailModal);
+  document.getElementById('inspect-tab-confirm')?.addEventListener('click', closeDetailModal);
+
+  document.getElementById('inspect-register-btn')?.addEventListener('click', function() {
+    if (typeof window.openInspectRegister === 'function') window.openInspectRegister();
+  });
+
+  document.querySelectorAll('.action-register-trigger').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (typeof window.openActionRegister === 'function') {
+        window.openActionRegister({
+          type:   btn.dataset.inspectType,
+          date:   btn.dataset.inspectDate,
+          person: btn.dataset.inspectPerson,
+          note:   btn.dataset.inspectNote
+        });
+      }
+    });
+  });
+
+  var cbActive   = document.getElementById('detail-status-active');
+  var cbInactive = document.getElementById('detail-status-inactive');
+  cbActive?.addEventListener('change',   function() { if (cbActive.checked)   cbInactive.checked = false; });
+  cbInactive?.addEventListener('change', function() { if (cbInactive.checked) cbActive.checked   = false; });
+
+  document.getElementById('detail-comm-check')?.addEventListener('click', function() {
+    var ip   = document.getElementById('detail-ip').value.trim();
+    var port = document.getElementById('detail-port').value.trim();
+    if (!ip) { showError('detail-comm-error', 'IP 주소를 입력해 주세요.', 'detail-ip'); return; }
+    var ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(ip) || ip.split('.').some(function(n) { return parseInt(n) > 255; })) {
+      showError('detail-comm-error', 'IP 주소 형식이 올바르지 않습니다.', 'detail-ip'); return;
+    }
+    hideError('detail-comm-error', 'detail-ip');
+    if (!port) { showError('detail-comm-error', '포트 번호를 입력해 주세요.', 'detail-port'); return; }
+    if (!/^\d+$/.test(port)) { showError('detail-comm-error', '포트 번호 형식이 올바르지 않습니다.', 'detail-port'); return; }
+    var pn = parseInt(port);
+    if (pn < 1 || pn > 65535) { showError('detail-comm-error', '포트 번호는 1~65535 범위로 입력해 주세요.', 'detail-port'); return; }
+    hideError('detail-comm-error', 'detail-port');
+    commChecked = true;
+    document.getElementById('detail-conn-verified').checked = true;
+    var now = new Date();
+    var pad = function(n) { return String(n).padStart(2,'0'); };
+    document.getElementById('detail-conn-date').value =
+      now.getFullYear() + '.' + pad(now.getMonth()+1) + '.' + pad(now.getDate()) + ' ' +
+      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    setDirty();
+  });
+
+  ['detail-ip','detail-port'].forEach(function(id) {
+    document.getElementById(id)?.addEventListener('input', function() {
+      var curIp   = document.getElementById('detail-ip').value.trim();
+      var curPort = document.getElementById('detail-port').value.trim();
+      commChecked = (curIp === ipAtOpen && curPort === portAtOpen);
+    });
+  });
+
+  document.getElementById('gas-detail-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    clearAllErrors();
+    var valid = true;
+    if (!document.getElementById('detail-mac').value.trim()) {
+      showError('detail-mac-error', '장비 ID를 입력해 주세요.'); valid = false;
+    }
+    var dv = document.getElementById('detail-install-date').value.trim();
+    if (!dv) {
+      showError('detail-date-error', '설치 일자를 입력해 주세요.'); valid = false;
+    } else if (!/^\d{4}\.\d{2}\.\d{2}$/.test(dv)) {
+      showError('detail-date-error', '날짜 형식이 올바르지 않습니다. (YYYY.MM.DD)'); valid = false;
+    }
+    if (!document.getElementById('detail-dept').value) {
+      showError('detail-dept-error', '관리 부서를 선택해 주세요.'); valid = false;
+    }
+    if (!document.getElementById('detail-manager').value) {
+      showError('detail-manager-error', '관리 담당자를 선택해 주세요.'); valid = false;
+    }
+    if (!commChecked) {
+      showError('detail-comm-error', '저장 전에 연결 확인이 필요합니다.'); valid = false;
+    }
+    if (!cbActive.checked && !cbInactive.checked) {
+      showError('detail-status-error', '사용 여부를 선택해 주세요.'); valid = false;
+    }
+    if (!valid) return;
+    closeDetailModal();
+    var sm = document.getElementById('gas-success-modal');
+    GAS.showSuccess();
+  });
+})();
+</script>

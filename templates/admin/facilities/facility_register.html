@@ -1,0 +1,186 @@
+<div id="facility-register-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-lg">
+    <div class="px-8 py-7">
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-slate-900 mb-1">설비 등록</h3>
+        <p class="text-xs text-slate-500">신규 설비 정보를 입력하는 등록 팝업입니다.</p>
+      </div>
+
+      <form id="facility-register-form" novalidate>
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">설비 코드</label>
+              <input type="text" id="reg-equipment-code" name="equipment_code"
+                placeholder="저장 시 자동 생성" disabled
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-400 placeholder-slate-400 cursor-not-allowed" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                설비명 <span class="text-red-500">*</span>
+              </label>
+              <input type="text" id="reg-equipment-name" name="equipment_name"
+                placeholder="설비명 입력" required
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="reg-name-error">설비명을 입력해주세요.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                연결 전력 시스템 <span class="text-red-500">*</span>
+              </label>
+              <div class="relative" id="reg-ps-wrap">
+                <button type="button" id="reg-ps-toggle"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+                  <span id="reg-ps-label" class="text-slate-400">연결 전력 시스템 선택</span>
+                  <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="reg-ps-chevron"></i>
+                </button>
+                <div id="reg-ps-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-50 overflow-y-auto" style="max-height:180px;">
+                  <button type="button" class="reg-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-07">PWR-SYS-07</button>
+                  <button type="button" class="reg-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-08">PWR-SYS-08</button>
+                  <button type="button" class="reg-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-09">PWR-SYS-09</button>
+                  <button type="button" class="reg-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-10">PWR-SYS-10</button>
+                </div>
+                <input type="hidden" id="reg-ps-value" name="power_system" />
+              </div>
+              <p class="hidden mt-1 text-[11px] text-red-500" id="reg-ps-error">전력 시스템을 선택해주세요.</p>
+              <p class="mt-1 text-[11px] text-slate-400">다른 설비에 연결된 전력 시스템은 선택할 수 없습니다.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">
+                사용 여부 <span class="text-red-500">*</span>
+              </label>
+              <div class="flex items-center gap-5 pt-2.5">
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                  <input type="checkbox" name="status_active" id="reg-status-active" checked
+                    class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                  사용
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                  <input type="checkbox" name="status_inactive" id="reg-status-inactive"
+                    class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                  미사용
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">비고</label>
+            <textarea name="note" id="reg-note" rows="4" placeholder="비고 입력"
+              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 resize-none"></textarea>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 mt-6">
+          <button type="button" id="facility-register-cancel"
+            class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+            취소
+          </button>
+          <button type="submit"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+            등록
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  var registerModal = document.getElementById('facility-register-modal');
+  var successModal  = document.getElementById('facility-success-modal');
+
+  function openRegisterModal() {
+    registerModal.classList.remove('hidden');
+    registerModal.classList.add('flex');
+  }
+  function closeRegisterModal() {
+    registerModal.classList.add('hidden');
+    registerModal.classList.remove('flex');
+    document.getElementById('facility-register-form').reset();
+    var lbl = document.getElementById('reg-ps-label');
+    lbl.textContent = '연결 전력 시스템 선택';
+    lbl.classList.add('text-slate-400');
+    lbl.classList.remove('text-slate-900');
+    document.getElementById('reg-ps-value').value = '';
+    document.getElementById('reg-name-error').classList.add('hidden');
+    document.getElementById('reg-ps-error').classList.add('hidden');
+    document.getElementById('reg-status-active').checked = true;
+    document.getElementById('reg-status-inactive').checked = false;
+  }
+
+  document.getElementById('facility-register-btn')?.addEventListener('click', openRegisterModal);
+  document.getElementById('facility-register-cancel')?.addEventListener('click', closeRegisterModal);
+
+  var regPsToggle  = document.getElementById('reg-ps-toggle');
+  var regPsMenu    = document.getElementById('reg-ps-menu');
+  var regPsChevron = document.getElementById('reg-ps-chevron');
+
+  regPsToggle?.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var isHidden = regPsMenu.classList.contains('hidden');
+    regPsMenu.classList.toggle('hidden', !isHidden);
+    regPsChevron?.classList.toggle('rotate-180', isHidden);
+  });
+
+  document.querySelectorAll('.reg-ps-option').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var val = btn.dataset.value;
+      document.getElementById('reg-ps-value').value = val;
+      var label = document.getElementById('reg-ps-label');
+      label.textContent = val;
+      label.classList.remove('text-slate-400');
+      label.classList.add('text-slate-900');
+      regPsMenu.classList.add('hidden');
+      regPsChevron?.classList.remove('rotate-180');
+      document.getElementById('reg-ps-error').classList.add('hidden');
+      document.querySelectorAll('.reg-ps-option').forEach(function(b) {
+        b.classList.toggle('bg-blue-50', b === btn);
+        b.classList.toggle('text-blue-700', b === btn);
+      });
+    });
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!document.getElementById('reg-ps-wrap')?.contains(e.target)) {
+      regPsMenu?.classList.add('hidden');
+      regPsChevron?.classList.remove('rotate-180');
+    }
+  });
+
+  var cbActive   = document.getElementById('reg-status-active');
+  var cbInactive = document.getElementById('reg-status-inactive');
+  cbActive?.addEventListener('change', function() { if (cbActive.checked) cbInactive.checked = false; });
+  cbInactive?.addEventListener('change', function() { if (cbInactive.checked) cbActive.checked = false; });
+
+  document.getElementById('facility-register-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var valid = true;
+    var nameVal = document.getElementById('reg-equipment-name').value.trim();
+    var psVal   = document.getElementById('reg-ps-value').value;
+
+    if (!nameVal) {
+      document.getElementById('reg-name-error').classList.remove('hidden');
+      valid = false;
+    } else {
+      document.getElementById('reg-name-error').classList.add('hidden');
+    }
+    if (!psVal) {
+      document.getElementById('reg-ps-error').classList.remove('hidden');
+      valid = false;
+    } else {
+      document.getElementById('reg-ps-error').classList.add('hidden');
+    }
+    if (!valid) return;
+
+    closeRegisterModal();
+    successModal.classList.remove('hidden');
+    successModal.classList.add('flex');
+    lucide.createIcons();
+  });
+})();
+</script>
