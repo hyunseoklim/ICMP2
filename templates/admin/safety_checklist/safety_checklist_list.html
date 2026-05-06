@@ -26,6 +26,8 @@
 {% endblock %}
 
 {% block content %}
+{% include 'admin/_safety_tabs.html' with active_tab='checklist' %}
+
 <!-- ===== 최근 반영일 ===== -->
 <section class="bg-white rounded-xl border border-slate-200 p-6 mb-4">
   <label class="block text-xs font-medium text-slate-700 mb-1.5">최근 반영일</label>
@@ -48,56 +50,15 @@
 
     <div class="text-xs text-slate-500 mb-3 px-3 py-1 bg-slate-50 rounded-full w-fit">총 8개 섹션</div>
 
-    <!-- 섹션 리스트 -->
-    <div class="flex-1 space-y-2 overflow-y-auto pr-1" style="max-height: 480px;">
-      <!-- 작업 구역 안전 확인 (선택됨) -->
-      <div class="flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-300 rounded-lg cursor-pointer">
-        <span class="text-sm text-slate-900 font-medium">작업 구역 안전 확인</span>
-        <span class="text-xs text-blue-600 px-2 py-0.5 bg-blue-100 rounded-full">6개</span>
-      </div>
-      <!-- 배관 작업 안전 확인 -->
-      <div class="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-        <span class="text-sm text-slate-700">배관 작업 안전 확인</span>
-        <span class="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded-full">5개</span>
-      </div>
-      <!-- 용접 및 화기 작업 확인 -->
-      <div class="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-        <span class="text-sm text-slate-700">용접 및 화기 작업 확인</span>
-        <span class="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded-full">4개</span>
-      </div>
-      <!-- 고소 작업 안전 확인 -->
-      <div class="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-        <span class="text-sm text-slate-700">고소 작업 안전 확인</span>
-        <span class="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded-full">4개</span>
-      </div>
-      <!-- 설비 및 장비 확인 -->
-      <div class="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-        <span class="text-sm text-slate-700">설비 및 장비 확인</span>
-        <span class="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded-full">4개</span>
-      </div>
-      <!-- 가스 및 환경 위험 확인 -->
-      <div class="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-        <span class="text-sm text-slate-700">가스 및 환경 위험 확인</span>
-        <span class="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded-full">4개</span>
-      </div>
-      <!-- 주변 작업자 안전 확인 -->
-      <div class="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-        <span class="text-sm text-slate-700">주변 작업자 안전 확인</span>
-        <span class="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded-full">2개</span>
-      </div>
-      <!-- 비상 대응 확인 -->
-      <div class="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-        <span class="text-sm text-slate-700">비상 대응 확인</span>
-        <span class="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded-full">3개</span>
-      </div>
-    </div>
+    <!-- 섹션 리스트 (JS로 렌더링) -->
+    <div class="flex-1 space-y-2 overflow-y-auto pr-1" id="sectionList" style="max-height: 480px;"></div>
 
     <!-- 동기화된 섹션 표시 -->
     <div class="mt-4 pt-4 border-t border-slate-100">
       <div class="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg">
         <div>
           <div class="text-xs text-slate-500 mb-0.5">메인 패널과 동기화된 섹션</div>
-          <div class="text-sm text-slate-900 font-medium">작업 구역 안전 확인</div>
+          <div class="text-sm text-slate-900 font-medium" id="syncSectionName">작업 구역 안전 확인</div>
         </div>
         <span class="text-xs text-blue-600 px-2 py-0.5 bg-blue-50 rounded-full border border-blue-100">편집 중</span>
       </div>
@@ -108,27 +69,24 @@
   <!-- ============ 우측: 선택 섹션 편집 ============ -->
   <section class="col-span-8 bg-white rounded-xl border border-slate-200 p-6">
     <div class="flex items-center gap-2 mb-1">
-      <h3 class="text-base font-bold text-slate-900">작업 구역 안전 확인</h3>
+      <h3 class="text-base font-bold text-slate-900" id="rightSectionTitle">작업 구역 안전 확인</h3>
       <span class="text-xs text-blue-600 px-2 py-0.5 bg-blue-50 rounded-full border border-blue-100">선택 섹션</span>
     </div>
     <p class="text-xs text-slate-500 mb-4">질문, 답변 방식, 문항 순서와 서약 문구를 한 화면에서 수정합니다.</p>
 
-    <!-- 섹션 정보 (3 + 인디케이터) -->
+    <!-- 섹션 정보 -->
     <div class="bg-white border border-slate-200 rounded-lg p-4 mb-6">
       <div class="grid grid-cols-12 gap-4 items-end">
-        <!-- 섹션명 -->
         <div class="col-span-3">
           <label class="block text-xs font-medium text-slate-700 mb-1.5">섹션명</label>
-          <input type="text" value="작업 구역 안전 확인"
+          <input type="text" id="sectionNameInput"
                  class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
         </div>
-        <!-- 섹션 설명 -->
         <div class="col-span-5">
           <label class="block text-xs font-medium text-slate-700 mb-1.5">섹션 설명</label>
-          <input type="text" value="작업 시작 전 작업 구역의 물리적 위험 요소와 출입 통제 상태를 점검합니다."
+          <input type="text" id="sectionDescInput"
                  class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
         </div>
-        <!-- 답변 방식 -->
         <div class="col-span-2">
           <label class="block text-xs font-medium text-slate-700 mb-1.5">답변 방식</label>
           <select class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400">
@@ -137,10 +95,9 @@
             <option>주관식</option>
           </select>
         </div>
-        <!-- 인디케이터 -->
         <div class="col-span-2 flex items-center justify-end gap-2 pb-2.5">
-          <span class="text-xs text-slate-500">1 / 8</span>
-          <span class="text-xs text-slate-600 px-2 py-0.5 bg-slate-100 rounded-full">문항 6개</span>
+          <span class="text-xs text-slate-500" id="sectionIndicator">1 / 8</span>
+          <span class="text-xs text-slate-600 px-2 py-0.5 bg-slate-100 rounded-full" id="questionCountBadge">문항 0개</span>
         </div>
       </div>
     </div>
@@ -155,47 +112,8 @@
       </div>
       <p class="text-xs text-slate-500 mb-3">행 단위로 순서를 조정하고 복제 또는 삭제할 수 있습니다.</p>
 
-      <!-- 문항 리스트 -->
-      <div class="space-y-2" id="questionList">
-        <!-- 문항 1 (강조 - 선택된 상태) -->
-        <div class="flex items-center gap-3 px-3 py-3 border border-blue-300 bg-blue-50/30 rounded-lg">
-          <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-400 cursor-move flex-shrink-0"></i>
-          <span class="text-xs font-bold text-blue-600 px-2 py-0.5 bg-blue-100 rounded-full w-7 text-center flex-shrink-0">1</span>
-          <span class="flex-1 text-sm text-slate-700">작업 구역 내 위험구역 표시 및 출입 통제 상태를 확인하였다.</span>
-          <button class="text-xs text-slate-500 px-2.5 py-1 hover:bg-slate-100 rounded">복제</button>
-          <button class="text-xs text-red-600 px-2.5 py-1 bg-red-50 rounded hover:bg-red-100">삭제</button>
-        </div>
-        <!-- 문항 2 -->
-        <div class="flex items-center gap-3 px-3 py-3 border border-slate-200 bg-white rounded-lg hover:bg-slate-50">
-          <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-400 cursor-move flex-shrink-0"></i>
-          <span class="text-xs font-medium text-slate-600 px-2 py-0.5 bg-slate-100 rounded-full w-7 text-center flex-shrink-0">2</span>
-          <span class="flex-1 text-sm text-slate-700">작업 구역 바닥 상태(미끄럼, 철편, 자재 등)가 안전한 것을 확인하였다.</span>
-        </div>
-        <!-- 문항 3 -->
-        <div class="flex items-center gap-3 px-3 py-3 border border-slate-200 bg-white rounded-lg hover:bg-slate-50">
-          <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-400 cursor-move flex-shrink-0"></i>
-          <span class="text-xs font-medium text-slate-600 px-2 py-0.5 bg-slate-100 rounded-full w-7 text-center flex-shrink-0">3</span>
-          <span class="flex-1 text-sm text-slate-700">작업 구역 내 낙하물 위험이 없는 것을 확인하였다.</span>
-        </div>
-        <!-- 문항 4 -->
-        <div class="flex items-center gap-3 px-3 py-3 border border-slate-200 bg-white rounded-lg hover:bg-slate-50">
-          <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-400 cursor-move flex-shrink-0"></i>
-          <span class="text-xs font-medium text-slate-600 px-2 py-0.5 bg-slate-100 rounded-full w-7 text-center flex-shrink-0">4</span>
-          <span class="flex-1 text-sm text-slate-700">작업 구역 내 작업 통로 및 이동 동선이 확보되어 있는 것을 확인하였다.</span>
-        </div>
-        <!-- 문항 5 -->
-        <div class="flex items-center gap-3 px-3 py-3 border border-slate-200 bg-white rounded-lg hover:bg-slate-50">
-          <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-400 cursor-move flex-shrink-0"></i>
-          <span class="text-xs font-medium text-slate-600 px-2 py-0.5 bg-slate-100 rounded-full w-7 text-center flex-shrink-0">5</span>
-          <span class="flex-1 text-sm text-slate-700">작업 구역 주변에서 크레인 또는 중장비 작업 여부를 확인하였다.</span>
-        </div>
-        <!-- 문항 6 -->
-        <div class="flex items-center gap-3 px-3 py-3 border border-slate-200 bg-white rounded-lg hover:bg-slate-50">
-          <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-400 cursor-move flex-shrink-0"></i>
-          <span class="text-xs font-medium text-slate-600 px-2 py-0.5 bg-slate-100 rounded-full w-7 text-center flex-shrink-0">6</span>
-          <span class="flex-1 text-sm text-slate-700">작업 구역 주변 고소 작업이 진행 중인지 확인하였다.</span>
-        </div>
-      </div>
+      <!-- 문항 리스트 (JS로 렌더링) -->
+      <div class="space-y-2" id="questionList"></div>
     </div>
   </section>
 </div>
@@ -227,22 +145,18 @@
         <p class="text-xs text-slate-500 mb-4">확인할 반영 시점을 선택합니다.</p>
 
         <div class="space-y-2 flex-1">
-          <!-- 2026-04-14 (선택됨) -->
           <div class="px-4 py-3 border border-blue-300 bg-blue-50/50 rounded-lg cursor-pointer">
             <div class="text-sm font-medium text-slate-900">2026-04-14</div>
             <div class="text-xs text-slate-500 mt-0.5">15:20</div>
           </div>
-          <!-- 2026-04-03 -->
           <div class="px-4 py-3 border border-slate-200 bg-white rounded-lg cursor-pointer hover:bg-slate-50">
             <div class="text-sm text-slate-700">2026-04-03</div>
             <div class="text-xs text-slate-500 mt-0.5">09:10</div>
           </div>
-          <!-- 2026-03-21 -->
           <div class="px-4 py-3 border border-slate-200 bg-white rounded-lg cursor-pointer hover:bg-slate-50">
             <div class="text-sm text-slate-700">2026-03-21</div>
             <div class="text-xs text-slate-500 mt-0.5">18:40</div>
           </div>
-          <!-- 2026-03-05 -->
           <div class="px-4 py-3 border border-slate-200 bg-white rounded-lg cursor-pointer hover:bg-slate-50">
             <div class="text-sm text-slate-700">2026-03-05</div>
             <div class="text-xs text-slate-500 mt-0.5">11:15</div>
@@ -265,7 +179,6 @@
         <h4 class="text-base font-bold text-slate-900 mb-1">2026-04-14 기준 체크리스트</h4>
         <p class="text-xs text-slate-500 mb-4">당시 반영된 전체 문항과 마지막 서약 문구를 보여줍니다.</p>
 
-        <!-- 메타 정보 -->
         <div class="bg-slate-50 rounded-lg p-4 mb-6 grid grid-cols-2 gap-4">
           <div>
             <div class="text-xs text-slate-500 mb-1">기준 일시</div>
@@ -277,7 +190,6 @@
           </div>
         </div>
 
-        <!-- 섹션 1 -->
         <h5 class="text-sm font-bold text-slate-900 mb-1">섹션 1. 작업 구역 안전 확인</h5>
         <p class="text-xs text-slate-500 mb-3">반영 시점에 적용된 문항입니다.</p>
 
@@ -308,11 +220,10 @@
           </div>
         </div>
 
-        <!-- 최종 확인 및 서약 -->
         <h5 class="text-sm font-bold text-slate-900 mb-3">최종 확인 및 서약</h5>
         <div class="flex items-center gap-3 px-4 py-3 border border-slate-200 bg-white rounded-lg">
           <input type="checkbox" disabled class="w-4 h-4 rounded border-slate-300" />
-          <span class="text-sm text-slate-700">상기 체크리스트를 모두 확인하였으며 작업 전 안전 기준을 준수하겠습니다.</span>
+          <span class="text-sm text-slate-700">작업 전 안전 상태를 모두 확인하였으며 안전 절차를 준수하여 작업을 진행하겠습니다.</span>
         </div>
       </div>
     </div>
@@ -355,6 +266,150 @@
 
 <!-- ===== JavaScript ===== -->
 <script>
+  // ===== 섹션 데이터 =====
+  const SECTIONS = [
+    {
+      name: '작업 구역 안전 확인',
+      desc: '작업 시작 전 작업 구역의 물리적 위험 요소와 출입 통제 상태를 점검합니다.',
+      questions: [
+        '작업 구역 내 위험구역 표시 및 출입 통제 상태를 확인하였다.',
+        '작업 구역 바닥 상태(미끄럼, 철편, 자재 등)가 안전한 것을 확인하였다.',
+        '작업 구역 내 낙하물 위험이 없는 것을 확인하였다.',
+        '작업 구역 내 작업 통로 및 이동 동선이 확보되어 있는 것을 확인하였다.',
+        '작업 구역 주변에서 크레인 또는 중장비 작업 여부를 확인하였다.',
+        '작업 구역 주변 고소 작업이 진행 중인지 확인하였다.',
+      ]
+    },
+    {
+      name: '배관 작업 안전 확인',
+      desc: '배관 작업 전 압력, 잔존 물질, 차단 상태 및 환기를 점검합니다.',
+      questions: [
+        '작업 대상 배관의 압력 상태를 확인하였다.',
+        '작업 대상 배관 내 가스 또는 유체 잔존 여부를 확인하였다.',
+        '배관 차단 밸브 상태를 확인하였다.',
+        '배관 작업 구역의 누출 위험이 없는 것을 확인하였다.',
+        '배관 작업 구역의 환기 상태를 확인하였다.',
+      ]
+    },
+    {
+      name: '용접 및 화기 작업 확인',
+      desc: '화기 작업 허가 여부와 인화물질, 소화기 등 화재 예방 조치를 점검합니다.',
+      questions: [
+        '용접 및 화기 작업 허가서를 확인하였다.',
+        '화기 작업 주변 인화성 물질이 없는 것을 확인하였다.',
+        '화재 감시자가 배치되어 있는 것을 확인하였다.',
+        '소화기 및 화재 대응 장비 위치를 확인하였다.',
+      ]
+    },
+    {
+      name: '고소 작업 안전 확인',
+      desc: '고소 작업 발판 고정 상태, 낙하물 방지 및 하부 통제를 점검합니다.',
+      questions: [
+        '고소 작업 발판 및 작업대 상태를 확인하였다.',
+        '작업 발판이 고정되어 있는 것을 확인하였다.',
+        '낙하물 방지 조치가 되어 있는 것을 확인하였다.',
+        '작업 구역 하부 접근 통제가 되어 있는 것을 확인하였다.',
+      ]
+    },
+    {
+      name: '설비 및 장비 확인',
+      desc: '사용 장비 이상 여부와 이동 장비 작업 반경 안전을 점검합니다.',
+      questions: [
+        '사용 장비(그라인더, 절단기, 용접기 등) 이상 여부를 확인하였다.',
+        '전기 케이블 및 장비 전원 상태를 확인하였다.',
+        '이동 장비(지게차, 크레인 등) 작업 반경을 확인하였다.',
+        '장비 작업 반경 내 접근 위험 요소가 없는 것을 확인하였다.',
+      ]
+    },
+    {
+      name: '가스 및 환경 위험 확인',
+      desc: '가스 감지 시스템 상태와 환기, 밀폐 공간 여부를 점검합니다.',
+      questions: [
+        '작업 구역 가스 감지 시스템 상태를 확인하였다.',
+        '가스 누출 경고 또는 알림이 없는 것을 확인하였다.',
+        '작업 구역 환기 상태를 확인하였다.',
+        '밀폐 공간 작업 여부를 확인하였다.',
+      ]
+    },
+    {
+      name: '주변 작업자 안전 확인',
+      desc: '주변 작업자와의 동선 중복 및 협착·충돌 위험을 점검합니다.',
+      questions: [
+        '주변 작업자와 작업 구역이 중복되지 않는 것을 확인하였다.',
+        '협착 및 충돌 위험이 없는 작업 동선을 확보하였다.',
+      ]
+    },
+    {
+      name: '비상 대응 확인',
+      desc: '비상 대피 경로, 대응 절차 인지 및 응급 장비 위치를 확인합니다.',
+      questions: [
+        '비상 대피 경로를 확인하였다.',
+        '비상 상황 발생 시 대응 절차를 인지하였다.',
+        '응급 장비 및 비상 연락 체계를 확인하였다.',
+      ]
+    },
+  ];
+
+  let currentIdx = 0;
+
+  // ===== 섹션 선택 =====
+  function selectSection(idx) {
+    currentIdx = idx;
+    renderSectionList();
+    renderRightPanel();
+  }
+
+  // ===== 좌측 섹션 리스트 렌더링 =====
+  function renderSectionList() {
+    const container = document.getElementById('sectionList');
+    container.innerHTML = SECTIONS.map((s, i) => {
+      const isActive = i === currentIdx;
+      return `
+        <div onclick="selectSection(${i})"
+             class="flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer border transition-colors
+                    ${isActive
+                      ? 'bg-blue-50 border-blue-300'
+                      : 'bg-white border-slate-200 hover:bg-slate-50'}">
+          <span class="text-sm ${isActive ? 'text-slate-900 font-medium' : 'text-slate-700'}">${s.name}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full ${isActive ? 'text-blue-600 bg-blue-100' : 'text-slate-500 bg-slate-100'}">${s.questions.length}개</span>
+        </div>`;
+    }).join('');
+  }
+
+  // ===== 우측 패널 렌더링 =====
+  function renderRightPanel() {
+    const s = SECTIONS[currentIdx];
+
+    document.getElementById('rightSectionTitle').textContent  = s.name;
+    document.getElementById('sectionNameInput').value         = s.name;
+    document.getElementById('sectionDescInput').value         = s.desc;
+    document.getElementById('sectionIndicator').textContent   = `${currentIdx + 1} / ${SECTIONS.length}`;
+    document.getElementById('questionCountBadge').textContent = `문항 ${s.questions.length}개`;
+    document.getElementById('syncSectionName').textContent    = s.name;
+
+    const list = document.getElementById('questionList');
+    list.innerHTML = s.questions.map((q, i) => {
+      const isFirst = i === 0;
+      return `
+        <div class="flex items-center gap-3 px-3 py-3 border rounded-lg
+                    ${isFirst ? 'border-blue-300 bg-blue-50/30' : 'border-slate-200 bg-white hover:bg-slate-50'}">
+          <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-400 cursor-move flex-shrink-0"></i>
+          <span class="text-xs font-${isFirst ? 'bold text-blue-600 bg-blue-100' : 'medium text-slate-600 bg-slate-100'} px-2 py-0.5 rounded-full w-7 text-center flex-shrink-0">${i + 1}</span>
+          <span class="flex-1 text-sm text-slate-700">${q}</span>
+          ${isFirst ? `
+          <button class="text-xs text-slate-500 px-2.5 py-1 hover:bg-slate-100 rounded">복제</button>
+          <button class="text-xs text-red-600 px-2.5 py-1 bg-red-50 rounded hover:bg-red-100">삭제</button>` : ''}
+        </div>`;
+    }).join('');
+
+    // lucide 아이콘 재초기화
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  // ===== 초기 렌더링 =====
+  renderSectionList();
+  renderRightPanel();
+
   // ----- 반영 이력 모달 -----
   function openHistoryModal() {
     const m = document.getElementById('historyModal');
@@ -390,7 +445,7 @@
     m.classList.remove('flex');
   }
 
-  // ----- 문항 추가 (실제 구현 시 동적 생성) -----
+  // ----- 문항 추가 -----
   function addQuestion() {
     alert('문항 추가 기능 — 실제 구현 시 새 문항 입력 폼이 추가됩니다.');
   }

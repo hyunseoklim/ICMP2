@@ -18,7 +18,7 @@
     </div>
 
     {# 폼 #}
-    <form method="post" action="{% url 'position_edit' position.id %}" class="px-6 py-5 space-y-4">
+    <form method="post" action="{% url 'position_edit' pk %}" class="px-6 py-5 space-y-4">
       {% csrf_token %}
 
       {# ② 직위명 입력/수정 필드 — 기존 직위명 입력되어 있으며 직접 지우고 수정가능 #}
@@ -27,7 +27,7 @@
           직위명
         </label>
         <input type="text" id="id_name" name="name"
-               value="{{ form.name.value|default:position.name|default:'대리' }}"
+               value="{{ form.name.value|default:'' }}"
                class="flex-1 px-3 py-2 text-sm border rounded-md text-slate-900
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                       {% if form.name.errors %}border-red-400 bg-red-50/30{% else %}border-slate-200{% endif %}" />
@@ -46,8 +46,8 @@
                   class="w-full appearance-none px-3 py-2 pr-9 text-sm border rounded-md bg-white text-slate-700
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                          {% if form.is_active.errors %}border-red-400 bg-red-50/30{% else %}border-slate-200{% endif %}">
-            <option value="true" {% if position.is_active|default:True %}selected{% endif %}>사용</option>
-            <option value="false" {% if not position.is_active|default:True %}selected{% endif %}>비활성</option>
+            <option value="true" selected>사용</option>
+            <option value="false">비활성</option>
           </select>
           <i data-lucide="chevron-down"
              class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>

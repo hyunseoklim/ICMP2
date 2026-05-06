@@ -21,6 +21,8 @@
 {% endblock %}
 
 {% block content %}
+{% include 'admin/_safety_tabs.html' with active_tab='vr' %}
+
 <!-- ===== 요약 정보 영역 (읽기 전용) ===== -->
 <section class="bg-white rounded-xl border border-slate-200 p-6 mb-4">
   <div class="grid grid-cols-4 gap-4">

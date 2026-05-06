@@ -3,11 +3,10 @@
 {% block title %}직위 등록 | 산재 예방 통합 관제 시스템{% endblock %}
 
 {# ===== ① 직위 등록 모달 =====
-   '직위 관리' 화면에서 [직위 등록] 클릭 시 표출되는 등록 화면 #}
+'직위 관리' 화면에서 [직위 등록] 클릭 시 표출되는 등록 화면 #}
 {% block modal %}
 {{ block.super }}
-<div id="position-create-modal"
-     class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
+<div id="position-create-modal" class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
 
   <div class="bg-white rounded-lg w-full max-w-md shadow-xl">
 
@@ -26,14 +25,12 @@
         <label for="id_name" class="w-20 text-sm font-medium text-slate-700 shrink-0">
           직위명
         </label>
-        <input type="text" id="id_name" name="name"
-               value="{{ form.name.value|default:'' }}" placeholder="직위명 입력"
-               class="flex-1 px-3 py-2 text-sm border rounded-md placeholder-slate-400
+        <input type="text" id="id_name" name="name" value="{{ form.name.value|default:'' }}" placeholder="직위명 입력" class="flex-1 px-3 py-2 text-sm border rounded-md placeholder-slate-400
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                       {% if form.name.errors %}border-red-400 bg-red-50/30{% else %}border-slate-200{% endif %}" />
       </div>
       {% if form.name.errors %}
-        <p class="ml-24 text-xs text-red-600 -mt-2">{{ form.name.errors.0 }}</p>
+      <p class="ml-24 text-xs text-red-600 -mt-2">{{ form.name.errors.0 }}</p>
       {% endif %}
 
       {# ③ 사용 여부 드롭다운 #}
@@ -42,8 +39,7 @@
           사용 여부
         </label>
         <div class="flex-1 relative">
-          <select id="id_is_active" name="is_active"
-                  class="w-full appearance-none px-3 py-2 pr-9 text-sm border rounded-md bg-white
+          <select id="id_is_active" name="is_active" class="w-full appearance-none px-3 py-2 pr-9 text-sm border rounded-md bg-white
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
                          {% if form.is_active.errors %}border-red-400 bg-red-50/30{% else %}border-slate-200{% endif %}
                          {% if not form.is_active.value %}text-slate-400{% else %}text-slate-700{% endif %}">
@@ -52,30 +48,29 @@
             <option value="false" {% if form.is_active.value == 'false' %}selected{% endif %}>미사용</option>
           </select>
           <i data-lucide="chevron-down"
-             class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+            class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
         </div>
       </div>
       {% if form.is_active.errors %}
-        <p class="ml-24 text-xs text-red-600 -mt-2">{{ form.is_active.errors.0 }}</p>
+      <p class="ml-24 text-xs text-red-600 -mt-2">{{ form.is_active.errors.0 }}</p>
       {% endif %}
 
       {# 버튼 영역 #}
       <div class="flex items-center justify-end gap-2 pt-4">
         {# ④ 취소 Btn — 클릭 시 팝업 닫고 직위 관리 화면으로 재이동 #}
         <a href="{% url 'position_list' %}"
-           class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+          class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
           취소
         </a>
         {# ⑤ 저장 Btn — 클릭 시 데이터 저장과 동시에 '완료' 팝업 표출 #}
-       
-     <a href="{% url 'position_list' %}"
-           class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+
+        <a href="{% url 'position_list' %}"
+          class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
           저장
-        </a>  
-       
-       
-       
-       ㄴ
+        </a>
+
+
+
       </div>
     </form>
   </div>
