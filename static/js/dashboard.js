@@ -6,6 +6,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('worker-warning').textContent = payload.warning + '명';
         document.getElementById('worker-normal').textContent  = payload.normal  + '명';
 
+        const total = (payload.danger || 0) + (payload.warning || 0) + (payload.normal || 0);
+        const totalEl = document.getElementById('worker-total');
+        if (totalEl) totalEl.textContent = total + '명';
+
         const chart = Chart.getChart('workerDonut');
         if (chart) {
             chart.data.datasets[0].data = [payload.danger, payload.warning, payload.normal];
