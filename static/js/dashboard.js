@@ -68,12 +68,15 @@ document.addEventListener('DOMContentLoaded', function() {
     /* ── 이벤트 목록 렌더링 ─────────────────────────────── */
     function buildWorkerItem() {
         if (!window.CURRENT_WORKER_NAME) return '';
-        const done       = window.SAFETY_DONE;
-        const stateText  = done ? '작업 전 안전 확인 완료' : '작업 전 안전 확인 미완료';
-        const stateClass = done ? 'safety-done' : 'safety-undone';
-        const iconColor  = done ? 'var(--accent-green)' : 'var(--danger)';
+
+        const checklistDone = window.SAFETY_DONE;
+        const vrDone        = window.VR_DONE;
+        const allDone       = checklistDone && vrDone;
+
+        const iconColor = allDone ? 'var(--accent-green)' : 'var(--danger)';
+
         return `
-        <li class="event-item event-item--worker event--${done ? 'normal' : 'danger'}">
+        <li class="event-item event-item--worker event--${allDone ? 'normal' : 'danger'}">
             <div class="event-icon event-icon--worker" style="color:${iconColor}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
@@ -81,12 +84,16 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="event-body">
                 <p class="event-title">${window.CURRENT_WORKER_NAME} 작업자</p>
-                <p class="event-desc ${stateClass}">${stateText}</p>
+                <p class="event-desc ${checklistDone ? 'safety-done' : 'safety-undone'}">
+                    안전 체크리스트 ${checklistDone ? '완료' : '미완료'}
+                </p>
+                <p class="event-desc ${vrDone ? 'safety-done' : 'safety-undone'}">
+                    VR 안전교육 ${vrDone ? '완료' : '미완료'}
+                </p>
             </div>
             <span class="event-time">-</span>
         </li>`;
     }
-
     async function renderEventList() {
         const list = document.getElementById('event-list');
         if (!list) return;

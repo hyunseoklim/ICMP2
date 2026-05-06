@@ -96,7 +96,7 @@ const AlertPopup = (() => {
 
     async function poll() {
         try {
-            const res  = await fetch('/alerts/api/recent/?minutes=1&limit=10');
+            const res = await fetch('/alerts/api/recent/?minutes=1&limit=10&mine=true');
             if (!res.ok) return;
             const data = await res.json();
             const seen = getSeenIds();

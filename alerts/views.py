@@ -111,7 +111,20 @@ def recent_alarms(request):
     # worker가 없는 유저(admin/manager)는 전체 이벤트 반환
     if request.GET.get('mine') == 'true' and request.user.is_authenticated:
         try:
-            qs = qs.filter(worker=request.user.worker)
+            worker = request.user.worker
+            # 작업자 현재 층의 facility 추출
+            latest_location = worker.locations.select_related('floor__building__facility').first()
+            
+            if latest_location and latest_location.floor:
+                facility = latest_location.floor.building.facility
+                # 본인 이벤트 OR 해당 층 facility 이벤트
+                from django.db.models import Q
+                qs = qs.filter(
+                    Q(worker=worker) | Q(facility=facility)
+                )
+            else:
+                # 위치 정보 없으면 본인 이벤트만
+                qs = qs.filter(worker=worker)
         except Exception:
             pass
 
