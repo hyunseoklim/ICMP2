@@ -1,0 +1,349 @@
+{% extends 'admin/base_manage.html' %}
+{% block title %}사용자 활동 로그 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{% block breadcrumb %}
+<div class="text-xs text-slate-500 mb-3">
+  로그 및 연동 관리 / <span class="text-slate-700">사용자 활동 로그</span>
+</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="mb-2">
+  <h2 class="text-2xl font-bold text-slate-900 mb-1">사용자 활동 로그</h2>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include 'admin/_log_tabs.html' with active_tab='user' %}
+
+{# ===== 필터 패널 ===== #}
+<div class="bg-white rounded-lg border border-slate-200 p-5 mb-4">
+  <div class="grid grid-cols-4 gap-4 mb-4">
+    {# 조회기간 #}
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">조회기간</label>
+      <div class="relative">
+        <button id="dateRangeBtn"
+          class="w-full flex items-center justify-between px-3 py-2 text-sm border border-slate-200 rounded-md bg-white hover:border-blue-400 transition-colors text-slate-700 gap-2">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="calendar" class="w-4 h-4 text-slate-400 shrink-0"></i>
+            <span id="dateRangeLabel">날짜 선택</span>
+          </div>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+        </button>
+        <div id="dateRangePicker"
+          class="hidden absolute z-50 top-full mt-1 left-0 bg-white border border-slate-200 rounded-lg shadow-lg p-4 w-80">
+          <div class="flex gap-2 mb-3 flex-wrap">
+            <button onclick="setQuick('today')" class="px-2.5 py-1 text-xs rounded border border-slate-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors">오늘</button>
+            <button onclick="setQuick('yesterday')" class="px-2.5 py-1 text-xs rounded border border-slate-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors">어제</button>
+            <button onclick="setQuick('7days')" class="px-2.5 py-1 text-xs rounded border border-slate-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors">최근 7일</button>
+            <button onclick="setQuick('month')" class="px-2.5 py-1 text-xs rounded border border-slate-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors">이번달</button>
+            <button onclick="setQuick('3months')" class="px-2.5 py-1 text-xs rounded border border-slate-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors">최근 3개월</button>
+          </div>
+          <div class="flex gap-2 mb-3">
+            <input type="date" id="startDate" class="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:border-blue-400">
+            <span class="text-slate-400 self-center">~</span>
+            <input type="date" id="endDate" class="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:border-blue-400">
+          </div>
+          <div id="calendarGrid"></div>
+          <div class="flex justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
+            <button onclick="closePicker()" class="px-3 py-1.5 text-xs border border-slate-200 rounded-md hover:bg-slate-50">취소</button>
+            <button onclick="applyDateRange()" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700">적용</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# 사용자 #}
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">사용자</label>
+      <select id="filter-user" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:border-blue-400">
+        <option value="">전체</option>
+        <option value="홍길동 관리자">홍길동 관리자</option>
+        <option value="박운영">박운영</option>
+        <option value="이안전">이안전</option>
+        <option value="최점검">최점검</option>
+        <option value="김시스템">김시스템</option>
+        <option value="관리자">관리자</option>
+      </select>
+    </div>
+
+    {# 작업 유형 #}
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">작업 유형</label>
+      <select id="filter-action" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white focus:outline-none focus:border-blue-400">
+        <option value="">전체</option>
+        <option value="수정">수정</option>
+        <option value="승인">승인</option>
+        <option value="등록">등록</option>
+        <option value="삭제">삭제</option>
+        <option value="로그인">로그인</option>
+      </select>
+    </div>
+
+    {# 활동 내용 #}
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1.5">활동 내용</label>
+      <input type="text" id="filter-content" placeholder="활동 내용 검색"
+        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-blue-400">
+    </div>
+  </div>
+
+  <div class="flex justify-end gap-2">
+    <button onclick="resetFilters()" class="px-4 py-2 text-sm border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50 transition-colors">초기화</button>
+    <button onclick="applyFilters()" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">조회</button>
+  </div>
+</div>
+
+{# ===== 목록 ===== #}
+<div class="bg-white rounded-lg border border-slate-200">
+  <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+    <div class="flex items-center gap-2">
+      <span class="text-sm font-medium text-slate-700">전체 <span id="total-count" class="text-blue-600">0</span>건</span>
+      <span class="text-xs text-slate-400">· 최근 3개월 활동 로그를 조회할 수 있습니다.</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <select id="sort-select" onchange="applyFilters()"
+        class="px-3 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:border-blue-400 text-slate-600">
+        <option value="time_desc">발생시간 최신순</option>
+        <option value="time_asc">발생시간 오래된순</option>
+        <option value="user_asc">사용자 오름차순</option>
+        <option value="user_desc">사용자 내림차순</option>
+        <option value="action_asc">작업유형 오름차순</option>
+        <option value="action_desc">작업유형 내림차순</option>
+        <option value="menu_asc">대상메뉴 오름차순</option>
+        <option value="menu_desc">대상메뉴 내림차순</option>
+      </select>
+      <button onclick="exportCSV()"
+        class="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50 transition-colors">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        로그 내보내기
+      </button>
+    </div>
+  </div>
+
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="bg-slate-50 border-b border-slate-100 text-xs text-slate-500 font-medium">
+        <th class="px-5 py-3 text-left w-44">발생시간</th>
+        <th class="px-5 py-3 text-left w-36">사용자</th>
+        <th class="px-5 py-3 text-left w-28">작업 유형</th>
+        <th class="px-5 py-3 text-left w-44">대상 메뉴</th>
+        <th class="px-5 py-3 text-left">활동 내용</th>
+      </tr>
+    </thead>
+    <tbody id="log-tbody">
+    </tbody>
+  </table>
+
+  {# 페이지네이션 #}
+  <div class="flex items-center justify-between px-5 py-3.5 border-t border-slate-100">
+    <div class="text-xs text-slate-400" id="page-info"></div>
+    <div class="flex gap-1" id="pagination"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+const SAMPLE_DATA = [
+  { id:1,  time:'2026-04-12 10:18:42', user:'홍길동 관리자', action:'수정', menu:'권한 관리', content:'관리자 권한 템플릿 수정' },
+  { id:2,  time:'2026-04-12 09:54:13', user:'박운영',        action:'승인', menu:'작업 승인 관리', content:'위험작업 승인 요청 승인 처리' },
+  { id:3,  time:'2026-04-11 16:32:07', user:'이안전',        action:'등록', menu:'안전 체크리스트', content:'신규 안전 점검 항목 등록' },
+  { id:4,  time:'2026-04-11 14:05:55', user:'최점검',        action:'삭제', menu:'공지사항',        content:'기간 만료 공지사항 삭제' },
+  { id:5,  time:'2026-04-11 11:22:31', user:'홍길동 관리자', action:'수정', menu:'조직 관리',       content:'생산1팀 부서장 변경' },
+  { id:6,  time:'2026-04-10 17:48:19', user:'관리자',        action:'로그인', menu:'-',             content:'시스템 로그인 성공' },
+  { id:7,  time:'2026-04-10 15:30:44', user:'김시스템',      action:'수정', menu:'임계치 기준',     content:'CO₂ 경고 임계치 상향 조정' },
+  { id:8,  time:'2026-04-10 13:17:02', user:'박운영',        action:'등록', menu:'알림 정책',       content:'신규 가스 누출 알림 정책 등록' },
+  { id:9,  time:'2026-04-09 10:05:38', user:'이안전',        action:'수정', menu:'VR 교육',         content:'소화기 사용법 교육 콘텐츠 수정' },
+  { id:10, time:'2026-04-09 09:41:17', user:'최점검',        action:'승인', menu:'작업 승인 관리',  content:'밀폐공간 작업 허가 승인' },
+  { id:11, time:'2026-04-08 16:55:09', user:'홍길동 관리자', action:'삭제', menu:'공통 코드',       content:'미사용 코드값 일괄 삭제' },
+  { id:12, time:'2026-04-08 14:28:53', user:'관리자',        action:'로그인', menu:'-',             content:'시스템 로그인 성공' },
+];
+
+const ACTION_COLORS = {
+  '수정':'text-blue-500', '승인':'text-emerald-600',
+  '등록':'text-indigo-500', '삭제':'text-red-500', '로그인':'text-slate-400'
+};
+
+let filtered = [...SAMPLE_DATA];
+let currentPage = 1;
+const PAGE_SIZE = 10;
+let pickerStart = null, pickerEnd = null, calMonth;
+
+// ── 날짜 피커 ──────────────────────────────────────
+function fmtDate(d) {
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+function setQuick(key) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  let s = new Date(today), e = new Date(today);
+  if (key==='yesterday') { s.setDate(s.getDate()-1); e.setDate(e.getDate()-1); }
+  else if (key==='7days') s.setDate(s.getDate()-6);
+  else if (key==='month') s.setDate(1);
+  else if (key==='3months') s.setMonth(s.getMonth()-3);
+  pickerStart = s; pickerEnd = e;
+  document.getElementById('startDate').value = fmtDate(s);
+  document.getElementById('endDate').value = fmtDate(e);
+  calMonth = new Date(s.getFullYear(), s.getMonth(), 1);
+  renderCalendar();
+}
+function renderCalendar() {
+  if (!calMonth) calMonth = new Date(); calMonth.setDate(1);
+  const year = calMonth.getFullYear(), month = calMonth.getMonth();
+  const days = ['일','월','화','수','목','금','토'];
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month+1, 0).getDate();
+  let html = `<div class="flex items-center justify-between mb-2">
+    <button onclick="changeMonth(-1)" class="p-1 hover:bg-slate-100 rounded"><i data-lucide="chevron-left" class="w-3.5 h-3.5 text-slate-500"></i></button>
+    <span class="text-xs font-medium text-slate-700">${year}년 ${month+1}월</span>
+    <button onclick="changeMonth(1)" class="p-1 hover:bg-slate-100 rounded"><i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-500"></i></button>
+  </div>
+  <div class="grid grid-cols-7 gap-0.5 mb-1">`;
+  days.forEach(d => { html += `<div class="text-center text-xs text-slate-400 py-1">${d}</div>`; });
+  html += '</div><div class="grid grid-cols-7 gap-0.5">';
+  for (let i=0;i<firstDay;i++) html += '<div></div>';
+  for (let d=1;d<=lastDate;d++) {
+    const cur = new Date(year, month, d);
+    const isS = pickerStart && cur.getTime()===pickerStart.getTime();
+    const isE = pickerEnd && cur.getTime()===pickerEnd.getTime();
+    const inRange = pickerStart && pickerEnd && cur >= pickerStart && cur <= pickerEnd;
+    let cls = 'text-center text-xs py-1 rounded cursor-pointer ';
+    if (isS||isE) cls += 'bg-blue-600 text-white';
+    else if (inRange) cls += 'bg-blue-100 text-blue-700';
+    else cls += 'hover:bg-slate-100 text-slate-700';
+    html += `<div class="${cls}" onclick="pickDay(${year},${month},${d})">${d}</div>`;
+  }
+  html += '</div>';
+  document.getElementById('calendarGrid').innerHTML = html;
+  if (window.lucide) lucide.createIcons();
+}
+function pickDay(y,m,d) {
+  const clicked = new Date(y,m,d);
+  if (!pickerStart || (pickerStart && pickerEnd)) { pickerStart=clicked; pickerEnd=null; }
+  else if (clicked < pickerStart) { pickerEnd=pickerStart; pickerStart=clicked; }
+  else pickerEnd=clicked;
+  document.getElementById('startDate').value = pickerStart ? fmtDate(pickerStart) : '';
+  document.getElementById('endDate').value = pickerEnd ? fmtDate(pickerEnd) : '';
+  renderCalendar();
+}
+function changeMonth(delta) { calMonth.setMonth(calMonth.getMonth()+delta); renderCalendar(); }
+function applyDateRange() {
+  const s = document.getElementById('startDate').value;
+  const e = document.getElementById('endDate').value;
+  if (s) pickerStart = new Date(s);
+  if (e) pickerEnd = new Date(e);
+  if (pickerStart && pickerEnd) {
+    document.getElementById('dateRangeLabel').textContent = `${fmtDate(pickerStart)} ~ ${fmtDate(pickerEnd)}`;
+  }
+  closePicker();
+}
+function closePicker() { document.getElementById('dateRangePicker').classList.add('hidden'); }
+document.getElementById('dateRangeBtn').addEventListener('click', function(e) {
+  e.stopPropagation();
+  const p = document.getElementById('dateRangePicker');
+  const hidden = p.classList.toggle('hidden');
+  if (!hidden) { calMonth = new Date(); calMonth.setDate(1); renderCalendar(); }
+});
+document.addEventListener('click', function(e) {
+  if (!document.getElementById('dateRangePicker').contains(e.target) &&
+      e.target !== document.getElementById('dateRangeBtn')) {
+    closePicker();
+  }
+});
+
+// ── 필터 / 정렬 ────────────────────────────────────
+function applyFilters() {
+  const user    = document.getElementById('filter-user').value;
+  const action  = document.getElementById('filter-action').value;
+  const content = document.getElementById('filter-content').value.trim().toLowerCase();
+  const sort    = document.getElementById('sort-select').value;
+
+  filtered = SAMPLE_DATA.filter(r => {
+    if (user    && r.user   !== user)   return false;
+    if (action  && r.action !== action) return false;
+    if (content && !r.content.toLowerCase().includes(content)) return false;
+    if (pickerStart && pickerEnd) {
+      const t = new Date(r.time.split(' ')[0]);
+      if (t < pickerStart || t > pickerEnd) return false;
+    }
+    return true;
+  });
+
+  const [field, dir] = sort.split('_');
+  const keyMap = { time:'time', user:'user', action:'action', menu:'menu' };
+  filtered.sort((a,b) => {
+    const va = a[keyMap[field]] || '', vb = b[keyMap[field]] || '';
+    return dir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+
+  currentPage = 1;
+  render();
+}
+
+function resetFilters() {
+  document.getElementById('filter-user').value = '';
+  document.getElementById('filter-action').value = '';
+  document.getElementById('filter-content').value = '';
+  document.getElementById('dateRangeLabel').textContent = '날짜 선택';
+  document.getElementById('startDate').value = '';
+  document.getElementById('endDate').value = '';
+  pickerStart = null; pickerEnd = null;
+  applyFilters();
+}
+
+// ── 렌더 ───────────────────────────────────────────
+function render() {
+  document.getElementById('total-count').textContent = filtered.length;
+  const start = (currentPage-1)*PAGE_SIZE;
+  const page  = filtered.slice(start, start+PAGE_SIZE);
+
+  const tbody = document.getElementById('log-tbody');
+  if (!page.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-12 text-center text-sm text-slate-400">조회 결과가 없습니다.</td></tr>`;
+  } else {
+    tbody.innerHTML = page.map(r => {
+      const actionCls = ACTION_COLORS[r.action] || 'text-slate-500';
+      return `<tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+        <td class="px-5 py-3 text-slate-500 text-xs">${r.time}</td>
+        <td class="px-5 py-3 text-slate-700">${r.user}</td>
+        <td class="px-5 py-3 font-medium ${actionCls}">${r.action}</td>
+        <td class="px-5 py-3 text-slate-600">${r.menu}</td>
+        <td class="px-5 py-3 text-slate-600">${r.content}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const total = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+  document.getElementById('page-info').textContent =
+    `${start+1}–${Math.min(start+PAGE_SIZE, filtered.length)} / ${filtered.length}건`;
+
+  let pages = '';
+  for (let i=1; i<=total; i++) {
+    const active = i===currentPage ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-600 hover:bg-slate-50 border-slate-200';
+    pages += `<button onclick="goPage(${i})" class="w-8 h-8 text-xs border rounded-md transition-colors ${active}">${i}</button>`;
+  }
+  document.getElementById('pagination').innerHTML = pages;
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function goPage(p) { currentPage = p; render(); }
+
+// ── CSV 내보내기 ────────────────────────────────────
+function exportCSV() {
+  const header = ['발생시간','사용자','작업 유형','대상 메뉴','활동 내용'];
+  const rows = filtered.map(r => [r.time, r.user, r.action, r.menu, `"${r.content}"`]);
+  const csv = '﻿' + [header, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = `user_activity_log_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+applyFilters();
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% comment %}
+로그 및 연동 관리 공통 탭
+
+사용 방법:
+  include 'admin/_log_tabs.html' with active_tab='system'
+  include 'admin/_log_tabs.html' with active_tab='user'
+  include 'admin/_log_tabs.html' with active_tab='integration'
+  include 'admin/_log_tabs.html' with active_tab='map'
+{% endcomment %}
+<div class="border-b border-slate-200 mb-6">
+  <nav class="flex gap-1" aria-label="로그 및 연동 관리 탭">
+    <a href="{% url 'system_log_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'system' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      시스템 로그
+    </a>
+    <a href="{% url 'user_activity_log_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'user' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      사용자 활동 로그
+    </a>
+    <a href="{% url 'integration_log_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'integration' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      연동 로그
+    </a>
+    <a href="{% url 'map_edit_log_list' %}"
+       class="px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors
+              {% if active_tab == 'map' %}border-blue-600 text-blue-600{% else %}border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300{% endif %}">
+      지도 편집 로그
+    </a>
+  </nav>
+</div>
