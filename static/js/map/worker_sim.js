@@ -124,23 +124,20 @@ function workerIcon(status, name) {
     const label = name ? name[0] : '';
 
     const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="52" viewBox="0 0 40 52">
-            <circle cx="20" cy="18" r="16" fill="${color}22" stroke="${color}" stroke-width="1.5"/>
-            <text x="20" y="11" text-anchor="middle" font-size="8" font-weight="700"
-                fill="${color}" font-family="sans-serif">⛑</text>
-            <circle cx="20" cy="20" r="5" fill="${color}"/>
-            <path d="M11,30 Q20,26 29,30 L27,36 Q20,38 13,36 Z" fill="${color}"/>
-            <polygon points="20,50 14,38 26,38" fill="${color}" fill-opacity="0.7"/>
-            <rect x="2" y="40" width="36" height="12" rx="3" fill="${color}22" stroke="${color}" stroke-width="0.8"/>
-            <text x="20" y="50" text-anchor="middle" font-size="9" font-weight="700"
-                fill="${color}" font-family="sans-serif">${name || ''}</text>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="26" viewBox="0 0 40 52">
+            <!-- 흰색 원 배경 -->
+            <circle cx="20" cy="18" r="16" fill="white" stroke="#000000" stroke-width="1.5"/>
+            <!-- 사람 아이콘 (상태 색상) -->
+            <circle cx="20" cy="13" r="5" fill="${color}"/>
+            <path d="M11,30 Q20,24 29,30 L27,36 Q20,38 13,36 Z" fill="${color}"/>
+
         </svg>
     `;
 
     return L.divIcon({
         html: svg,
-        iconSize:   [40, 52],
-        iconAnchor: [20, 52],
+        iconSize:   [20, 26],
+        iconAnchor: [10, 26],
         className:  '',
     });
 }
@@ -418,6 +415,28 @@ function renderOrMoveWorker(loc) {
         });
 
         workerMarkers[loc.worker_id] = { marker };
+    }
+    const row = document.querySelector(`tr[data-worker-id="${loc.worker_id}"]`);
+    if (row) {
+        const status = loc.worker_status || 'safe';
+        row.dataset.status = status;
+        row.className = `worker-row row--${status}`;
+        const badge = row.querySelector('.level-badge');
+        if (badge) {
+            badge.className = `level-badge level--${status === 'danger' ? 'danger' : status === 'warning' ? 'warning' : 'normal'}`;
+            badge.textContent = status === 'danger' ? '위험' : status === 'warning' ? '주의' : '정상';
+        }
+        // 카운트 뱃지 갱신
+        const allRows = document.querySelectorAll('#worker-tbody .worker-row');
+        const dangerCount  = [...allRows].filter(r => r.dataset.status === 'danger').length;
+        const warningCount = [...allRows].filter(r => r.dataset.status === 'warning').length;
+        const safeCount    = [...allRows].filter(r => r.dataset.status === 'safe').length;
+        const dangerEl  = document.getElementById('wl-danger');
+        const warningEl = document.getElementById('wl-warning');
+        const normalEl  = document.getElementById('wl-normal');
+        if (dangerEl)  dangerEl.textContent  = dangerCount;
+        if (warningEl) warningEl.textContent = warningCount;
+        if (normalEl)  normalEl.textContent  = safeCount;
     }
     if (window.selectedWorkerIdForMap === String(loc.worker_id)) {
        map.panTo([loc.snap_y, loc.snap_x], { animate: true });

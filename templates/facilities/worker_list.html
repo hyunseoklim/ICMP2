@@ -283,7 +283,7 @@
         const marker = state.marker || state;
         if (!marker || typeof marker.getLatLng !== 'function') return false;
         const latlng = marker.getLatLng();
-        if (window.map && typeof map.setView === 'function') {
+        if (typeof map !== 'undefined' && typeof map.setView === 'function') {
             map.setView(latlng, map.getZoom(), { animate: true });
         }
         if (typeof marker.openPopup === 'function') marker.openPopup();
@@ -311,11 +311,24 @@
                 window.__workerMapLoaded = true;
             }
         }
-
         const workerId = row.dataset.workerId;
         window.selectedWorkerIdForMap = workerId;
-        setTimeout(() => focusWorkerOnMapRetry(workerId), 500);
-        focusWorkerOnMapRetry(workerId);
+
+        // map과 workerMarkers가 준비된 경우 직접 panTo
+        function tryFocus(retry) {
+            if (typeof map !== 'undefined' && window.workerMarkers) {
+                const state = window.workerMarkers[workerId] || window.workerMarkers[Number(workerId)];
+                if (state) {
+                    const marker = state.marker || state;
+                    if (typeof marker.getLatLng === 'function') {
+                        map.setView(marker.getLatLng(), map.getZoom()+2, { animate: true });
+                        return;
+                    }
+                }
+            }
+            if (retry > 0) setTimeout(() => tryFocus(retry - 1), 300);
+        }
+        tryFocus(30);
 
         const name  = row.dataset.name  || '—';
         const no    = row.dataset.no    || '—';

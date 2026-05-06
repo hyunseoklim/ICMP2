@@ -35,8 +35,8 @@ from .repositories import IndexGridWriter, IndexGridReader
 
 @login_required(login_url="login")
 def worker_list(request):
-    workers = Worker.objects.select_related('user', 'department').order_by('worker_name')
-
+   # on_duty 작업자만 표시 (현재 현장 출입자 기준)
+    workers = Worker.objects.select_related('user', 'department').filter(current_state='on_duty').order_by('worker_name')
     today = timezone.localdate()
 
     today_sessions = {

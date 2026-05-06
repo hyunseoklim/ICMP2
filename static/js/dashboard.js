@@ -120,6 +120,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             list.innerHTML = buildWorkerItem() + alarmItems.join('') || '<li class="event-empty">현재 이벤트가 없습니다.</li>';
 
+            const dangerCount  = alarms.filter(a => a.severity === 'danger').length;
+            const warningCount = alarms.filter(a => a.severity === 'warning').length;
+            const dangerEl  = document.querySelector('.event-count-danger');
+            const warningEl = document.querySelector('.event-count-warning');
+            if (dangerEl)  dangerEl.textContent  = `위험 ${dangerCount}건`;
+            if (warningEl) warningEl.textContent = `주의 ${warningCount}건`;
+
         } catch (e) {
             console.error('[EventList] 로딩 실패:', e);
         }

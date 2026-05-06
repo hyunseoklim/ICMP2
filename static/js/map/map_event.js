@@ -251,7 +251,7 @@ function showDetail(type, data) {
  *   - 50개 초과 시 가장 오래된 항목 제거
  */
 function addEvent(level, message) {
-    const list = document.getElementById('event-list');
+    const list = document.getElementById('map-event-list');
     if (!list) return;
 
     const now = new Date().toLocaleTimeString('ko-KR', {

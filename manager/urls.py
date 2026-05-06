@@ -1,8 +1,6 @@
 from django.urls import path
 from . import views
 
-
-
 urlpatterns = [
     # 사용자 관리
     path('', views.user_list, name='user_list'),
@@ -70,6 +68,11 @@ urlpatterns = [
 
     # 메뉴 관리
     path('menu-manage/', views.menu_manage, name='menu_manage'),
+
+    # 알림/이벤트 관리
+    path('alarm/policy/', views.alarm_policy_list, name='alarm_policy_list'),
+    path('alarm/event-history/', views.event_history_list, name='event_history_list'),
+    path('alarm/send-history/', views.alarm_send_history_list, name='alarm_send_history_list'),
 
     #지도관리
     path('map/', views.map_editor, name='map_editor'),    

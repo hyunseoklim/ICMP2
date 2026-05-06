@@ -81,6 +81,11 @@ const SensorLayer = {
 
         this._ws.onopen = () => {
             console.info('[layer:sensor] WebSocket 연결됨');
+            // 초기 마커 로드 (위치 정보만, status는 이후 delta로 갱신)
+            fetch(`${API_BASE}/sensor-locations/?floor_id=${floorId}`)
+                .then(r => r.json())
+                .then(data => data.results.forEach(s => renderOrUpdateSensor(s)))
+                .catch(err => console.warn('[layer:sensor] 초기 로드 실패:', err));
         };
 
         this._ws.onmessage = (e) => {

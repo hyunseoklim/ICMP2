@@ -134,6 +134,15 @@ def ingest_gas(request):
     except Exception as e:
         print(f'[sensor_ws] broadcast 실패: {e}')
     # ─── sensor WebSocket broadcast 끝 ────────────────────
+        # ─── geofence 자동 생성/갱신/삭제 ───────────────────────
+    # 가스 위험도(danger/warning/safe) 기반으로 geofence 자동 처리
+    # safe: 기존 geofence 비활성화 / danger,warning: 생성 또는 갱신
+    try:
+        from facilities.services.geofence_service import update_geofence_from_gas
+        update_geofence_from_gas(reading)
+    except Exception as e:
+        print(f'[geofence] 업데이트 실패: {e}')
+    # ─── geofence 끝 ─────────────────────────────────────
 
     return Response({'status': 'ok'})
 

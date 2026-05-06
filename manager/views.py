@@ -114,7 +114,6 @@ from .mixins import AdminRequiredMixin, ManagerRequiredMixin, RoleRequiredMixin,
 #         return qs
     
 
-
     
 def user_list(request):
     """사용자 관리 메인 페이지"""
@@ -297,6 +296,18 @@ def menu_manage(request):
     """메뉴 관리 (슈퍼관리자 전용)"""
     return render(request, 'admin/menu_manage/menu_manage.html', {'active_menu': 'menu_manage'})
 
+# ===== 알림/이벤트 관리 =====
+def alarm_policy_list(request):
+    """알림 정책 관리"""
+    return render(request, 'admin/alarm/alarm_policy_list.html', {'active_menu': 'alarm'})
+
+def event_history_list(request):
+    """이벤트 이력 조회"""
+    return render(request, 'admin/alarm/event_history_list.html', {'active_menu': 'alarm'})
+
+def alarm_send_history_list(request):
+    """알림 발송 이력"""
+    return render(request, 'admin/alarm/alarm_send_history_list.html', {'active_menu': 'alarm'})
 # 지도 
 def map_editor(request):
     """필터 펼친 상태"""

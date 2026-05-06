@@ -1,0 +1,676 @@
+{% extends 'admin/base_manage.html' %}
+
+{% block title %}알림 정책 관리 | 산재 예방 통합 관제 시스템{% endblock %}
+
+{% block breadcrumb %}
+<div class="text-xs text-slate-500 mb-3">
+  알림/이벤트 관리 / <span class="text-slate-700">알림 정책 관리</span>
+</div>
+{% endblock %}
+
+{% block page_header %}
+<div class="flex items-start justify-between mb-2">
+  <div>
+    <h2 class="text-2xl font-bold text-slate-900 mb-1">알림 정책 관리</h2>
+    <p class="text-sm text-slate-500">알림 정책의 발송 조건과 수신 대상을 관리합니다.</p>
+  </div>
+  <button id="btn-policy-create"
+    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+    정책 등록
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{% include 'admin/_alarm_tabs.html' with active_tab='policy' %}
+
+<!-- 검색 필터 -->
+<div class="bg-white rounded-lg border border-slate-200 p-6 mb-4">
+  <div class="grid grid-cols-3 gap-4 mb-4">
+    <div>
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">정책명</label>
+      <input type="text" id="filter-name" placeholder="정책명 검색"
+        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400" />
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">이벤트 상세</label>
+      <input type="text" id="filter-event" placeholder="이벤트 상세 검색"
+        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400" />
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부</label>
+      <select id="filter-status"
+        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+        <option value="">전체</option>
+        <option value="사용">사용</option>
+        <option value="미사용">미사용</option>
+      </select>
+    </div>
+  </div>
+  <div class="flex justify-end gap-2">
+    <button onclick="resetFilters()"
+      class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+      초기화
+    </button>
+    <button onclick="applyFilters()"
+      class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors flex items-center gap-1.5">
+      <i data-lucide="search" class="w-3.5 h-3.5"></i>
+      검색
+    </button>
+  </div>
+</div>
+
+<!-- 목록 영역 -->
+<div class="bg-white rounded-lg border border-slate-200">
+
+  <!-- 목록 헤더 -->
+  <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+    <div class="flex items-center gap-3">
+      <span class="text-sm font-semibold text-slate-900">전체 <span id="total-count" class="text-blue-600">128</span>건</span>
+      <span class="text-xs text-slate-400" id="selected-info">이벤트 상세 기준으로 등록된 알림 정책을 조회할 수 있습니다.</span>
+      <span id="selected-count-badge" class="hidden text-xs text-blue-600 font-medium"></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-delete" disabled
+        class="px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-400 cursor-not-allowed transition-all">
+        삭제
+      </button>
+      <!-- 정렬 드롭다운 -->
+      <div class="relative">
+        <button id="sort-btn"
+          class="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition-colors">
+          <span id="sort-label">최근 수정일순</span>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+        </button>
+        <div id="sort-dropdown"
+          class="hidden absolute right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 min-w-[160px]">
+          <button class="sort-option w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" data-sort="recent-desc">최근 수정일 최신순</button>
+          <button class="sort-option w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" data-sort="recent-asc">최근 수정일 오래된순</button>
+          <button class="sort-option w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" data-sort="name-asc">정책명 가나다순</button>
+          <button class="sort-option w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" data-sort="name-desc">정책명 역순</button>
+          <button class="sort-option w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" data-sort="event-asc">이벤트 상세 가나다순</button>
+          <button class="sort-option w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" data-sort="event-desc">이벤트 상세 역순</button>
+          <button class="sort-option w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" data-sort="active-first">사용 여부 사용 우선</button>
+          <button class="sort-option w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50" data-sort="inactive-first">사용 여부 미사용 우선</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 테이블 -->
+  <div class="overflow-x-auto">
+    <table class="w-full">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="px-4 py-3 w-10">
+            <input type="checkbox" id="check-all"
+              class="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer" />
+          </th>
+          <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-52">정책명</th>
+          <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-36">이벤트 상세</th>
+          <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-36">발송 채널</th>
+          <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-28">수신 대상</th>
+          <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-20">사용 여부</th>
+          <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3">적용 조건 요약</th>
+        </tr>
+      </thead>
+      <tbody id="policy-table-body">
+        <!-- JS 렌더 -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 페이지네이션 -->
+  <div class="flex items-center justify-between px-6 py-4 border-t border-slate-100">
+    <span class="text-xs text-slate-500" id="page-info">1 - 10 / 128</span>
+    <div class="flex items-center gap-1" id="pagination"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block modal %}
+<!-- 정책 등록 팝업 -->
+<div id="modal-policy-create" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scroll">
+    <div class="px-7 py-6">
+      <h3 class="text-lg font-bold text-slate-900 mb-0.5">알림 정책 등록</h3>
+      <p class="text-xs text-slate-500 mb-5">이벤트 상세를 기준으로 알림 정책을 등록합니다.</p>
+
+      <div class="space-y-4">
+        <!-- 정책명 / 이벤트 상세 -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">정책명 <span class="text-red-500">*</span></label>
+            <input type="text" id="inp-policy-name" placeholder="정책명을 입력하세요"
+              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">이벤트 상세 <span class="text-red-500">*</span></label>
+            <select id="inp-event"
+              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="">선택하세요</option>
+              <option value="가스 경보">가스 경보</option>
+              <option value="전력 이상">전력 이상</option>
+              <option value="위험구역 진입">위험구역 진입</option>
+              <option value="PPE 미착용">PPE 미착용</option>
+              <option value="작업 안전 체크리스트 미완료">작업 안전 체크리스트 미완료</option>
+              <option value="VR 교육 미이수">VR 교육 미이수</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 발송 채널 / 수신 대상 -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">발송 채널 <span class="text-red-500">*</span></label>
+            <div class="flex gap-2">
+              <button type="button" data-group="channel" data-val="앱"
+                class="toggle-btn px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:border-blue-300 transition-all">앱</button>
+              <button type="button" data-group="channel" data-val="관제 실시간 알림"
+                class="toggle-btn px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:border-blue-300 transition-all">관제 실시간 알림</button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">수신 대상 <span class="text-red-500">*</span></label>
+            <div class="flex gap-2">
+              <button type="button" data-group="target" data-val="관리자"
+                class="toggle-btn px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:border-blue-300 transition-all">관리자</button>
+              <button type="button" data-group="target" data-val="작업자"
+                class="toggle-btn px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:border-blue-300 transition-all">작업자</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 사용 여부 -->
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
+          <div class="flex gap-2">
+            <button type="button" data-group="active" data-val="사용" data-single="true"
+              class="toggle-btn active-selected px-4 py-1.5 text-sm rounded-md border border-blue-400 bg-blue-100 text-blue-700 font-medium transition-all">사용</button>
+            <button type="button" data-group="active" data-val="미사용" data-single="true"
+              class="toggle-btn px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:border-blue-300 transition-all">미사용</button>
+          </div>
+        </div>
+
+        <!-- 알림 제목 -->
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1.5">알림 제목 <span class="text-red-500">*</span></label>
+          <input type="text" id="inp-alarm-title" placeholder="알림 제목을 입력하세요"
+            class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400" />
+        </div>
+
+        <!-- 조건 유형 배지 + 동적 조건 입력 -->
+        <div id="condition-section" class="hidden">
+          <div class="flex items-center gap-3 mb-3">
+            <span id="condition-type-badge"
+              class="px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600"></span>
+            <span class="text-xs text-slate-400">이벤트 상세에 따라 조건 입력 영역이 자동으로 결정됩니다.</span>
+          </div>
+
+          <p class="text-xs font-semibold text-slate-700 mb-3">조건 입력</p>
+
+          <!-- 상태 지속형 조건 -->
+          <div id="cond-duration" class="hidden">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">적용 대상 <span class="text-red-500">*</span></label>
+                <select id="cond-dur-target" onchange="autoSummary()"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">상태 <span class="text-red-500">*</span></label>
+                <select id="cond-dur-state" onchange="autoSummary()"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option>위험</option>
+                  <option>주의</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">지속 시간 <span class="text-red-500">*</span></label>
+                <input type="number" id="cond-dur-time" value="1" min="1" onchange="autoSummary()"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">시간 단위 <span class="text-red-500">*</span></label>
+                <select id="cond-dur-unit" onchange="autoSummary()"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option>분</option>
+                  <option>시간</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 즉시 발생형 조건 -->
+          <div id="cond-instant" class="hidden">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">적용 대상 <span class="text-red-500">*</span></label>
+                <select id="cond-ins-target" onchange="autoSummary()"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option>위험구역 A</option>
+                  <option>위험구역 B</option>
+                  <option>위험구역 C</option>
+                  <option>전체 구역</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">구역 단계 <span class="text-red-500">*</span></label>
+                <select id="cond-ins-zone" onchange="autoSummary()"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option>위험구역</option>
+                  <option>주의구역</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">발송 시점 <span class="text-red-500">*</span></label>
+              <select class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                <option>즉시</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 적용 조건 요약 -->
+          <div class="mt-4">
+            <div class="flex items-center gap-2 mb-1.5">
+              <label class="text-xs font-medium text-slate-700">적용 조건 요약</label>
+              <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500">자동 생성</span>
+            </div>
+            <textarea id="inp-summary" rows="2" readonly
+              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 resize-none focus:outline-none"></textarea>
+          </div>
+        </div>
+
+        <!-- 알림 내용 -->
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">알림 내용 <span class="text-red-500">*</span></label>
+          <p id="alarm-content-hint" class="text-xs text-slate-400 mb-1.5"></p>
+          <textarea id="inp-alarm-content" rows="3"
+            class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none placeholder-slate-400"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="btn-policy-create-cancel"
+          class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
+        <button class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">등록</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 삭제 확인 팝업 -->
+<div id="modal-delete-confirm" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-7 text-center">
+    <div class="w-14 h-14 mx-auto mb-4 bg-slate-900 rounded-xl flex items-center justify-center">
+      <div class="w-6 h-6 bg-white rounded-md"></div>
+    </div>
+    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">
+      선택한 정책을 삭제하시겠습니까?
+    </p>
+    <div class="flex items-center gap-2 justify-center">
+      <button onclick="closeModal('modal-delete-confirm')"
+        class="px-6 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취 소</button>
+      <button onclick="confirmDelete()"
+        class="px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-md">삭 제</button>
+    </div>
+  </div>
+</div>
+
+<!-- 삭제 완료 팝업 -->
+<div id="modal-delete-complete" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-7 text-center">
+    <div class="w-14 h-14 mx-auto mb-4 bg-slate-900 rounded-xl flex items-center justify-center">
+      <div class="w-6 h-6 bg-white rounded-md"></div>
+    </div>
+    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">
+      삭제되었습니다.
+    </p>
+    <div class="flex items-center gap-2 justify-center">
+      <button onclick="closeModal('modal-delete-complete')"
+        class="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">확 인</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+const ALL_POLICIES = [
+  { id:1,  name:'가스 경보(위협) 작업자 알림',       event:'가스 경보',                      channels:'앱, 관제 실시간 알림', targets:'관리자, 작업자', active:true,  condition:'전체 가스 센서 중 위험 상태를 1분 이상 유지한 장비가 발생하면 발송' },
+  { id:2,  name:'전력 이상(주의) 관리자 알림',        event:'전력 이상',                      channels:'앱',               targets:'관리자',       active:true,  condition:'전체 전력 설비 중 주의 상태로 전환된 장비가 발생하면 즉시 발송' },
+  { id:3,  name:'위험구역 진입(위험구역) 알림',       event:'위험구역 진입',                   channels:'관제 실시간 알림', targets:'관리자, 작업자', active:true,  condition:'구역 단계가 위험구역인 위험구역 A에 작업자가 진입하라면 즉시 발송' },
+  { id:4,  name:'PPE 미착용 알림',                   event:'PPE 미착용',                     channels:'앱',               targets:'작업자',       active:true,  condition:'작업자 위치 데이터 발생 후 5분 이내 PPE가 미착용 상태이면 발송' },
+  { id:5,  name:'작업 안전 체크리스트 미완료 알림',   event:'작업 안전 체크리스트 미완료',      channels:'관제 실시간 알림', targets:'관리자',       active:false, condition:'작업자 위치 데이터 발생 후 5분 이내 작업 안전 체크리스트가 미완료 상태이면 발송' },
+  { id:6,  name:'VR 교육 미이수 알림',               event:'VR 교육 미이수',                  channels:'관제 실시간 알림', targets:'관리자',       active:true,  condition:'작업자 위치 데이터 발생 후 5분 이내 VR 교육이 미이수 상태이면 발송' },
+  { id:7,  name:'가스 주의(주의) 알림',              event:'가스 경보',                       channels:'앱',               targets:'작업자',       active:true,  condition:'가스 센서 값이 주의 임계치 초과 시 즉시 발송' },
+  { id:8,  name:'전력 위험(위협) 관리자 알림',        event:'전력 이상',                      channels:'관제 실시간 알림', targets:'관리자',       active:false, condition:'전력 설비 중 위험 상태로 전환된 장비가 발생하면 즉시 발송' },
+  { id:9,  name:'작업자 미입실 알림',                event:'위험구역 진입',                   channels:'앱, 관제 실시간 알림', targets:'관리자',    active:true,  condition:'출근 후 30분 이내 현장 미입실 작업자 발생 시 발송' },
+  { id:10, name:'장비 점검 미완료 알림',             event:'작업 안전 체크리스트 미완료',       channels:'관제 실시간 알림', targets:'관리자',       active:true,  condition:'일일 점검 항목 미완료 장비 발생 시 발송' },
+];
+
+const PAGE_SIZE = 10;
+let currentPage = 1;
+let currentSort = 'recent-desc';
+let filteredData = [...ALL_POLICIES];
+let checkedIds = new Set();
+
+function renderTable() {
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageData = filteredData.slice(start, start + PAGE_SIZE);
+  const tbody = document.getElementById('policy-table-body');
+
+  tbody.innerHTML = pageData.length === 0
+    ? `<tr><td colspan="7" class="text-center text-sm text-slate-400 py-12">검색 결과가 없습니다.</td></tr>`
+    : pageData.map(p => `
+      <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
+        <td class="px-4 py-3 text-center">
+          <input type="checkbox" data-id="${p.id}" ${checkedIds.has(p.id) ? 'checked' : ''}
+            class="row-check w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer" />
+        </td>
+        <td class="px-4 py-3 text-sm font-medium text-slate-800">${p.name}</td>
+        <td class="px-4 py-3 text-sm text-slate-600">${p.event}</td>
+        <td class="px-4 py-3 text-sm text-slate-600">${p.channels}</td>
+        <td class="px-4 py-3 text-sm text-slate-600">${p.targets}</td>
+        <td class="px-4 py-3">
+          <span class="px-2.5 py-1 text-xs font-medium rounded-full ${p.active ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}">
+            ${p.active ? '사용' : '미사용'}
+          </span>
+        </td>
+        <td class="px-4 py-3 text-sm text-slate-500 max-w-xs truncate">${p.condition}</td>
+      </tr>
+    `).join('');
+
+  document.getElementById('total-count').textContent = filteredData.length;
+  document.getElementById('page-info').textContent =
+    `${start + 1} - ${Math.min(start + PAGE_SIZE, filteredData.length)} / ${filteredData.length}`;
+
+  // 행 체크박스 이벤트
+  document.querySelectorAll('.row-check').forEach(cb => {
+    cb.addEventListener('change', function() {
+      const id = parseInt(this.dataset.id);
+      this.checked ? checkedIds.add(id) : checkedIds.delete(id);
+      updateDeleteBtn();
+      syncAllCheckbox();
+    });
+  });
+
+  renderPagination();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function renderPagination() {
+  const total = Math.ceil(filteredData.length / PAGE_SIZE);
+  const container = document.getElementById('pagination');
+  const pages = [];
+
+  pages.push(`<button onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}
+    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
+    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+  </button>`);
+
+  for (let i = 1; i <= Math.min(total, 5); i++) {
+    pages.push(`<button onclick="goPage(${i})"
+      class="w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors
+             ${i === currentPage ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-700 hover:bg-slate-50'}">
+      ${i}
+    </button>`);
+  }
+
+  pages.push(`<button onclick="goPage(${currentPage + 1})" ${currentPage === total ? 'disabled' : ''}
+    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
+    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+  </button>`);
+
+  container.innerHTML = pages.join('');
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function goPage(page) {
+  const total = Math.ceil(filteredData.length / PAGE_SIZE);
+  if (page < 1 || page > total) return;
+  currentPage = page;
+  renderTable();
+}
+
+// 전체 선택
+document.getElementById('check-all').addEventListener('change', function() {
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageData = filteredData.slice(start, start + PAGE_SIZE);
+  pageData.forEach(p => this.checked ? checkedIds.add(p.id) : checkedIds.delete(p.id));
+  renderTable();
+  updateDeleteBtn();
+});
+
+function syncAllCheckbox() {
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageData = filteredData.slice(start, start + PAGE_SIZE);
+  document.getElementById('check-all').checked = pageData.length > 0 && pageData.every(p => checkedIds.has(p.id));
+}
+
+function updateDeleteBtn() {
+  const btn = document.getElementById('btn-delete');
+  const count = checkedIds.size;
+  if (count > 0) {
+    btn.disabled = false;
+    btn.className = 'px-4 py-1.5 text-sm rounded-md bg-red-500 hover:bg-red-600 text-white font-medium cursor-pointer transition-all';
+    document.getElementById('selected-info').classList.add('hidden');
+    document.getElementById('selected-count-badge').classList.remove('hidden');
+    document.getElementById('selected-count-badge').textContent = `${count}건 선택됨`;
+  } else {
+    btn.disabled = true;
+    btn.className = 'px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-400 cursor-not-allowed transition-all';
+    document.getElementById('selected-info').classList.remove('hidden');
+    document.getElementById('selected-count-badge').classList.add('hidden');
+  }
+}
+
+// 삭제 버튼
+document.getElementById('btn-delete').addEventListener('click', function() {
+  if (!this.disabled) openModal('modal-delete-confirm');
+});
+
+function confirmDelete() {
+  filteredData = filteredData.filter(p => !checkedIds.has(p.id));
+  checkedIds.clear();
+  currentPage = 1;
+  closeModal('modal-delete-confirm');
+  renderTable();
+  updateDeleteBtn();
+  openModal('modal-delete-complete');
+}
+
+// 정렬
+document.getElementById('sort-btn').addEventListener('click', function() {
+  document.getElementById('sort-dropdown').classList.toggle('hidden');
+});
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#sort-btn') && !e.target.closest('#sort-dropdown')) {
+    document.getElementById('sort-dropdown').classList.add('hidden');
+  }
+});
+document.querySelectorAll('.sort-option').forEach(btn => {
+  btn.addEventListener('click', function() {
+    currentSort = this.dataset.sort;
+    document.getElementById('sort-label').textContent = this.textContent.trim();
+    document.getElementById('sort-dropdown').classList.add('hidden');
+    sortData();
+    currentPage = 1;
+    renderTable();
+  });
+});
+
+function sortData() {
+  filteredData.sort((a, b) => {
+    switch (currentSort) {
+      case 'name-asc':    return a.name.localeCompare(b.name);
+      case 'name-desc':   return b.name.localeCompare(a.name);
+      case 'event-asc':   return a.event.localeCompare(b.event);
+      case 'event-desc':  return b.event.localeCompare(a.event);
+      case 'active-first':   return (b.active ? 1 : 0) - (a.active ? 1 : 0);
+      case 'inactive-first': return (a.active ? 1 : 0) - (b.active ? 1 : 0);
+      default: return b.id - a.id;
+    }
+  });
+}
+
+// 검색 필터
+function applyFilters() {
+  const name   = document.getElementById('filter-name').value.trim().toLowerCase();
+  const event  = document.getElementById('filter-event').value.trim().toLowerCase();
+  const status = document.getElementById('filter-status').value;
+  filteredData = ALL_POLICIES.filter(p => {
+    if (name   && !p.name.toLowerCase().includes(name))   return false;
+    if (event  && !p.event.toLowerCase().includes(event)) return false;
+    if (status === '사용'   && !p.active)  return false;
+    if (status === '미사용' && p.active)   return false;
+    return true;
+  });
+  sortData();
+  currentPage = 1;
+  checkedIds.clear();
+  renderTable();
+  updateDeleteBtn();
+}
+
+function resetFilters() {
+  document.getElementById('filter-name').value  = '';
+  document.getElementById('filter-event').value = '';
+  document.getElementById('filter-status').value = '';
+  filteredData = [...ALL_POLICIES];
+  sortData();
+  currentPage = 1;
+  checkedIds.clear();
+  renderTable();
+  updateDeleteBtn();
+}
+
+// ===== 정책 등록 팝업 =====
+document.getElementById('btn-policy-create').addEventListener('click', () => {
+  resetCreateForm();
+  openModal('modal-policy-create');
+});
+document.getElementById('btn-policy-create-cancel').addEventListener('click', () => closeModal('modal-policy-create'));
+
+// 이벤트 상세별 설정
+const EVENT_CONFIG = {
+  '가스 경보':                   { type: 'duration', label: '상태 지속형', targets: ['전체 가스 센서', '가스 센서 A', '가스 센서 B'], titleDefault: '가스 경보 발생',   contentHint: '{이벤트상세}, {발생대상}, {상태}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault: '{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}. 현장 상태를 확인해 주세요.' },
+  '전력 이상':                   { type: 'duration', label: '상태 지속형', targets: ['전체 전력 설비', '전력 설비 A', '전력 설비 B'], titleDefault: '전력 이상 감지',   contentHint: '{이벤트상세}, {발생대상}, {상태}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault: '{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}. 현장 상태를 확인해 주세요.' },
+  'PPE 미착용':                  { type: 'duration', label: '상태 지속형', targets: ['전체 작업자', '특정 작업자'],                    titleDefault: 'PPE 미착용 감지',  contentHint: '{이벤트상세}, {발생대상}, {발생시각} 변수를 사용할 수 있습니다.',           contentDefault: '{발생대상}의 PPE 미착용이 감지되었습니다. 발생 시각: {발생시각}. 즉시 착용을 지시해 주세요.' },
+  '작업 안전 체크리스트 미완료': { type: 'duration', label: '상태 지속형', targets: ['전체 작업자', '특정 작업자'],                    titleDefault: '체크리스트 미완료', contentHint: '{이벤트상세}, {발생대상}, {발생시각} 변수를 사용할 수 있습니다.',           contentDefault: '{발생대상}의 작업 안전 체크리스트가 미완료 상태입니다. 발생 시각: {발생시각}. 확인해 주세요.' },
+  'VR 교육 미이수':              { type: 'duration', label: '상태 지속형', targets: ['전체 작업자', '특정 작업자'],                    titleDefault: 'VR 교육 미이수',   contentHint: '{이벤트상세}, {발생대상}, {발생시각} 변수를 사용할 수 있습니다.',           contentDefault: '{발생대상}의 VR 교육이 미이수 상태입니다. 발생 시각: {발생시각}. 확인해 주세요.' },
+  '위험구역 진입':               { type: 'instant',  label: '즉시 발생형', targets: [],                                               titleDefault: '위험구역 진입 감지', contentHint: '{이벤트상세}, {발생대상}, {구역단계}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault: '{구역단계} {발생대상}에서 {이벤트상세}가 감지되었습니다. 발생 시각: {발생시각}. 즉시 확인해 주세요.' },
+};
+
+function onEventChange() {
+  const val = document.getElementById('inp-event').value;
+  const cfg = EVENT_CONFIG[val];
+  const section = document.getElementById('condition-section');
+
+  if (!cfg) { section.classList.add('hidden'); return; }
+
+  section.classList.remove('hidden');
+
+  // 배지
+  const badge = document.getElementById('condition-type-badge');
+  badge.textContent = cfg.label;
+  badge.className = cfg.type === 'instant'
+    ? 'px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700'
+    : 'px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600';
+
+  // 조건 폼 전환
+  document.getElementById('cond-duration').classList.toggle('hidden', cfg.type !== 'duration');
+  document.getElementById('cond-instant').classList.toggle('hidden', cfg.type !== 'instant');
+
+  // 적용 대상 옵션
+  if (cfg.type === 'duration') {
+    const sel = document.getElementById('cond-dur-target');
+    sel.innerHTML = cfg.targets.map(t => `<option>${t}</option>`).join('');
+  }
+
+  // 알림 제목·내용 기본값
+  document.getElementById('inp-alarm-title').value = cfg.titleDefault;
+  document.getElementById('alarm-content-hint').textContent = cfg.contentHint;
+  document.getElementById('inp-alarm-content').value = cfg.contentDefault;
+
+  autoSummary();
+}
+
+function autoSummary() {
+  const val = document.getElementById('inp-event').value;
+  const cfg = EVENT_CONFIG[val];
+  if (!cfg) return;
+
+  let summary = '';
+  if (cfg.type === 'duration') {
+    const target = document.getElementById('cond-dur-target').value;
+    const state  = document.getElementById('cond-dur-state').value;
+    const time   = document.getElementById('cond-dur-time').value;
+    const unit   = document.getElementById('cond-dur-unit').value;
+    summary = `${target} 중 ${state} 상태를 ${time}${unit} 이상 유지한 장비가 발생하면 관리자와 작업자에게 알림을 발송합니다.`;
+  } else {
+    const target = document.getElementById('cond-ins-target').value;
+    const zone   = document.getElementById('cond-ins-zone').value;
+    summary = `구역 단계가 ${zone}인 ${target}에 작업자가 진입하면 즉시 관리자와 작업자에게 알림을 발송합니다.`;
+  }
+  document.getElementById('inp-summary').value = summary;
+}
+
+// 이벤트 상세 선택 시 조건 입력 영역 표시
+document.getElementById('inp-event').addEventListener('change', onEventChange);
+
+// 토글 버튼 (다중/단일 선택)
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const group  = this.dataset.group;
+    const single = this.dataset.single === 'true';
+    const ON  = ['border-blue-400', 'bg-blue-100', 'text-blue-700', 'font-medium', 'active-selected'];
+    const OFF = ['border-slate-200', 'text-slate-600'];
+    if (single) {
+      document.querySelectorAll(`.toggle-btn[data-group="${group}"]`).forEach(b => {
+        b.classList.remove(...ON); b.classList.add(...OFF);
+      });
+      this.classList.add(...ON); this.classList.remove(...OFF);
+    } else {
+      const isOn = this.classList.contains('active-selected');
+      if (isOn) { this.classList.remove(...ON); this.classList.add(...OFF); }
+      else       { this.classList.add(...ON);   this.classList.remove(...OFF); }
+    }
+  });
+});
+
+function resetCreateForm() {
+  document.getElementById('inp-policy-name').value = '';
+  document.getElementById('inp-event').value = '';
+  document.getElementById('inp-alarm-title').value = '';
+  document.getElementById('inp-alarm-content').value = '';
+  document.getElementById('inp-summary').value = '';
+  document.getElementById('alarm-content-hint').textContent = '';
+  document.getElementById('condition-section').classList.add('hidden');
+  // 토글 버튼 초기화
+  document.querySelectorAll('.toggle-btn').forEach(b => {
+    b.classList.remove('border-blue-400', 'bg-blue-100', 'text-blue-700', 'font-medium', 'active-selected');
+    b.classList.add('border-slate-200', 'text-slate-600');
+  });
+  // 사용 여부 기본값 복원
+  const useBtn = document.querySelector('.toggle-btn[data-group="active"][data-val="사용"]');
+  if (useBtn) {
+    useBtn.classList.add('border-blue-400', 'bg-blue-100', 'text-blue-700', 'font-medium', 'active-selected');
+    useBtn.classList.remove('border-slate-200', 'text-slate-600');
+  }
+}
+
+// 모달 유틸
+function openModal(id)  { const el = document.getElementById(id); el.classList.remove('hidden'); el.classList.add('flex'); }
+function closeModal(id) { const el = document.getElementById(id); el.classList.add('hidden'); el.classList.remove('flex'); }
+
+// 초기 렌더
+renderTable();
+</script>
+{% endblock %}
