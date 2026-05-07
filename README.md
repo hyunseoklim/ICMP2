@@ -1,0 +1,478 @@
+# ICMP2 — 산업 현장 통합 관제 플랫폼
+
+산업 현장의 가스 농도, 전력 상태, 작업자 위치를 실시간으로 수집·판단해 위험 상황을 사전에 감지하는 통합 안전 관제 시스템입니다.
+
+---
+
+## 목차
+
+1. [프로젝트 개요](#프로젝트-개요)
+2. [기술 스택](#기술-스택)
+3. [시스템 아키텍처](#시스템-아키텍처)
+4. [디렉터리 구조](#디렉터리-구조)
+5. [주요 기능](#주요-기능)
+6. [데이터 흐름](#데이터-흐름)
+7. [WebSocket 채널](#websocket-채널)
+8. [API 엔드포인트](#api-엔드포인트)
+9. [설치 및 실행](#설치-및-실행)
+10. [환경 설정](#환경-설정)
+11. [앱별 설명](#앱별-설명)
+
+---
+
+## 프로젝트 개요
+
+현장에서 발생하는 가스 누출, 전력 이상, 작업자 위험 구역 진입은 **사고가 발생한 후에야 인지**되는 구조적 문제가 있습니다.
+
+ICMP2는 센서 데이터, 위치 정보, 판단 로직을 하나의 화면에서 실시간으로 연결해 **사전 감지 → 알람 발생**까지의 흐름을 자동화합니다.
+
+| 항목 | 내용 |
+|---|---|
+| 언어 | Python 3.x |
+| 백엔드 | Django 6.0.4 + Daphne (ASGI) |
+| 데이터 생성 | FastAPI 0.135.1 (독립 실행) |
+| 실시간 통신 | Django Channels 4.3.2 + Redis |
+| 프론트엔드 | Django Templates + Leaflet.js + Chart.js |
+| DB | SQLite (개발) / PostgreSQL (운영 가능) |
+
+---
+
+## 기술 스택
+
+```
+Django 6.0.4        웹 프레임워크 (REST API + 비즈니스 로직)
+Daphne 4.2.1        ASGI 서버 (HTTP + WebSocket 동시 처리)
+Django Channels     WebSocket 그룹 관리
+channels-redis      Redis 기반 Channel Layer
+FastAPI 0.135.1     가짜 데이터 생성 및 송신 전담 서버
+Redis 7.x           WebSocket 메시지 브로커
+Leaflet.js          공장 도면 기반 지도 + 지오펜스 렌더링
+Chart.js            가스·전력 실시간 시계열 차트
+DRF 3.16.0          REST API 프레임워크
+Celery 5.6.2        비동기 태스크 (4차 고도화 예정)
+scikit-learn        AI 이상 탐지 (4차 고도화 예정)
+```
+
+---
+
+## 시스템 아키텍처
+
+```
+┌──────────────────────────────────────────────┐
+│              FastAPI 서버 (:8001)             │
+│  가짜 센서값 생성 (5초 간격)                   │
+│  가스 9종 / 전력 24채널 / 작업자 위치 5명      │
+└──────────────────┬───────────────────────────┘
+                   │ HTTP POST (REST API)
+                   ▼
+┌──────────────────────────────────────────────┐
+│         Django + Daphne ASGI (:8000)         │
+│  ① POST 수신 → DB 저장 (SQLite)              │
+│  ② 임계값 비교 + 지오펜스 판단               │
+│  ③ AlarmEvent 생성 (중복 방지 5분 윈도우)     │
+│  ④ channel_layer.group_send() → Redis        │
+└──────────┬───────────────────────────────────┘
+           │                         │
+     WebSocket (ws://)            Redis :6379
+           │                 (Channel Layer)
+           ▼
+┌──────────────────────────────────────────────┐
+│          프론트엔드 (Django Templates)        │
+│  Chart.js  : 가스·전력 실시간 차트            │
+│  Leaflet   : 공장 도면 + 지오펜스 + 작업자    │
+│  WebSocket : 서버 푸시 수신 → 즉시 반영       │
+└──────────────────────────────────────────────┘
+```
+
+---
+
+## 디렉터리 구조
+
+```
+ICMP2/
+├── config/                 # Django 프로젝트 설정
+│   ├── settings.py
+│   ├── urls.py
+│   ├── asgi.py             # Daphne ASGI 진입점
+│   └── wsgi.py
+│
+├── accounts/               # 사용자 인증 및 권한
+├── facilities/             # 시설·층·지오펜스·작업자 위치
+├── monitoring/             # 가스·전력 센서 및 임계값 관리
+├── alerts/                 # 알람 규칙 및 이벤트 라이프사이클
+├── dashboard/              # 관제 대시보드 위젯·레이아웃
+├── safety/                 # 안전 체크리스트 및 VR 교육
+├── manager/                # 보고서 및 관리 기능
+├── core/                   # 공통 모델·유틸리티
+│
+├── fastapi_app/            # 가짜 데이터 생성 서버 (FastAPI)
+│   ├── main.py             # FastAPI 앱 + 데이터 루프
+│   ├── fake_data.py        # 가스·전력·위치 데이터 생성 로직
+│   └── sender.py           # Django REST API 송신 클라이언트
+│
+├── static/
+│   └── js/
+│       ├── map/            # Leaflet 지도 관련 JS
+│       │   ├── map_core.js
+│       │   ├── map_config.js
+│       │   ├── geofence.js
+│       │   └── monitoring.js
+│       └── websocket.js
+│
+├── templates/              # Django HTML 템플릿
+│   ├── dashboard/
+│   ├── monitoring/
+│   ├── alerts/
+│   └── facilities/
+│
+├── media/                  # 업로드 파일 (도면 이미지 등)
+├── manage.py
+└── requirements.txt
+```
+
+---
+
+## 주요 기능
+
+### 1. 실시간 가스 센서 모니터링
+
+- 9종 가스 (CO, H₂S, CO₂, O₂, NO₂, SO₂, O₃, NH₃, VOC) 5초 주기 수신
+- 임계값 초과 시 자동 알람 생성
+- O₂는 역방향 판단 (낮을수록 위험: 16% 미만 → 위험, 18% 미만 → 경고)
+
+| 가스 | 경고 임계값 | 위험 임계값 |
+|---|---|---|
+| CO | 25 ppm | 200 ppm |
+| H₂S | 10 ppm | 15 ppm |
+| CO₂ | 1,000 ppm | 5,000 ppm |
+| O₂ | < 18% | < 16% |
+
+### 2. 전력 채널 모니터링
+
+- 24개 채널 (PWR-001, PWR-002 각 12채널) 실시간 전류·전압·전력 수신
+- 정격 대비 부하율로 위험 판단: 75% 이상 → 위험, 50~75% → 경고
+- 통신 오류(-1) 및 OFF 상태 자동 감지
+
+### 3. 작업자 위치 추적 + 지오펜스
+
+- 5명 작업자 위치 5초 주기 업데이트 (±2m 상태 기반 이동)
+- 지오펜스 판단:
+  - **원형:** 거리 공식으로 내부 판단
+  - **다각형:** 레이 캐스팅 알고리즘
+  - 우선순위: 위험(danger) > 경고(warning) > 안전(safe)
+- 오프듀티 작업자는 지오펜스 판단 생략
+
+### 4. 자동 지오펜스 생성
+
+- 가스 임계값 초과 시 해당 센서 주변에 원형 위험 구역 자동 생성
+  - 위험 수준: 반경 5.0m
+  - 경고 수준: 반경 3.0m
+- 가스 정상화 시 자동 비활성화
+- 이름 형식: `[자동] {센서명}`
+
+### 5. 알람 이벤트 관리
+
+- 이벤트 상태 라이프사이클: `open → acknowledged → closed`
+- **중복 방지:** 동일 디바이스 5분 이내 열린 이벤트 존재 시 신규 생성 안 함
+- 이력 추적: 상태 변경마다 `EventHistory` 기록
+
+### 6. 관제 대시보드
+
+- WebSocket 수신으로 새로고침 없이 차트 실시간 갱신
+- Leaflet 지도: 공장 도면 기반 커스텀 CRS (픽셀↔미터 직접 매핑)
+- 레이어 분리: 작업자 / 장비 / 가스센서 / 전력장치 / 지오펜스 / 그리드
+
+---
+
+## 데이터 흐름
+
+```
+[FastAPI]
+  가스 데이터 생성 (5초)
+      │
+      │ POST /monitoring/api/gas-readings/
+      │ Body: {device_uid, co, h2s, co2, o2, no2, so2, o3, nh3, voc}
+      ▼
+[Django - monitoring/views.py::ingest_gas()]
+  GasReading DB 저장
+  check_gas_thresholds() 호출
+      │
+      ├─ 임계값 초과 → AlarmEvent 생성 (5분 중복 방지)
+      ├─ 자동 지오펜스 업데이트 (update_geofence_from_gas)
+      │
+      └─ channel_layer.group_send("floor_{id}_sensor", {...})
+              │
+              │ Redis Channel Layer
+              ▼
+[WebSocket Consumer - facilities/consumers.py::SensorConsumer]
+  ws://host/ws/floor/{floor_id}/sensor/
+      │
+      ▼
+[프론트엔드]
+  onmessage → Chart.js 차트 갱신
+
+---
+
+[FastAPI]
+  작업자 위치 생성 (5초)
+      │
+      │ POST /facilities/api/worker-locations/dummy/
+      │ Body: {worker_id, x, y, floor_id}
+      ▼
+[Django - facilities/views.py]
+  WorkerLocation DB 저장
+  sync_worker_status() 호출 → 지오펜스 판단
+  Worker.safety_status 업데이트
+      │
+      └─ channel_layer.group_send("floor_{id}_worker", {...})
+              │
+              ▼
+[프론트엔드]
+  onmessage → Leaflet 마커 위치 갱신
+```
+
+---
+
+## WebSocket 채널
+
+층(floor) 단위로, 역할별로 3개 채널이 분리됩니다.
+
+| 채널 그룹 | URL 패턴 | 전달 데이터 |
+|---|---|---|
+| `floor_{id}_sensor` | `ws/floor/<floor_id>/sensor/` | 가스·전력 수치, 위험 수준 |
+| `floor_{id}_worker` | `ws/floor/<floor_id>/worker/` | 작업자 위치, 안전 상태 |
+| `floor_{id}_geofence` | `ws/floor/<floor_id>/geofence/` | 지오펜스 생성·변경·삭제 |
+
+---
+
+## API 엔드포인트
+
+### 모니터링 (Monitoring)
+
+```
+GET    /monitoring/api/devices/                        장비 목록 (device_type 필터)
+POST   /monitoring/api/gas-readings/                   가스 데이터 수신 (FastAPI → Django)
+POST   /monitoring/api/power-readings/                 전력 데이터 수신 (FastAPI → Django)
+GET    /monitoring/api/threshold-policies/             임계값 정책 목록
+PATCH  /monitoring/api/threshold-policies/{id}/        임계값 수정
+```
+
+### 시설 (Facilities)
+
+```
+GET    /facilities/api/facilities/                     시설 목록
+GET    /facilities/api/buildings/?facility_id={id}     건물 목록
+GET    /facilities/api/floors/?building_id={id}        층 목록
+GET    /facilities/api/geofences/?floor_id={id}        지오펜스 목록
+POST   /facilities/api/geofences/                      지오펜스 생성
+GET    /facilities/api/workers/                        작업자 목록
+POST   /facilities/api/worker-locations/dummy/         위치 데이터 수신 (FastAPI → Django)
+GET    /facilities/api/sensor-locations/?floor_id={id} 센서 위치 목록
+```
+
+### 알람 (Alerts)
+
+```
+GET    /alerts/api/events/                             알람 이벤트 목록 (status 필터)
+GET    /alerts/api/events/{id}/                        이벤트 상세 + 이력
+POST   /alerts/api/events/{id}/change-status/          상태 변경 (acknowledged / closed)
+GET    /alerts/api/recent/                             최근 5분 열린 알람 (대시보드 폴링용)
+```
+
+### 계정 (Accounts)
+
+```
+POST   /accounts/login/                                로그인
+POST   /accounts/logout/                               로그아웃
+GET    /accounts/profile/                              현재 사용자 프로필
+```
+
+### FastAPI ↔ Django 데이터 계약
+
+```json
+// 가스 데이터
+POST /monitoring/api/gas-readings/
+{
+  "device_uid": "GAS-001",
+  "co": 18.4,
+  "h2s": 2.1,
+  "o2": 20.5,
+  "co2": 412.0,
+  "no2": 0.1,
+  "so2": 0.2,
+  "o3": 0.05,
+  "nh3": 1.2,
+  "voc": 0.3
+}
+
+// 작업자 위치
+POST /facilities/api/worker-locations/dummy/
+{
+  "worker_id": 1,
+  "x": 23.5,
+  "y": 14.2,
+  "floor_id": 1
+}
+
+// WebSocket 서버 → 프론트엔드
+{
+  "type": "sensor.update",
+  "data": { "device_uid": "GAS-001", "co": 18.4, "danger_level": "normal" }
+}
+```
+
+---
+
+## 설치 및 실행
+
+### 사전 요구사항
+
+- Python 3.10+
+- Redis 7.x (`redis-server` 실행 중이어야 함)
+
+### 설치
+
+```bash
+# 저장소 클론
+git clone <repo-url>
+cd ICMP2
+
+# 가상환경 생성 및 의존성 설치
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# DB 마이그레이션
+python manage.py migrate
+
+# (선택) 초기 데이터 로드
+python manage.py loaddata facilities_data.json
+```
+
+### 실행
+
+서버 3개를 **각각 별도 터미널**에서 실행합니다.
+
+```bash
+# 터미널 1 — Redis
+redis-server
+
+# 터미널 2 — Django (Daphne ASGI)
+python manage.py runserver
+# 또는 Daphne 직접 실행:
+# daphne -b 0.0.0.0 -p 8000 config.asgi:application
+
+# 터미널 3 — FastAPI (가짜 데이터 생성)
+uvicorn fastapi_app.main:app --host 0.0.0.0 --port 8001 --reload
+```
+
+브라우저에서 `http://localhost:8000` 접속
+
+---
+
+## 환경 설정
+
+### Redis 연결
+
+[config/settings.py](config/settings.py)에서 Redis 호스트/포트를 수정합니다.
+
+```python
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}
+```
+
+### 데이터베이스
+
+기본값은 SQLite입니다. PostgreSQL로 전환하려면:
+
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'icmp2',
+        'USER': 'icmp2_user',
+        'PASSWORD': 'password',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+```
+
+### FastAPI → Django 전송 주소
+
+[fastapi_app/sender.py](fastapi_app/sender.py)에서 Django 주소를 확인합니다 (기본: `http://localhost:8000`).
+
+---
+
+## 앱별 설명
+
+### `accounts` — 사용자 인증
+
+- 커스텀 User 모델 (`user_type`: admin / manager / worker)
+- Department, Role, UserRole, LoginHistory
+- JWT 기반 인증 (`PyJWT`)
+
+### `facilities` — 시설 및 위치
+
+- 시설 → 건물 → 층 계층 구조
+- `Geofence`: 원형·다각형 위험 구역 정의
+- `WorkerLocation`: 실시간 작업자 좌표
+- `geofence_checker.py`: 레이 캐스팅 + 거리 공식 기반 판단 로직
+- `consumers.py`: WebSocket Consumer 3개 (worker / sensor / geofence)
+
+### `monitoring` — 센서 데이터
+
+- `Device`: 가스 / 전력 장비 등록
+- `GasReading`: 9종 가스 측정값 저장
+- `PowerReading`: 채널별 전류·전압·전력 저장
+- `ThresholdPolicy`: 가스 종류별 경고·위험 임계값 관리
+- `services.py`: `calc_danger_level()`, `check_gas_thresholds()`
+
+### `alerts` — 알람 이벤트
+
+- `AlarmRule`: 규칙 정의 (threshold / missing / offline / power)
+- `AlarmEvent`: 트리거된 이벤트 (open → acknowledged → closed)
+- `EventHistory`: 상태 변경 이력
+- `services.py`: 임계값·전력 알람 생성, 5분 중복 방지 로직
+
+### `dashboard` — 관제 화면
+
+- `DashboardWidget`: 위젯 타입·위치·크기 정의
+- `DashboardLayout`: 역할(role)별 레이아웃 구성
+- 메인 대시보드 WebSocket 수신 + Chart.js 렌더링
+
+### `safety` — 안전 관리
+
+- 안전 체크리스트 작성 및 이력 관리
+- VR 교육 완료 여부 연동
+
+### `manager` — 보고서 및 관리
+
+- 사고·점검 보고서 조회 및 엑셀 출력 (openpyxl)
+
+### `fastapi_app` — 가짜 데이터 생성기
+
+- `main.py`: 5초 주기 데이터 루프, WebSocket broadcast
+- `fake_data.py`: 상태 기반 데이터 생성 (단순 난수 아님)
+  - 가스: 85% 정상 / 10% 경고 / 5% 위험 확률 분포
+  - 전력: 60% 정상 / 15% 경고 / 10% 위험 / 10% OFF / 5% 통신오류
+  - 위치: 이전 좌표 ±2m 범위 랜덤 워크
+- `sender.py`: Django REST API 비동기 POST 클라이언트 (httpx)
+
+---
+
+## 향후 계획 (4차)
+
+| 항목 | 내용 |
+|---|---|
+| 실제 센서 하드웨어 연동 | FastAPI 시뮬레이터 → 실제 장비 교체 |
+| AI 기반 이상 탐지 | scikit-learn 이상 감지 모델 적용 |
+| Celery 비동기 처리 | 알람 발송, 리포트 생성 비동기화 |
+| 클라우드 배포 | PostgreSQL 전환 + Nginx + Docker |
+| Prometheus 모니터링 | 시스템 메트릭 수집 및 Grafana 연동 |
