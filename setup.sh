@@ -5,7 +5,7 @@
 # 사용법:
 #   chmod +x setup.sh
 #   ./setup.sh              # migrate + seed (기존 데이터 유지)
-#   ./setup.sh --fresh      # DB 초기화 후 처음부터 시작
+#   ./setup.sh --fresh      # DB 및 캐시 초기화 후 처음부터 시작
 # ============================================================
 
 set -e
@@ -31,7 +31,7 @@ for arg in "$@"; do
     --fresh) FRESH=true ;;
     --help|-h)
       echo "사용법: ./setup.sh [--fresh]"
-      echo "  --fresh   db.sqlite3 삭제 후 처음부터 세팅"
+      echo "  --fresh   db.sqlite3 및 캐시 삭제 후 처음부터 세팅"
       exit 0 ;;
   esac
 done
@@ -52,13 +52,15 @@ fi
 command -v python >/dev/null 2>&1 || error "python을 찾을 수 없습니다."
 python -c "import django" 2>/dev/null || error "Django가 설치되어 있지 않습니다. (pip install -r requirements.txt)"
 
-# ── --fresh: DB 초기화 ─────────────────────────────────────
+# ── --fresh: DB 및 캐시 초기화 ─────────────────────────────
 if [ "$FRESH" = true ]; then
-  warn "--fresh 옵션: db.sqlite3를 삭제하고 처음부터 세팅합니다."
+  warn "--fresh 옵션: db.sqlite3와 모든 캐시를 삭제합니다."
   read -r -p "계속하시겠습니까? [y/N] " confirm
   if [[ "$confirm" =~ ^[Yy]$ ]]; then
     rm -f db.sqlite3
-    success "db.sqlite3 삭제 완료"
+    find . -path './.venv' -prune -o -type d -name '__pycache__' -print 2>/dev/null | xargs rm -rf 2>/dev/null || true
+    find . -path './.venv' -prune -o -type f -name '*.pyc' -print 2>/dev/null | xargs rm -f 2>/dev/null || true
+    success "db.sqlite3 및 캐시 삭제 완료"
   else
     info "취소했습니다."
     exit 0
