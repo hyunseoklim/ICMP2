@@ -2,7 +2,6 @@
 
 {% block title %}직위 관리 | 산재 예방 통합 관제 시스템{% endblock %}
 
-{# 사이드바에서 '계정/권한 관리' 메뉴 강조 (직위 관리는 사용자 관리 하위) #}
 {% block breadcrumb %}
 <div class="text-xs text-slate-500 mb-3">
   사용자 관리 / <span class="text-slate-700">직위 관리</span>
@@ -15,47 +14,54 @@
     <h2 class="text-2xl font-bold text-slate-900 mb-1.5">직위 관리</h2>
     <p class="text-sm text-slate-500">조직에서 사용할 직위를 등록하고 사용 여부를 관리합니다.</p>
   </div>
-  {# ③ 직위 등록 Btn — 클릭 시 직위 등록 팝업 표출 #}
-  <a href="{% url 'position_create' %}" id="position-register-btn"
-     class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+  {# ③ 직위 등록 Btn → 팝업 #}
+  <button id="btn-position-create"
+    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
     직위 등록
-  </a>
+  </button>
 </div>
 {% endblock %}
 
 {% block content %}
-{# 사용자 관리 영역 탭 (사용자 / 조직 / 직위) #}
 {% include 'admin/_user_management_tabs.html' with active_tab='position' %}
+
+{% if messages %}
+<div class="mb-4 space-y-2">
+  {% for msg in messages %}
+  <div class="px-4 py-3 rounded-md text-sm
+    {% if msg.tags == 'success' %}bg-green-50 text-green-700 border border-green-200
+    {% else %}bg-red-50 text-red-700 border border-red-200{% endif %}">
+    {{ msg }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 
 <div class="bg-white rounded-lg border border-slate-200">
 
-  {# 카드 상단 헤더: 직위 목록 + 삭제 버튼 / 검색 필드 #}
   <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
     <div class="flex items-center gap-3">
-      {# ② 직위 목록 타이틀 #}
       <span class="text-sm font-semibold text-slate-900">
-        직위 목록 <span class="text-blue-600">{{ total_count|default:7 }}</span>
+        직위 목록 <span class="text-blue-600">{{ total_count }}</span>
       </span>
-      {# ⑥ 삭제 Btn — Check Box 선택 시 활성화, 다중 선택 후 삭제 가능 #}
-      <button id="bulk-delete-btn" type="button" disabled
-              class="px-3 py-1.5 text-xs font-medium rounded transition-colors
-                     bg-red-50 text-red-600 hover:bg-red-100
-                     disabled:opacity-60 disabled:cursor-not-allowed">
+      {# ⑥ 삭제 Btn — 체크박스 선택 시 활성화 #}
+      <button id="btn-bulk-delete" type="button" disabled
+        class="px-3 py-1.5 text-xs font-medium rounded transition-colors
+               bg-slate-100 text-slate-400 cursor-not-allowed">
         삭제
       </button>
     </div>
 
-    {# ④ 직위명 검색 필드 (검색 아이콘 삽입) #}
+    {# ④ 직위명 검색 #}
     <form method="get" class="relative">
-      <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+      <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
       <input type="text" name="q" value="{{ request.GET.q }}" placeholder="직위명 검색"
-             class="w-64 pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-md
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                    placeholder-slate-400" />
+        class="w-64 pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-md
+               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+               placeholder-slate-400" />
     </form>
   </div>
 
-  {# 직위 목록 테이블 #}
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
       <thead>
@@ -76,7 +82,7 @@
             <input type="checkbox" class="row-check rounded border-slate-300" value="{{ position.id }}" />
           </td>
           <td class="px-4 py-4 text-center text-slate-700">{{ position.order }}</td>
-          <td class="px-4 py-4 text-center text-slate-900">{{ position.name }}</td>
+          <td class="px-4 py-4 text-center text-slate-900 font-medium">{{ position.name }}</td>
           <td class="px-4 py-4 text-center">
             {% if position.is_active %}
               <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span>
@@ -85,100 +91,235 @@
             {% endif %}
           </td>
           <td class="px-4 py-4 text-center">
-            {# ⑤ 수정 Btn — 클릭 시 직위 수정 팝업 표출 #}
-            <a href="{% url 'position_edit' position.id %}"
-               class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">
+            {# ⑤ 수정 Btn → 팝업 #}
+            <button type="button"
+              class="btn-edit px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors"
+              data-pk="{{ position.id }}"
+              data-name="{{ position.name }}"
+              data-is-active="{{ position.is_active|yesno:'true,false' }}">
               수정
-            </a>
+            </button>
           </td>
         </tr>
         {% empty %}
-        {# Django 데이터 없을 때 더미 데이터로 디자인 미리보기 #}
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-4 text-center text-slate-700">1</td>
-          <td class="px-4 py-4 text-center text-slate-900">대표이사</td>
-          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-4 text-center text-slate-700">2</td>
-          <td class="px-4 py-4 text-center text-slate-900">이사</td>
-          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-4 text-center text-slate-700">3</td>
-          <td class="px-4 py-4 text-center text-slate-900">부장</td>
-          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-4 text-center text-slate-700">4</td>
-          <td class="px-4 py-4 text-center text-slate-900">차장</td>
-          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-4 text-center text-slate-700">5</td>
-          <td class="px-4 py-4 text-center text-slate-900">과장</td>
-          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-4 text-center text-slate-700">6</td>
-          <td class="px-4 py-4 text-center text-slate-900">대리</td>
-          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-4 text-center"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-4 text-center text-slate-700">7</td>
-          <td class="px-4 py-4 text-center text-slate-900">사원</td>
-          <td class="px-4 py-4 text-center"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-500">비활성</span></td>
-          <td class="px-4 py-4 text-center"><a href="{% url 'position_edit' 1 %}" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        <tr>
+          <td colspan="5" class="px-4 py-12 text-center text-sm text-slate-400">등록된 직위가 없습니다.</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+
+{# 삭제 폼 #}
+<form id="bulk-delete-form" method="post" action="{% url 'position_bulk_delete' %}" class="hidden">
+  {% csrf_token %}
+  <div id="delete-inputs"></div>
+</form>
 {% endblock %}
+
+
+{% block modal %}
+{{ block.super }}
+
+{# ── 직위 등록 팝업 ── #}
+<div id="position-create-modal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-lg w-full max-w-md shadow-xl">
+    <div class="px-6 py-5 border-b border-slate-100">
+      <h3 class="text-xl font-bold text-slate-900">직위 등록</h3>
+      <p class="text-sm text-slate-500 mt-1">새로운 직위를 등록하고 사용 여부를 설정합니다.</p>
+    </div>
+    <form method="post" action="{% url 'position_create' %}" class="px-6 py-5 space-y-4">
+      {% csrf_token %}
+      <div class="flex items-center gap-4">
+        <label class="w-20 text-sm font-medium text-slate-700 shrink-0">직위명</label>
+        <input type="text" name="name" id="create-name" placeholder="직위명 입력"
+          class="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-md
+                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+      </div>
+      <div class="flex items-center gap-4">
+        <label class="w-20 text-sm font-medium text-slate-700 shrink-0">사용 여부</label>
+        <div class="flex-1 relative">
+          <select name="is_active" id="create-is-active"
+            class="w-full appearance-none px-3 py-2 pr-9 text-sm border border-slate-200 rounded-md bg-white
+                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <option value="true">사용</option>
+            <option value="false">비활성</option>
+          </select>
+          <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-4">
+        <button type="button" id="create-cancel-btn"
+          class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+        <button type="submit"
+          class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── 직위 수정 팝업 ── #}
+<div id="position-edit-modal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-lg w-full max-w-md shadow-xl">
+    <div class="px-6 py-5 border-b border-slate-100">
+      <h3 class="text-xl font-bold text-slate-900">직위 수정</h3>
+      <p class="text-sm text-slate-500 mt-1">선택된 직위의 정보와 상태를 수정합니다.</p>
+    </div>
+    <form id="edit-form" method="post" action="" class="px-6 py-5 space-y-4">
+      {% csrf_token %}
+      <div class="flex items-center gap-4">
+        <label class="w-20 text-sm font-medium text-slate-700 shrink-0">직위명</label>
+        <input type="text" name="name" id="edit-name"
+          class="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-md text-slate-900
+                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+      </div>
+      <div class="flex items-center gap-4">
+        <label class="w-20 text-sm font-medium text-slate-700 shrink-0">사용 여부</label>
+        <div class="flex-1 relative">
+          <select name="is_active" id="edit-is-active"
+            class="w-full appearance-none px-3 py-2 pr-9 text-sm border border-slate-200 rounded-md bg-white text-slate-700
+                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <option value="true">사용</option>
+            <option value="false">비활성</option>
+          </select>
+          <i data-lucide="chevron-down" class="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+        </div>
+      </div>
+      <div class="bg-slate-50 border border-slate-200 rounded-md p-3">
+        <p class="text-xs font-medium text-slate-600 mb-1.5">변경 안내</p>
+        <ul class="text-xs text-slate-500 space-y-1 leading-relaxed">
+          <li>- 직위명 변경 시 사용자 목록과 조직 관리 화면에 즉시 반영됩니다.</li>
+          <li>- 미사용 처리 시 신규 사용자 등록 시 선택 목록에서 제외됩니다.</li>
+        </ul>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-4">
+        <button type="button" id="edit-cancel-btn"
+          class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+        <button type="submit"
+          class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── 삭제 확인 팝업 ── #}
+<div id="delete-confirm-modal" class="fixed inset-0 bg-slate-900/40 z-[60] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center shrink-0">
+        <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i>
+      </div>
+      <div>
+        <h4 class="text-base font-bold text-slate-900">직위 삭제</h4>
+        <p id="delete-confirm-msg" class="text-sm text-slate-500 mt-0.5"></p>
+      </div>
+    </div>
+    <p class="text-sm text-slate-600 mb-6">삭제된 직위는 복구할 수 없습니다.</p>
+    <div class="flex items-center justify-end gap-2">
+      <button id="delete-cancel-btn"
+        class="px-4 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button id="delete-ok-btn"
+        class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700">삭제</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
 
 {% block extra_script %}
 {{ block.super }}
 <script>
-  // 전체 선택 체크박스
-  const positionCheckAll = document.getElementById('check-all');
-  const positionRowChecks = document.querySelectorAll('.row-check');
-  const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+  // ── 체크박스 + 삭제 버튼 활성화 ─────────────────────────────────
+  const checkAll    = document.getElementById('check-all');
+  const rowChecks   = document.querySelectorAll('.row-check');
+  const bulkDelBtn  = document.getElementById('btn-bulk-delete');
 
-  function updateBulkDeleteState() {
-    const anyChecked = Array.from(positionRowChecks).some(cb => cb.checked);
-    if (bulkDeleteBtn) bulkDeleteBtn.disabled = !anyChecked;
+  function updateDeleteBtn() {
+    const any = [...rowChecks].some(cb => cb.checked);
+    bulkDelBtn.disabled = !any;
+    bulkDelBtn.className = `px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+      any ? 'bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer'
+          : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`;
   }
 
-  if (positionCheckAll) {
-    positionCheckAll.addEventListener('change', (e) => {
-      positionRowChecks.forEach(cb => cb.checked = e.target.checked);
-      updateBulkDeleteState();
-    });
-  }
-  positionRowChecks.forEach(cb => {
+  checkAll?.addEventListener('change', e => {
+    rowChecks.forEach(cb => cb.checked = e.target.checked);
+    updateDeleteBtn();
+  });
+
+  rowChecks.forEach(cb => {
     cb.addEventListener('change', () => {
-      if (positionCheckAll) {
-        const all = Array.from(positionRowChecks).every(c => c.checked);
-        const some = Array.from(positionRowChecks).some(c => c.checked);
-        positionCheckAll.checked = all;
-        positionCheckAll.indeterminate = !all && some;
-      }
-      updateBulkDeleteState();
+      const all  = [...rowChecks].every(c => c.checked);
+      const some = [...rowChecks].some(c => c.checked);
+      checkAll.checked       = all;
+      checkAll.indeterminate = !all && some;
+      updateDeleteBtn();
     });
+  });
+
+  // ── 삭제 확인 팝업 ───────────────────────────────────────────────
+  const deleteModal = document.getElementById('delete-confirm-modal');
+
+  bulkDelBtn.addEventListener('click', () => {
+    const ids = [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+    if (!ids.length) return;
+    document.getElementById('delete-confirm-msg').textContent =
+      `선택한 ${ids.length}개의 직위를 삭제합니다.`;
+    deleteModal.classList.remove('hidden');
+    deleteModal.classList.add('flex');
+    lucide.createIcons();
+  });
+
+  document.getElementById('delete-cancel-btn').addEventListener('click', () => {
+    deleteModal.classList.add('hidden');
+    deleteModal.classList.remove('flex');
+  });
+
+  document.getElementById('delete-ok-btn').addEventListener('click', () => {
+    const ids    = [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+    const inputs = document.getElementById('delete-inputs');
+    inputs.innerHTML = '';
+    ids.forEach(id => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'position_ids'; inp.value = id;
+      inputs.appendChild(inp);
+    });
+    document.getElementById('bulk-delete-form').submit();
+  });
+
+  // ── 직위 등록 팝업 ───────────────────────────────────────────────
+  const createModal = document.getElementById('position-create-modal');
+
+  document.getElementById('btn-position-create').addEventListener('click', () => {
+    document.getElementById('create-name').value = '';
+    document.getElementById('create-is-active').value = 'true';
+    createModal.classList.remove('hidden');
+    createModal.classList.add('flex');
+  });
+
+  document.getElementById('create-cancel-btn').addEventListener('click', () => {
+    createModal.classList.add('hidden');
+    createModal.classList.remove('flex');
+  });
+
+  // ── 직위 수정 팝업 ───────────────────────────────────────────────
+  const editModal = document.getElementById('position-edit-modal');
+
+  document.querySelectorAll('.btn-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('edit-name').value      = btn.dataset.name;
+      document.getElementById('edit-is-active').value = btn.dataset.isActive;
+      document.getElementById('edit-form').action     = `/manager/positions/${btn.dataset.pk}/edit/`;
+      editModal.classList.remove('hidden');
+      editModal.classList.add('flex');
+    });
+  });
+
+  document.getElementById('edit-cancel-btn').addEventListener('click', () => {
+    editModal.classList.add('hidden');
+    editModal.classList.remove('flex');
   });
 </script>
 {% endblock %}

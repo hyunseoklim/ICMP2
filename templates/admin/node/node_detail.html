@@ -11,20 +11,6 @@
   </div>
 </div>
 
-<!-- Node Detail Confirm Modal -->
-<div id="ndtl-confirm-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] items-center justify-center p-4">
-  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm px-8 py-8 text-center">
-    <p class="text-base font-semibold text-slate-900 mb-1">수정하시겠습니까?</p>
-    <p class="text-xs text-slate-500 mb-6">수정한 정보를 저장하시겠습니까?</p>
-    <div class="flex gap-2">
-      <button type="button" id="ndtl-confirm-cancel"
-        class="flex-1 px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
-      <button type="button" id="ndtl-confirm-ok"
-        class="flex-1 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
-    </div>
-  </div>
-</div>
-
 <!-- Node Detail Modal -->
 <div id="node-detail-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -32,8 +18,8 @@
     <!-- Header -->
     <div class="flex items-start justify-between px-8 pt-7 pb-4">
       <div>
-        <h3 class="text-xl font-bold text-slate-900 mb-1" id="ndtl-title">위치 노드 NODE-001</h3>
-        <p class="text-xs text-slate-500" id="ndtl-subtitle">위치 노드의 기본 정보를 확인하고 수정합니다.</p>
+        <h3 class="text-xl font-bold text-slate-900 mb-1" id="ndtl-title">위치 노드 상세</h3>
+        <p class="text-xs text-slate-500" id="ndtl-subtitle">해당 장비의 기본 정보를 확인하고 수정할 수 있습니다.</p>
       </div>
       <button type="button" id="ndtl-close"
         class="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors flex-shrink-0">
@@ -58,77 +44,80 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 유형 <span class="text-red-500">*</span></label>
-              <select id="ndtl-equip-type"
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700">
-                <option value="">장비 유형 선택</option>
-                <option value="node">위치 노드</option>
-                <option value="gas">가스 센서</option>
-                <option value="power">전력 계측기</option>
+              <select id="ndtl-device-type" disabled
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed">
+                <option value="GAS">유해가스 센서</option>
+                <option value="PWR">스마트 전력 시스템</option>
+                <option value="LOC">위치 노드</option>
               </select>
-              <p class="hidden mt-1 text-[11px] text-red-500" id="ndtl-equip-type-error">장비 유형을 선택해주세요.</p>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 코드</label>
-              <input type="text" id="ndtl-equip-code" placeholder="LOC-001"
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 코드 <span class="text-red-500">*</span></label>
+              <input type="text" id="ndtl-device-code" placeholder="장비 코드"
                 class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="ndtl-code-error"></p>
             </div>
           </div>
 
-          <!-- Row 2: ID | 통신 방식 -->
+          <!-- Row 2: 장비명 | 장비 ID(MAC) -->
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">ID</label>
-              <input type="text" id="ndtl-node-id" disabled
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명 <span class="text-red-500">*</span></label>
+              <input type="text" id="ndtl-device-name" placeholder="장비명 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="ndtl-name-error"></p>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">통신 방식</label>
-              <input type="text" id="ndtl-comm-type" disabled
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 ID(MAC) <span class="text-red-500">*</span></label>
+              <input type="text" id="ndtl-device-mac" placeholder="AA:BB:CC:DD:EE:FF"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="ndtl-mac-error"></p>
             </div>
           </div>
 
-          <!-- Row 3: 마지막 데이터 수신 | 관리 담당자 -->
+          <!-- Row 3: 관리 부서 | 관리 담당자 -->
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">마지막 데이터 수신</label>
-              <select id="ndtl-last-recv"
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">관리 부서 <span class="text-red-500">*</span></label>
+              <select id="ndtl-dept"
                 class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700">
+                <option value="">부서 선택</option>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}">{{ dept.name }}</option>
+                {% endfor %}
               </select>
+              <p class="hidden mt-1 text-[11px] text-red-500" id="ndtl-dept-error">관리 부서를 선택해 주세요.</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-slate-700 mb-1.5">관리 담당자 <span class="text-red-500">*</span></label>
               <select id="ndtl-manager"
                 class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700">
                 <option value="">담당자 선택</option>
-                <option value="m1">최점검</option>
-                <option value="m2">정운영</option>
-                <option value="m3">박관리</option>
+                {% for mgr in managers %}
+                <option value="{{ mgr.id }}">{{ mgr.name }}</option>
+                {% endfor %}
               </select>
-              <p class="hidden mt-1 text-[11px] text-red-500" id="ndtl-manager-error">관리 담당자를 선택해주세요.</p>
+              <p class="hidden mt-1 text-[11px] text-red-500" id="ndtl-manager-error">관리 담당자를 선택해 주세요.</p>
             </div>
           </div>
 
-          <!-- Row 4: 연결 확인 + button | 사용 여부 + 연결 상태 + 비고 -->
+          <!-- Row 4: IP/PORT + 연결 확인 | 사용 여부 + 연결 상태 -->
           <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <div>
-                <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 확인</label>
-                <input type="text" id="ndtl-conn-result" disabled
-                  placeholder="연결 확인 버튼을 클릭하세요."
-                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
-                <p class="hidden mt-1 text-[11px] text-emerald-600" id="ndtl-conn-msg">최근 수신 데이터가 확인되었습니다.</p>
-              </div>
-              <div class="flex justify-end">
-                <button type="button" id="ndtl-conn-check"
-                  class="px-4 py-2 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors">
-                  연결 확인
-                </button>
-              </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 통신 IP / PORT <span class="text-red-500">*</span></label>
+              <input type="text" id="ndtl-ip" placeholder="IP 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 mb-2" />
+              <input type="text" id="ndtl-port" placeholder="PORT 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="ndtl-comm-error"></p>
+              <button type="button" id="ndtl-comm-check"
+                class="mt-2 px-4 py-2 text-xs font-medium border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition-colors">
+                통신 확인
+              </button>
             </div>
-            <div class="flex flex-col gap-3">
+            <div class="flex flex-col gap-4">
               <div>
-                <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부</label>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
                 <div class="flex items-center gap-5 pt-1">
                   <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
                     <input type="checkbox" id="ndtl-status-active"
@@ -139,19 +128,26 @@
                       class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />미사용
                   </label>
                 </div>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="ndtl-status-error">사용 여부를 선택해 주세요.</p>
               </div>
               <div>
-                <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 상태</label>
-                <input type="text" id="ndtl-conn-state" disabled
-                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
-              </div>
-              <div class="flex-1">
-                <label class="block text-xs font-medium text-slate-700 mb-1.5">비고</label>
-                <textarea id="ndtl-note" rows="4"
-                  placeholder="작업자 위치 측위 및 자동 알람 생성 기준으로 사용하는 위치 노드 장비입니다."
-                  class="w-full min-h-[100px] px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 resize-none"></textarea>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 확인 상태 / 마지막 연결일시</label>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" id="ndtl-conn-verified" disabled
+                    class="w-4 h-4 rounded border-slate-300 flex-shrink-0" />
+                  <input type="text" id="ndtl-conn-date" disabled
+                    placeholder="통신 확인 후 표시"
+                    class="flex-1 px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-500 placeholder-slate-400 cursor-not-allowed" />
+                </div>
               </div>
             </div>
+          </div>
+
+          <!-- Row 5: 비고 -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">비고</label>
+            <textarea id="ndtl-note" rows="3" placeholder="운영 메모를 입력하세요"
+              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 resize-none"></textarea>
           </div>
 
         </div>
@@ -164,17 +160,12 @@
       <!-- 노드 요약 -->
       <div class="px-8 pt-5 pb-4 border-b border-slate-100 flex items-start justify-between gap-4">
         <div>
-          <p class="text-sm font-semibold text-slate-800" id="ndtl-insp-summary">NODE-001 · 위치 노드 · —</p>
+          <p class="text-base font-bold text-slate-900" id="ndtl-insp-node-code">—</p>
+          <p class="text-xs text-slate-600 mt-0.5" id="ndtl-insp-device-info">위치 노드 · —</p>
           <p class="text-xs text-slate-500 mt-1">담당자 : <span id="ndtl-insp-manager-name">—</span></p>
         </div>
         <button type="button" id="ndtl-inspect-register-btn"
-          class="flex-shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors"
-          onclick="(function(){
-            var nid = window._ndtlNodeId;
-            var mgr = document.getElementById('ndtl-insp-manager-name')?.textContent || '—';
-            var did = document.getElementById('ndtl-insp-summary')?.textContent.split(' · ').slice(2).join(' · ') || '—';
-            if(typeof window.openNodeInspRegModal === 'function') window.openNodeInspRegModal(nid, mgr, did);
-          })()">
+          class="flex-shrink-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors">
           점검 등록
         </button>
       </div>
@@ -215,7 +206,7 @@
                   <th class="px-3 py-2.5 text-left font-medium text-slate-500 whitespace-nowrap">점검일</th>
                   <th class="px-3 py-2.5 text-left font-medium text-slate-500 whitespace-nowrap">점검자</th>
                   <th class="px-3 py-2.5 text-left font-medium text-slate-500 whitespace-nowrap">조치 담당자</th>
-                  <th class="px-3 py-2.5 text-left font-medium text-slate-500">내용</th>
+                  <th class="px-3 py-2.5 text-left font-medium text-slate-500">점검/조치 내용</th>
                 </tr>
               </thead>
               <tbody id="ndtl-history-tbody"></tbody>
@@ -235,7 +226,7 @@
         </button>
         <button type="button" id="ndtl-submit" disabled
           class="px-5 py-2 bg-slate-300 text-slate-500 text-sm font-medium rounded-md cursor-not-allowed transition-colors">
-          수정
+          저장
         </button>
       </div>
     </div>
@@ -256,145 +247,208 @@
 <script>
 (function() {
   var modal        = document.getElementById('node-detail-modal');
-  var confirmModal = document.getElementById('ndtl-confirm-modal');
   var successModal = document.getElementById('ndtl-success-modal');
   var submitBtn    = document.getElementById('ndtl-submit');
 
-  var MANAGERS = { m1: '최점검', m2: '정운영', m3: '박관리' };
-  window._ndtlManagers = MANAGERS;
+  var _currentPk   = null;
+  var _currentData = null;
+  var snapshot     = {};
+  var commChecked  = false;
+  var origIp       = '';
+  var origPort     = '';
 
-  var NODE_DATA = {
-    'NODE-001': {
-      type:'node', code:'LOC-001', commType:'LTE', lastRecv:'2026-04-12 14:12:26',
-      manager:'m1', statusActive:true, connState:'연결 끊김', note:'',
-      deviceId:'MAC 00:1B:44:11:3A:B7',
-      inspectFlag:'점검 필요', lastInspect:'2026-03-28', nextInspect:'2026-04-28', currentState:'조치 필요',
-      history:[
-        {type:'이상', action:'조치 필요', date:'2026-03-28', inspector:'최점검', actionMgr:null,     note:'노드 통신 이상 재연결 완료'},
-        {type:'정기', action:null,       date:'2026-03-14', inspector:'최점검', actionMgr:null,     note:'정기 점검 결과 이상 없음'},
-        {type:'정기', action:null,       date:'2026-02-28', inspector:'정운영', actionMgr:null,     note:'정기 점검 결과 이상 없음'},
-        {type:'이상', action:'조치 완료', date:'2026-02-14', inspector:'최점검', actionMgr:'최점검', note:'노드 통신 상태 정상 확인'}
-      ]
-    },
-    'NODE-002': {
-      type:'node', code:'LOC-002', commType:'LTE', lastRecv:'2026-04-12 14:11:58',
-      manager:'m2', statusActive:true, connState:'정상', note:'',
-      deviceId:'MAC 00:1B:44:11:3A:C2',
-      inspectFlag:'점검 완료', lastInspect:'2026-03-28', nextInspect:'2026-04-28', currentState:'정상',
-      history:[
-        {type:'정기', action:null, date:'2026-03-28', inspector:'정운영', actionMgr:null, note:'정기 점검 결과 이상 없음'},
-        {type:'정기', action:null, date:'2026-02-28', inspector:'정운영', actionMgr:null, note:'정기 점검 결과 이상 없음'}
-      ]
-    },
-    'NODE-003': {
-      type:'node', code:'LOC-003', commType:'LTE', lastRecv:'2026-04-12 14:11:41',
-      manager:'m2', statusActive:true, connState:'정상', note:'',
-      deviceId:'MAC 00:1B:44:11:3A:D4',
-      inspectFlag:'점검 예정', lastInspect:'2026-03-28', nextInspect:'2026-04-28', currentState:'정상',
-      history:[
-        {type:'정기', action:null, date:'2026-03-28', inspector:'정운영', actionMgr:null, note:'정기 점검 결과 이상 없음'}
-      ]
-    },
-    'NODE-004': {
-      type:'node', code:'LOC-004', commType:'Wi-Fi', lastRecv:'2026-04-12 14:10:32',
-      manager:'m3', statusActive:true, connState:'정상', note:'',
-      deviceId:'MAC 00:1B:44:11:3A:E5',
-      inspectFlag:'점검 완료', lastInspect:'2026-03-14', nextInspect:'2026-04-14', currentState:'정상',
-      history:[
-        {type:'정기', action:null, date:'2026-03-14', inspector:'박관리', actionMgr:null, note:'정기 점검 결과 이상 없음'},
-        {type:'정기', action:null, date:'2026-02-14', inspector:'박관리', actionMgr:null, note:'정기 점검 결과 이상 없음'}
-      ]
-    },
-    'NODE-005': {
-      type:'node', code:'LOC-005', commType:'Wi-Fi', lastRecv:'2026-04-12 14:09:57',
-      manager:'m3', statusActive:true, connState:'정상', note:'',
-      deviceId:'MAC 00:1B:44:11:3A:F6',
-      inspectFlag:'점검 완료', lastInspect:'2026-03-14', nextInspect:'2026-04-14', currentState:'정상',
-      history:[
-        {type:'정기', action:null, date:'2026-03-14', inspector:'박관리', actionMgr:null, note:'정기 점검 결과 이상 없음'}
-      ]
-    },
-    'NODE-006': {
-      type:'node', code:'LOC-006', commType:'LTE', lastRecv:'',
-      manager:'', statusActive:false, connState:'', note:'',
-      deviceId:'—',
-      inspectFlag:'—', lastInspect:'—', nextInspect:'—', currentState:'—',
-      history:[]
-    },
-    'NODE-007': {
-      type:'node', code:'LOC-007', commType:'LTE', lastRecv:'2026-04-12 14:12:26',
-      manager:'m2', statusActive:false, connState:'정상', note:'',
-      deviceId:'MAC 00:1B:44:11:3A:A1',
-      inspectFlag:'—', lastInspect:'—', nextInspect:'—', currentState:'—',
-      history:[]
-    },
-    'NODE-008': {
-      type:'node', code:'LOC-008', commType:'LTE', lastRecv:'2026-04-10 09:22:31',
-      manager:'m2', statusActive:true, connState:'정상', note:'',
-      deviceId:'MAC 00:1B:44:11:3A:B8',
-      inspectFlag:'점검 완료', lastInspect:'2026-02-28', nextInspect:'2026-03-28', currentState:'정상',
-      history:[
-        {type:'정기', action:null, date:'2026-02-28', inspector:'정운영', actionMgr:null, note:'정기 점검 결과 이상 없음'}
-      ]
-    },
-    'NODE-009': {
-      type:'node', code:'LOC-009', commType:'Wi-Fi', lastRecv:'2026-04-10 09:18:44',
-      manager:'m3', statusActive:true, connState:'정상', note:'',
-      deviceId:'MAC 00:1B:44:11:3A:C9',
-      inspectFlag:'점검 예정', lastInspect:'2026-02-28', nextInspect:'2026-03-28', currentState:'정상',
-      history:[
-        {type:'정기', action:null, date:'2026-02-28', inspector:'박관리', actionMgr:null, note:'정기 점검 결과 이상 없음'}
-      ]
-    },
-    'NODE-010': {
-      type:'node', code:'LOC-010', commType:'LTE', lastRecv:'2026-04-09 16:45:12',
-      manager:'m1', statusActive:true, connState:'연결 끊김', note:'',
-      deviceId:'MAC 00:1B:44:11:3A:DA',
-      inspectFlag:'점검 필요', lastInspect:'2026-02-14', nextInspect:'2026-03-14', currentState:'조치 필요',
-      history:[
-        {type:'이상', action:'조치 필요', date:'2026-02-14', inspector:'최점검', actionMgr:null, note:'연결 끊김 상태 점검 필요'},
-        {type:'정기', action:null,       date:'2026-01-14', inspector:'최점검', actionMgr:null, note:'정기 점검 결과 이상 없음'}
-      ]
+  function getCsrf() {
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
+
+  // ── 에러 헬퍼 ──
+  function clearAllErrors() {
+    ['ndtl-code-error','ndtl-name-error','ndtl-mac-error','ndtl-dept-error','ndtl-manager-error','ndtl-comm-error','ndtl-status-error'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+    ['ndtl-device-code','ndtl-device-name','ndtl-device-mac','ndtl-dept','ndtl-manager','ndtl-ip','ndtl-port'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.classList.remove('border-red-400'); el.classList.add('border-slate-200'); }
+    });
+  }
+
+  function showError(errId, msg, fieldId) {
+    var errEl = document.getElementById(errId);
+    if (errEl) { errEl.textContent = msg; errEl.classList.remove('hidden'); }
+    if (fieldId) {
+      var fEl = document.getElementById(fieldId);
+      if (fEl) { fEl.classList.add('border-red-400'); fEl.classList.remove('border-slate-200'); }
     }
-  };
+  }
 
-  window._ndtlNodeData = NODE_DATA;
+  // ── 변경 감지 → 저장 버튼 활성화 ──
+  function getFormState() {
+    return {
+      code:     document.getElementById('ndtl-device-code').value.trim(),
+      name:     document.getElementById('ndtl-device-name').value.trim(),
+      mac:      document.getElementById('ndtl-device-mac').value.trim(),
+      dept:     document.getElementById('ndtl-dept').value,
+      manager:  document.getElementById('ndtl-manager').value,
+      ip:       document.getElementById('ndtl-ip').value.trim(),
+      port:     document.getElementById('ndtl-port').value.trim(),
+      active:   document.getElementById('ndtl-status-active').checked,
+      inactive: document.getElementById('ndtl-status-inactive').checked,
+      note:     document.getElementById('ndtl-note').value.trim(),
+    };
+  }
 
-  var snapshot = {};
+  function checkChanges() {
+    var cur     = getFormState();
+    var changed = Object.keys(cur).some(function(k) { return String(cur[k]) !== String(snapshot[k]); });
+    submitBtn.disabled = !changed;
+    submitBtn.className = changed
+      ? 'px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors'
+      : 'px-5 py-2 bg-slate-300 text-slate-500 text-sm font-medium rounded-md cursor-not-allowed transition-colors';
+  }
+
+  var watchIds = ['ndtl-device-code','ndtl-device-name','ndtl-device-mac','ndtl-dept','ndtl-manager','ndtl-ip','ndtl-port','ndtl-note'];
+  watchIds.forEach(function(id) {
+    document.getElementById(id)?.addEventListener('input',  checkChanges);
+    document.getElementById(id)?.addEventListener('change', checkChanges);
+  });
+  document.getElementById('ndtl-status-active')?.addEventListener('change', function() {
+    if (this.checked) document.getElementById('ndtl-status-inactive').checked = false;
+    checkChanges();
+  });
+  document.getElementById('ndtl-status-inactive')?.addEventListener('change', function() {
+    if (this.checked) document.getElementById('ndtl-status-active').checked = false;
+    checkChanges();
+  });
+
+  // IP/PORT 변경 시 통신 확인 초기화
+  ['ndtl-ip','ndtl-port'].forEach(function(id) {
+    document.getElementById(id)?.addEventListener('input', function() {
+      var ip   = document.getElementById('ndtl-ip').value.trim();
+      var port = document.getElementById('ndtl-port').value.trim();
+      if (ip !== origIp || port !== origPort) {
+        commChecked = false;
+        document.getElementById('ndtl-conn-verified').checked = false;
+        document.getElementById('ndtl-conn-date').value = '';
+      }
+    });
+  });
+
+  // 통신 확인 버튼
+  document.getElementById('ndtl-comm-check')?.addEventListener('click', function() {
+    var ip   = document.getElementById('ndtl-ip').value.trim();
+    var port = document.getElementById('ndtl-port').value.trim();
+
+    if (!ip) { showError('ndtl-comm-error', 'IP 주소를 입력해 주세요.', 'ndtl-ip'); return; }
+    var ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(ip) || ip.split('.').some(function(n) { return parseInt(n) > 255; })) {
+      showError('ndtl-comm-error', 'IP 주소 형식이 올바르지 않습니다.', 'ndtl-ip'); return;
+    }
+    if (!port) { showError('ndtl-comm-error', '포트 번호를 입력해 주세요.', 'ndtl-port'); return; }
+    if (!/^\d+$/.test(port)) { showError('ndtl-comm-error', '포트 번호 형식이 올바르지 않습니다.', 'ndtl-port'); return; }
+    var portNum = parseInt(port);
+    if (portNum < 1 || portNum > 65535) { showError('ndtl-comm-error', '포트 번호는 1~65535 범위로 입력해 주세요.', 'ndtl-port'); return; }
+
+    var errEl = document.getElementById('ndtl-comm-error');
+    if (errEl) errEl.classList.add('hidden');
+    ['ndtl-ip','ndtl-port'].forEach(function(fid) {
+      var f = document.getElementById(fid);
+      if (f) { f.classList.remove('border-red-400'); f.classList.add('border-slate-200'); }
+    });
+
+    commChecked = true;
+    origIp   = ip;
+    origPort = port;
+    document.getElementById('ndtl-conn-verified').checked = true;
+    var now = new Date();
+    var pad = function(n) { return String(n).padStart(2, '0'); };
+    document.getElementById('ndtl-conn-date').value =
+      now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) + ' ' +
+      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+  });
+
+  // ── 유효성 검사 ──
+  function validate() {
+    clearAllErrors();
+    var valid = true;
+
+    var codeVal = document.getElementById('ndtl-device-code').value.trim();
+    if (!codeVal) {
+      showError('ndtl-code-error', '장비 코드를 입력해 주세요.', 'ndtl-device-code'); valid = false;
+    }
+
+    var nameVal = document.getElementById('ndtl-device-name').value.trim();
+    if (!nameVal) {
+      showError('ndtl-name-error', '장비명을 입력해 주세요.', 'ndtl-device-name'); valid = false;
+    } else if (nameVal.length > 50) {
+      showError('ndtl-name-error', '장비명은 50자 이내로 입력해 주세요.', 'ndtl-device-name'); valid = false;
+    }
+
+    var macVal = document.getElementById('ndtl-device-mac').value.trim();
+    if (!macVal) {
+      showError('ndtl-mac-error', '장비 ID를 입력해 주세요.', 'ndtl-device-mac'); valid = false;
+    } else if (!/^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$/.test(macVal)) {
+      showError('ndtl-mac-error', '장비 ID 형식이 올바르지 않습니다.', 'ndtl-device-mac'); valid = false;
+    }
+
+    if (!document.getElementById('ndtl-dept').value) {
+      showError('ndtl-dept-error', '관리 부서를 선택해 주세요.', 'ndtl-dept'); valid = false;
+    }
+    if (!document.getElementById('ndtl-manager').value) {
+      showError('ndtl-manager-error', '관리 담당자를 선택해 주세요.', 'ndtl-manager'); valid = false;
+    }
+
+    var ipVal   = document.getElementById('ndtl-ip').value.trim();
+    var portVal = document.getElementById('ndtl-port').value.trim();
+    if (!ipVal) {
+      showError('ndtl-comm-error', 'IP 주소를 입력해 주세요.', 'ndtl-ip'); valid = false;
+    } else if (!portVal) {
+      showError('ndtl-comm-error', '포트 번호를 입력해 주세요.', 'ndtl-port'); valid = false;
+    }
+
+    // IP/PORT가 변경됐는데 통신 확인 안 했으면 경고
+    if (valid && (ipVal !== origIp || portVal !== origPort) && !commChecked) {
+      showError('ndtl-comm-error', '변경된 통신 정보의 연결 확인이 필요합니다.'); valid = false;
+    }
+
+    var cbActive   = document.getElementById('ndtl-status-active');
+    var cbInactive = document.getElementById('ndtl-status-inactive');
+    if (!cbActive.checked && !cbInactive.checked) {
+      showError('ndtl-status-error', '사용 여부를 선택해 주세요.'); valid = false;
+    }
+
+    return valid;
+  }
 
   // ── 점검 이력 렌더 ──
-  function renderHistory(history) {
+  function renderHistory(rows) {
     var tbody = document.getElementById('ndtl-history-tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    if (!history || history.length === 0) {
+    if (!rows || rows.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" class="px-3 py-6 text-center text-slate-400 text-xs">점검 이력이 없습니다.</td></tr>';
       return;
     }
-    history.forEach(function(row) {
-      var typeHtml = row.type === '이상'
+    rows.forEach(function(row) {
+      var typeHtml = row.type_code === 'abnormal'
         ? '<span class="font-medium text-red-600">이상</span>'
         : '<span class="text-slate-600">정기</span>';
-      var actionHtml;
-      if (!row.action) {
-        actionHtml = '<span class="text-slate-400">-</span>';
-      } else if (row.action === '조치 필요') {
-        actionHtml = '<span class="font-medium text-red-600">조치 필요</span>';
-      } else {
-        actionHtml = '<span class="text-slate-600">조치 완료</span>';
-      }
+      var actionHtml = row.status === 'normal'
+        ? '<span class="text-slate-400">-</span>'
+        : row.has_action
+          ? '<span class="text-slate-600">조치 완료</span>'
+          : '<span class="font-medium text-red-600">조치 필요</span>';
       var mgrHtml;
-      if (row.actionMgr) {
-        mgrHtml = '<span class="text-slate-600">' + row.actionMgr + '</span>';
-      } else if (row.action === '조치 필요') {
-        var safeNote = (row.note || '').replace(/"/g, '&quot;');
-        mgrHtml = '<button type="button" class="text-blue-600 hover:underline"' +
-          ' data-type="' + row.type + '"' +
-          ' data-date="' + row.date + '"' +
-          ' data-inspector="' + row.inspector + '"' +
-          ' data-note="' + safeNote + '"' +
-          ' onclick="if(typeof window.openNodeActionRegModal===\'function\')' +
-          'window.openNodeActionRegModal(window._ndtlNodeId,this.dataset.type,this.dataset.date,this.dataset.inspector,this.dataset.note)">' +
+      if (row.action && row.action.actor && row.action.actor !== '-') {
+        mgrHtml = '<span class="text-slate-600">' + row.action.actor + '</span>';
+      } else if (row.status === 'action_required' && !row.has_action) {
+        mgrHtml = '<button type="button" class="text-blue-600 hover:underline text-xs ndtl-action-trigger"' +
+          ' data-inspection-id="' + row.id + '"' +
+          ' data-insp-type="' + (row.type_code || '') + '"' +
+          ' data-insp-date="' + (row.date || '') + '"' +
+          ' data-insp-inspector="' + (row.inspector || '').replace(/"/g, '&quot;') + '"' +
+          ' data-insp-note="' + (row.note || '').replace(/"/g, '&quot;').replace(/\n/g, ' ') + '">' +
           '조치 등록</button>';
       } else {
         mgrHtml = '<span class="text-slate-400">-</span>';
@@ -407,12 +461,54 @@
         '<td class="px-3 py-2.5 text-slate-600 whitespace-nowrap">' + row.date + '</td>' +
         '<td class="px-3 py-2.5 text-slate-600 whitespace-nowrap">' + row.inspector + '</td>' +
         '<td class="px-3 py-2.5 whitespace-nowrap">' + mgrHtml + '</td>' +
-        '<td class="px-3 py-2.5 text-slate-600">' + row.note + '</td>';
+        '<td class="px-3 py-2.5 text-slate-600">' + (row.note || '') + '</td>';
       tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('.ndtl-action-trigger').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        if (typeof window.openNodeActionRegModal === 'function') {
+          window.openNodeActionRegModal(
+            this.dataset.inspectionId,
+            this.dataset.inspType,
+            this.dataset.inspDate,
+            this.dataset.inspInspector,
+            this.dataset.inspNote,
+            _currentData
+          );
+        }
+      });
     });
   }
 
-  // ── 점검 상태 색상 ──
+  // ── 점검 이력 API ──
+  function loadInspectionHistory() {
+    if (!_currentPk) return;
+    fetch('/manager/node/' + _currentPk + '/inspections/')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) return;
+        var s = data.summary;
+        if (s) {
+          var flagEl  = document.getElementById('ndtl-insp-flag');
+          var stateEl = document.getElementById('ndtl-insp-state');
+          flagEl.textContent  = s.check_status || '—';
+          flagEl.className    = 'text-sm font-semibold ' + flagClass(s.check_status);
+          stateEl.textContent = s.current_state || '—';
+          stateEl.className   = 'text-sm font-semibold ' + stateClass(s.current_state);
+          document.getElementById('ndtl-insp-last').textContent = s.last_inspected || '—';
+          document.getElementById('ndtl-insp-next').textContent = s.next_inspect   || '—';
+        } else {
+          ['ndtl-insp-flag','ndtl-insp-last','ndtl-insp-next','ndtl-insp-state'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) { el.textContent = '—'; el.className = 'text-sm font-semibold text-slate-400'; }
+          });
+        }
+        renderHistory(data.inspections || []);
+      })
+      .catch(function() {});
+  }
+  window.loadNdInspectionHistory = loadInspectionHistory;
+
   function flagClass(v) {
     if (v === '점검 필요') return 'text-red-600';
     if (v === '점검 완료') return 'text-emerald-600';
@@ -422,149 +518,74 @@
   function stateClass(v) {
     if (v === '조치 필요') return 'text-red-600';
     if (v === '정상')      return 'text-emerald-600';
+    if (v === '조치 완료') return 'text-emerald-600';
     return 'text-slate-400';
   }
 
-  // ── 탭 공통 클래스 ──
+  // ── 탭 ──
   var TAB_ACTIVE   = 'px-4 py-2.5 text-sm font-medium border-b-2 border-blue-600 text-blue-600 -mb-px transition-colors';
   var TAB_INACTIVE = 'px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors';
 
   function activateTab(tab) {
     var isBasic = (tab === 'basic');
-    document.getElementById('ndtl-tab-basic').className    = isBasic ? TAB_ACTIVE : TAB_INACTIVE;
-    document.getElementById('ndtl-tab-inspect').className  = isBasic ? TAB_INACTIVE : TAB_ACTIVE;
+    document.getElementById('ndtl-tab-basic').className   = isBasic ? TAB_ACTIVE : TAB_INACTIVE;
+    document.getElementById('ndtl-tab-inspect').className = isBasic ? TAB_INACTIVE : TAB_ACTIVE;
     document.getElementById('ndtl-panel-basic').classList.toggle('hidden', !isBasic);
     document.getElementById('ndtl-panel-inspect').classList.toggle('hidden', isBasic);
     document.getElementById('ndtl-footer-basic').classList.toggle('hidden', !isBasic);
     document.getElementById('ndtl-footer-inspect').classList.toggle('hidden', isBasic);
-    if (isBasic) {
-      document.getElementById('ndtl-title').textContent    = window._ndtlNodeId ? '위치 노드 ' + window._ndtlNodeId : '위치 노드 상세';
-      document.getElementById('ndtl-subtitle').textContent = '위치 노드의 기본 정보를 확인하고 수정합니다.';
-    } else {
-      document.getElementById('ndtl-title').textContent    = '위치 노드 상세';
-      document.getElementById('ndtl-subtitle').textContent = '위치 노드의 점검 실행 이력과 최근 상태를 확인합니다.';
-    }
+    if (!isBasic) loadInspectionHistory();
   }
 
   document.getElementById('ndtl-tab-basic')?.addEventListener('click',   function() { activateTab('basic'); });
   document.getElementById('ndtl-tab-inspect')?.addEventListener('click', function() { activateTab('inspect'); });
 
-  // ── 변경 감지 ──
-  function getFormState() {
-    return {
-      type:           document.getElementById('ndtl-equip-type').value,
-      code:           document.getElementById('ndtl-equip-code').value.trim(),
-      lastRecv:       document.getElementById('ndtl-last-recv').value,
-      manager:        document.getElementById('ndtl-manager').value,
-      statusActive:   document.getElementById('ndtl-status-active').checked,
-      statusInactive: document.getElementById('ndtl-status-inactive').checked,
-      note:           document.getElementById('ndtl-note').value.trim()
-    };
-  }
-
-  function checkChanges() {
-    var changed = Object.keys(getFormState()).some(function(k) { return getFormState()[k] !== snapshot[k]; });
-    submitBtn.disabled = !changed;
-    submitBtn.className = changed
-      ? 'px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors'
-      : 'px-5 py-2 bg-slate-300 text-slate-500 text-sm font-medium rounded-md cursor-not-allowed transition-colors';
-  }
-
-  ['ndtl-equip-type','ndtl-equip-code','ndtl-last-recv','ndtl-manager','ndtl-note'].forEach(function(id) {
-    document.getElementById(id)?.addEventListener('input',  checkChanges);
-    document.getElementById(id)?.addEventListener('change', checkChanges);
-  });
-
-  document.getElementById('ndtl-status-active')?.addEventListener('change', function() {
-    if (this.checked) document.getElementById('ndtl-status-inactive').checked = false;
-    checkChanges();
-  });
-  document.getElementById('ndtl-status-inactive')?.addEventListener('change', function() {
-    if (this.checked) document.getElementById('ndtl-status-active').checked = false;
-    checkChanges();
-  });
-
-  // ── 에러 처리 ──
-  function clearErrors() {
-    ['ndtl-equip-type-error','ndtl-manager-error'].forEach(function(id) {
-      var el = document.getElementById(id); if (el) el.classList.add('hidden');
-    });
-    ['ndtl-equip-type','ndtl-manager'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) { el.classList.remove('border-red-400'); el.classList.add('border-slate-200'); }
-    });
-  }
-
-  function validate() {
-    clearErrors();
-    var valid = true;
-    if (!document.getElementById('ndtl-equip-type').value) {
-      document.getElementById('ndtl-equip-type-error').classList.remove('hidden');
-      var f = document.getElementById('ndtl-equip-type');
-      f.classList.add('border-red-400'); f.classList.remove('border-slate-200');
-      valid = false;
-    }
-    if (!document.getElementById('ndtl-manager').value) {
-      document.getElementById('ndtl-manager-error').classList.remove('hidden');
-      var f2 = document.getElementById('ndtl-manager');
-      f2.classList.add('border-red-400'); f2.classList.remove('border-slate-200');
-      valid = false;
-    }
-    return valid;
-  }
-
-  // ── 연결 확인 ──
-  document.getElementById('ndtl-conn-check')?.addEventListener('click', function() {
-    document.getElementById('ndtl-conn-result').value = '최근 확인 결과: 연결 정상';
-    document.getElementById('ndtl-conn-msg').classList.remove('hidden');
-    document.getElementById('ndtl-conn-state').value = '정상';
-  });
-
   // ── 모달 열기 ──
-  window.openNodeDetailModal = function(nodeId) {
-    window._ndtlNodeId = nodeId;
-    var data = NODE_DATA[nodeId] || {};
-    var managerName = MANAGERS[data.manager] || '—';
+  window.openNodeDetailModal = function(data) {
+    _currentPk   = data.pk || '';
+    _currentData = data;
+
+    // 헤더
+    document.getElementById('ndtl-title').textContent = '위치 노드 ' + (data.deviceName || data.deviceCode || '상세');
 
     // 기본 정보 채우기
-    document.getElementById('ndtl-equip-type').value        = data.type    || '';
-    document.getElementById('ndtl-equip-code').value        = data.code    || '';
-    document.getElementById('ndtl-node-id').value           = nodeId       || '';
-    document.getElementById('ndtl-comm-type').value         = data.commType || '';
-    document.getElementById('ndtl-manager').value           = data.manager || '';
-    document.getElementById('ndtl-status-active').checked   = !!data.statusActive;
-    document.getElementById('ndtl-status-inactive').checked = !data.statusActive;
-    document.getElementById('ndtl-conn-state').value        = data.connState || '';
-    document.getElementById('ndtl-note').value              = data.note    || '';
-    document.getElementById('ndtl-conn-result').value       = '';
-    document.getElementById('ndtl-conn-msg').classList.add('hidden');
+    document.getElementById('ndtl-device-type').value          = 'LOC';
+    document.getElementById('ndtl-device-code').value          = data.deviceCode  || '';
+    document.getElementById('ndtl-device-name').value          = data.deviceName  || '';
+    document.getElementById('ndtl-device-mac').value           = data.mac         || '';
+    document.getElementById('ndtl-dept').value                 = data.departmentId|| '';
+    document.getElementById('ndtl-manager').value              = data.managerId   || '';
+    document.getElementById('ndtl-ip').value                   = data.ip          || '';
+    document.getElementById('ndtl-port').value                 = data.port        || '';
+    document.getElementById('ndtl-status-active').checked      = (data.isActive === 'true');
+    document.getElementById('ndtl-status-inactive').checked    = (data.isActive !== 'true');
+    document.getElementById('ndtl-note').value                 = data.note        || '';
 
-    // 마지막 데이터 수신 옵션
-    var sel = document.getElementById('ndtl-last-recv');
-    sel.innerHTML = '';
-    if (data.lastRecv) {
-      [data.lastRecv, '2026-04-11 09:30:14', '2026-04-10 16:45:02'].forEach(function(v) {
-        var opt = document.createElement('option');
-        opt.value = v; opt.textContent = v;
-        sel.appendChild(opt);
-      });
-    }
+    // 연결 확인 상태 초기화
+    origIp       = data.ip   || '';
+    origPort     = data.port || '';
+    commChecked  = false;
+    var hasLastSeen = !!(data.lastSeen);
+    document.getElementById('ndtl-conn-verified').checked = hasLastSeen;
+    document.getElementById('ndtl-conn-date').value       = data.lastSeen || '';
 
-    // 점검 이력 채우기
-    document.getElementById('ndtl-insp-summary').textContent = nodeId + ' · 위치 노드 · ' + (data.deviceId || '—');
-    document.getElementById('ndtl-insp-manager-name').textContent = managerName;
+    // 점검 탭 요약
+    document.getElementById('ndtl-insp-node-code').textContent   = data.deviceCode  || '—';
+    document.getElementById('ndtl-insp-device-info').textContent = '위치 노드 · MAC ' + (data.mac || '—');
+    document.getElementById('ndtl-insp-manager-name').textContent = data.managerName || '—';
+    document.getElementById('ndtl-inspect-register-btn').onclick  = function() {
+      if (typeof window.openNodeInspRegModal === 'function') {
+        window.openNodeInspRegModal(_currentPk, data.managerName || '—', data.deviceCode || '—', data.mac || '—');
+      }
+    };
+    ['ndtl-insp-flag','ndtl-insp-last','ndtl-insp-next','ndtl-insp-state'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.textContent = '—'; el.className = 'text-sm font-semibold text-slate-400'; }
+    });
+    var tbody = document.getElementById('ndtl-history-tbody');
+    if (tbody) tbody.innerHTML = '';
 
-    var flagEl   = document.getElementById('ndtl-insp-flag');
-    var stateEl  = document.getElementById('ndtl-insp-state');
-    flagEl.textContent   = data.inspectFlag   || '—';
-    flagEl.className     = 'text-sm font-semibold ' + flagClass(data.inspectFlag);
-    stateEl.textContent  = data.currentState  || '—';
-    stateEl.className    = 'text-sm font-semibold ' + stateClass(data.currentState);
-    document.getElementById('ndtl-insp-last').textContent  = data.lastInspect  || '—';
-    document.getElementById('ndtl-insp-next').textContent  = data.nextInspect  || '—';
-    renderHistory(data.history);
-
-    clearErrors();
+    clearAllErrors();
     activateTab('basic');
 
     snapshot = getFormState();
@@ -585,30 +606,45 @@
   document.getElementById('ndtl-cancel')?.addEventListener('click', closeModal);
   document.getElementById('ndtl-inspect-close')?.addEventListener('click', closeModal);
 
+  // 저장
   document.getElementById('ndtl-submit')?.addEventListener('click', function() {
-    if (this.disabled) return;
+    if (this.disabled || !_currentPk) return;
     if (!validate()) return;
-    confirmModal.classList.remove('hidden');
-    confirmModal.classList.add('flex');
-  });
 
-  document.getElementById('ndtl-confirm-cancel')?.addEventListener('click', function() {
-    confirmModal.classList.add('hidden');
-    confirmModal.classList.remove('flex');
-  });
+    var fd = new FormData();
+    fd.append('device_code',  document.getElementById('ndtl-device-code').value.trim());
+    fd.append('device_name',  document.getElementById('ndtl-device-name').value.trim());
+    fd.append('device_mac',   document.getElementById('ndtl-device-mac').value.trim());
+    fd.append('department',   document.getElementById('ndtl-dept').value);
+    fd.append('manager',      document.getElementById('ndtl-manager').value);
+    fd.append('ip',           document.getElementById('ndtl-ip').value.trim());
+    fd.append('port',         document.getElementById('ndtl-port').value.trim());
+    fd.append('is_active',    document.getElementById('ndtl-status-active').checked ? 'true' : 'false');
+    fd.append('note',         document.getElementById('ndtl-note').value.trim());
 
-  document.getElementById('ndtl-confirm-ok')?.addEventListener('click', function() {
-    confirmModal.classList.add('hidden');
-    confirmModal.classList.remove('flex');
-    closeModal();
-    successModal.classList.remove('hidden');
-    successModal.classList.add('flex');
-    lucide.createIcons();
+    fetch('/manager/node/' + _currentPk + '/edit/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        closeModal();
+        successModal.classList.remove('hidden');
+        successModal.classList.add('flex');
+        lucide.createIcons();
+      } else {
+        alert(data.error || '수정에 실패했습니다.');
+      }
+    })
+    .catch(function() { alert('서버 오류가 발생했습니다.'); });
   });
 
   document.getElementById('ndtl-success-confirm')?.addEventListener('click', function() {
     successModal.classList.add('hidden');
     successModal.classList.remove('flex');
+    location.reload();
   });
 })();
 </script>

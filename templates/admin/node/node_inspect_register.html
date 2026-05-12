@@ -70,7 +70,7 @@
               <select id="nir-status"
                 class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700">
                 <option value="">선택</option>
-                <option value="action">조치 필요</option>
+                <option value="action_required">조치 필요</option>
                 <option value="normal">정상</option>
               </select>
             </div>
@@ -115,6 +115,7 @@
   var statusSel    = document.getElementById('nir-status');
   var expectedWrap = document.getElementById('nir-expected-wrap');
   var expectedDate = document.getElementById('nir-expected-date');
+  var _nirDevicePk = null;
 
   // 오늘 날짜 (YYYY.MM.DD)
   function todayStr() {
@@ -130,7 +131,7 @@
     var status = statusSel.value;
     var note   = document.getElementById('nir-note').value.trim();
     var ok = type && status && note;
-    if (status === 'action') {
+    if (status === 'action_required') {
       ok = ok && !!expectedDate.value.trim();
     }
     submitBtn.disabled = !ok;
@@ -141,7 +142,7 @@
 
   // 점검 상태 변경 → 예상 조치일 토글
   statusSel?.addEventListener('change', function() {
-    var show = this.value === 'action';
+    var show = this.value === 'action_required';
     expectedWrap.style.display = show ? '' : 'none';
     if (!show) expectedDate.value = '';
     checkSaveBtn();
@@ -161,13 +162,14 @@
     submitBtn.className = 'px-5 py-2 bg-slate-300 text-slate-500 text-sm font-medium rounded-md cursor-not-allowed transition-colors';
   }
 
-  window.openNodeInspRegModal = function(nodeId, managerName, deviceId) {
+  window.openNodeInspRegModal = function(devicePk, managerName, nodeCode, mac) {
+    _nirDevicePk = devicePk;
     resetForm();
-    document.getElementById('nir-node-id').textContent      = nodeId      || '—';
-    document.getElementById('nir-device-info').textContent  = '위치 노드 · ' + (deviceId || '—');
+    document.getElementById('nir-node-id').textContent      = nodeCode    || '—';
+    document.getElementById('nir-device-info').textContent  = '위치 노드 · MAC ' + (mac || '—');
     document.getElementById('nir-manager-name').textContent = managerName || '—';
     document.getElementById('nir-date').value               = todayStr();
-    document.getElementById('nir-inspector').value          = managerName || '—';
+    document.getElementById('nir-inspector').value          = '{{ request.user.name }}';
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -181,12 +183,43 @@
 
   document.getElementById('nir-cancel')?.addEventListener('click', closeModal);
 
+  function getCsrf() {
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
+
   submitBtn?.addEventListener('click', function() {
-    if (this.disabled) return;
-    closeModal();
-    successModal.classList.remove('hidden');
-    successModal.classList.add('flex');
-    lucide.createIcons();
+    if (this.disabled || !_nirDevicePk) return;
+
+    var fd = new FormData();
+    fd.append('device_id',            _nirDevicePk);
+    fd.append('inspect_type',         document.getElementById('nir-type').value);
+    fd.append('inspect_date',         document.getElementById('nir-date').value);
+    fd.append('inspector',            document.getElementById('nir-inspector').value);
+    fd.append('status',               statusSel.value);
+    fd.append('expected_action_date', expectedDate.value);
+    fd.append('note',                 document.getElementById('nir-note').value.trim());
+
+    fetch('{% url "node_inspect_create" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      closeModal();
+      if (data.ok) {
+        successModal.classList.remove('hidden');
+        successModal.classList.add('flex');
+        lucide.createIcons();
+        if (typeof window.loadNdInspectionHistory === 'function') {
+          window.loadNdInspectionHistory();
+        }
+      } else {
+        alert('저장에 실패했습니다.');
+      }
+    })
+    .catch(function() { alert('서버 오류가 발생했습니다.'); });
   });
 
   document.getElementById('nir-success-confirm')?.addEventListener('click', function() {

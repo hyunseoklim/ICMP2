@@ -12,12 +12,43 @@ class Command(BaseCommand):
     help = '더미 데이터 생성 (Facility, Device, Worker, AlarmRule, AlarmEvent, EventHistory)'
 
     def handle(self, *args, **options):
-        from accounts.models import User
+        from accounts.models import User, Department, Position
         from facilities.models import Facility, Building, Worker
         from monitoring.models import Device, DeviceChannel, ThresholdPolicy
         from alerts.models import AlarmRule, AlarmEvent, EventHistory
 
         self.stdout.write('더미 데이터 생성 시작...')
+
+        # ── 0-A. 부서 ──────────────────────────────────────────────────────
+        dept_data = [
+            ('경영지원팀', 'MGMT'),
+            ('영업팀',     'SALES'),
+            ('사업기획팀', 'PLAN'),
+            ('기술연구소', 'RND'),
+            ('개발팀',     'DEV'),
+            ('관제운영팀', 'OPS'),
+            ('시스템운영팀', 'SYS'),
+            ('안전관리팀', 'SAFETY'),
+            ('품질관리팀', 'QA'),
+            ('생산관리팀', 'PROD'),
+            ('설치공사팀', 'INSTALL'),
+            ('유지보수팀', 'MAINT'),
+            ('고객지원팀', 'CS'),
+        ]
+        departments = {}
+        for name, code in dept_data:
+            d, _ = Department.objects.get_or_create(code=code, defaults={'name': name})
+            departments[code] = d
+        self.stdout.write(f'  부서 {len(departments)}개')
+
+        # ── 0-B. 직위 ──────────────────────────────────────────────────────
+        position_data = [
+            ('대표이사', 1), ('이사', 2), ('부장', 3), ('차장', 4),
+            ('과장', 5), ('대리', 6), ('사원', 7),
+        ]
+        for name, order in position_data:
+            Position.objects.get_or_create(name=name, defaults={'order': order, 'is_active': True})
+        self.stdout.write(f'  직위 {len(position_data)}개')
 
         # ── 0. 테스트 계정 ─────────────────────────────────────────────────
         admin_user, _ = User.objects.get_or_create(

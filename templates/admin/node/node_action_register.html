@@ -83,7 +83,7 @@
         <p class="text-xs font-semibold text-slate-700 mb-3">조치 정보</p>
         <div class="space-y-3">
 
-          <!-- 조치 완료일 | 점검자 -->
+          <!-- 조치 완료일 | 조치 담당자 -->
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-slate-700 mb-1.5">조치 완료일</label>
@@ -91,7 +91,7 @@
                 class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">점검자</label>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">조치 담당자</label>
               <input type="text" id="nar-action-inspector" disabled
                 class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
             </div>
@@ -130,6 +130,12 @@
   var successModal = document.getElementById('nar-success-modal');
   var submitBtn    = document.getElementById('nar-submit');
   var actionNote   = document.getElementById('nar-action-note');
+  var _narInspectionId = null;
+
+  function getCsrf() {
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
 
   function todayStr() {
     var d = new Date();
@@ -148,25 +154,25 @@
 
   actionNote?.addEventListener('input', checkSaveBtn);
 
-  // nodeId, inspectType, inspectDate, inspectorName, inspectNote
-  window.openNodeActionRegModal = function(nodeId, inspectType, inspectDate, inspectorName, inspectNote) {
-    var data   = (window._ndtlNodeData && window._ndtlNodeData[nodeId]) || {};
-    var mgr    = (window._ndtlManagers && window._ndtlManagers[data.manager]) || inspectorName || '—';
-    var devId  = data.deviceId || '—';
+  // inspectionId, inspectType, inspectDate, inspectorName, inspectNote, deviceData
+  window.openNodeActionRegModal = function(inspectionId, inspectType, inspectDate, inspectorName, inspectNote, deviceData) {
+    _narInspectionId = inspectionId;
 
-    document.getElementById('nar-node-id').textContent      = nodeId       || '—';
-    document.getElementById('nar-device-info').textContent  = '위치 노드 · ' + devId;
-    document.getElementById('nar-manager-name').textContent = mgr;
+    var nodeCode = (deviceData && deviceData.deviceCode) || '—';
+    var mac      = (deviceData && deviceData.mac)        || '—';
+    var mgrName  = (deviceData && deviceData.managerName) || '—';
 
-    // 점검 기본 정보 (읽기 전용)
-    document.getElementById('nar-insp-type').value       = inspectType  === 'abnormal' ? '이상 점검' : (inspectType === 'regular' ? '정기 점검' : (inspectType || '—'));
-    document.getElementById('nar-insp-date').value       = inspectDate  || '—';
-    document.getElementById('nar-insp-inspector').value  = inspectorName || mgr;
-    document.getElementById('nar-insp-note').value       = inspectNote  || '';
+    document.getElementById('nar-node-id').textContent      = nodeCode;
+    document.getElementById('nar-device-info').textContent  = '위치 노드 · MAC ' + mac;
+    document.getElementById('nar-manager-name').textContent = mgrName;
 
-    // 조치 정보 자동 입력
+    document.getElementById('nar-insp-type').value       = inspectType === 'abnormal' ? '이상 점검' : (inspectType === 'regular' ? '정기 점검' : (inspectType || '—'));
+    document.getElementById('nar-insp-date').value       = inspectDate     || '—';
+    document.getElementById('nar-insp-inspector').value  = inspectorName   || '—';
+    document.getElementById('nar-insp-note').value       = inspectNote     || '';
+
     document.getElementById('nar-action-date').value      = todayStr();
-    document.getElementById('nar-action-inspector').value = mgr;
+    document.getElementById('nar-action-inspector').value = '{{ request.user.name }}';
     actionNote.value = '';
     checkSaveBtn();
 
@@ -183,16 +189,38 @@
   document.getElementById('nar-cancel')?.addEventListener('click', closeModal);
 
   submitBtn?.addEventListener('click', function() {
-    if (this.disabled) return;
-    closeModal();
-    successModal.classList.remove('hidden');
-    successModal.classList.add('flex');
-    lucide.createIcons();
+    if (this.disabled || !_narInspectionId) return;
+
+    var fd = new FormData();
+    fd.append('action_date', document.getElementById('nar-action-date').value);
+    fd.append('actor',       document.getElementById('nar-action-inspector').value);
+    fd.append('action_note', actionNote.value.trim());
+
+    fetch('/manager/node/inspect/' + _narInspectionId + '/action/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      closeModal();
+      if (data.ok) {
+        successModal.classList.remove('hidden');
+        successModal.classList.add('flex');
+        lucide.createIcons();
+      } else {
+        alert(data.error || '저장에 실패했습니다.');
+      }
+    })
+    .catch(function() { alert('서버 오류가 발생했습니다.'); });
   });
 
   document.getElementById('nar-success-confirm')?.addEventListener('click', function() {
     successModal.classList.add('hidden');
     successModal.classList.remove('flex');
+    if (typeof window.loadNdInspectionHistory === 'function') {
+      window.loadNdInspectionHistory();
+    }
   });
 })();
 </script>
