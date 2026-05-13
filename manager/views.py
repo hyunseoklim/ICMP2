@@ -3,7 +3,6 @@ import re
 import csv
 from datetime import timedelta, datetime, date
 
-from django.contrib.auth.models import User
 from django.db import models as db_models
 from django.db.models import Count, Q, Max, Case, When, IntegerField, Value, Subquery, OuterRef, DateField
 from django.http import JsonResponse, FileResponse, HttpResponse
@@ -20,7 +19,7 @@ from core.models import CommonCode, SystemLog
 from monitoring.models import ThresholdPolicy, GasReading, PowerReading, Device, NodeReading, InspectionLog, ActionLog
 from alerts.models import AlarmRule, RiskCriteria
 from facilities.models import WorkerLocation, Worker, LocationNode, Equipment, Facility
-from accounts.models import Department, Position
+from accounts.models import User, Department, Position
 from .mixins import AdminRequiredMixin, ManagerRequiredMixin, RoleRequiredMixin, DepartmentScopeMixin
 from .models import Notice, NoticeAttachment, AlarmPolicy, AlarmSendHistory, VREducation, ChecklistSnapshot
 
