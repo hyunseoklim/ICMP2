@@ -941,17 +941,160 @@ def seed_safety():
 # Management Command
 # ─────────────────────────────────────────────────────────────
 
+def seed_alarm_policies():
+    """AlarmPolicy 기본 6개 정책 (이벤트 유형별 1개)"""
+    from manager.models import AlarmPolicy
+
+    defaults = [
+        ("가스 경보 알림",               "가스 경보",                   "앱, 관제 실시간 알림", "관리자, 작업자", True,
+         "전체 가스 센서 중 위험 상태를 1분 이상 유지한 장비가 발생하면 알림을 발송합니다.",
+         "가스 경보 발생",
+         "{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}."),
+
+        ("전력 이상 알림",               "전력 이상",                   "앱",                  "관리자",         True,
+         "전체 전력 설비 중 위험 상태로 전환된 장비가 발생하면 즉시 알림을 발송합니다.",
+         "전력 이상 감지",
+         "{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}."),
+
+        ("위험구역 진입 알림",           "위험구역 진입",               "관제 실시간 알림",     "관리자, 작업자", True,
+         "구역 단계가 위험구역인 위험구역 A에 작업자가 진입하면 관리자, 작업자에게 즉시 알림을 발송합니다.",
+         "위험구역 진입 감지",
+         "구역 단계가 위험구역인 {발생대상}에 작업자가 진입하였습니다. 발생 시각: {발생시각}."),
+
+        ("PPE 미착용 경고 알림",         "PPE 미착용",                  "앱",                  "작업자",         True,
+         "전체 작업자 위치 데이터 발생 후 5분 이내 PPE가 미착용 상태이면 즉시 알림을 발송합니다.",
+         "PPE 미착용 감지",
+         "{발생대상}의 PPE 미착용이 감지되었습니다. 발생 시각: {발생시각}."),
+
+        ("체크리스트 미완료 알림",       "작업 안전 체크리스트 미완료", "관제 실시간 알림",     "관리자",         False,
+         "전체 작업자 위치 데이터 발생 후 5분 이내 작업 안전 체크리스트가 미완료 상태이면 즉시 알림을 발송합니다.",
+         "체크리스트 미완료",
+         "{발생대상}의 작업 안전 체크리스트가 미완료 상태입니다. 발생 시각: {발생시각}."),
+
+        ("VR 교육 미이수 알림",          "VR 교육 미이수",              "관제 실시간 알림",     "관리자",         True,
+         "전체 작업자 위치 데이터 발생 후 5분 이내 VR 교육이 미이수 상태이면 즉시 알림을 발송합니다.",
+         "VR 교육 미이수",
+         "{발생대상}의 VR 교육이 미이수 상태입니다. 발생 시각: {발생시각}."),
+    ]
+
+    policy_map = {}
+    for name, event, channels, targets, is_active, cond, title, content in defaults:
+        p, _ = AlarmPolicy.objects.get_or_create(
+            name=name,
+            defaults={
+                "event_type":        event,
+                "channels":          channels,
+                "targets":           targets,
+                "is_active":         is_active,
+                "condition_summary": cond,
+                "alarm_title":       title,
+                "alarm_content":     content,
+            },
+        )
+        policy_map[name] = p
+
+    print(f"  [alarm_policies] {len(policy_map)}개 정책 생성/확인")
+    return policy_map
+
+
+def seed_send_history():
+    """AlarmSendHistory 샘플 발송 이력 — AlarmPolicy FK 연결"""
+    from datetime import timedelta
+    from django.utils import timezone
+    from manager.models import AlarmSendHistory
+
+    AlarmSendHistory.objects.all().delete()   # 기존 데이터 초기화 후 재생성
+
+    # 연결할 정책 맵 확보 (없으면 생성)
+    policy_map = seed_alarm_policies()
+
+    now = timezone.now()
+
+    # (hours_ago, channel, targets, result, policy_name, scope, content, reason)
+    rows = [
+        (0.04, "SMS",         "관리자",            "성공", "가스 경보 알림",         "관리자",
+         "가스 센서 GS-021에서 경고 상태가 감지되었습니다. 관리자 역할에 SMS 알림이 즉시 발송되었습니다.",
+         "통신사 응답 코드 200을 수신했고 추가 재시도는 발생하지 않았습니다."),
+
+        (0.10, "이메일",      "관리자, 슈퍼관리자", "실패", "전력 이상 알림",         "관리자, 슈퍼관리자",
+         "스마트전력시스템 SP-004 이상 감지에 따른 이메일 알림 발송이 실패하였습니다.",
+         "이메일 서버 네트워크 연결 오류로 인해 발송에 실패하였습니다. 재발송 처리가 필요합니다."),
+
+        (0.22, "앱 푸시",     "작업자",            "성공", "위험구역 진입 알림",     "작업자",
+         "위치 노드 LN-014 관할 구역에서 작업자 위치 이탈이 감지되어 작업자 앱 푸시 알림을 발송하였습니다.",
+         "앱 서버 응답 코드 200 수신. 정상 발송 완료되었습니다."),
+
+        (0.35, "SMS",         "작업자, 관리자",     "성공", "PPE 미착용 경고 알림",   "작업자, 관리자",
+         "PPE 미착용 경고 알림을 작업자 및 관리자에게 SMS로 발송하였습니다.",
+         "통신사 응답 코드 200을 수신했고 추가 재시도는 발생하지 않았습니다."),
+
+        (0.48, "이메일",      "슈퍼관리자",         "지연", "VR 교육 미이수 알림",    "슈퍼관리자",
+         "VR 교육 미이수 현황 알림 이메일 발송이 정상 처리되었으나 전송 지연이 발생하였습니다.",
+         "발송 서버 처리 부하로 인해 예정 시간 대비 약 12분 전송 지연이 발생하였습니다."),
+
+        (0.57, "앱 푸시",     "관리자",            "성공", "위험구역 진입 알림",     "관리자",
+         "출입문 A-03에서 제한 시간 내 접근 경보가 감지되어 관리자에게 앱 푸시 알림을 발송하였습니다.",
+         "앱 서버 응답 코드 200 수신. 정상 발송 완료되었습니다."),
+
+        (0.72, "SMS",         "관리자, 작업자",     "성공", "가스 경보 알림",         "관리자, 작업자",
+         "가스 센서 GS-007 경보 상태가 해제되어 관리자 및 작업자에게 SMS 해제 알림을 발송하였습니다.",
+         "통신사 응답 코드 200을 수신했고 추가 재시도는 발생하지 않았습니다."),
+
+        (0.84, "이메일",      "슈퍼관리자",         "성공", "VR 교육 미이수 알림",    "슈퍼관리자",
+         "일간 시스템 운영 리포트를 슈퍼관리자에게 이메일로 발송하였습니다.",
+         "이메일 서버 응답 코드 250 수신. 정상 발송 완료되었습니다."),
+
+        (1.02, "앱 푸시",     "작업자",            "실패", "PPE 미착용 경고 알림",   "작업자",
+         "PPE 미착용 경고 알림을 작업자 앱으로 발송하려 했으나 실패하였습니다.",
+         "수신 작업자 디바이스 토큰 만료로 인해 앱 푸시 발송에 실패하였습니다. 토큰 갱신 후 재발송이 필요합니다."),
+
+        (1.17, "SMS",         "관리자",            "지연", "전력 이상 알림",         "관리자",
+         "스마트전력시스템 SP-002 전력 이상 주의 알림을 관리자에게 SMS로 발송 요청하였으나 전송이 지연되었습니다.",
+         "SMS 게이트웨이 트래픽 집중으로 인해 약 8분 전송 지연이 발생하였습니다."),
+
+        (1.32, "앱 푸시",     "작업자, 관리자",     "성공", "위험구역 진입 알림",     "작업자, 관리자",
+         "출입문 B-01 접근 이벤트 경보 알림을 작업자 및 관리자에게 앱 푸시로 발송하였습니다.",
+         "앱 서버 응답 코드 200 수신. 정상 발송 완료되었습니다."),
+
+        (1.49, "이메일",      "슈퍼관리자",         "성공", "체크리스트 미완료 알림", "슈퍼관리자",
+         "작업 안전 체크리스트 미완료 현황 리포트를 슈퍼관리자에게 이메일로 발송하였습니다.",
+         "이메일 서버 응답 코드 250 수신. 정상 발송 완료되었습니다."),
+    ]
+
+    objs = [
+        AlarmSendHistory(
+            sent_at      = now - timedelta(hours=h),
+            channel      = channel,
+            targets      = targets,
+            result       = result,
+            alarm_policy = policy_map.get(policy_name),
+            policy_name  = policy_name,
+            scope        = scope,
+            content      = content,
+            reason       = reason,
+        )
+        for h, channel, targets, result, policy_name, scope, content, reason in rows
+    ]
+    AlarmSendHistory.objects.bulk_create(objs)
+    print(f"  [send_history] {len(objs)}건 생성 완료 (AlarmPolicy FK 연결)")
+
+
 SECTIONS = {
-    "accounts":   seed_accounts,
-    "facilities": seed_facilities,
-    "workers":    seed_workers,
-    "monitoring": seed_monitoring,
-    "alerts":     seed_alerts,
-    "safety":     seed_safety,
+    "accounts":       seed_accounts,
+    "facilities":     seed_facilities,
+    "workers":        seed_workers,
+    "monitoring":     seed_monitoring,
+    "alerts":         seed_alerts,
+    "safety":         seed_safety,
+    "alarm_policies": seed_alarm_policies,
+    "send_history":   seed_send_history,
 }
 
-# 의존성 순서: accounts → facilities → workers → monitoring → alerts → safety
-ALL_ORDER = ["accounts", "facilities", "workers", "monitoring", "alerts", "safety"]
+# 의존성 순서
+ALL_ORDER = [
+    "accounts", "facilities", "workers", "monitoring",
+    "alerts", "safety", "alarm_policies", "send_history",
+]
 
 
 class Command(BaseCommand):

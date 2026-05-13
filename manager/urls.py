@@ -43,9 +43,11 @@ urlpatterns = [
 
     # 안전 확인 관리
     path('safety-checklist/', views.safety_checklist_list, name='safety_checklist_list'),
+    path('safety-checklist/save/', views.safety_checklist_save, name='safety_checklist_save'),
 
     # VR 교육 관리
     path('vr-education/', views.vr_education_list, name='vr_education_list'),
+    path('vr-education/save/', views.vr_education_save, name='vr_education_save'),
 
     # 설비 관리
     path('facilities/', views.facility_list, name='facility_list'),
@@ -62,15 +64,20 @@ urlpatterns = [
 
     # 공지사항 관리
     path('notice/', views.notice_list, name='notice_list'),
-    path('notice/detail/', views.notice_detail, name='notice_detail'),
     path('notice/create/', views.notice_create, name='notice_create'),
-    path('notice/edit/', views.notice_edit, name='notice_edit'),
+    path('notice/bulk-delete/', views.notice_bulk_delete, name='notice_bulk_delete'),
+    path('notice/attachment/<int:pk>/download/', views.notice_attachment_download, name='notice_attachment_download'),
+    path('notice/<int:pk>/', views.notice_detail, name='notice_detail'),
+    path('notice/<int:pk>/edit/', views.notice_edit, name='notice_edit'),
+    path('notice/<int:pk>/delete/', views.notice_delete, name='notice_delete'),
 
     # 메뉴 관리
     path('menu-manage/', views.menu_manage, name='menu_manage'),
 
     # 알림/이벤트 관리
     path('alarm/policy/', views.alarm_policy_list, name='alarm_policy_list'),
+    path('alarm/policy/create/', views.alarm_policy_create, name='alarm_policy_create'),
+    path('alarm/policy/bulk-delete/', views.alarm_policy_bulk_delete, name='alarm_policy_bulk_delete'),
     path('alarm/event-history/', views.event_history_list, name='event_history_list'),
     path('alarm/send-history/', views.alarm_send_history_list, name='alarm_send_history_list'),
 

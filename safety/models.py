@@ -2,11 +2,18 @@ from django.db import models
 
 
 class SafetyCheckItem(models.Model):
-    category = models.CharField(max_length=100)
-    category_order = models.PositiveIntegerField(default=0)
-    item_text = models.TextField()
-    item_order = models.PositiveIntegerField(default=0)
-    is_active = models.BooleanField(default=True)
+    ANSWER_TYPE_CHOICES = [
+        ('체크 박스', '체크 박스'),
+        ('주관식',    '주관식'),
+    ]
+
+    category             = models.CharField(max_length=100)
+    category_order       = models.PositiveIntegerField(default=0)
+    category_description = models.CharField(max_length=300, blank=True, default='')
+    answer_type          = models.CharField(max_length=20, choices=ANSWER_TYPE_CHOICES, default='체크 박스')
+    item_text            = models.TextField()
+    item_order           = models.PositiveIntegerField(default=0)
+    is_active            = models.BooleanField(default=True)
 
     class Meta:
         db_table = "safety_check_items"

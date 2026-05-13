@@ -131,9 +131,13 @@ def mysafety_vr(request):
         session.save()
         return JsonResponse({"ok": True})
 
+    from manager.models import VREducation
+    edu = VREducation.objects.filter(pk=1).first()
+
     return render(request, "safety/mysafety_vr.html", {
         "session": session,
-        "today": today,
+        "today":   today,
+        "edu":     edu,
     })
 
 
