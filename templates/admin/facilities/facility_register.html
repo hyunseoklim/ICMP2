@@ -6,7 +6,9 @@
         <p class="text-xs text-slate-500">신규 설비 정보를 입력하는 등록 팝업입니다.</p>
       </div>
 
-      <form id="facility-register-form" novalidate>
+      <form id="facility-register-form" method="post" action="{% url 'facility_create' %}" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="status" id="reg-status-value" value="active" />
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -38,10 +40,11 @@
                   <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="reg-ps-chevron"></i>
                 </button>
                 <div id="reg-ps-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-50 overflow-y-auto" style="max-height:180px;">
-                  <button type="button" class="reg-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-07">PWR-SYS-07</button>
-                  <button type="button" class="reg-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-08">PWR-SYS-08</button>
-                  <button type="button" class="reg-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-09">PWR-SYS-09</button>
-                  <button type="button" class="reg-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-10">PWR-SYS-10</button>
+                  {% for ps in free_power_systems %}
+                  <button type="button" class="reg-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="{{ ps }}">{{ ps }}</button>
+                  {% empty %}
+                  <p class="px-3 py-2 text-xs text-slate-400">사용 가능한 전력 시스템이 없습니다.</p>
+                  {% endfor %}
                 </div>
                 <input type="hidden" id="reg-ps-value" name="power_system" />
               </div>
@@ -154,11 +157,16 @@
 
   var cbActive   = document.getElementById('reg-status-active');
   var cbInactive = document.getElementById('reg-status-inactive');
-  cbActive?.addEventListener('change', function() { if (cbActive.checked) cbInactive.checked = false; });
-  cbInactive?.addEventListener('change', function() { if (cbInactive.checked) cbActive.checked = false; });
+
+  // 체크박스 → hidden status 값 연동
+  cbActive?.addEventListener('change', function() {
+    if (cbActive.checked) { cbInactive.checked = false; document.getElementById('reg-status-value').value = 'active'; }
+  });
+  cbInactive?.addEventListener('change', function() {
+    if (cbInactive.checked) { cbActive.checked = false; document.getElementById('reg-status-value').value = 'inactive'; }
+  });
 
   document.getElementById('facility-register-form')?.addEventListener('submit', function(e) {
-    e.preventDefault();
     var valid = true;
     var nameVal = document.getElementById('reg-equipment-name').value.trim();
     var psVal   = document.getElementById('reg-ps-value').value;
@@ -175,12 +183,8 @@
     } else {
       document.getElementById('reg-ps-error').classList.add('hidden');
     }
-    if (!valid) return;
-
-    closeRegisterModal();
-    successModal.classList.remove('hidden');
-    successModal.classList.add('flex');
-    lucide.createIcons();
+    if (!valid) { e.preventDefault(); return; }
+    // valid → 실제 POST 제출
   });
 })();
 </script>

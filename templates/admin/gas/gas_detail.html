@@ -42,16 +42,16 @@
 
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-medium text-slate-700 mb-1.5">센서명(MAC) <span class="text-red-500">*</span></label>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명 <span class="text-red-500">*</span></label>
+                <input type="text" id="detail-device-name" name="device_name"
+                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent detail-field" />
+                <p class="hidden mt-1 text-[11px] text-red-500" id="detail-name-error"></p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 ID(MAC) <span class="text-red-500">*</span></label>
                 <input type="text" id="detail-mac" name="mac"
                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent detail-field" />
                 <p class="hidden mt-1 text-[11px] text-red-500" id="detail-mac-error"></p>
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-700 mb-1.5">설치 일자 <span class="text-red-500">*</span></label>
-                <input type="text" id="detail-install-date" name="install_date" placeholder="YYYY.MM.DD"
-                  class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 detail-field" />
-                <p class="hidden mt-1 text-[11px] text-red-500" id="detail-date-error"></p>
               </div>
             </div>
 
@@ -171,22 +171,22 @@
         <!-- 최근 점검 상태 -->
         <div class="mb-4">
           <h4 class="text-xs font-semibold text-slate-700 mb-2">최근 점검 상태</h4>
-          <div class="grid grid-cols-4 gap-3">
+          <div class="grid grid-cols-4 gap-3" id="inspect-summary-grid">
             <div class="px-4 py-3 border border-slate-200 rounded-lg">
               <p class="text-[11px] text-slate-400 mb-1">점검 여부</p>
-              <p class="text-sm font-semibold text-red-600">점검 필요</p>
+              <p class="text-sm font-semibold text-slate-400" id="summary-check-status">-</p>
             </div>
             <div class="px-4 py-3 border border-slate-200 rounded-lg">
               <p class="text-[11px] text-slate-400 mb-1">최근 점검일</p>
-              <p class="text-sm font-semibold text-slate-700">2026-03-28</p>
+              <p class="text-sm font-semibold text-slate-700" id="summary-last-inspected">-</p>
             </div>
             <div class="px-4 py-3 border border-slate-200 rounded-lg">
               <p class="text-[11px] text-slate-400 mb-1">다음 점검 예정일</p>
-              <p class="text-sm font-semibold text-slate-700">2026-04-28</p>
+              <p class="text-sm font-semibold text-slate-700" id="summary-action-date">-</p>
             </div>
             <div class="px-4 py-3 border border-slate-200 rounded-lg">
               <p class="text-[11px] text-slate-400 mb-1">현재 상태</p>
-              <p class="text-sm font-semibold text-red-600">조치 필요</p>
+              <p class="text-sm font-semibold text-slate-400" id="summary-current-state">-</p>
             </div>
           </div>
         </div>
@@ -206,47 +206,9 @@
                   <th class="text-left px-3 py-2.5 font-medium text-slate-500">내용</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[11px] font-medium">이상</span></td>
-                  <td class="px-3 py-2.5">
-                    <button type="button"
-                      class="action-register-trigger px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[11px] font-medium hover:bg-red-100 transition-colors"
-                      data-inspect-type="abnormal"
-                      data-inspect-date="2026.03.28"
-                      data-inspect-person="최점검"
-                      data-inspect-note="센서 통신 끊김 문제 재연결 완료">
-                      조치 필요
-                    </button>
-                  </td>
-                  <td class="px-3 py-2.5 text-slate-600">2026-03-28</td>
-                  <td class="px-3 py-2.5 text-slate-600">최점검</td>
-                  <td class="px-3 py-2.5 text-slate-400">—</td>
-                  <td class="px-3 py-2.5 text-slate-600">센서 통신 끊김 문제 재연결 완료</td>
-                </tr>
-                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">정기</span></td>
-                  <td class="px-3 py-2.5 text-slate-400">—</td>
-                  <td class="px-3 py-2.5 text-slate-600">2026-03-14</td>
-                  <td class="px-3 py-2.5 text-slate-600">최점검</td>
-                  <td class="px-3 py-2.5 text-slate-400">—</td>
-                  <td class="px-3 py-2.5 text-slate-600">정기 점검 결과 이상 없음</td>
-                </tr>
-                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">정기</span></td>
-                  <td class="px-3 py-2.5 text-slate-400">—</td>
-                  <td class="px-3 py-2.5 text-slate-600">2026-02-28</td>
-                  <td class="px-3 py-2.5 text-slate-600">정운영</td>
-                  <td class="px-3 py-2.5 text-slate-400">—</td>
-                  <td class="px-3 py-2.5 text-slate-600">정기 점검 결과 이상 없음</td>
-                </tr>
-                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[11px] font-medium">이상</span></td>
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[11px] font-medium">조치 완료</span></td>
-                  <td class="px-3 py-2.5 text-slate-600">2026-02-14</td>
-                  <td class="px-3 py-2.5 text-slate-600">최점검</td>
-                  <td class="px-3 py-2.5 text-slate-600">최점검</td>
-                  <td class="px-3 py-2.5 text-slate-600">측정값 수신 상태 정상 확인</td>
+              <tbody id="inspect-history-tbody">
+                <tr>
+                  <td colspan="6" class="px-3 py-4 text-center text-slate-400 text-xs">점검 이력을 불러오는 중...</td>
                 </tr>
               </tbody>
             </table>
@@ -281,8 +243,11 @@
     document.getElementById('tab-basic').classList.toggle('hidden', !isBasic);
     document.getElementById('tab-inspect').classList.toggle('hidden', isBasic);
   }
-  document.getElementById('tab-basic-btn')?.addEventListener('click',   function() { activateTab('basic'); });
-  document.getElementById('tab-inspect-btn')?.addEventListener('click', function() { activateTab('inspect'); });
+  document.getElementById('tab-basic-btn')?.addEventListener('click', function() { activateTab('basic'); });
+  document.getElementById('tab-inspect-btn')?.addEventListener('click', function() {
+    activateTab('inspect');
+    loadInspectionHistory();
+  });
 
   function setDirty() {
     if (isDirty) return;
@@ -301,28 +266,29 @@
 
 
   window.openDetailModal = function(data) {
-    document.getElementById('detail-title').textContent      = '유해가스 센서 ' + (data.sensorId || '');
-    document.getElementById('detail-device-type').value      = data.deviceType  || 'GAS';
-    document.getElementById('detail-device-code').value      = data.deviceCode  || '';
-    document.getElementById('detail-mac').value              = data.mac         || '';
-    document.getElementById('detail-install-date').value     = data.installDate || '';
-    document.getElementById('detail-dept').value             = data.dept        || '';
-    document.getElementById('detail-manager').value          = data.manager     || '';
-    document.getElementById('detail-ip').value               = data.ip          || '';
-    document.getElementById('detail-port').value             = data.port        || '';
-    document.getElementById('detail-status-active').checked  = (data.status !== 'inactive');
-    document.getElementById('detail-status-inactive').checked= (data.status === 'inactive');
-    document.getElementById('detail-conn-verified').checked  = (data.connVerified === 'true');
-    document.getElementById('detail-conn-date').value        = data.connDate    || '';
-    document.getElementById('detail-note').value             = data.note        || '';
+    document.getElementById('detail-title').textContent       = '유해가스 센서 ' + (data.sensorId || '');
+    document.getElementById('detail-device-type').value       = data.deviceType  || 'GAS';
+    document.getElementById('detail-device-code').value       = data.deviceCode  || data.sensorId || '';
+    document.getElementById('detail-device-name').value       = data.deviceName  || '';
+    document.getElementById('detail-mac').value               = data.mac         || '';
+    document.getElementById('detail-dept').value              = data.dept        || '';
+    document.getElementById('detail-manager').value           = data.manager     || '';
+    document.getElementById('detail-ip').value                = data.ip          || '';
+    document.getElementById('detail-port').value              = data.port        || '';
+    document.getElementById('detail-status-active').checked   = (data.status !== 'inactive');
+    document.getElementById('detail-status-inactive').checked = (data.status === 'inactive');
+    document.getElementById('detail-conn-verified').checked   = (data.connVerified === 'true');
+    document.getElementById('detail-conn-date').value         = data.connDate    || '';
+    document.getElementById('detail-note').value              = data.note        || '';
 
     var typeLabel   = GAS.resolveDeviceType(data.deviceType);
-    var managerName = GAS.resolveManager(data.manager);
+    var managerName = data.managerName || GAS.resolveManager(data.manager);
     document.getElementById('inspect-sensor-id').textContent    = data.sensorId || '';
-    document.getElementById('inspect-device-info').textContent  = typeLabel + (data.mac ? ' · MAC ' + data.mac : '');
-    document.getElementById('inspect-manager-info').textContent = '담당자 : ' + managerName;
+    document.getElementById('inspect-device-info').textContent  = typeLabel + (data.mac ? ' · ' + data.mac : '');
+    document.getElementById('inspect-manager-info').textContent = '담당자 : ' + (managerName || '-');
 
     window.currentSensorData = data;
+    window.currentDeviceId   = data.id || '';
 
     ipAtOpen    = data.ip   || '';
     portAtOpen  = data.port || '';
@@ -331,9 +297,133 @@
     clearAllErrors();
     resetDirty();
     activateTab('basic');
+
+    // 점검 이력 초기화
+    document.getElementById('inspect-history-tbody').innerHTML =
+      '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400 text-xs">점검 이력을 불러오는 중...</td></tr>';
+    resetInspectSummary();
+
     detailModal.classList.remove('hidden');
     detailModal.classList.add('flex');
   };
+
+  function resetInspectSummary() {
+    ['summary-check-status','summary-last-inspected','summary-action-date','summary-current-state'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.textContent = '-'; el.className = 'text-sm font-semibold text-slate-400'; }
+    });
+  }
+
+  function loadInspectionHistory() {
+    var deviceId = window.currentDeviceId;
+    if (!deviceId) {
+      document.getElementById('inspect-history-tbody').innerHTML =
+        '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400 text-xs">장비 정보를 찾을 수 없습니다.</td></tr>';
+      return;
+    }
+    fetch('/manager/gas/' + deviceId + '/inspections/')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) return;
+
+        // 요약 업데이트
+        if (data.summary) {
+          var s = data.summary;
+          var checkEl = document.getElementById('summary-check-status');
+          checkEl.textContent = s.check_status;
+          checkEl.className = 'text-sm font-semibold ' +
+            (s.check_status === '점검 필요' ? 'text-red-600' :
+             s.check_status === '점검 예정' ? 'text-yellow-600' : 'text-green-600');
+          document.getElementById('summary-last-inspected').textContent  = s.last_inspected;
+          document.getElementById('summary-action-date').textContent     = s.expected_action_date;
+          var stateEl = document.getElementById('summary-current-state');
+          stateEl.textContent = s.current_state;
+          stateEl.className = 'text-sm font-semibold ' +
+            (s.current_state === '조치 필요' ? 'text-red-600' : 'text-green-600');
+
+          // 목록 행의 점검 상태·최근 점검일 업데이트
+          var listRow = document.querySelector('tr.sensor-row[data-id="' + deviceId + '"]');
+          if (listRow) {
+            var inspStatusTd = listRow.querySelector('td:nth-child(5)');
+            if (inspStatusTd) {
+              var badge = '';
+              if (s.check_status === '점검 완료') {
+                badge = '<span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span>';
+              } else if (s.check_status === '점검 예정') {
+                badge = '<span class="px-2 py-0.5 text-xs font-medium rounded bg-yellow-50 text-yellow-600">점검 예정</span>';
+              } else if (s.check_status === '점검 필요') {
+                badge = '<span class="px-2 py-0.5 text-xs font-medium rounded bg-red-50 text-red-500">점검 필요</span>';
+              }
+              if (badge) inspStatusTd.innerHTML = badge;
+            }
+            var lastInspTd = listRow.querySelector('td:nth-child(7)');
+            if (lastInspTd && s.last_inspected && s.last_inspected !== '-') {
+              lastInspTd.textContent = s.last_inspected;
+            }
+          }
+        }
+
+        // 이력 테이블 렌더링
+        var tbody = document.getElementById('inspect-history-tbody');
+        if (!data.inspections.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400 text-xs">점검 이력이 없습니다.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.inspections.map(function(insp) {
+          var typeBadge = insp.type_code === 'regular'
+            ? '<span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">정기</span>'
+            : '<span class="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[11px] font-medium">이상</span>';
+
+          var actionCell;
+          if (insp.status === 'normal') {
+            actionCell = '<span class="text-slate-400">—</span>';
+          } else if (insp.has_action) {
+            actionCell = '<span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[11px] font-medium">조치 완료</span>';
+          } else {
+            actionCell =
+              '<button type="button" class="action-register-trigger px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[11px] font-medium hover:bg-red-100 transition-colors"' +
+              ' data-inspect-id="' + insp.id + '"' +
+              ' data-inspect-type="' + insp.type_code + '"' +
+              ' data-inspect-date="' + insp.date.replace(/-/g, '.') + '"' +
+              ' data-inspect-person="' + (insp.inspector || '') + '"' +
+              ' data-inspect-note="' + (insp.note || '').replace(/"/g, '&quot;') + '">' +
+              '조치 필요</button>';
+          }
+
+          var actorName   = insp.action ? insp.action.actor : '—';
+          var contentHtml = insp.note ? '<span class="text-slate-600">' + insp.note + '</span>' : '';
+          if (insp.action && insp.action.note) {
+            contentHtml += (contentHtml ? '<span class="text-slate-300 mx-1">·</span>' : '') +
+              '<span class="text-emerald-600">' + insp.action.note + '</span>';
+          }
+          return '<tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">' +
+            '<td class="px-3 py-2.5">' + typeBadge + '</td>' +
+            '<td class="px-3 py-2.5">' + actionCell + '</td>' +
+            '<td class="px-3 py-2.5 text-slate-600 whitespace-nowrap">' + insp.date + '</td>' +
+            '<td class="px-3 py-2.5 text-slate-600 whitespace-nowrap">' + (insp.inspector || '—') + '</td>' +
+            '<td class="px-3 py-2.5 text-slate-600 whitespace-nowrap">' + actorName + '</td>' +
+            '<td class="px-3 py-2.5 text-xs">' + (contentHtml || '<span class="text-slate-300">—</span>') + '</td>' +
+            '</tr>';
+        }).join('');
+
+        // 조치 버튼 이벤트 재연결
+        tbody.querySelectorAll('.action-register-trigger').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (typeof window.openActionRegister === 'function') {
+              window.openActionRegister({
+                id:     btn.dataset.inspectId,
+                type:   btn.dataset.inspectType,
+                date:   btn.dataset.inspectDate,
+                person: btn.dataset.inspectPerson,
+                note:   btn.dataset.inspectNote,
+              });
+            }
+          });
+        });
+      });
+  }
+  window.loadInspectionHistory = loadInspectionHistory;
 
   function closeDetailModal() {
     detailModal.classList.add('hidden');
@@ -341,11 +431,11 @@
   }
 
   function clearAllErrors() {
-    ['detail-type-error','detail-mac-error','detail-date-error','detail-dept-error','detail-manager-error','detail-comm-error','detail-status-error'].forEach(function(id) {
+    ['detail-type-error','detail-name-error','detail-mac-error','detail-dept-error','detail-manager-error','detail-comm-error','detail-status-error'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.classList.add('hidden');
     });
-    ['detail-device-type','detail-ip','detail-port','detail-mac','detail-install-date'].forEach(function(id) {
+    ['detail-device-type','detail-ip','detail-port','detail-device-name','detail-mac'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) { el.classList.remove('border-red-400'); el.classList.add('border-slate-200'); }
     });
@@ -423,14 +513,12 @@
     e.preventDefault();
     clearAllErrors();
     var valid = true;
-    if (!document.getElementById('detail-mac').value.trim()) {
-      showError('detail-mac-error', '장비 ID를 입력해 주세요.'); valid = false;
+
+    if (!document.getElementById('detail-device-name').value.trim()) {
+      showError('detail-name-error', '장비명을 입력해 주세요.', 'detail-device-name'); valid = false;
     }
-    var dv = document.getElementById('detail-install-date').value.trim();
-    if (!dv) {
-      showError('detail-date-error', '설치 일자를 입력해 주세요.'); valid = false;
-    } else if (!/^\d{4}\.\d{2}\.\d{2}$/.test(dv)) {
-      showError('detail-date-error', '날짜 형식이 올바르지 않습니다. (YYYY.MM.DD)'); valid = false;
+    if (!document.getElementById('detail-mac').value.trim()) {
+      showError('detail-mac-error', '장비 ID(MAC)를 입력해 주세요.', 'detail-mac'); valid = false;
     }
     if (!document.getElementById('detail-dept').value) {
       showError('detail-dept-error', '관리 부서를 선택해 주세요.'); valid = false;
@@ -445,9 +533,36 @@
       showError('detail-status-error', '사용 여부를 선택해 주세요.'); valid = false;
     }
     if (!valid) return;
-    closeDetailModal();
-    var sm = document.getElementById('gas-success-modal');
-    GAS.showSuccess();
+
+    var deviceId = window.currentDeviceId;
+    if (!deviceId) { alert('장비 정보를 찾을 수 없습니다.'); return; }
+
+    var fd = new FormData();
+    fd.append('device_name', document.getElementById('detail-device-name').value.trim());
+    fd.append('device_mac',  document.getElementById('detail-mac').value.trim());
+    fd.append('department',  document.getElementById('detail-dept').value);
+    fd.append('manager',     document.getElementById('detail-manager').value);
+    fd.append('ip',          document.getElementById('detail-ip').value.trim());
+    fd.append('port',        document.getElementById('detail-port').value.trim());
+    fd.append('is_active',   cbActive.checked ? 'true' : 'false');
+    fd.append('note',        document.getElementById('detail-note').value.trim());
+
+    fetch('/manager/gas/' + deviceId + '/edit/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': GAS.getCsrfToken() },
+      body: fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        closeDetailModal();
+        GAS.showSuccess('저장되었습니다.', '장비 정보가 수정되었습니다.');
+        setTimeout(function() { window.location.reload(); }, 1200);
+      } else {
+        alert(data.error || '저장에 실패했습니다.');
+      }
+    })
+    .catch(function() { alert('서버 오류가 발생했습니다.'); });
   });
 })();
 </script>

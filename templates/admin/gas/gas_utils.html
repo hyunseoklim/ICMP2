@@ -4,6 +4,16 @@ window.GAS = window.GAS || {};
 GAS.MANAGER_NAMES = { u1: '최점검', u2: '정운영', u3: '김민준', u4: '이서현' };
 GAS.DEVICE_TYPE_LABELS = { GAS: '유해가스 센서', PWR: '스마트 전력 시스템', LOC: '위치 노드' };
 
+GAS.getCsrfToken = function() {
+  var name = 'csrftoken';
+  var cookies = document.cookie.split(';');
+  for (var i = 0; i < cookies.length; i++) {
+    var c = cookies[i].trim();
+    if (c.startsWith(name + '=')) return decodeURIComponent(c.slice(name.length + 1));
+  }
+  return '';
+};
+
 GAS.todayStr = function() {
   var d = new Date();
   var pad = function(n) { return String(n).padStart(2, '0'); };

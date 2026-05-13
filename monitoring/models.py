@@ -4,8 +4,9 @@ from django.db import models
 class Device(models.Model):
 
     class DeviceType(models.TextChoices):
-        GAS = "gas", "유해가스 센서"
+        GAS   = "gas",   "유해가스 센서"
         POWER = "power", "스마트 파워 디바이스"
+        LOC   = "loc",   "위치 노드"
 
     class Status(models.TextChoices):
         ACTIVE = "active", "정상"

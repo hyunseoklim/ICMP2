@@ -5,277 +5,374 @@
       <i data-lucide="check" class="w-6 h-6 text-emerald-600"></i>
     </div>
     <p class="text-base font-semibold text-slate-900 mb-1">저장되었습니다.</p>
-    <p class="text-xs text-slate-500 mb-6">노드가 목록에 추가되었습니다.</p>
+    <p class="text-xs text-slate-500 mb-6">장비가 목록에 추가되었습니다.</p>
     <button type="button" id="nreg-success-confirm"
       class="w-full px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
-  </div>
-</div>
-
-<!-- Node Register Confirm Modal -->
-<div id="nreg-confirm-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] items-center justify-center p-4">
-  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm px-8 py-8 text-center">
-    <p class="text-base font-semibold text-slate-900 mb-1">저장하시겠습니까?</p>
-    <p class="text-xs text-slate-500 mb-6">입력한 정보를 저장하시겠습니까?</p>
-    <div class="flex gap-2">
-      <button type="button" id="nreg-confirm-cancel"
-        class="flex-1 px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
-      <button type="button" id="nreg-confirm-ok"
-        class="flex-1 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
-    </div>
   </div>
 </div>
 
 <!-- Node Register Modal -->
 <div id="node-register-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-
-    <!-- Header -->
-    <div class="flex items-start justify-between px-8 pt-7 pb-5">
-      <div>
+    <div class="px-8 py-7">
+      <div class="mb-6">
         <h3 class="text-xl font-bold text-slate-900 mb-1">장비 등록</h3>
-        <p class="text-xs text-slate-500">위치 노드 장비를 등록하고 데이터 수신 상태를 확인합니다.</p>
+        <p class="text-xs text-slate-500">현장 내 위치 노드 장비를 등록합니다.</p>
       </div>
-      <button type="button" id="nreg-close"
-        class="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors flex-shrink-0">
-        <i data-lucide="x" class="w-5 h-5"></i>
-      </button>
-    </div>
 
-    <!-- Form -->
-    <form id="node-register-form" novalidate class="px-8 pb-2">
-      <div class="space-y-4">
+      <form id="node-register-form" novalidate>
+        <div class="space-y-4">
 
-        <!-- Row 1: 노드 ID | 노드명 -->
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1.5">노드 ID <span class="text-red-500">*</span></label>
-            <select id="nreg-node-id"
-              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700">
-              <option value="">노드 ID 선택</option>
-              <option value="NODE-001">NODE-001</option>
-              <option value="NODE-002">NODE-002</option>
-              <option value="NODE-003">NODE-003</option>
-              <option value="NODE-004">NODE-004</option>
-              <option value="NODE-005">NODE-005</option>
-              <option value="NODE-006">NODE-006</option>
-              <option value="NODE-007">NODE-007</option>
-              <option value="NODE-008">NODE-008</option>
-              <option value="NODE-009">NODE-009</option>
-              <option value="NODE-010">NODE-010</option>
-            </select>
-            <p class="hidden mt-1 text-[11px] text-red-500" id="nreg-node-id-error">노드 ID를 선택해주세요.</p>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1.5">노드명 <span class="text-red-500">*</span></label>
-            <input type="text" id="nreg-node-name" placeholder="위치 노드명 입력"
-              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
-            <p class="hidden mt-1 text-[11px] text-red-500" id="nreg-node-name-error">노드명을 입력해주세요.</p>
-          </div>
-        </div>
-
-        <!-- Row 2: 장비 식별값 | 통신 방식 -->
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 식별값</label>
-            <input type="text" id="nreg-device-id" placeholder="장비 식별값 입력"
-              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1.5">통신 방식</label>
-            <input type="text" id="nreg-comm-type" placeholder="LTE"
-              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
-          </div>
-        </div>
-
-        <!-- Row 3: 설치 구역 | 관리 담당자 -->
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1.5">설치 구역 <span class="text-red-500">*</span></label>
-            <select id="nreg-zone"
-              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700">
-              <option value="">설치 구역 선택</option>
-              <option value="zone1">1공장 중앙 통로</option>
-              <option value="zone2">1공장 입구</option>
-              <option value="zone3">2공장 중앙 통로</option>
-              <option value="zone4">2공장 입구</option>
-              <option value="zone5">창고 A</option>
-              <option value="zone6">창고 B</option>
-              <option value="zone7">사무동 1층</option>
-              <option value="zone8">사무동 2층</option>
-            </select>
-            <p class="hidden mt-1 text-[11px] text-red-500" id="nreg-zone-manager-error">설치 구역과 관리 담당자를 선택해주세요.</p>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1.5">관리 담당자 <span class="text-red-500">*</span></label>
-            <select id="nreg-manager"
-              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700">
-              <option value="">담당자 선택</option>
-              <option value="m1">최점검</option>
-              <option value="m2">정운영</option>
-              <option value="m3">박관리</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Row 4: 마지막 데이터 수신 + 통신 확인 + 연결 상태 | 사용 여부 + 비고 -->
-        <div class="grid grid-cols-2 gap-4">
-          <!-- Left: 마지막 데이터 수신 / 통신 확인 -->
-          <div class="space-y-3">
+          <!-- 장비 유형 / 장비 코드 -->
+          <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">마지막 데이터 수신</label>
-              <input type="text" id="nreg-last-recv" disabled
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
-              <p class="hidden mt-1 text-[11px] text-emerald-600" id="nreg-recv-msg">최근 수신 데이터가 확인되었습니다.</p>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 유형 <span class="text-red-500">*</span></label>
+              <select id="nreg-device-type"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-500 transition-colors">
+                <option value="">장비 유형 선택</option>
+                <option value="GAS">유해가스 센서</option>
+                <option value="PWR">스마트 전력 시스템</option>
+                <option value="LOC" selected>위치 노드</option>
+              </select>
+              <p class="hidden mt-1 text-[11px] text-red-500" id="nreg-type-error">장비 유형을 선택해주세요.</p>
             </div>
-            <button type="button" id="nreg-comm-check"
-              class="px-4 py-2 text-xs font-medium border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition-colors">
-              통신 확인
-            </button>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 코드 <span class="text-red-500">*</span></label>
+              <input type="text" id="nreg-device-code" disabled
+                placeholder="장비 유형 선택 후 자동 생성"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 placeholder-slate-400 font-mono cursor-not-allowed" />
+            </div>
           </div>
 
-          <!-- Right: 사용 여부 + 연결 상태 + 비고 -->
-          <div class="flex flex-col gap-3">
+          <!-- 장비명 / 장비 ID(MAC) -->
+          <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부</label>
-              <div class="flex items-center gap-5 pt-1.5">
-                <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
-                  <input type="checkbox" id="nreg-status-active"
-                    class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />사용
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
-                  <input type="checkbox" id="nreg-status-inactive"
-                    class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />미사용
-                </label>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명 <span class="text-red-500">*</span></label>
+              <input type="text" id="nreg-device-name"
+                placeholder="장비 유형 선택 시 자동 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="nreg-name-error"></p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 ID(MAC) <span class="text-red-500">*</span></label>
+              <input type="text" id="nreg-device-mac"
+                placeholder="장비 ID(MAC) 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="nreg-mac-error"></p>
+            </div>
+          </div>
+
+          <!-- 관리 부서 / 관리 담당자 -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">관리 부서 <span class="text-red-500">*</span></label>
+              <select id="nreg-dept"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-500">
+                <option value="">부서 선택</option>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}">{{ dept.name }}</option>
+                {% endfor %}
+              </select>
+              <p class="hidden mt-1 text-[11px] text-red-500" id="nreg-dept-error">관리 부서를 선택해 주세요.</p>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">관리 담당자 <span class="text-red-500">*</span></label>
+              <select id="nreg-manager"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-500">
+                <option value="">담당자 선택</option>
+                {% for user in managers %}
+                <option value="{{ user.id }}">{{ user.name }}</option>
+                {% endfor %}
+              </select>
+              <p class="hidden mt-1 text-[11px] text-red-500" id="nreg-manager-error">관리 담당자를 선택해 주세요.</p>
+            </div>
+          </div>
+
+          <!-- 장비 통신 IP/PORT / 사용 여부 + 연결 확인 -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 통신 IP / PORT <span class="text-red-500">*</span></label>
+              <input type="text" id="nreg-ip"
+                placeholder="IP 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 mb-2" />
+              <input type="text" id="nreg-port"
+                placeholder="PORT 입력"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <p class="hidden mt-1 text-[11px] text-red-500" id="nreg-comm-error"></p>
+              <button type="button" id="nreg-comm-check"
+                class="mt-2 px-4 py-2 text-xs font-medium border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition-colors">
+                연결 확인
+              </button>
+            </div>
+            <div class="flex flex-col gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
+                <div class="flex items-center gap-5 pt-1">
+                  <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                    <input type="checkbox" id="nreg-status-active" checked
+                      class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />사용
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                    <input type="checkbox" id="nreg-status-inactive"
+                      class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />미사용
+                  </label>
+                </div>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="nreg-status-error">사용 여부를 선택해 주세요.</p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 확인 상태 / 마지막 확인일시 <span class="text-red-500">*</span></label>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" id="nreg-conn-verified" disabled
+                    class="w-4 h-4 rounded border-slate-300 flex-shrink-0" />
+                  <input type="text" id="nreg-conn-date" disabled
+                    placeholder="통신 확인 후 표시"
+                    class="flex-1 px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-500 placeholder-slate-400 cursor-not-allowed" />
+                </div>
               </div>
             </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 상태</label>
-              <input type="text" id="nreg-conn-state" disabled
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
-            </div>
-            <div class="flex-1">
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">비고</label>
-              <textarea id="nreg-note" rows="4"
-                placeholder="작업자 위치 측위 및 자동 알람 생성 기준으로 사용하는 위치 노드 장비입니다."
-                class="w-full h-full min-h-[100px] px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 resize-none"></textarea>
-            </div>
           </div>
+
+          <!-- 비고 -->
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">비고</label>
+            <textarea id="nreg-note" rows="3" placeholder="운영 메모를 입력하세요"
+              class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 resize-none"></textarea>
+          </div>
+
         </div>
 
-      </div>
-    </form>
-
-    <!-- Footer -->
-    <div class="flex items-center justify-end gap-2 px-8 py-5 border-t border-slate-100 mt-4">
-      <button type="button" id="nreg-cancel"
-        class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-        취소
-      </button>
-      <button type="submit" form="node-register-form" id="nreg-submit"
-        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
-        저장
-      </button>
+        <div class="flex items-center justify-end gap-2 mt-6">
+          <button type="button" id="nreg-cancel"
+            class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+            취소
+          </button>
+          <button type="submit"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
+            저장
+          </button>
+        </div>
+      </form>
     </div>
-
   </div>
 </div>
 
 <script>
 (function() {
   var modal        = document.getElementById('node-register-modal');
-  var confirmModal = document.getElementById('nreg-confirm-modal');
   var successModal = document.getElementById('nreg-success-modal');
+  var commChecked  = false;
 
-  var NODE_PRESETS = {
-    'NODE-001': { name: '위치 노드 1호', commType: 'LTE', lastRecv: '2026-04-12 14:12:26', connState: '연결 끊김' },
-    'NODE-002': { name: '위치 노드 2호', commType: 'LTE', lastRecv: '2026-04-12 14:11:58', connState: '정상' },
-    'NODE-003': { name: '위치 노드 3호', commType: 'LTE', lastRecv: '2026-04-12 14:11:41', connState: '정상' },
-    'NODE-004': { name: '위치 노드 4호', commType: 'Wi-Fi', lastRecv: '2026-04-12 14:10:32', connState: '정상' },
-    'NODE-005': { name: '위치 노드 5호', commType: 'Wi-Fi', lastRecv: '2026-04-12 14:09:57', connState: '정상' },
-    'NODE-006': { name: '위치 노드 6호', commType: 'LTE',  lastRecv: '',                    connState: '' },
-    'NODE-007': { name: '위치 노드 7호', commType: 'LTE',  lastRecv: '2026-04-12 14:12:26', connState: '정상' },
-    'NODE-008': { name: '위치 노드 8호', commType: 'LTE',  lastRecv: '2026-04-10 09:22:31', connState: '정상' },
-    'NODE-009': { name: '위치 노드 9호', commType: 'Wi-Fi', lastRecv: '2026-04-10 09:18:44', connState: '정상' },
-    'NODE-010': { name: '위치 노드 10호', commType: 'LTE', lastRecv: '2026-04-09 16:45:12', connState: '연결 끊김' }
+  var TYPE_CODES = {
+    GAS: '{{ next_gas_code|default:"GAS-001" }}',
+    PWR: '{{ next_pwr_code|default:"PWR-001" }}',
+    LOC: '{{ next_loc_code|default:"LOC-001" }}',
   };
+  var TYPE_NAMES = { GAS: '유해가스 센서', PWR: '스마트 전력 시스템', LOC: '위치 노드' };
 
-  // 노드 ID 선택 시 기본값 자동 설정
-  document.getElementById('nreg-node-id')?.addEventListener('change', function() {
-    var preset = NODE_PRESETS[this.value];
-    if (preset) {
-      document.getElementById('nreg-node-name').value  = preset.name;
-      document.getElementById('nreg-comm-type').value  = preset.commType;
-      document.getElementById('nreg-last-recv').value  = preset.lastRecv;
-      document.getElementById('nreg-conn-state').value = preset.connState;
-      document.getElementById('nreg-recv-msg').classList.add('hidden');
-    } else {
-      document.getElementById('nreg-node-name').value  = '';
-      document.getElementById('nreg-comm-type').value  = '';
-      document.getElementById('nreg-last-recv').value  = '';
-      document.getElementById('nreg-conn-state').value = '';
-      document.getElementById('nreg-recv-msg').classList.add('hidden');
-    }
-    clearErrors();
-  });
+  function getCsrf() {
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
 
-  // 사용 여부 상호 배타
-  var cbActive   = document.getElementById('nreg-status-active');
-  var cbInactive = document.getElementById('nreg-status-inactive');
-  cbActive?.addEventListener('change',   function() { if (cbActive.checked)   cbInactive.checked = false; });
-  cbInactive?.addEventListener('change', function() { if (cbInactive.checked) cbActive.checked   = false; });
-
-  // 통신 확인
-  document.getElementById('nreg-comm-check')?.addEventListener('click', function() {
-    var lastRecv = document.getElementById('nreg-last-recv').value;
-    if (lastRecv) {
-      document.getElementById('nreg-recv-msg').classList.remove('hidden');
-      document.getElementById('nreg-conn-state').value = '정상';
-    }
-  });
-
-  function clearErrors() {
-    ['nreg-node-id-error','nreg-node-name-error','nreg-zone-manager-error'].forEach(function(id) {
+  function clearAllErrors() {
+    ['nreg-type-error','nreg-name-error','nreg-mac-error','nreg-dept-error','nreg-manager-error','nreg-comm-error','nreg-status-error'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.classList.add('hidden');
     });
-    ['nreg-node-id','nreg-node-name','nreg-zone','nreg-manager'].forEach(function(id) {
+    ['nreg-device-type','nreg-device-name','nreg-device-mac','nreg-dept','nreg-manager','nreg-ip','nreg-port'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) { el.classList.remove('border-red-400'); el.classList.add('border-slate-200'); }
     });
   }
 
-  function showError(errId, msg, fieldIds) {
-    var e = document.getElementById(errId);
-    if (e) { e.textContent = msg; e.classList.remove('hidden'); }
-    (fieldIds || []).forEach(function(id) {
-      var f = document.getElementById(id);
-      if (f) { f.classList.add('border-red-400'); f.classList.remove('border-slate-200'); }
-    });
+  function showError(errId, msg, fieldId) {
+    var errEl = document.getElementById(errId);
+    if (errEl) { errEl.textContent = msg; errEl.classList.remove('hidden'); }
+    if (fieldId) {
+      var fEl = document.getElementById(fieldId);
+      if (fEl) { fEl.classList.add('border-red-400'); fEl.classList.remove('border-slate-200'); }
+    }
   }
 
-  function validate() {
-    clearErrors();
-    var valid = true;
-    if (!document.getElementById('nreg-node-id').value) {
-      showError('nreg-node-id-error', '노드 ID를 선택해주세요.', ['nreg-node-id']); valid = false;
+  function hideError(errId, fieldId) {
+    var errEl = document.getElementById(errId);
+    if (errEl) errEl.classList.add('hidden');
+    if (fieldId) {
+      var fEl = document.getElementById(fieldId);
+      if (fEl) { fEl.classList.remove('border-red-400'); fEl.classList.add('border-slate-200'); }
     }
-    if (!document.getElementById('nreg-node-name').value.trim()) {
-      showError('nreg-node-name-error', '노드명을 입력해주세요.', ['nreg-node-name']); valid = false;
-    }
-    var zone    = document.getElementById('nreg-zone').value;
-    var manager = document.getElementById('nreg-manager').value;
-    if (!zone || !manager) {
-      showError('nreg-zone-manager-error', '설치 구역과 관리 담당자를 선택해주세요.', ['nreg-zone', 'nreg-manager']); valid = false;
-    }
-    return valid;
   }
 
   function resetForm() {
     document.getElementById('node-register-form').reset();
-    document.getElementById('nreg-last-recv').value  = '';
-    document.getElementById('nreg-conn-state').value = '';
-    document.getElementById('nreg-recv-msg').classList.add('hidden');
-    clearErrors();
+    document.getElementById('nreg-device-code').value  = '';
+    document.getElementById('nreg-conn-verified').checked = false;
+    document.getElementById('nreg-conn-date').value    = '';
+    commChecked = false;
+    clearAllErrors();
+    document.getElementById('nreg-status-active').checked   = true;
+    document.getElementById('nreg-status-inactive').checked = false;
+    // LOC 기본 코드 자동 세팅
+    document.getElementById('nreg-device-code').value      = TYPE_CODES['LOC'];
+    document.getElementById('nreg-device-name').placeholder = TYPE_NAMES['LOC'];
+  }
+
+  // 장비 유형 선택 → 코드 자동 생성
+  document.getElementById('nreg-device-type')?.addEventListener('change', function() {
+    var val     = this.value;
+    var codeEl  = document.getElementById('nreg-device-code');
+    var nameEl  = document.getElementById('nreg-device-name');
+    if (val && TYPE_CODES[val]) {
+      codeEl.value        = TYPE_CODES[val];
+      nameEl.placeholder  = TYPE_NAMES[val];
+      hideError('nreg-type-error', 'nreg-device-type');
+    } else {
+      codeEl.value       = '';
+      nameEl.placeholder = '장비 유형 선택 시 자동 입력';
+    }
+    commChecked = false;
+    document.getElementById('nreg-conn-verified').checked = false;
+    document.getElementById('nreg-conn-date').value = '';
+  });
+
+  // 사용/미사용 단일 선택
+  var cbActive   = document.getElementById('nreg-status-active');
+  var cbInactive = document.getElementById('nreg-status-inactive');
+  cbActive?.addEventListener('change',   function() { if (cbActive.checked)   cbInactive.checked = false; });
+  cbInactive?.addEventListener('change', function() { if (cbInactive.checked) cbActive.checked   = false; });
+
+  // 연결 확인 버튼
+  document.getElementById('nreg-comm-check')?.addEventListener('click', function() {
+    var ip   = document.getElementById('nreg-ip').value.trim();
+    var port = document.getElementById('nreg-port').value.trim();
+
+    if (!ip) {
+      showError('nreg-comm-error', 'IP 주소를 입력해 주세요.', 'nreg-ip'); return;
+    }
+    var ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipRegex.test(ip) || ip.split('.').some(function(n) { return parseInt(n) > 255; })) {
+      showError('nreg-comm-error', 'IP 주소 형식이 올바르지 않습니다.', 'nreg-ip'); return;
+    }
+    hideError('nreg-comm-error', 'nreg-ip');
+
+    if (!port) {
+      showError('nreg-comm-error', '포트 번호를 입력해 주세요.', 'nreg-port'); return;
+    }
+    if (!/^\d+$/.test(port)) {
+      showError('nreg-comm-error', '포트 번호 형식이 올바르지 않습니다.', 'nreg-port'); return;
+    }
+    var portNum = parseInt(port);
+    if (portNum < 1 || portNum > 65535) {
+      showError('nreg-comm-error', '포트 번호는 1~65535 범위로 입력해 주세요.', 'nreg-port'); return;
+    }
+    hideError('nreg-comm-error', 'nreg-port');
+
+    commChecked = true;
+    document.getElementById('nreg-conn-verified').checked = true;
+    var now = new Date();
+    var pad = function(n) { return String(n).padStart(2, '0'); };
+    document.getElementById('nreg-conn-date').value =
+      now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) + ' ' +
+      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+  });
+
+  // 폼 제출 유효성 검사
+  document.getElementById('node-register-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    clearAllErrors();
+    var valid = true;
+
+    // 장비 유형
+    if (!document.getElementById('nreg-device-type').value) {
+      showError('nreg-type-error', '장비 유형을 선택해주세요.', 'nreg-device-type'); valid = false;
+    }
+
+    // 장비명
+    var nameVal = document.getElementById('nreg-device-name').value.trim();
+    if (!nameVal) {
+      showError('nreg-name-error', '장비명을 입력해 주세요.', 'nreg-device-name'); valid = false;
+    } else if (nameVal.length > 50) {
+      showError('nreg-name-error', '장비명은 50자 이내로 입력해 주세요.', 'nreg-device-name'); valid = false;
+    }
+
+    // 장비 ID(MAC)
+    var macVal = document.getElementById('nreg-device-mac').value.trim();
+    if (!macVal) {
+      showError('nreg-mac-error', '장비 ID를 입력해 주세요.', 'nreg-device-mac'); valid = false;
+    } else if (!/^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$/.test(macVal)) {
+      showError('nreg-mac-error', '장비 ID 형식이 올바르지 않습니다.', 'nreg-device-mac'); valid = false;
+    }
+
+    // 관리 부서
+    if (!document.getElementById('nreg-dept').value) {
+      showError('nreg-dept-error', '관리 부서를 선택해 주세요.', 'nreg-dept'); valid = false;
+    }
+
+    // 관리 담당자
+    if (!document.getElementById('nreg-manager').value) {
+      showError('nreg-manager-error', '관리 담당자를 선택해 주세요.', 'nreg-manager'); valid = false;
+    }
+
+    // 통신 IP/PORT
+    var ipVal = document.getElementById('nreg-ip').value.trim();
+    if (!ipVal) {
+      showError('nreg-comm-error', 'IP 주소를 입력해 주세요.', 'nreg-ip'); valid = false;
+    } else {
+      var portVal = document.getElementById('nreg-port').value.trim();
+      if (!portVal) {
+        showError('nreg-comm-error', '포트 번호를 입력해 주세요.', 'nreg-port'); valid = false;
+      }
+    }
+
+    // 연결 확인
+    if (valid && !commChecked) {
+      showError('nreg-comm-error', '저장 전에 연결 확인이 필요합니다.'); valid = false;
+    }
+
+    // 사용 여부
+    if (!cbActive.checked && !cbInactive.checked) {
+      showError('nreg-status-error', '사용 여부를 선택해 주세요.'); valid = false;
+    }
+
+    if (!valid) return;
+
+    var fd = new FormData();
+    fd.append('device_type', document.getElementById('nreg-device-type').value);
+    fd.append('device_name', nameVal);
+    fd.append('device_mac',  macVal);
+    fd.append('department',  document.getElementById('nreg-dept').value);
+    fd.append('manager',     document.getElementById('nreg-manager').value);
+    fd.append('ip',          document.getElementById('nreg-ip').value.trim());
+    fd.append('port',        document.getElementById('nreg-port').value.trim());
+    fd.append('is_active',   cbActive.checked ? 'true' : 'false');
+    fd.append('note',        document.getElementById('nreg-note').value.trim());
+
+    fetch('{% url "gas_create" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        closeModal();
+        successModal.classList.remove('hidden');
+        successModal.classList.add('flex');
+        lucide.createIcons();
+      } else {
+        if (data.error && data.error.includes('이미 등록된')) {
+          showError('nreg-mac-error', '이미 등록된 장비 ID입니다.', 'nreg-device-mac');
+        } else {
+          alert(data.error || '등록에 실패했습니다.');
+        }
+      }
+    })
+    .catch(function() { alert('서버 오류가 발생했습니다.'); });
+  });
+
+  function closeModal() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
   }
 
   window.openNodeRegisterModal = function() {
@@ -285,38 +382,19 @@
     lucide.createIcons();
   };
 
-  function closeModal() {
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-  }
-
   document.getElementById('nreg-close')?.addEventListener('click', closeModal);
   document.getElementById('nreg-cancel')?.addEventListener('click', closeModal);
-
-  document.getElementById('node-register-form')?.addEventListener('submit', function(e) {
-    e.preventDefault();
-    if (!validate()) return;
-    confirmModal.classList.remove('hidden');
-    confirmModal.classList.add('flex');
-  });
-
-  document.getElementById('nreg-confirm-cancel')?.addEventListener('click', function() {
-    confirmModal.classList.add('hidden');
-    confirmModal.classList.remove('flex');
-  });
-
-  document.getElementById('nreg-confirm-ok')?.addEventListener('click', function() {
-    confirmModal.classList.add('hidden');
-    confirmModal.classList.remove('flex');
-    closeModal();
-    successModal.classList.remove('hidden');
-    successModal.classList.add('flex');
-    lucide.createIcons();
-  });
 
   document.getElementById('nreg-success-confirm')?.addEventListener('click', function() {
     successModal.classList.add('hidden');
     successModal.classList.remove('flex');
+    location.reload();
   });
+
+  // 페이지 로드 시 LOC 코드 기본 세팅
+  (function initDefault() {
+    document.getElementById('nreg-device-code').value      = TYPE_CODES['LOC'];
+    document.getElementById('nreg-device-name').placeholder = TYPE_NAMES['LOC'];
+  })();
 })();
 </script>

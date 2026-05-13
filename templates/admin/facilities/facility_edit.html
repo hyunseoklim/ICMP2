@@ -6,7 +6,9 @@
         <p class="text-xs text-slate-500">등록된 설비 정보를 수정하는 팝업입니다.</p>
       </div>
 
-      <form id="facility-edit-form" novalidate>
+      <form id="facility-edit-form" method="post" action="" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="status" id="edit-status-value" value="active" />
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -36,16 +38,9 @@
                   <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="edit-ps-chevron"></i>
                 </button>
                 <div id="edit-ps-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-50 overflow-y-auto" style="max-height:180px;">
-                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-01">PWR-SYS-01</button>
-                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-02">PWR-SYS-02</button>
-                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-03">PWR-SYS-03</button>
-                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-04">PWR-SYS-04</button>
-                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-05">PWR-SYS-05</button>
-                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-06">PWR-SYS-06</button>
-                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-07">PWR-SYS-07</button>
-                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-08">PWR-SYS-08</button>
-                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-09">PWR-SYS-09</button>
-                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="PWR-SYS-10">PWR-SYS-10</button>
+                  {% for ps in all_possible_power_systems %}
+                  <button type="button" class="edit-ps-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50" data-value="{{ ps }}">{{ ps }}</button>
+                  {% endfor %}
                 </div>
                 <input type="hidden" id="edit-ps-value" name="power_system" />
               </div>
@@ -90,24 +85,41 @@
 <script>
 (function() {
   var editModal = document.getElementById('facility-edit-modal');
+  var ASSIGNED_PS = window.ASSIGNED_PS || [];
 
   function openEditModal(data) {
     document.getElementById('edit-equipment-code').value = data.code;
     document.getElementById('edit-equipment-name').value = data.name;
     document.getElementById('edit-note').value = data.note || '';
-    document.getElementById('edit-status-active').checked   = (data.status === 'active');
-    document.getElementById('edit-status-inactive').checked = (data.status !== 'active');
+    var isActive = (data.status === 'active');
+    document.getElementById('edit-status-active').checked   = isActive;
+    document.getElementById('edit-status-inactive').checked = !isActive;
+    document.getElementById('edit-status-value').value      = isActive ? 'active' : 'inactive';
+    document.getElementById('facility-edit-form').action = `/manager/facilities/${data.pk}/edit/`;
+
+    // 타 설비에 연결된 전력 시스템은 목록에서 제외, 현재 설비 것은 항상 표시
+    var currentPs = data.system || '';
+    document.querySelectorAll('.edit-ps-option').forEach(function(b) {
+      var val = b.dataset.value;
+      var takenByOther = ASSIGNED_PS.includes(val) && val !== currentPs;
+      if (takenByOther) {
+        b.classList.add('hidden');
+      } else {
+        b.classList.remove('hidden');
+        b.disabled = false;
+      }
+    });
 
     var editPsLabel = document.getElementById('edit-ps-label');
     var editPsValue = document.getElementById('edit-ps-value');
-    if (data.system) {
-      editPsLabel.textContent = data.system;
+    if (currentPs) {
+      editPsLabel.textContent = currentPs;
       editPsLabel.classList.remove('text-slate-400');
       editPsLabel.classList.add('text-slate-900');
-      editPsValue.value = data.system;
+      editPsValue.value = currentPs;
       document.querySelectorAll('.edit-ps-option').forEach(function(b) {
-        b.classList.toggle('bg-blue-50', b.dataset.value === data.system);
-        b.classList.toggle('text-blue-700', b.dataset.value === data.system);
+        b.classList.toggle('bg-blue-50', b.dataset.value === currentPs);
+        b.classList.toggle('text-blue-700', b.dataset.value === currentPs);
       });
     } else {
       editPsLabel.textContent = '선택';
@@ -170,11 +182,14 @@
 
   var editCbActive   = document.getElementById('edit-status-active');
   var editCbInactive = document.getElementById('edit-status-inactive');
-  editCbActive?.addEventListener('change', function() { if (editCbActive.checked) editCbInactive.checked = false; });
-  editCbInactive?.addEventListener('change', function() { if (editCbInactive.checked) editCbActive.checked = false; });
+  editCbActive?.addEventListener('change', function() {
+    if (editCbActive.checked) { editCbInactive.checked = false; document.getElementById('edit-status-value').value = 'active'; }
+  });
+  editCbInactive?.addEventListener('change', function() {
+    if (editCbInactive.checked) { editCbActive.checked = false; document.getElementById('edit-status-value').value = 'inactive'; }
+  });
 
   document.getElementById('facility-edit-form')?.addEventListener('submit', function(e) {
-    e.preventDefault();
     var valid = true;
     if (!document.getElementById('edit-equipment-name').value.trim()) {
       document.getElementById('edit-name-error').classList.remove('hidden');
@@ -188,8 +203,8 @@
     } else {
       document.getElementById('edit-ps-error').classList.add('hidden');
     }
-    if (!valid) return;
-    closeEditModal();
+    if (!valid) { e.preventDefault(); return; }
+    // valid → 실제 POST 제출
   });
 })();
 </script>
