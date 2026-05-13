@@ -24,22 +24,32 @@ urlpatterns = [
     # 공통 코드 관리
     path('codes/', views.code_list, name='code_list'),
     path('codes/group/create/', views.code_group_create, name='code_group_create'),
-    path('codes/group/edit/', views.code_group_edit, name='code_group_edit'),
+    path('codes/group/<str:group_code>/edit/', views.code_group_edit, name='code_group_edit'),
     path('codes/value/create/', views.code_value_create, name='code_value_create'),
-    path('codes/value/edit/', views.code_value_edit, name='code_value_edit'),
+    path('codes/value/<int:pk>/edit/', views.code_value_edit, name='code_value_edit'),
+    path('codes/value/delete/', views.code_value_delete, name='code_value_delete'),
 
     # 위험 유형 관리
     path('risks/', views.risk_list, name='risk_list'),
     path('risks/create/', views.risk_create, name='risk_create'),
-    path('risks/edit/', views.risk_edit, name='risk_edit'),
+    path('risks/<int:pk>/edit/', views.risk_edit, name='risk_edit'),
     path('risks/group/create/', views.risk_group_create, name='risk_group_create'),
-    path('risks/group/edit/', views.risk_group_edit, name='risk_group_edit'),
+    path('risks/group/<str:group_code>/edit/', views.risk_group_edit, name='risk_group_edit'),
+    path('risks/delete/', views.risk_delete, name='risk_delete'),
 
     # 위험 기준 관리
     path('risk-criteria/', views.risk_criteria_list, name='risk_criteria_list'),
+    path('risk-criteria/create/', views.risk_criteria_create, name='risk_criteria_create'),
+    path('risk-criteria/<int:pk>/edit/', views.risk_criteria_edit, name='risk_criteria_edit'),
+    path('risk-criteria/delete/', views.risk_criteria_delete, name='risk_criteria_delete'),
 
     # 임계치 기준 관리
     path('thresholds/', views.threshold_list, name='threshold_list'),
+    path('thresholds/group/create/', views.threshold_group_create, name='threshold_group_create'),
+    path('thresholds/group/<str:cat_code>/edit/', views.threshold_group_edit, name='threshold_group_edit'),
+    path('thresholds/create/', views.threshold_create, name='threshold_create'),
+    path('thresholds/<int:pk>/edit/', views.threshold_edit, name='threshold_edit'),
+    path('thresholds/delete/', views.threshold_delete, name='threshold_delete'),
 
     # 안전 확인 관리
     path('safety-checklist/', views.safety_checklist_list, name='safety_checklist_list'),
@@ -55,10 +65,17 @@ urlpatterns = [
 
     # 데이터 관리
     path('data/gas/', views.gas_data_list, name='gas_data_list'),
+    path('data/gas/export/', views.gas_data_export, name='gas_data_export'),
     path('data/power/', views.power_data_list, name='power_data_list'),
+    path('data/power/export/', views.power_data_export, name='power_data_export'),
     path('data/node/', views.node_data_list, name='node_data_list'),
+    path('data/node/export/', views.node_data_export, name='node_data_export'),
     path('data/worker/', views.worker_data_list, name='worker_data_list'),
+    path('data/worker/export/', views.worker_data_export, name='worker_data_export'),
     path('data/retention/', views.retention_list, name='retention_list'),
+    path('data/retention/create/', views.retention_create, name='retention_create'),
+    path('data/retention/<int:pk>/update/', views.retention_update, name='retention_update'),
+    path('data/retention/delete/', views.retention_delete, name='retention_delete'),
 
     # 공지사항 관리
     path('notice/', views.notice_list, name='notice_list'),

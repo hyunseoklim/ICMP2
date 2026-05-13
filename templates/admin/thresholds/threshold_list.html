@@ -1,4 +1,5 @@
 {% extends 'admin/base_manage.html' %}
+{% load static %}
 
 {% block title %}임계치 기준 관리 | 산재 예방 통합 관제 시스템{% endblock %}
 
@@ -14,630 +15,569 @@
     <h2 class="text-2xl font-bold text-slate-900 mb-1">임계치 기준 관리</h2>
     <p class="text-sm text-slate-500">가스/전력 데이터의 임계치 기준을 관리합니다.</p>
   </div>
-  <button onclick="openGroupCreateModal()" class="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 flex items-center gap-1.5">
-    <i data-lucide="plus" class="w-4 h-4"></i>
-    기준 분류 등록
+  <button onclick="openGroupCreateModal()"
+          class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-1.5">
+    <i data-lucide="plus" class="w-4 h-4"></i> 기준 분류 등록
   </button>
 </div>
 {% endblock %}
 
 {% block content %}
 {% include 'admin/_reference_tabs.html' with active_tab='threshold' %}
-<!-- 2단 레이아웃 -->
 <div class="grid grid-cols-12 gap-4">
 
-  <!-- ===== 좌측: 기준 분류 그룹 카드 ===== -->
-  <section class="col-span-4 bg-white rounded-xl border border-slate-200 p-6 flex flex-col">
-    <h3 class="text-base font-bold text-slate-900 mb-1">기준 분류 그룹</h3>
-    <p class="text-xs text-slate-500 mb-4">분류를 선택하면 우측에서 위험 유형과 반영 위치를 확인할 수 있습니다.</p>
-
-    <div class="flex items-center gap-2 mb-4">
-      <div class="relative flex-1">
-        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-        <input type="text" placeholder="그룹명 검색"
-               class="w-full pl-9 pr-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
-      </div>
-      <button class="px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-        검색
-      </button>
+  <!-- 좌측: 기준 분류 그룹 -->
+  <section class="col-span-4 bg-white rounded-xl border border-slate-200 p-6 flex flex-col gap-3 self-stretch">
+    <div>
+      <h3 class="text-base font-bold text-slate-900 mb-1">기준 분류 그룹</h3>
+      <p class="text-xs text-slate-500">분류를 선택하면 우측에서 임계치 기준을 확인할 수 있습니다.</p>
     </div>
 
-    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex flex-col">
-      <div class="flex-1 max-h-[480px] overflow-y-auto custom-scroll">
-        <div class="px-4 py-3.5 bg-blue-50 border border-blue-300 m-1.5 rounded-md flex items-center justify-between cursor-pointer">
-          <span class="text-sm font-medium text-blue-700">유해가스</span>
-          <span class="text-xs font-mono text-blue-600">TH_GAS</span>
-        </div>
-        <div class="px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between border-b border-slate-100">
-          <span class="text-sm text-slate-700">전력</span>
-          <span class="text-xs font-mono text-slate-500">TH_POWER</span>
-        </div>
-        <div class="px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between border-b border-slate-100">
-          <span class="text-sm text-slate-700">AI 예측</span>
-          <span class="text-xs font-mono text-slate-500">TH_AI</span>
-        </div>
-        <div class="px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between">
-          <span class="text-sm text-slate-700">공통 기준</span>
-          <span class="text-xs font-mono text-slate-500">TH_COMMON</span>
-        </div>
+    <!-- 분류 검색 -->
+    <form method="get" class="flex items-center gap-2 mb-4">
+      <input type="hidden" name="category" value="{{ selected_category }}">
+      <div class="relative flex-1">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input type="text" name="cat_search" value="{{ cat_search }}" placeholder="분류명 검색"
+               class="w-full pl-9 pr-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
+      </div>
+      <button type="submit" class="px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">검색</button>
+    </form>
+
+    <div class="flex-1 min-h-0 border border-slate-200 rounded-lg overflow-hidden flex flex-col">
+      <div class="flex-1 min-h-0 overflow-y-auto custom-scroll">
+        {% for cat in categories %}
+          <a href="?category={{ cat.code }}"
+             class="px-4 py-3.5 flex items-center justify-between cursor-pointer border-b border-slate-100
+                    {% if cat.code == selected_category %}bg-blue-50 border border-blue-300 m-1.5 rounded-md{% else %}hover:bg-slate-50{% endif %}">
+            <span class="text-sm {% if cat.code == selected_category %}font-medium text-blue-700{% else %}text-slate-700{% endif %}">{{ cat.code_name }}</span>
+            <span class="text-xs font-mono {% if cat.code == selected_category %}text-blue-600{% else %}text-slate-500{% endif %}">{{ cat.code }}</span>
+          </a>
+        {% empty %}
+          <div class="px-4 py-6 text-center text-sm text-slate-400">분류가 없습니다.</div>
+        {% endfor %}
       </div>
 
       <div class="border-t border-slate-200 p-3 bg-slate-50/50 flex justify-end">
-        <button onclick="openGroupEditModal()" class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-          수정
-        </button>
+        {% if categories %}
+          <button type="button" onclick="openGroupEditModal('{{ selected_category }}')"
+                  class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">수정</button>
+        {% else %}
+          <button disabled class="px-6 py-2 bg-slate-200 text-slate-400 text-sm font-medium rounded-md cursor-not-allowed">수정</button>
+        {% endif %}
       </div>
     </div>
   </section>
 
-  <!-- ===== 우측: 그룹 정보 + 임계치 기준 목록 ===== -->
+  <!-- 우측: 그룹 정보 + 임계치 목록 -->
   <div class="col-span-8 flex flex-col gap-4">
 
+    <!-- 그룹 정보 -->
     <section class="bg-white rounded-xl border border-slate-200 p-6">
       <div class="flex items-center justify-between mb-5">
         <h3 class="text-base font-bold text-slate-900">그룹 정보</h3>
         <span class="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-200">
-          선택 분류: <span class="font-bold">TH_GAS</span>
+          선택 분류: <span class="font-bold">{{ selected_category }}</span>
         </span>
       </div>
       <div class="grid grid-cols-2 gap-y-3 gap-x-8">
         <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">분류명</span>
-          <span class="text-sm font-medium text-slate-800">유해가스</span>
+          <span class="text-sm text-slate-500 w-20 whitespace-nowrap">분류명</span>
+          <span class="text-sm font-medium text-slate-800">{{ category_name }}</span>
         </div>
         <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-24">최근 수정일</span>
-          <span class="text-sm font-medium text-slate-800">2026-04-12 10:30:00</span>
+          <span class="text-sm text-slate-500 w-24 whitespace-nowrap">최근 수정일</span>
+          <span class="text-sm font-medium text-slate-800">{{ selected_cat_obj.updated_at|date:"Y-m-d H:i"|default:"-" }}</span>
         </div>
         <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">분류 코드</span>
-          <span class="text-sm font-medium text-slate-800 font-mono">TH_GAS</span>
+          <span class="text-sm text-slate-500 w-20 whitespace-nowrap">분류 코드</span>
+          <span class="text-sm font-medium text-slate-800 font-mono">{{ selected_category }}</span>
         </div>
         <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-24">최근 수정자</span>
-          <span class="text-sm font-medium text-slate-800">홍길동</span>
+          <span class="text-sm text-slate-500 w-24 whitespace-nowrap">최근 수정자</span>
+          <span class="text-sm font-medium text-slate-800">{{ selected_cat_obj.updated_by|default:"-" }}</span>
         </div>
         <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">반영 범위</span>
-          <span class="text-sm font-medium text-slate-800">실시간 관제 / AI 예측 / 알림</span>
+          <span class="text-sm text-slate-500 w-20 whitespace-nowrap">반영 범위</span>
+          <span class="text-sm font-medium text-slate-800">{{ scope_display }}</span>
         </div>
         <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-24">사용 기준 수</span>
-          <span class="text-sm font-medium text-slate-800">5건</span>
+          <span class="text-sm text-slate-500 w-24 whitespace-nowrap">사용 기준 수</span>
+          <span class="text-sm font-medium text-slate-800">{{ total_count }}건</span>
         </div>
       </div>
     </section>
 
+    <!-- 임계치 기준 목록 -->
     <section class="bg-white rounded-xl border border-slate-200 p-6">
       <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div class="flex items-center gap-2">
-          <h3 class="text-base font-bold text-slate-900">임계치 기준 목록</h3>
-          <span class="px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-700 rounded-md">유해가스</span>
-          <span class="text-xs text-slate-500" id="selectedCount">- 건 선택</span>
-          <button id="deleteBtn" disabled
-                  class="ml-2 px-3.5 py-1.5 text-sm text-slate-400 bg-slate-50 border border-slate-100 rounded-md cursor-not-allowed">
-            삭제
-          </button>
-          <button onclick="openCreateModal()" class="px-3.5 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+          <h3 class="text-base font-bold text-slate-900 whitespace-nowrap">임계치 기준 목록</h3>
+          <span class="px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-700 rounded-md whitespace-nowrap">{{ category_name }}</span>
+          <span class="text-xs text-slate-500 whitespace-nowrap" id="selectedCount">- 건 선택</span>
+          <form method="post" action="{% url 'threshold_delete' %}" id="deleteForm">
+            {% csrf_token %}
+            <input type="hidden" name="category" value="{{ selected_category }}">
+            <button type="button" id="deleteBtn" disabled onclick="confirmDelete()"
+                    class="ml-2 px-3.5 py-1.5 text-sm text-slate-400 bg-slate-50 border border-slate-100 rounded-md cursor-not-allowed whitespace-nowrap">
+              삭제
+            </button>
+          </form>
+          <button onclick="openCreateModal()" class="px-3.5 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 whitespace-nowrap">
             등록
           </button>
         </div>
-        <div class="flex items-center gap-2">
-          <div class="relative w-56">
-            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="text" placeholder="측정 항목 검색"
-                   class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
-          </div>
-          <button class="px-3.5 py-2 border border-slate-200 text-sm text-slate-600 rounded-md hover:bg-slate-50">
-            초기화
-          </button>
-          <button class="px-3.5 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-            검색
-          </button>
+        <div class="flex items-center gap-2 flex-wrap">
+          <select id="sortSelect" onchange="applySort(this.value)"
+                  class="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:border-blue-400">
+            <option value="metric_asc"  {% if sort == 'metric_asc'  %}selected{% endif %}>측정 항목 오름차순</option>
+            <option value="metric_desc" {% if sort == 'metric_desc' %}selected{% endif %}>측정 항목 내림차순</option>
+            <option value="active"      {% if sort == 'active'      %}selected{% endif %}>사용 여부 순</option>
+            <option value="updated_new" {% if sort == 'updated_new' %}selected{% endif %}>최근 수정일 최신순</option>
+            <option value="updated_old" {% if sort == 'updated_old' %}selected{% endif %}>최근 수정일 오래된순</option>
+          </select>
+          <form method="get" class="flex items-center gap-2">
+            <input type="hidden" name="category" value="{{ selected_category }}">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <div class="relative w-48">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input type="text" name="search" value="{{ search }}" placeholder="측정 항목 검색"
+                     class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
+            </div>
+            <a href="?category={{ selected_category }}" class="px-3.5 py-2 border border-slate-200 text-sm text-slate-600 rounded-md hover:bg-slate-50 whitespace-nowrap">초기화</a>
+            <button type="submit" class="px-3.5 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 whitespace-nowrap">검색</button>
+          </form>
         </div>
       </div>
 
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-xs text-slate-500">전체 5건</span>
-        <select class="text-xs text-slate-600 border-0 focus:outline-none cursor-pointer">
-          <option>측정 항목 오름차순</option>
-          <option>측정 항목 내림차순</option>
-          <option>최근 수정일 최신순</option>
-          <option>최근 수정일 오래된순</option>
-          <option>사용 여부 사용 우선</option>
-          <option>사용 여부 미사용 우선</option>
-        </select>
+      <div class="mb-2">
+        <span class="text-xs text-slate-500">전체 {{ total }}건</span>
       </div>
 
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="bg-slate-50 text-xs text-slate-500">
-            <th class="py-3 px-4 text-center font-medium w-12">
-              <input type="checkbox" id="checkAll" class="w-4 h-4 rounded border-slate-300" />
-            </th>
-            <th class="py-3 px-4 text-center font-medium">측정 항목</th>
-            <th class="py-3 px-4 text-center font-medium">단위</th>
-            <th class="py-3 px-4 text-center font-medium">판단 조건</th>
-            <th class="py-3 px-4 text-center font-medium">주의값</th>
-            <th class="py-3 px-4 text-center font-medium">위험값</th>
-            <th class="py-3 px-4 text-center font-medium">사용 여부</th>
-            <th class="py-3 px-4 text-center font-medium">반영 위치</th>
-            <th class="py-3 px-4 text-center font-medium">최근 수정일</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openEditModal('CH4')">
-            <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
-              <input type="checkbox" class="row-check w-4 h-4 rounded border-slate-300" />
-            </td>
-            <td class="py-3 px-4 text-center text-slate-700 font-mono">CH4</td>
-            <td class="py-3 px-4 text-center text-slate-600">%LEL</td>
-            <td class="py-3 px-4 text-center text-slate-700">초과</td>
-            <td class="py-3 px-4 text-center text-slate-700">10</td>
-            <td class="py-3 px-4 text-center text-slate-700">20</td>
-            <td class="py-3 px-4 text-center">
-              <span class="inline-block px-2.5 py-0.5 bg-green-50 text-green-700 text-xs rounded-full">사용</span>
-            </td>
-            <td class="py-3 px-4 text-center text-slate-600">실시간 관제, 알림</td>
-            <td class="py-3 px-4 text-center text-slate-600">2026-04-12</td>
-          </tr>
-          <tr class="border-2 border-blue-300 bg-blue-50/30 cursor-pointer" onclick="openEditModal('CO')">
-            <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
-              <input type="checkbox" checked class="row-check w-4 h-4 rounded border-slate-300" />
-            </td>
-            <td class="py-3 px-4 text-center text-slate-700 font-mono">CO</td>
-            <td class="py-3 px-4 text-center text-slate-600">ppm</td>
-            <td class="py-3 px-4 text-center text-slate-700">초과</td>
-            <td class="py-3 px-4 text-center text-slate-700">25</td>
-            <td class="py-3 px-4 text-center text-slate-700">50</td>
-            <td class="py-3 px-4 text-center">
-              <span class="inline-block px-2.5 py-0.5 bg-green-50 text-green-700 text-xs rounded-full">사용</span>
-            </td>
-            <td class="py-3 px-4 text-center text-slate-600">실시간 관제, 알림</td>
-            <td class="py-3 px-4 text-center text-slate-600">2026-04-12</td>
-          </tr>
-          <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openEditModal('H2S')">
-            <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
-              <input type="checkbox" class="row-check w-4 h-4 rounded border-slate-300" />
-            </td>
-            <td class="py-3 px-4 text-center text-slate-700 font-mono">H2S</td>
-            <td class="py-3 px-4 text-center text-slate-600">ppm</td>
-            <td class="py-3 px-4 text-center text-slate-700">초과</td>
-            <td class="py-3 px-4 text-center text-slate-700">5</td>
-            <td class="py-3 px-4 text-center text-slate-700">10</td>
-            <td class="py-3 px-4 text-center">
-              <span class="inline-block px-2.5 py-0.5 bg-green-50 text-green-700 text-xs rounded-full">사용</span>
-            </td>
-            <td class="py-3 px-4 text-center text-slate-600">실시간 관제, 알림</td>
-            <td class="py-3 px-4 text-center text-slate-600">2026-04-12</td>
-          </tr>
-          <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openEditModal('O2')">
-            <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
-              <input type="checkbox" class="row-check w-4 h-4 rounded border-slate-300" />
-            </td>
-            <td class="py-3 px-4 text-center text-slate-700 font-mono">O2</td>
-            <td class="py-3 px-4 text-center text-slate-600">%</td>
-            <td class="py-3 px-4 text-center text-slate-700">미만</td>
-            <td class="py-3 px-4 text-center text-slate-700">19.5</td>
-            <td class="py-3 px-4 text-center text-slate-700">18.0</td>
-            <td class="py-3 px-4 text-center">
-              <span class="inline-block px-2.5 py-0.5 bg-green-50 text-green-700 text-xs rounded-full">사용</span>
-            </td>
-            <td class="py-3 px-4 text-center text-slate-600">실시간 관제, 알림</td>
-            <td class="py-3 px-4 text-center text-slate-600">2026-03-20</td>
-          </tr>
-          <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer" onclick="openEditModal('VOC')">
-            <td class="py-3 px-4 text-center" onclick="event.stopPropagation()">
-              <input type="checkbox" class="row-check w-4 h-4 rounded border-slate-300" />
-            </td>
-            <td class="py-3 px-4 text-center text-slate-700 font-mono">VOC</td>
-            <td class="py-3 px-4 text-center text-slate-600">ppb</td>
-            <td class="py-3 px-4 text-center text-slate-700">초과</td>
-            <td class="py-3 px-4 text-center text-slate-700">100</td>
-            <td class="py-3 px-4 text-center text-slate-700">200</td>
-            <td class="py-3 px-4 text-center">
-              <span class="inline-block px-2.5 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">미사용</span>
-            </td>
-            <td class="py-3 px-4 text-center text-slate-600">AI 예측, 대시보드</td>
-            <td class="py-3 px-4 text-center text-slate-600">2026-03-20</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="flex items-center justify-between mt-6 pt-4">
-        <div class="text-xs text-slate-500">1 - 5 / 5</div>
-        <div class="flex items-center gap-1">
-          <button class="w-8 h-8 flex items-center justify-center text-xs text-slate-400 hover:bg-slate-100 rounded">&lt;</button>
-          <button class="w-8 h-8 flex items-center justify-center text-xs bg-slate-900 text-white rounded">1</button>
-          <button class="w-8 h-8 flex items-center justify-center text-xs text-slate-600 hover:bg-slate-100 rounded">2</button>
-          <button class="w-8 h-8 flex items-center justify-center text-xs text-slate-600 hover:bg-slate-100 rounded">3</button>
-          <button class="w-8 h-8 flex items-center justify-center text-xs text-slate-400 hover:bg-slate-100 rounded">&gt;</button>
+      <div class="border border-slate-200 rounded-lg overflow-hidden">
+        <div class="overflow-y-auto max-h-[360px] custom-scroll">
+          <table class="w-full">
+            <thead class="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 w-12 whitespace-nowrap">선택</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">측정 항목</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">단위</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">판단 조건</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">주의값</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">위험값</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">반영 위치</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">사용 여부</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">최근 수정일</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              {% for p in policies %}
+              <tr class="hover:bg-slate-50 cursor-pointer" onclick="openEditModal({{ p.pk }})">
+                <td class="px-4 py-3 whitespace-nowrap" onclick="event.stopPropagation()">
+                  <input type="checkbox" class="row-check w-4 h-4 rounded border-slate-300" data-pk="{{ p.pk }}" />
+                </td>
+                <td class="px-4 py-3 text-sm font-mono text-slate-700 whitespace-nowrap">{{ p.metric_code|upper }}</td>
+                <td class="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{{ p.unit }}</td>
+                <td class="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{{ p.condition }}</td>
+                <td class="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{{ p.warning_val|default:'-' }}</td>
+                <td class="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{{ p.danger_val|default:'-' }}</td>
+                <td class="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{{ p.scope_display }}</td>
+                <td class="px-4 py-3 whitespace-nowrap">
+                  {% if p.is_active %}
+                    <span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">사용</span>
+                  {% else %}
+                    <span class="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded">미사용</span>
+                  {% endif %}
+                </td>
+                <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{{ p.updated_at|date:"Y-m-d" }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="9" class="px-4 py-8 text-center text-sm text-slate-400">
+                  등록된 임계치 기준이 없습니다.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
-
-      <p class="mt-4 text-xs text-slate-400 italic">O2와 같이 범위/미만 기준이 필요한 항목은 판단 조건으로 구분합니다.</p>
+      {% if selected_category == 'TH_GAS' %}<p class="mt-3 text-xs text-slate-400 italic">O2와 같이 이하 기준이 필요한 항목은 판단 조건으로 구분합니다.</p>{% endif %}
     </section>
   </div>
 </div>
 
 
-<!-- ===== 임계치 기준 등록 모달 ===== -->
-<div id="createModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center">
-  <div class="bg-white rounded-xl w-full max-w-2xl mx-4 shadow-xl">
+<!-- 임계치 기준 등록 모달 -->
+<div id="createModal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
     <div class="px-8 pt-7 pb-4 border-b border-slate-100">
       <h3 class="text-xl font-bold text-slate-900 mb-1">임계치 기준 등록</h3>
       <p class="text-sm text-slate-500">가스/전력 데이터의 임계치 기준을 설정합니다.</p>
     </div>
-
-    <div class="px-8 py-6">
+    <div class="px-8 py-6 flex flex-col gap-5">
       <div class="grid grid-cols-2 gap-x-5 gap-y-5">
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">기준 분류 <span class="text-red-500">*</span></label>
-          <input type="text" value="유해가스" disabled
-                 class="w-full px-3 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">기준 분류</label>
+          <input type="text" id="cc_category_name" disabled
+                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">측정 항목 <span class="text-red-500">*</span></label>
-          <input type="text" placeholder="CH4"
-                 class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 font-mono" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">측정 항목 <span class="text-rose-500">*</span></label>
+          <input id="cc_metric" type="text" placeholder="예: co"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 font-mono" />
+          <p id="cc_metric_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">단위 <span class="text-red-500">*</span></label>
-          <input type="text" placeholder="%LEL"
-                 class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">단위 <span class="text-rose-500">*</span></label>
+          <input id="cc_unit" type="text" placeholder="예: ppm"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+          <p id="cc_unit_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">판단 조건 <span class="text-red-500">*</span></label>
-          <select class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400">
-            <option>초과</option><option>미만</option><option>이상</option><option>이하</option><option>범위</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">주의값 <span class="text-red-500">*</span></label>
-          <input type="number" placeholder="10"
-                 class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">위험값 <span class="text-red-500">*</span></label>
-          <input type="number" placeholder="20"
-                 class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
-          <div class="flex items-center gap-1 p-1 bg-slate-50 rounded-lg w-fit">
-            <button type="button" onclick="toggleUse(this)" class="use-btn use-active px-5 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md">사용</button>
-            <button type="button" onclick="toggleUse(this)" class="use-btn px-5 py-1.5 text-slate-600 text-sm rounded-md">미사용</button>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">판단 조건 <span class="text-rose-500">*</span></label>
+          <input type="hidden" id="cc_condition" value="">
+          <div class="inline-flex bg-slate-50 border border-slate-200 rounded-md p-1">
+            <button type="button" id="cc_btn_gte" onclick="setCCCondition('이상')"
+                    class="px-6 py-1.5 text-sm rounded text-slate-600 hover:bg-white">이상</button>
+            <button type="button" id="cc_btn_lte" onclick="setCCCondition('이하')"
+                    class="px-6 py-1.5 text-sm rounded text-slate-600 hover:bg-white">이하</button>
           </div>
+          <p id="cc_cond_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">반영 범위 <span class="text-red-500">*</span> <span class="text-xs text-slate-400 font-normal">(중복)</span></label>
-          <div class="flex items-center gap-3 px-3 py-2.5 bg-white border border-slate-200 rounded-lg">
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-slate-300" /><span class="text-xs text-slate-700">실시간 관제</span></label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-slate-300" /><span class="text-xs text-slate-700">AI 예측</span></label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-slate-300" /><span class="text-xs text-slate-700">알림</span></label>
-          </div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">주의값 <span class="text-rose-500">*</span></label>
+          <input id="cc_warning" type="text" placeholder="예: 25"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+          <p id="cc_warning_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
-        <div class="col-span-2">
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">설명</label>
-          <textarea id="c_desc" rows="3" maxlength="100"
-                    oninput="updateCounter(this, 'c_counter')"
-                    class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 resize-none"
-                    placeholder="기준 설명을 입력하세요."></textarea>
-          <div class="text-right text-xs text-slate-400 mt-1"><span id="c_counter">0</span> / 100자</div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">위험값 <span class="text-rose-500">*</span></label>
+          <input id="cc_danger" type="text" placeholder="예: 50"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+          <p id="cc_danger_err" class="mt-1 text-xs text-rose-500 hidden"></p>
+        </div>
+        <!-- 사용 여부 + 반영 범위 (같은 행) -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-rose-500">*</span></label>
+          <input type="hidden" id="cc_is_active" value="">
+          <div class="inline-flex bg-slate-50 border border-slate-200 rounded-md p-1">
+            <button type="button" id="cc_btn_active" onclick="setCCActive(true)"
+                    class="px-6 py-1.5 text-sm rounded text-slate-600 hover:bg-white">사용</button>
+            <button type="button" id="cc_btn_inactive" onclick="setCCActive(false)"
+                    class="px-6 py-1.5 text-sm rounded text-slate-600 hover:bg-white">미사용</button>
+          </div>
+          <p id="cc_active_err" class="mt-1 text-xs text-rose-500 hidden"></p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">반영 범위 <span class="text-rose-500">*</span> <span class="text-xs font-normal text-slate-400">(중복 선택 가능)</span></label>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="toggleCCScope('실시간 관제')" id="cc_scope_실시간관제"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">실시간 관제</button>
+            <button type="button" onclick="toggleCCScope('AI 예측')" id="cc_scope_AI예측"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">AI 예측</button>
+            <button type="button" onclick="toggleCCScope('알림')" id="cc_scope_알림"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">알림</button>
+          </div>
+          <input type="hidden" id="cc_scope_hidden" value="">
+          <p id="cc_scope_err" class="mt-1 text-xs text-rose-500 hidden">반영 범위를 하나 이상 선택해 주세요.</p>
         </div>
       </div>
+      <!-- 설명 -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">설명</label>
+        <textarea id="cc_desc" maxlength="100" rows="2" placeholder="임계치 기준 설명 (최대 100자)"
+                  class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 resize-none"></textarea>
+        <div class="text-right text-xs text-slate-400 mt-0.5"><span id="cc_desc_count">0/100자</span></div>
+      </div>
     </div>
-
     <div class="flex items-center justify-center gap-2 px-8 py-5 border-t border-slate-100">
-      <button onclick="closeCreateModal()" class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
-      <button onclick="confirmCreate()" class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">등록</button>
+      <button type="button" onclick="closeCreateModal()"
+              class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button type="button" onclick="submitCreate()"
+              class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">등록</button>
     </div>
   </div>
 </div>
 
-
-<!-- ===== 임계치 기준 수정 모달 ===== -->
-<div id="editModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center">
-  <div class="bg-white rounded-xl w-full max-w-2xl mx-4 shadow-xl">
+<!-- 임계치 기준 수정 모달 -->
+<div id="editModal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
     <div class="px-8 pt-7 pb-4 border-b border-slate-100">
       <h3 class="text-xl font-bold text-slate-900 mb-1">임계치 기준 수정</h3>
       <p class="text-sm text-slate-500">가스/전력 데이터의 임계치 기준을 수정합니다.</p>
     </div>
-
-    <div class="px-8 py-6">
+    <div class="px-8 py-6 flex flex-col gap-5">
       <div class="grid grid-cols-2 gap-x-5 gap-y-5">
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">기준 분류 <span class="text-red-500">*</span></label>
-          <input type="text" value="유해가스" disabled class="w-full px-3 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">기준 분류</label>
+          <input id="e_category_name" type="text" disabled
+                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">측정 항목 <span class="text-red-500">*</span></label>
-          <input id="e_item" type="text" value="CH4" class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 font-mono" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">측정 항목</label>
+          <input id="e_item" type="text" disabled
+                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed font-mono" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">단위 <span class="text-red-500">*</span></label>
-          <input type="text" value="%LEL" class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">단위 <span class="text-rose-500">*</span></label>
+          <input id="e_unit" type="text"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+          <p id="e_unit_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">판단 조건 <span class="text-red-500">*</span></label>
-          <select class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400">
-            <option>초과</option><option>미만</option><option>이상</option><option>이하</option><option>범위</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">주의값 <span class="text-red-500">*</span></label>
-          <input type="number" value="10" class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">위험값 <span class="text-red-500">*</span></label>
-          <input type="number" value="20" class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
-          <div class="flex items-center gap-1 p-1 bg-slate-50 rounded-lg w-fit">
-            <button type="button" onclick="toggleUse(this)" class="use-btn use-active px-5 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md">사용</button>
-            <button type="button" onclick="toggleUse(this)" class="use-btn px-5 py-1.5 text-slate-600 text-sm rounded-md">미사용</button>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">판단 조건 <span class="text-rose-500">*</span></label>
+          <input type="hidden" id="e_condition" value="">
+          <div class="inline-flex bg-slate-50 border border-slate-200 rounded-md p-1">
+            <button type="button" id="e_btn_gte" onclick="setECondition('이상')"
+                    class="px-6 py-1.5 text-sm rounded text-slate-600 hover:bg-white">이상</button>
+            <button type="button" id="e_btn_lte" onclick="setECondition('이하')"
+                    class="px-6 py-1.5 text-sm rounded text-slate-600 hover:bg-white">이하</button>
           </div>
+          <p id="e_cond_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">반영 범위 <span class="text-red-500">*</span> <span class="text-xs text-slate-400 font-normal">(중복)</span></label>
-          <div class="flex items-center gap-3 px-3 py-2.5 bg-white border border-slate-200 rounded-lg">
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" /><span class="text-xs text-slate-700">실시간 관제</span></label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-slate-300" /><span class="text-xs text-slate-700">AI 예측</span></label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" /><span class="text-xs text-slate-700">알림</span></label>
-          </div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">주의값 <span class="text-rose-500">*</span></label>
+          <input id="e_warning" type="text"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+          <p id="e_warning_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
-        <div class="col-span-2">
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">설명</label>
-          <textarea id="e_desc" rows="3" maxlength="100"
-                    oninput="updateCounter(this, 'e_counter')"
-                    class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 resize-none">메탄 농도 기준입니다. 설정값 초과 시 주의/위험 단계 판단에 반영됩니다.</textarea>
-          <div class="text-right text-xs text-slate-400 mt-1"><span id="e_counter">0</span> / 100자</div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">위험값 <span class="text-rose-500">*</span></label>
+          <input id="e_danger" type="text"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+          <p id="e_danger_err" class="mt-1 text-xs text-rose-500 hidden"></p>
+        </div>
+        <!-- 사용 여부 + 반영 범위 (같은 행) -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-rose-500">*</span></label>
+          <input type="hidden" id="e_is_active" value="true">
+          <div class="inline-flex bg-slate-50 border border-slate-200 rounded-md p-1">
+            <button type="button" id="e_btn_active" onclick="setEActive(true)"
+                    class="px-6 py-1.5 text-sm rounded font-medium bg-blue-600 text-white">사용</button>
+            <button type="button" id="e_btn_inactive" onclick="setEActive(false)"
+                    class="px-6 py-1.5 text-sm rounded text-slate-600 hover:bg-white">미사용</button>
+          </div>
+          <p id="e_active_err" class="mt-1 text-xs text-rose-500 hidden">사용 여부를 선택해 주세요.</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">반영 범위 <span class="text-rose-500">*</span> <span class="text-xs font-normal text-slate-400">(중복 선택 가능)</span></label>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="toggleEScope('실시간 관제')" id="e_scope_실시간관제"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">실시간 관제</button>
+            <button type="button" onclick="toggleEScope('AI 예측')" id="e_scope_AI예측"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">AI 예측</button>
+            <button type="button" onclick="toggleEScope('알림')" id="e_scope_알림"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">알림</button>
+          </div>
+          <input type="hidden" id="e_scope_hidden" value="">
+          <p id="e_scope_err" class="mt-1 text-xs text-rose-500 hidden">반영 범위를 하나 이상 선택해 주세요.</p>
         </div>
       </div>
+      <!-- 설명 -->
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">설명</label>
+        <textarea id="e_desc" maxlength="100" rows="2"
+                  class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 resize-none"></textarea>
+        <div class="text-right text-xs text-slate-400 mt-0.5"><span id="e_desc_count">0/100자</span></div>
+      </div>
     </div>
-
     <div class="flex items-center justify-center gap-2 px-8 py-5 border-t border-slate-100">
-      <button onclick="closeEditModal()" class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
-      <button onclick="confirmEdit()" class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">수정</button>
+      <button type="button" onclick="closeEditModal()"
+              class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button type="button" id="editSubmitBtn" onclick="submitEdit()" disabled
+              class="px-7 py-2.5 bg-slate-300 text-white text-sm font-medium rounded-md cursor-not-allowed">수정</button>
     </div>
   </div>
 </div>
 
-
-<!-- ===== 분류 그룹 등록 모달 ===== -->
-<div id="groupCreateModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center">
-  <div class="bg-white rounded-xl w-full max-w-2xl mx-4 shadow-xl">
+<!-- 기준 분류 등록 모달 -->
+<div id="groupCreateModal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
     <div class="px-8 pt-7 pb-4 border-b border-slate-100">
-      <h3 class="text-xl font-bold text-slate-900 mb-1">분류 그룹 등록</h3>
+      <h3 class="text-xl font-bold text-slate-900 mb-1">기준 분류 등록</h3>
       <p class="text-sm text-slate-500">임계치 기준 분류 그룹 기준을 등록합니다.</p>
     </div>
-
-    <div class="px-8 py-6">
-      <div class="grid grid-cols-2 gap-x-5 gap-y-5">
+    <div class="px-8 py-6 flex flex-col gap-4">
+      <div class="grid grid-cols-2 gap-x-5 gap-y-4">
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">분류 코드 <span class="text-red-500">*</span></label>
-          <input type="text" placeholder="TH_GAS" class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 font-mono" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">분류 코드 <span class="text-rose-500">*</span></label>
+          <input id="gc_code" type="text" placeholder="TH_CUSTOM" maxlength="50"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 font-mono uppercase" />
+          <p id="gc_code_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">분류명 <span class="text-red-500">*</span></label>
-          <input type="text" placeholder="유해가스" class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">분류명 <span class="text-rose-500">*</span></label>
+          <input id="gc_name" type="text" placeholder="분류명" maxlength="100"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+          <p id="gc_name_err" class="mt-1 text-xs text-rose-500 hidden"></p>
+        </div>
+        <!-- 반영 범위 + 사용 여부 (같은 행, 최근 수정일 위) -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">반영 범위 <span class="text-rose-500">*</span> <span class="text-xs font-normal text-slate-400">(중복 선택 가능)</span></label>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="toggleGCScope('실시간 관제')" id="gc_scope_실시간관제"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">실시간 관제</button>
+            <button type="button" onclick="toggleGCScope('AI 예측')" id="gc_scope_AI예측"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">AI 예측</button>
+            <button type="button" onclick="toggleGCScope('알림')" id="gc_scope_알림"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">알림</button>
+          </div>
+          <input type="hidden" id="gc_scope_hidden" value="">
+          <p id="gc_scope_err" class="mt-1 text-xs text-rose-500 hidden">반영 범위를 선택하세요.</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-rose-500">*</span></label>
+          <input type="hidden" id="gc_is_active" value="">
+          <div class="inline-flex bg-slate-50 border border-slate-200 rounded-md p-1">
+            <button type="button" id="gc_btn_active" onclick="setGCActive(true)"
+                    class="px-6 py-1.5 text-sm rounded text-slate-600 hover:bg-white">사용</button>
+            <button type="button" id="gc_btn_inactive" onclick="setGCActive(false)"
+                    class="px-6 py-1.5 text-sm rounded text-slate-600 hover:bg-white">미사용</button>
+          </div>
+          <p id="gc_active_err" class="mt-1 text-xs text-rose-500 hidden">사용 여부를 선택하세요.</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">최근 수정일</label>
+          <input id="gc_updated_at" type="text" disabled
+                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">수정자</label>
+          <input id="gc_updated_by" type="text" disabled
+                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
         </div>
         <div class="col-span-2">
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">반영 범위 <span class="text-red-500">*</span> <span class="text-xs text-slate-400 font-normal">(중복 선택 가능)</span></label>
-          <div class="flex items-center gap-4 px-3 py-2.5 bg-white border border-slate-200 rounded-lg">
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-slate-300" /><span class="text-sm text-slate-700">실시간 관제</span></label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-slate-300" /><span class="text-sm text-slate-700">AI 예측</span></label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-slate-300" /><span class="text-sm text-slate-700">알림</span></label>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
-          <div class="flex items-center gap-1 p-1 bg-slate-50 rounded-lg w-fit">
-            <button type="button" onclick="toggleUse(this)" class="use-btn use-active px-5 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md">사용</button>
-            <button type="button" onclick="toggleUse(this)" class="use-btn px-5 py-1.5 text-slate-600 text-sm rounded-md">미사용</button>
-          </div>
-        </div>
-        <div></div>
-        <div class="col-span-2">
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">설명</label>
-          <textarea id="gc_desc" rows="3" maxlength="100"
-                    oninput="updateCounter(this, 'gc_counter')"
-                    class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 resize-none"
-                    placeholder="유해가스 기반 위험 유형을 묶는 상위 분류 그룹입니다."></textarea>
-          <div class="text-right text-xs text-slate-400 mt-1"><span id="gc_counter">0</span> / 100자</div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">사용 코드 수</label>
+          <input id="gc_code_count" type="text" value="0건" disabled
+                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
         </div>
       </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">설명</label>
+        <textarea id="gc_desc" maxlength="100" rows="2" placeholder="분류 설명 (최대 100자)"
+                  class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 resize-none"></textarea>
+        <div class="text-right text-xs text-slate-400 mt-0.5"><span id="gc_desc_count">0/100자</span></div>
+      </div>
     </div>
-
     <div class="flex items-center justify-center gap-2 px-8 py-5 border-t border-slate-100">
-      <button onclick="closeGroupCreateModal()" class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
-      <button onclick="confirmGroupCreate()" class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">등록</button>
+      <button type="button" onclick="closeGroupCreateModal()"
+              class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button type="button" onclick="submitGroupCreate()"
+              class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">등록</button>
     </div>
   </div>
 </div>
 
-
-<!-- ===== 분류 그룹 수정 모달 ===== -->
-<div id="groupEditModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center">
-  <div class="bg-white rounded-xl w-full max-w-2xl mx-4 shadow-xl">
+<!-- 기준 분류 수정 모달 -->
+<div id="groupEditModal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl">
     <div class="px-8 pt-7 pb-4 border-b border-slate-100">
-      <h3 class="text-xl font-bold text-slate-900 mb-1">분류 그룹 수정</h3>
-      <p class="text-sm text-slate-500">임계치 기준 분류 그룹 기준을 수정합니다.</p>
+      <h3 class="text-xl font-bold text-slate-900 mb-1">기준 분류 수정</h3>
+      <p class="text-sm text-slate-500">분류 정보를 수정합니다.</p>
     </div>
-
-    <div class="px-8 py-6">
-      <div class="grid grid-cols-2 gap-x-5 gap-y-5">
+    <div class="px-8 py-6 flex flex-col gap-4">
+      <div class="grid grid-cols-2 gap-x-5 gap-y-4">
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">분류 코드 <span class="text-red-500">*</span></label>
-          <input type="text" value="TH_GAS" class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 font-mono" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">분류 코드 <span class="text-rose-500">*</span></label>
+          <input id="ge_code" type="text" maxlength="50"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 font-mono uppercase" />
+          <p id="ge_code_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">분류명 <span class="text-red-500">*</span></label>
-          <input type="text" value="유해가스" class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">분류명 <span class="text-rose-500">*</span></label>
+          <input id="ge_name" type="text" maxlength="100"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+          <p id="ge_name_err" class="mt-1 text-xs text-rose-500 hidden"></p>
+        </div>
+        <!-- 반영 범위 + 사용 여부 (같은 행, 최근 수정일 위) -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">반영 범위 <span class="text-rose-500">*</span> <span class="text-xs font-normal text-slate-400">(중복 선택 가능)</span></label>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="toggleGEScope('실시간 관제')" id="ge_scope_실시간관제"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">실시간 관제</button>
+            <button type="button" onclick="toggleGEScope('AI 예측')" id="ge_scope_AI예측"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">AI 예측</button>
+            <button type="button" onclick="toggleGEScope('알림')" id="ge_scope_알림"
+                    class="px-3 py-1 text-sm rounded-full border border-slate-200 bg-white text-slate-600 hover:border-blue-400 transition-colors">알림</button>
+          </div>
+          <input type="hidden" id="ge_scope_hidden" value="">
+          <p id="ge_scope_err" class="mt-1 text-xs text-rose-500 hidden">반영 범위를 선택하세요.</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-rose-500">*</span></label>
+          <input type="hidden" id="ge_is_active" value="true">
+          <div class="inline-flex bg-slate-50 border border-slate-200 rounded-md p-1">
+            <button type="button" id="ge_btn_active" onclick="setGEActive(true)"
+                    class="px-6 py-1.5 text-sm rounded font-medium bg-blue-600 text-white">사용</button>
+            <button type="button" id="ge_btn_inactive" onclick="setGEActive(false)"
+                    class="px-6 py-1.5 text-sm rounded text-slate-600 hover:bg-white">미사용</button>
+          </div>
+          <p id="ge_active_err" class="mt-1 text-xs text-rose-500 hidden">사용 여부를 선택하세요.</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">최근 수정일</label>
+          <input id="ge_updated_at" type="text" disabled
+                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">수정자</label>
+          <input id="ge_updated_by" type="text" disabled
+                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
         </div>
         <div class="col-span-2">
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">반영 범위 <span class="text-red-500">*</span> <span class="text-xs text-slate-400 font-normal">(중복 선택 가능)</span></label>
-          <div class="flex items-center gap-4 px-3 py-2.5 bg-white border border-slate-200 rounded-lg">
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" /><span class="text-sm text-slate-700">실시간 관제</span></label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" /><span class="text-sm text-slate-700">AI 예측</span></label>
-            <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" /><span class="text-sm text-slate-700">알림</span></label>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
-          <div class="flex items-center gap-1 p-1 bg-slate-50 rounded-lg w-fit">
-            <button type="button" onclick="toggleUse(this)" class="use-btn use-active px-5 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md">사용</button>
-            <button type="button" onclick="toggleUse(this)" class="use-btn px-5 py-1.5 text-slate-600 text-sm rounded-md">미사용</button>
-          </div>
-        </div>
-        <div></div>
-        <div class="col-span-2">
-          <label class="block text-xs font-medium text-slate-700 mb-1.5">설명</label>
-          <textarea id="ge_desc" rows="3" maxlength="100"
-                    oninput="updateCounter(this, 'ge_counter')"
-                    class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 resize-none">유해가스 기반 위험 유형을 묶는 상위 분류 그룹입니다.</textarea>
-          <div class="text-right text-xs text-slate-400 mt-1"><span id="ge_counter">0</span> / 100자</div>
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">사용 기준 수</label>
+          <input id="ge_type_count" type="text" disabled
+                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
         </div>
       </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1.5">설명</label>
+        <textarea id="ge_desc" maxlength="100" rows="2"
+                  class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 resize-none"></textarea>
+        <div class="text-right text-xs text-slate-400 mt-0.5"><span id="ge_desc_count">0/100자</span></div>
+      </div>
     </div>
-
     <div class="flex items-center justify-center gap-2 px-8 py-5 border-t border-slate-100">
-      <button onclick="closeGroupEditModal()" class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
-      <button onclick="confirmGroupEdit()" class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">수정</button>
+      <button type="button" onclick="closeGroupEditModal()"
+              class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button type="button" id="geSubmitBtn" onclick="submitGroupEdit()" disabled
+              class="px-7 py-2.5 bg-slate-300 text-white text-sm font-medium rounded-md cursor-not-allowed">수정</button>
     </div>
   </div>
 </div>
 
-
-<!-- ===== 재확인 팝업 ===== -->
-<div id="confirmModal" class="fixed inset-0 bg-black/50 z-[60] hidden items-center justify-center">
-  <div class="bg-white rounded-xl w-full max-w-sm mx-4 shadow-xl">
-    <div class="px-6 py-7">
-      <p class="text-center text-sm text-slate-700" id="confirmText">해당 기준을 등록하시겠습니까?</p>
-    </div>
-    <div class="flex items-center justify-center gap-2 px-6 pb-6">
-      <button onclick="closeConfirm()" class="px-7 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
-      <button onclick="completeAction()" class="px-7 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">확인</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- ===== 완료 팝업 ===== -->
-<div id="completeModal" class="fixed inset-0 bg-black/50 z-[70] hidden items-center justify-center">
-  <div class="bg-white rounded-xl w-full max-w-sm mx-4 shadow-xl">
-    <div class="px-6 py-7">
-      <p class="text-center text-sm text-slate-700" id="completeText">등록되었습니다.</p>
-    </div>
-    <div class="flex items-center justify-center px-6 pb-6">
-      <button onclick="closeComplete()" class="px-10 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">확인</button>
+<!-- 확인 팝업 -->
+<div id="confirmModal" class="fixed inset-0 bg-slate-900/40 hidden items-center justify-center p-4" style="z-index:200">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm text-center px-8 py-8">
+    <p id="confirmMsg" class="text-sm text-slate-700 mb-6 leading-relaxed"></p>
+    <div class="flex justify-center gap-3">
+      <button type="button" id="confirmCancelBtn"
+              class="px-6 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button type="button" id="confirmOkBtn"
+              class="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">확인</button>
     </div>
   </div>
 </div>
 
+<!-- 완료 팝업 -->
+<div id="doneModal" class="fixed inset-0 bg-slate-900/40 hidden items-center justify-center p-4" style="z-index:200">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm text-center px-8 py-8">
+    <p id="doneMsg" class="text-sm text-slate-700 mb-6 leading-relaxed"></p>
+    <button type="button" id="doneOkBtn"
+            class="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">확인</button>
+  </div>
+</div>
 
-<!-- ===== JavaScript ===== -->
+{% block extra_script %}
+<script src="{% static 'js/admin/threshold_list.js' %}"></script>
 <script>
-  let currentAction = null;
-
-  // 모달 열기/닫기
-  function openCreateModal() { showModal('createModal'); }
-  function closeCreateModal() { hideModal('createModal'); }
-  function openEditModal(item) { showModal('editModal'); }
-  function closeEditModal() { hideModal('editModal'); }
-  function openGroupCreateModal() { showModal('groupCreateModal'); }
-  function closeGroupCreateModal() { hideModal('groupCreateModal'); }
-  function openGroupEditModal() { showModal('groupEditModal'); }
-  function closeGroupEditModal() { hideModal('groupEditModal'); }
-
-  function showModal(id) {
-    const m = document.getElementById(id);
-    m.classList.remove('hidden'); m.classList.add('flex');
-  }
-  function hideModal(id) {
-    const m = document.getElementById(id);
-    m.classList.add('hidden'); m.classList.remove('flex');
-  }
-
-  // 재확인 팝업
-  function confirmCreate() { showConfirm('create', '해당 기준을 등록하시겠습니까?'); }
-  function confirmEdit() { showConfirm('edit', '해당 기준을 수정하시겠습니까?'); }
-  function confirmGroupCreate() { showConfirm('groupCreate', '해당 분류 그룹을 등록하시겠습니까?'); }
-  function confirmGroupEdit() { showConfirm('groupEdit', '해당 분류 그룹을 수정하시겠습니까?'); }
-
-  function showConfirm(action, text) {
-    currentAction = action;
-    document.getElementById('confirmText').textContent = text;
-    showModal('confirmModal');
-  }
-  function closeConfirm() { hideModal('confirmModal'); }
-
-  // 완료 팝업
-  function completeAction() {
-    closeConfirm();
-    const messages = {
-      create: '등록되었습니다.',
-      edit: '수정되었습니다.',
-      groupCreate: '분류 그룹이 등록되었습니다.',
-      groupEdit: '분류 그룹이 수정되었습니다.'
-    };
-    document.getElementById('completeText').textContent = messages[currentAction] || '완료되었습니다.';
-
-    if (currentAction === 'create') closeCreateModal();
-    else if (currentAction === 'edit') closeEditModal();
-    else if (currentAction === 'groupCreate') closeGroupCreateModal();
-    else if (currentAction === 'groupEdit') closeGroupEditModal();
-
-    showModal('completeModal');
-  }
-  function closeComplete() { hideModal('completeModal'); }
-
-  // 사용/미사용 토글
-  function toggleUse(btn) {
-    const parent = btn.parentElement;
-    parent.querySelectorAll('.use-btn').forEach(b => {
-      b.classList.remove('bg-blue-600', 'text-white', 'use-active');
-      b.classList.add('text-slate-600');
-    });
-    btn.classList.add('bg-blue-600', 'text-white', 'use-active');
-    btn.classList.remove('text-slate-600');
-  }
-
-  // 글자수 카운터
-  function updateCounter(textarea, counterId) {
-    document.getElementById(counterId).textContent = textarea.value.length;
-  }
-
-  // 체크박스 → 선택 건수 / [삭제] 버튼 활성화
-  function updateDeleteBtn() {
-    const checked = document.querySelectorAll('.row-check:checked').length;
-    const countEl = document.getElementById('selectedCount');
-    const delBtn = document.getElementById('deleteBtn');
-
-    if (checked > 0) {
-      countEl.textContent = `${checked}건 선택`;
-      delBtn.disabled = false;
-      delBtn.className = 'ml-2 px-3.5 py-1.5 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md hover:bg-red-100 cursor-pointer';
-    } else {
-      countEl.textContent = '- 건 선택';
-      delBtn.disabled = true;
-      delBtn.className = 'ml-2 px-3.5 py-1.5 text-sm text-slate-400 bg-slate-50 border border-slate-100 rounded-md cursor-not-allowed';
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.row-check').forEach(cb => {
-      cb.addEventListener('change', updateDeleteBtn);
-    });
-    updateDeleteBtn();
-  });
-
-  // ESC 키로 모달 닫기
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      ['createModal','editModal','groupCreateModal','groupEditModal','confirmModal','completeModal'].forEach(hideModal);
-    }
-  });
+const SELECTED_CATEGORY  = '{{ selected_category }}';
+const CATEGORY_NAME      = '{{ category_name }}';
+const CURRENT_USER_NAME  = '{{ current_user_name }}';
+const CREATE_URL         = '{% url "threshold_create" %}';
+const DELETE_URL         = '{% url "threshold_delete" %}';
+const GROUP_CREATE_URL   = '{% url "threshold_group_create" %}';
 </script>
+{% endblock %}
 {% endblock %}

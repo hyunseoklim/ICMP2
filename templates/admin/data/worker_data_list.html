@@ -6,16 +6,11 @@
   운영 데이터 관리 / <span class="text-slate-700">작업자 위치 데이터 관리</span>
 </div>
 <div class="flex gap-1 mb-6 border-b border-slate-200">
-  <a href="{% url 'gas_data_list' %}"
-    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">유해가스 센서 데이터</a>
-  <a href="{% url 'power_data_list' %}"
-    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">스마트 전력 시스템 데이터</a>
-  <a href="{% url 'node_data_list' %}"
-    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">위치 노드 데이터</a>
-  <a href="{% url 'worker_data_list' %}"
-    class="px-4 py-2 text-sm font-medium border-b-2 border-blue-600 text-blue-600 -mb-px">작업자 위치 데이터</a>
-  <a href="{% url 'retention_list' %}"
-    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">데이터 보관 주기</a>
+  <a href="{% url 'gas_data_list' %}"    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">유해가스 센서 데이터</a>
+  <a href="{% url 'power_data_list' %}"  class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">스마트 전력 시스템 데이터</a>
+  <a href="{% url 'node_data_list' %}"   class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">위치 노드 데이터</a>
+  <a href="{% url 'worker_data_list' %}" class="px-4 py-2 text-sm font-medium border-b-2 border-blue-600 text-blue-600 -mb-px">작업자 위치 데이터</a>
+  <a href="{% url 'retention_list' %}"   class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 -mb-px transition-colors">데이터 보관 주기</a>
 </div>
 {% endblock %}
 
@@ -35,83 +30,88 @@
 {% block content %}
 
 <!-- Filter -->
-<div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
-  <div class="flex gap-4 items-end">
+<form id="filter-form" method="get">
+  <input type="hidden" name="date_from" id="hidden-date-from" value="{{ date_from }}">
+  <input type="hidden" name="date_to"   id="hidden-date-to"   value="{{ date_to }}">
+  <input type="hidden" name="sort"      id="hidden-sort"       value="{{ sort }}">
 
-    <!-- 조회 기간 -->
-    <div class="flex-1">
-      <label class="block text-xs font-medium text-slate-700 mb-1.5">조회 기간</label>
-      <div class="relative" id="date-picker-wrap">
-        <button type="button" id="date-display"
-          class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          <span id="date-display-text" class="text-slate-700">2026-04-06 ~ 2026-04-12</span>
-          <i data-lucide="calendar" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
-        </button>
-        <!-- Calendar popup -->
-        <div id="date-picker-popup" class="hidden absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-4" style="width:290px;">
-          <div class="flex gap-1.5 mb-4">
-            <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" data-type="today">오늘</button>
-            <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" data-type="yesterday">어제</button>
-            <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md bg-blue-600 text-white font-medium transition-colors" data-type="7days">최근 7일</button>
-            <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" data-type="month">이번달</button>
-          </div>
-          <div class="flex items-center justify-between mb-3">
-            <button type="button" id="cal-prev" class="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 transition-colors text-base">&lsaquo;</button>
-            <span id="cal-month-label" class="text-sm font-semibold text-slate-800">2026년 4월</span>
-            <button type="button" id="cal-next" class="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 transition-colors text-base">&rsaquo;</button>
-          </div>
-          <div class="grid grid-cols-7 mb-1">
-            <div class="text-center text-[11px] font-medium text-red-400 py-1">일</div>
-            <div class="text-center text-[11px] font-medium text-slate-500 py-1">월</div>
-            <div class="text-center text-[11px] font-medium text-slate-500 py-1">화</div>
-            <div class="text-center text-[11px] font-medium text-slate-500 py-1">수</div>
-            <div class="text-center text-[11px] font-medium text-slate-500 py-1">목</div>
-            <div class="text-center text-[11px] font-medium text-slate-500 py-1">금</div>
-            <div class="text-center text-[11px] font-medium text-blue-400 py-1">토</div>
-          </div>
-          <div id="cal-grid" class="grid grid-cols-7 gap-y-1"></div>
-          <div class="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-400 leading-relaxed">
-            보관 기간: 최근 1개월<br>검색 기간은 최대 1개월로 조회
+  <div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+    <div class="flex gap-4 items-end">
+
+      <!-- 조회 기간 -->
+      <div class="flex-1">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">조회 기간</label>
+        <div class="relative" id="date-picker-wrap">
+          <button type="button" id="date-display"
+            class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+            <span id="date-display-text" class="text-slate-700">{{ date_from }} ~ {{ date_to }}</span>
+            <i data-lucide="calendar" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
+          </button>
+          <div id="date-picker-popup" class="hidden absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-40 p-4" style="width:290px;">
+            <div class="flex gap-1.5 mb-4">
+              <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" data-type="today">오늘</button>
+              <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" data-type="yesterday">어제</button>
+              <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md bg-blue-600 text-white font-medium transition-colors" data-type="7days">최근 7일</button>
+              <button type="button" class="quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" data-type="month">이번달</button>
+            </div>
+            <div class="flex items-center justify-between mb-3">
+              <button type="button" id="cal-prev" class="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 transition-colors text-base">&lsaquo;</button>
+              <span id="cal-month-label" class="text-sm font-semibold text-slate-800"></span>
+              <button type="button" id="cal-next" class="w-7 h-7 flex items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 transition-colors text-base">&rsaquo;</button>
+            </div>
+            <div class="grid grid-cols-7 mb-1">
+              <div class="text-center text-[11px] font-medium text-red-400 py-1">일</div>
+              <div class="text-center text-[11px] font-medium text-slate-500 py-1">월</div>
+              <div class="text-center text-[11px] font-medium text-slate-500 py-1">화</div>
+              <div class="text-center text-[11px] font-medium text-slate-500 py-1">수</div>
+              <div class="text-center text-[11px] font-medium text-slate-500 py-1">목</div>
+              <div class="text-center text-[11px] font-medium text-slate-500 py-1">금</div>
+              <div class="text-center text-[11px] font-medium text-blue-400 py-1">토</div>
+            </div>
+            <div id="cal-grid" class="grid grid-cols-7 gap-y-1"></div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 작업자명 -->
-    <div style="width:200px;">
-      <label class="block text-xs font-medium text-slate-700 mb-1.5">작업자명</label>
-      <input type="text" id="worker-input" placeholder="작업자명 입력"
-        class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
-    </div>
+      <!-- 작업자명 -->
+      <div style="width:220px;">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">작업자명</label>
+        <input type="text" name="worker_name" id="worker-name-input" value="{{ worker_name }}"
+          placeholder="작업자명 입력"
+          class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+      </div>
 
-    <!-- Buttons -->
-    <div class="flex gap-2">
-      <button type="button" id="filter-reset"
-        class="px-5 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">초기화</button>
-      <button type="button" id="filter-search"
-        class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">검색</button>
+      <!-- Buttons -->
+      <div class="flex gap-2">
+        <button type="button" id="filter-reset"
+          class="px-5 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">초기화</button>
+        <button type="submit"
+          class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">검색</button>
+      </div>
     </div>
   </div>
-</div>
+</form>
 
 <!-- List -->
 <div class="bg-white rounded-lg border border-slate-200">
   <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
     <div>
-      <span class="text-sm font-semibold text-slate-800">전체 <span class="text-blue-600">5</span>건</span>
+      <span class="text-sm font-semibold text-slate-800">전체 <span class="text-blue-600">{{ total }}</span>건</span>
       <span class="text-xs text-slate-400 ml-2">표출된 리스트를 기준으로 로그 내보내기가 수행됩니다.</span>
     </div>
     <div class="relative" id="sort-wrap">
       <button type="button" id="sort-toggle"
         class="flex items-center gap-1.5 text-xs text-slate-600 border border-slate-200 rounded-md px-3 py-1.5 bg-white hover:border-slate-300 transition-colors">
-        <span id="sort-label">수신 시각 최신순</span>
+        <span id="sort-label">{% if sort == 'old' %}수신 시각 오래된순{% else %}수신 시각 최신순{% endif %}</span>
         <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400" id="sort-chevron"></i>
       </button>
-      <div id="sort-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 w-48">
-        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="new" data-label="수신 시각 최신순">
-          <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>수신 시각 최신순
+      <div id="sort-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 w-44">
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left {% if sort != 'old' %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="new">
+          {% if sort != 'old' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}수신 시각 최신순
         </button>
-        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="old" data-label="수신 시각 오래된순">수신 시각 오래된순</button>
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left {% if sort == 'old' %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="old">
+          {% if sort == 'old' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}수신 시각 오래된순
+        </button>
       </div>
     </div>
   </div>
@@ -127,50 +127,55 @@
         </tr>
       </thead>
       <tbody>
+        {% for r in page_obj %}
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-20 09:24:18</td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">작업자 김민수</td>
-          <td class="px-4 py-3 text-xs text-slate-600">37.509 / 127.047</td>
+          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{{ r.measured_at|date:"Y-m-d H:i:s" }}</td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">{{ r.worker.worker_name }}</td>
+          <td class="px-4 py-3 text-xs text-slate-600">
+            {% if r.x is not None and r.y is not None %}{{ r.x|floatformat:3 }} / {{ r.y|floatformat:3 }}{% else %}-{% endif %}
+          </td>
         </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-20 09:22:51</td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">작업자 박시준</td>
-          <td class="px-4 py-3 text-xs text-slate-600">37.514 / 127.038</td>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="px-4 py-10 text-center text-sm text-slate-400">조회된 데이터가 없습니다.</td>
         </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-20 09:21:09</td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">작업자 이도룡</td>
-          <td class="px-4 py-3 text-xs text-slate-400">-</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-20 09:18:42</td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">작업자 최은영</td>
-          <td class="px-4 py-3 text-xs text-slate-600">37.510 / 127.035</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-20 09:15:17</td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">작업자 정수원</td>
-          <td class="px-4 py-3 text-xs text-slate-600">37.512 / 127.041</td>
-        </tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>
 
   <!-- Pagination -->
   <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-    <span class="text-xs text-slate-500">1 - 5 / 5</span>
+    <span class="text-xs text-slate-500">
+      {% if total > 0 %}{{ page_obj.start_index }} - {{ page_obj.end_index }} / {{ total }}{% else %}0 / 0{% endif %}
+    </span>
     <div class="flex items-center gap-1">
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+      {% if page_obj.has_previous %}
+      <a href="?date_from={{ date_from }}&date_to={{ date_to }}&worker_name={{ worker_name }}&sort={{ sort }}&page={{ page_obj.previous_page_number }}"
+        class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors">
         <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
-      </button>
-      <button class="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-medium">1</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">2</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">3</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">4</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">5</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+      </a>
+      {% else %}
+      <span class="w-7 h-7 flex items-center justify-center rounded text-slate-300"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></span>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
+        {% if num == page_obj.number %}
+        <span class="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-medium">{{ num }}</span>
+        {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+        <a href="?date_from={{ date_from }}&date_to={{ date_to }}&worker_name={{ worker_name }}&sort={{ sort }}&page={{ num }}"
+          class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+      <a href="?date_from={{ date_from }}&date_to={{ date_to }}&worker_name={{ worker_name }}&sort={{ sort }}&page={{ page_obj.next_page_number }}"
+        class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors">
         <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-      </button>
+      </a>
+      {% else %}
+      <span class="w-7 h-7 flex items-center justify-center rounded text-slate-300"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></span>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -178,173 +183,123 @@
 <script>
 (function() {
   var CAL = {
-    year: 2026, month: 3,
-    startDate: '2026-04-06', endDate: '2026-04-12',
-    activeQuick: '7days', picking: 'start'
+    startDate: '{{ date_from }}',
+    endDate:   '{{ date_to }}',
+    picking: 'start', activeQuick: '7days'
   };
 
   function pad2(n) { return String(n).padStart(2, '0'); }
+  function todayKey() { var d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()); }
+  function addDays(key, n) { var d = new Date(key); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
 
-  function todayKey() {
-    var d = new Date();
-    return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
-  }
-
-  function addDays(key, n) {
-    var d = new Date(key);
-    d.setDate(d.getDate() + n);
-    return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
-  }
-
-  function updateDisplay() {
+  function syncHidden() {
+    document.getElementById('hidden-date-from').value = CAL.startDate;
+    document.getElementById('hidden-date-to').value   = CAL.endDate;
     document.getElementById('date-display-text').textContent = CAL.startDate + ' ~ ' + CAL.endDate;
   }
 
   function renderCalendar() {
+    var ed = new Date(CAL.endDate);
+    var year = ed.getFullYear(), month = ed.getMonth();
     var MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-    document.getElementById('cal-month-label').textContent = CAL.year + '년 ' + MONTHS[CAL.month];
-
-    document.querySelectorAll('.quick-btn').forEach(function(btn) {
-      btn.className = btn.dataset.type === CAL.activeQuick
+    document.getElementById('cal-month-label').textContent = year + '년 ' + MONTHS[month];
+    document.querySelectorAll('.quick-btn').forEach(function(b) {
+      b.className = b.dataset.type === CAL.activeQuick
         ? 'quick-btn flex-1 py-1.5 text-xs rounded-md bg-blue-600 text-white font-medium transition-colors'
         : 'quick-btn flex-1 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors';
     });
-
     var grid = document.getElementById('cal-grid');
     grid.innerHTML = '';
-    var firstDay = new Date(CAL.year, CAL.month, 1).getDay();
-    var daysInMonth = new Date(CAL.year, CAL.month + 1, 0).getDate();
-
-    for (var i = 0; i < firstDay; i++) { grid.appendChild(document.createElement('div')); }
-
+    var firstDay = new Date(year, month, 1).getDay();
+    var daysInMonth = new Date(year, month+1, 0).getDate();
+    for (var i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
     for (var d = 1; d <= daysInMonth; d++) {
-      var key = CAL.year + '-' + pad2(CAL.month+1) + '-' + pad2(d);
+      var key = year + '-' + pad2(month+1) + '-' + pad2(d);
       var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = d;
-      btn.dataset.date = key;
-      var dow = new Date(CAL.year, CAL.month, d).getDay();
+      btn.type = 'button'; btn.textContent = d; btn.dataset.date = key;
+      var dow = new Date(year, month, d).getDay();
       var base = 'w-8 h-8 text-xs rounded-full flex items-center justify-center mx-auto transition-colors ';
-      if (key === CAL.startDate || key === CAL.endDate) {
-        btn.className = base + 'bg-blue-600 text-white font-semibold';
-      } else if (key > CAL.startDate && key < CAL.endDate) {
-        btn.className = base + 'bg-blue-50 text-blue-700';
-      } else {
-        var color = dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-slate-700';
-        btn.className = base + color + ' hover:bg-slate-100';
-      }
-      btn.addEventListener('click', function(){ onDayClick(this.dataset.date); });
+      if (key === CAL.startDate || key === CAL.endDate) btn.className = base + 'bg-blue-600 text-white font-semibold';
+      else if (key > CAL.startDate && key < CAL.endDate) btn.className = base + 'bg-blue-50 text-blue-700';
+      else { var c = dow===0?'text-red-500':dow===6?'text-blue-500':'text-slate-700'; btn.className = base+c+' hover:bg-slate-100'; }
+      btn.addEventListener('click', function() {
+        var k = this.dataset.date;
+        if (CAL.picking === 'start') { CAL.startDate = CAL.endDate = k; CAL.picking = 'end'; CAL.activeQuick = null; }
+        else { if (k < CAL.startDate) { CAL.endDate = CAL.startDate; CAL.startDate = k; } else { CAL.endDate = k; } CAL.picking = 'start'; closePicker(); }
+        renderCalendar(); syncHidden();
+      });
       grid.appendChild(btn);
     }
   }
 
-  function onDayClick(key) {
-    if (CAL.picking === 'start') {
-      CAL.startDate = CAL.endDate = key;
-      CAL.picking = 'end';
-      CAL.activeQuick = null;
-    } else {
-      if (key < CAL.startDate) { CAL.endDate = CAL.startDate; CAL.startDate = key; }
-      else { CAL.endDate = key; }
-      CAL.picking = 'start';
-      closePicker();
-    }
-    renderCalendar();
-    updateDisplay();
-  }
-
   function setQuick(type) {
     var today = todayKey();
-    if (type === 'today')     { CAL.startDate = CAL.endDate = today; }
-    else if (type === 'yesterday') { var y = addDays(today, -1); CAL.startDate = CAL.endDate = y; }
-    else if (type === '7days') { CAL.startDate = addDays(today, -6); CAL.endDate = today; }
-    else if (type === 'month') {
-      var now = new Date();
-      CAL.startDate = now.getFullYear() + '-' + pad2(now.getMonth()+1) + '-01';
-      CAL.endDate = today;
-    }
-    CAL.activeQuick = type;
-    CAL.picking = 'start';
-    var ed = new Date(CAL.endDate);
-    CAL.year = ed.getFullYear(); CAL.month = ed.getMonth();
-    renderCalendar();
-    updateDisplay();
-    closePicker();
+    if (type==='today') { CAL.startDate = CAL.endDate = today; }
+    else if (type==='yesterday') { var y=addDays(today,-1); CAL.startDate=CAL.endDate=y; }
+    else if (type==='7days') { CAL.startDate=addDays(today,-6); CAL.endDate=today; }
+    else if (type==='month') { var now=new Date(); CAL.startDate=now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-01'; CAL.endDate=today; }
+    CAL.activeQuick=type; CAL.picking='start';
+    renderCalendar(); syncHidden(); closePicker();
   }
 
   function openPicker() { document.getElementById('date-picker-popup').classList.remove('hidden'); renderCalendar(); }
   function closePicker() { document.getElementById('date-picker-popup').classList.add('hidden'); }
 
-  document.getElementById('date-display')?.addEventListener('click', function(e) {
+  document.getElementById('date-display').addEventListener('click', function(e) {
     e.stopPropagation();
-    var popup = document.getElementById('date-picker-popup');
-    if (popup.classList.contains('hidden')) openPicker(); else closePicker();
+    var p = document.getElementById('date-picker-popup');
+    if (p.classList.contains('hidden')) openPicker(); else closePicker();
   });
-  document.getElementById('date-picker-popup')?.addEventListener('click', function(e) { e.stopPropagation(); });
-  document.querySelectorAll('.quick-btn').forEach(function(btn) { btn.addEventListener('click', function() { setQuick(this.dataset.type); }); });
-  document.getElementById('cal-prev')?.addEventListener('click', function() { CAL.month--; if(CAL.month<0){CAL.month=11;CAL.year--;} renderCalendar(); });
-  document.getElementById('cal-next')?.addEventListener('click', function() { CAL.month++; if(CAL.month>11){CAL.month=0;CAL.year++;} renderCalendar(); });
-
-  /* ── 정렬 드롭다운 ── */
-  function closeSortMenu() {
-    var menu = document.getElementById('sort-menu');
-    if (menu) menu.classList.add('hidden');
-    var chev = document.getElementById('sort-chevron');
-    if (chev) chev.style.transform = '';
-  }
-
-  document.getElementById('sort-toggle')?.addEventListener('click', function(e) {
-    e.stopPropagation();
-    var menu = document.getElementById('sort-menu');
-    var open = !menu.classList.contains('hidden');
-    closeSortMenu();
-    if (!open) {
-      menu.classList.remove('hidden');
-      document.getElementById('sort-chevron').style.transform = 'rotate(180deg)';
-    }
+  document.getElementById('date-picker-popup').addEventListener('click', function(e) { e.stopPropagation(); });
+  document.querySelectorAll('.quick-btn').forEach(function(b) { b.addEventListener('click', function() { setQuick(this.dataset.type); }); });
+  document.getElementById('cal-prev').addEventListener('click', function() {
+    var ed = new Date(CAL.endDate); ed.setMonth(ed.getMonth()-1); CAL.endDate = ed.getFullYear()+'-'+pad2(ed.getMonth()+1)+'-'+pad2(ed.getDate()); renderCalendar();
+  });
+  document.getElementById('cal-next').addEventListener('click', function() {
+    var ed = new Date(CAL.endDate); ed.setMonth(ed.getMonth()+1); CAL.endDate = ed.getFullYear()+'-'+pad2(ed.getMonth()+1)+'-'+pad2(ed.getDate()); renderCalendar();
   });
 
-  document.querySelectorAll('.sort-opt').forEach(function(opt) {
-    opt.addEventListener('click', function(e) {
-      e.stopPropagation();
-      document.querySelectorAll('.sort-opt').forEach(function(o) {
-        o.classList.remove('bg-blue-50','text-slate-900'); o.classList.add('text-slate-700');
-        var ic = o.querySelector('i'); if(ic) ic.style.display = 'none';
-      });
-      this.classList.add('bg-blue-50','text-slate-900'); this.classList.remove('text-slate-700');
-      var ic = this.querySelector('i'); if(ic) ic.style.display = '';
-      document.getElementById('sort-label').textContent = this.dataset.label;
-      closeSortMenu();
+  /* ── 정렬 ── */
+  var sortToggle = document.getElementById('sort-toggle');
+  var sortMenu   = document.getElementById('sort-menu');
+  var sortChev   = document.getElementById('sort-chevron');
+
+  sortToggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var open = !sortMenu.classList.contains('hidden');
+    sortMenu.classList.toggle('hidden', open);
+    sortChev.style.transform = open ? '' : 'rotate(180deg)';
+  });
+  document.querySelectorAll('.sort-opt').forEach(function(o) {
+    o.addEventListener('click', function() {
+      document.getElementById('hidden-sort').value = this.dataset.value;
+      document.getElementById('filter-form').submit();
     });
   });
 
-  document.addEventListener('click', function() { closeSortMenu(); closePicker(); });
+  document.addEventListener('click', function() {
+    closePicker();
+    sortMenu.classList.add('hidden');
+    sortChev.style.transform = '';
+  });
+  sortMenu.addEventListener('click', function(e) { e.stopPropagation(); });
 
   /* ── 초기화 ── */
-  document.getElementById('filter-reset')?.addEventListener('click', function() {
+  document.getElementById('filter-reset').addEventListener('click', function() {
     setQuick('7days');
-    var wi = document.getElementById('worker-input');
-    if (wi) wi.value = '';
+    document.getElementById('worker-name-input').value = '';
+    document.getElementById('hidden-sort').value = 'new';
+    document.getElementById('filter-form').submit();
   });
 
   /* ── CSV 내보내기 ── */
-  document.getElementById('export-btn')?.addEventListener('click', function() {
-    var headers = ['수신 시각','작업자명','위치 좌표'];
-    var rows = [];
-    document.querySelectorAll('#worker-table tbody tr').forEach(function(tr) {
-      var cells = tr.querySelectorAll('td');
-      rows.push(Array.from(cells).map(function(td){ return '"' + td.textContent.trim() + '"'; }).join(','));
-    });
-    var csv = '﻿' + headers.join(',') + '\n' + rows.join('\n');
-    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    var link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'worker_data_' + CAL.startDate + '_' + CAL.endDate + '.csv';
-    link.click();
+  document.getElementById('export-btn').addEventListener('click', function() {
+    window.location.href = '{% url "worker_data_export" %}' + window.location.search;
   });
 
-  lucide.createIcons();
   renderCalendar();
+  syncHidden();
+  lucide.createIcons();
 })();
 </script>
 {% endblock %}

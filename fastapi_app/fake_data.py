@@ -159,6 +159,32 @@ def generate_location_data() -> dict:
     }
 
 
+_DETECTION_RANGE = 15.0  # 노드가 작업자 신호를 수신하는 최대 거리
+
+
+def generate_node_readings(nodes: list[dict]) -> list[dict]:
+    """
+    각 노드에 대해 현재 작업자 위치와의 거리를 계산하고,
+    감지 범위(15 units) 안에 작업자가 있으면 NodeReading 페이로드를 생성한다.
+    nodes: [{"node_code": "LN-001", "x": 5.0, "y": 5.0}, ...]
+    """
+    results = []
+    for node in nodes:
+        nx, ny = node["x"], node["y"]
+        for pos in _worker_positions.values():
+            dist = ((pos["x"] - nx) ** 2 + (pos["y"] - ny) ** 2) ** 0.5
+            if dist <= _DETECTION_RANGE:
+                noise_x = round(nx + random.uniform(-1.0, 1.0), 3)
+                noise_y = round(ny + random.uniform(-1.0, 1.0), 3)
+                results.append({
+                    "node_code": node["node_code"],
+                    "x": noise_x,
+                    "y": noise_y,
+                })
+                break  # 노드당 1회만 기록
+    return results
+
+
 def generate_all_location_data(floor_id: int = 1) -> list[dict]:
     """전체 작업자 위치를 한꺼번에 업데이트해서 반환"""
     result = []

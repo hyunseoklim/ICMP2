@@ -19,3 +19,7 @@ db.sqlite3.backup_*
 *.backup_*
 db.sqlite3-journal
 *.bak
+*.png
+*.md
+*.pdf
+dump.rdb

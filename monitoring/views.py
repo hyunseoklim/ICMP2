@@ -13,6 +13,7 @@ from monitoring.models import (
     GasReading,
     PowerStatusReading,
     PowerReading,
+    NodeReading,
     ThresholdPolicy,
     InspectionLog,
     ActionLog,
@@ -180,6 +181,29 @@ def ingest_power(request):
     from alerts.services import check_power_thresholds
     check_power_thresholds(device, channel, float(request.data.get('power_w', 0)))
 
+    return Response({'status': 'ok'})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def ingest_node(request):
+    """
+    POST /monitoring/api/node-readings/
+    FastAPI 노드 수신 시뮬레이션 → Django DB 저장
+    """
+    from facilities.models import LocationNode
+
+    node_code = request.data.get('node_code')
+    node = LocationNode.objects.filter(node_code=node_code).first()
+    if not node:
+        return Response({'error': f'노드 없음: {node_code}'}, status=404)
+
+    NodeReading.objects.create(
+        node=node,
+        x=request.data.get('x'),
+        y=request.data.get('y'),
+        received_at=timezone.now(),
+    )
     return Response({'status': 'ok'})
 
 
