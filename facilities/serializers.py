@@ -87,6 +87,7 @@ class LocationNodeSerializer(serializers.ModelSerializer):
             'floor',
             'zone',
             'node_name',
+            'node_code',
             'x',
             'y',
             'status',

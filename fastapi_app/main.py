@@ -5,14 +5,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_power_data
-from fastapi_app.sender import fetch_gas_devices, post_gas_reading, post_power_reading, post_location_reading
+from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_power_data, generate_node_readings
+from fastapi_app.sender import fetch_gas_devices, post_gas_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading
 
 # 연결된 클라이언트 목록
 _clients: list[WebSocket] = []
 
 # Django에서 가져온 가스 장비 목록 [{id, device_uid}, ...]
 _devices: list[dict] = []
+# Django에서 가져온 위치 노드 목록 [{node_code, x, y}, ...]
+_nodes: list[dict] = []
 
 
 async def _broadcast(message: dict) -> None:
@@ -27,39 +29,50 @@ async def _broadcast(message: dict) -> None:
         _clients.remove(ws)
 
 
+async def _emit_once() -> None:
+    for device in _devices:
+        data = generate_sensor_data(device["id"], device["device_uid"])
+        await _broadcast(data)
+        await post_gas_reading(data)
+
+    for _ in range(5):
+        power = generate_power_data()
+        await _broadcast(power)
+        await post_power_reading(power)
+
+    for location in generate_all_location_data():
+        await _broadcast(location)
+        await post_location_reading(location)
+
+    if _nodes:
+        for node_reading in generate_node_readings(_nodes):
+            await post_node_reading(node_reading)
+
+
 async def _data_loop() -> None:
-    """60초마다 센서 데이터 + 전력 데이터 + 위치 데이터 broadcast"""
     while True:
-        # 가스 센서 데이터
-        for device in _devices:
-            data = generate_sensor_data(device["id"], device["device_uid"])
-            await _broadcast(data)
-            await post_gas_reading(data)
-
-        # 전력 데이터 (채널별로 여러 번)
-        for _ in range(5):  # 한 루프에 5개 채널 데이터 전송
-            power = generate_power_data()
-            await _broadcast(power)
-            await post_power_reading(power)
-
-        # 위치 데이터 - 전체 작업자 한꺼번에
-        for location in generate_all_location_data():
-            await _broadcast(location)
-            await post_location_reading(location)
-
-        await asyncio.sleep(5)
+        await _emit_once()
+        await asyncio.sleep(60)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 앱 시작 시 Django 장비 목록 로드
+    # 앱 시작 시 Django 장비/노드 목록 로드
     devices = await fetch_gas_devices()
     _devices.extend(devices)
 
+    nodes = await fetch_location_nodes()
+    _nodes.extend(nodes)
+
     if _devices:
-        print(f"[FastAPI] 장비 {len(_devices)}개 로드 완료: {[d['device_uid'] for d in _devices]}")
+        print(f"[FastAPI] 가스 장비 {len(_devices)}개 로드 완료: {[d['device_uid'] for d in _devices]}")
     else:
         print("[FastAPI] 장비 없음 — Django에 가스 장비를 먼저 등록하세요")
+
+    if _nodes:
+        print(f"[FastAPI] 위치 노드 {len(_nodes)}개 로드 완료: {[n['node_code'] for n in _nodes]}")
+    else:
+        print("[FastAPI] 위치 노드 없음 — Django에 LocationNode를 먼저 등록하세요")
 
     task = asyncio.create_task(_data_loop())
     yield
@@ -87,6 +100,12 @@ async def websocket_endpoint(ws: WebSocket):
     except WebSocketDisconnect:
         _clients.remove(ws)
         print(f"[WS] 해제됨 — 현재 {len(_clients)}명")
+
+
+@app.post("/trigger")
+async def trigger():
+    await _emit_once()
+    return {"status": "ok", "devices": len(_devices)}
 
 
 @app.get("/health")

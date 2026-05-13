@@ -4,6 +4,32 @@ from django.utils import timezone
 from monitoring.models import ThresholdPolicy
 
 
+class RiskCriteria(models.Model):
+    class ColorType(models.TextChoices):
+        GREEN  = 'green',  '녹색'
+        YELLOW = 'yellow', '황색'
+        ORANGE = 'orange', '주황'
+        RED    = 'red',    '적색'
+        GRAY   = 'gray',   '회색'
+
+    stage_code     = models.CharField(max_length=50, unique=True)
+    stage_name     = models.CharField(max_length=100)
+    color_type     = models.CharField(max_length=20, choices=ColorType.choices, default=ColorType.GRAY)
+    alert_emphasis = models.CharField(max_length=100, blank=True, default='')
+    priority       = models.PositiveIntegerField(default=1)
+    is_active      = models.BooleanField(default=True)
+    description    = models.TextField(blank=True, default='')
+    updated_at     = models.DateTimeField(auto_now=True)
+    updated_by     = models.CharField(max_length=100, blank=True, default='')
+
+    class Meta:
+        db_table = 'risk_criteria'
+        ordering = ['priority']
+
+    def __str__(self):
+        return f"{self.stage_name} ({self.stage_code})"
+
+
 class AlarmRule(models.Model):
     class RuleType(models.TextChoices):
         THRESHOLD = "threshold", "임계치 초과"
@@ -43,6 +69,7 @@ class AlarmRule(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.CharField(max_length=100, blank=True, default='')
 
     class Meta:
         db_table = "alarm_rules"
