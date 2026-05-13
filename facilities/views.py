@@ -268,6 +268,20 @@ class LocationNodeViewSet(viewsets.ModelViewSet):
             qs = qs.filter(zone_id=zone_id)
         return qs
 
+    def perform_update(self, serializer):
+        # T1-δ B1+C1+E3
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(serializer.instance)
+        instance = serializer.save()
+        after = capture_state(instance)
+        log_change(instance, before, after, 'update', self.request.user)
+
+    def perform_destroy(self, instance):
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(instance)
+        log_change(instance, before, None, 'delete', self.request.user)
+        instance.delete()
+
 class WorkerViewSet(viewsets.ModelViewSet):
     queryset = Worker.objects.all().order_by('worker_name')
     serializer_class = WorkerSerializer
@@ -454,6 +468,21 @@ class EquipmentViewSet(viewsets.ModelViewSet):
 
         return qs.order_by('equipment_code')
 
+    def perform_update(self, serializer):
+        # T1-δ B1+C1+E3: 변경 이력 기록 (full snapshot before/after)
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(serializer.instance)
+        instance = serializer.save()
+        after = capture_state(instance)
+        log_change(instance, before, after, 'update', self.request.user)
+
+    def perform_destroy(self, instance):
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(instance)
+        log_change(instance, before, None, 'delete', self.request.user)
+        instance.delete()
+
+
 class SensorLocationViewSet(viewsets.ModelViewSet):
     """
     센서 위치 CRUD.
@@ -487,6 +516,21 @@ class SensorLocationViewSet(viewsets.ModelViewSet):
 
         return qs.order_by('sensor_type', 'id')
 
+    def perform_update(self, serializer):
+        # T1-δ B1+C1+E3
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(serializer.instance)
+        instance = serializer.save()
+        after = capture_state(instance)
+        log_change(instance, before, after, 'update', self.request.user)
+
+    def perform_destroy(self, instance):
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(instance)
+        log_change(instance, before, None, 'delete', self.request.user)
+        instance.delete()
+
+
 class GeofenceViewSet(viewsets.ModelViewSet):
     """
     Geofence CRUD.
@@ -512,16 +556,29 @@ class GeofenceViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):
+        # T1-δ B1+C1+E3: create 도 기록 (Geofence 만 — frontend 가 직접 생성)
+        from core.services.change_log import capture_state, log_change
         geofence = serializer.save()
+        after = capture_state(geofence)
+        log_change(geofence, None, after, 'create', self.request.user)
         self._broadcast(geofence, 'delta')
 
     def perform_update(self, serializer):
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(serializer.instance)
         geofence = serializer.save()
+        after = capture_state(geofence)
+        log_change(geofence, before, after, 'update', self.request.user)
         self._broadcast(geofence, 'delta')
 
     def perform_destroy(self, instance):
+        # soft-delete (is_active=False) — 사용자 의도는 delete 로 기록
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(instance)
         instance.is_active = False
         instance.save(update_fields=['is_active'])
+        after = capture_state(instance)
+        log_change(instance, before, after, 'delete', self.request.user)
         self._broadcast(instance, 'delta')
 
     def _broadcast(self, geofence, msg_type):
@@ -548,3 +605,62 @@ class GeofenceViewSet(viewsets.ModelViewSet):
                     update_geofence_from_gas(reading)
                 except Exception as e:
                     print(f'[geofence_sync] device_id={device_id} 오류: {e}')
+
+
+# ─────────────────────────────────────────────────────────────────────
+# T1-ε: map editor bulk-save endpoint
+# POST /facilities/api/map-editor/bulk-save/
+# body: { equipment: {<pk>: {...}}, locationNode: {...}, sensor: {...}, geofence: {...} }
+# B2 per-item: 객체별 독립 처리, 일부 실패 허용
+# ChangeLog: 성공 row 만 기록 (T1-δ 와 일관)
+# ─────────────────────────────────────────────────────────────────────
+_BULK_CONFIG = {
+    'equipment':    (Equipment,      EquipmentSerializer),
+    'locationNode': (LocationNode,   LocationNodeSerializer),
+    'sensor':       (SensorLocation, SensorLocationSerializer),
+    'geofence':     (Geofence,       GeofenceSerializer),
+}
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def bulk_map_editor_save(request):
+    """
+    T1-ε: 지도 편집기의 일괄 저장 endpoint.
+    per-item try/except — 일부 실패해도 나머지는 저장.
+    """
+    from core.services.change_log import capture_state, log_change
+
+    payload = request.data or {}
+    success_count = 0
+    errors = []
+
+    for category, (Model, Serializer) in _BULK_CONFIG.items():
+        items = (payload.get(category) or {}).get('update') or payload.get(category) or {}
+        # 양쪽 형식 지원: {<pk>: data} 또는 {update: {<pk>: data}}
+        if not isinstance(items, dict):
+            continue
+        for pk, data in items.items():
+            try:
+                instance = Model.objects.get(pk=pk)
+            except Model.DoesNotExist:
+                errors.append({'type': category, 'pk': pk, 'errors': {'detail': 'Not found'}})
+                continue
+            serializer = Serializer(instance, data=data, partial=True)
+            if not serializer.is_valid():
+                errors.append({'type': category, 'pk': pk, 'errors': serializer.errors})
+                continue
+            try:
+                before = capture_state(instance)
+                instance = serializer.save()
+                after = capture_state(instance)
+                log_change(instance, before, after, 'update', request.user)
+                success_count += 1
+            except Exception as e:
+                errors.append({'type': category, 'pk': pk, 'errors': {'detail': str(e)}})
+
+    return Response({
+        'success': success_count,
+        'failed':  len(errors),
+        'errors':  errors,
+    }, status=status.HTTP_200_OK)

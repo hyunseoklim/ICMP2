@@ -382,6 +382,7 @@ def seed_facilities():
                 "z": 0.0,              # ✅ [수정 3] altitude → z
                 "status": "active",
                 "floor": floor1,
+                "is_placed": True,     # T1-α X3: 시드 데이터는 배치 완료 상태
             },
         )
 
@@ -749,6 +750,7 @@ def seed_monitoring():
                     "device_name": name,     # ✅ [수정 4] label → device_name
                     "is_active": True,
                     "floor": floor1,
+                    "is_placed": True,       # T1-β Q1: 시드 데이터는 배치 완료 상태
                 },
             )
 

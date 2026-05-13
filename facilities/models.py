@@ -238,28 +238,29 @@ class Geofence(models.Model):
 
 
 class LocationNode(models.Model):
-    floor = models.ForeignKey(          # ← 추가: Floor 직접 참조
+    floor = models.ForeignKey(
         'facilities.Floor',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,      # T1-α Y2: CASCADE → SET_NULL (Equipment 와 일관)
         related_name='location_nodes',
         null=True, blank=True
     )
-    zone = models.ForeignKey(           # ← 변경: null 허용
+    zone = models.ForeignKey(
         'facilities.Zone',
-        on_delete=models.SET_NULL,      # CASCADE → SET_NULL
+        on_delete=models.SET_NULL,
         related_name='location_nodes',
-        null=True, blank=True           # 필수 → 선택
+        null=True, blank=True
     )
     node_name = models.CharField(max_length=100)
-    node_code = models.CharField(max_length=50)
-    x = models.FloatField(default=0)
-    y = models.FloatField(default=0)
+    node_code = models.CharField(max_length=50, unique=True)   # 명세 3 X1
+    x = models.FloatField(null=True, blank=True)   # T1-α X3: (0,0) 정상값과 미배치 구분 위해 null 허용
+    y = models.FloatField(null=True, blank=True)
     z = models.FloatField(default=0, null=True)
     status = models.CharField(
         max_length=20,
         choices=[('active', '활성'), ('inactive', '비활성')],
         default='active',
     )
+    is_placed = models.BooleanField(default=False, help_text='지도 배치 완료 여부')   # T1-α X3: 단일 진실 원천
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -357,7 +358,7 @@ class Equipment(models.Model):
         "facilities.Zone", on_delete=models.SET_NULL, null=True
     )
     equipment_name = models.CharField(max_length=20)
-    equipment_code = models.CharField(max_length=20)
+    equipment_code = models.CharField(max_length=20, unique=True)   # 명세 3 X1
     width = models.FloatField(null=True, blank=True, help_text='장비 가로 크기(m)')
     height = models.FloatField(null=True, blank=True, help_text='장비 세로 크기(m)')
     center_x = models.FloatField(null=True, blank=True, help_text='장비 중심점 x 좌표(m)')
@@ -400,22 +401,24 @@ class SensorLocation(models.Model):
     )
     floor = models.ForeignKey(
         'facilities.Floor',
-        on_delete=models.CASCADE,
-        related_name='sensor_locations'
+        on_delete=models.SET_NULL,           # T1-β R2: CASCADE → SET_NULL
+        related_name='sensor_locations',
+        null=True, blank=True,               # T1-β R2: nullable
     )
     sensor_type = models.CharField(
         max_length=20,
         choices=SENSOR_TYPE_CHOICES,
         default='gas'
     )
-    x = models.FloatField(help_text='센서 x 좌표 (m)')
-    y = models.FloatField(help_text='센서 y 좌표 (m)')
+    x = models.FloatField(null=True, blank=True, help_text='센서 x 좌표 (m)')   # T1-β Q1: null 허용
+    y = models.FloatField(null=True, blank=True, help_text='센서 y 좌표 (m)')
     device_name = models.CharField(
         max_length=100,
         blank=True,
         help_text='표시용 이름 (monitoring.Device.device_name 복사)'
     )
     is_active = models.BooleanField(default=True)
+    is_placed = models.BooleanField(default=False, help_text='지도 배치 완료 여부')   # T1-β Q1: 단일 진실 원천
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

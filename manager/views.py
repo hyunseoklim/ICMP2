@@ -1,7 +1,10 @@
 from datetime import timedelta
 
+# ⚠️ 임시: 운영 전 일괄 권한 정책으로 교체 예정 — map_editor 함수 페이지 진입 차단 전용
+# API ViewSet 등 다른 경로는 별도 단계에서 보호 적용
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Exists, OuterRef
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -9,7 +12,10 @@ from django.views.generic import TemplateView, ListView, UpdateView, DeleteView
 
 
 from .mixins import AdminRequiredMixin, ManagerRequiredMixin, RoleRequiredMixin, DepartmentScopeMixin
-
+from facilities.models import (
+    Floor, Equipment, LocationNode, Geofence, SensorLocation,
+) # map 관련 모델 추가함
+from monitoring.models import Device # map 관련 모델 추가함
 
 # class DashboardView(ManagerRequiredMixin, TemplateView):
 #     """
@@ -327,6 +333,117 @@ def map_edit_log_list(request):
     return render(request, 'admin/log/map_edit_log_list.html', {'active_menu': 'log'})
 
 # ===== 지도 관리 =====
+
+# ⚠️ 임시 권한 차단 — 운영 전 일괄 권한 정책 적용 시 교체 예정
+# 사유: 다른 팀원이 권한 관련 데코레이터·믹스인을 추가 중일 수 있어
+#       지금은 최소 범위(map_editor 페이지 진입)만 차단함.
+# 향후 작업 (TODO — 운영 전 일괄):
+#   - manager 전체 view 함수에 통일된 권한 데코레이터/믹스인 적용
+#   - facilities API ViewSet 에 permission_classes 적용 (IsAdminOrReadOnly 등)
+#   - manager/mixins.py 의 AdminRequiredMixin 슈퍼유저 우회 보강
+#   - 거부 응답을 redirect(302) → PermissionDenied(403) 으로 통일할지 결정
+@login_required
+@user_passes_test(lambda u: u.is_superuser or getattr(u, 'user_type', None) == 'admin')
 def map_editor(request):
-    """지도 편집 관리"""
-    return render(request, 'admin/map/map.html')
+    """지도 편집 관리 — 첫 번째 floor의 전체 객체 조회 (미배치 포함)
+
+    배치 판단 원칙: 객체의 floor_id 가 현재 floor와 일치하면 placed=True.
+    이 단일 조건만으로 판단하여 디버깅과 로직 변경을 용이하게 한다.
+    """
+
+    # severity → 위험구역 코드 토큰 매핑 (이 함수 내부 전용)
+    # 좌측 패널 표기 DG_<token>_<id> 에 사용
+    SEVERITY_TOKEN_MAP = {
+        'danger':  'RED',
+        'warning': 'YEL',
+        'safe':    'SAF',
+    }
+
+    # ── Floor 결정 (현재는 첫 번째 floor 고정, 추후 URL 파라미터로 전환 예정) ──
+    floor = Floor.objects.first()
+    if floor is None:
+        context = {
+            'objects': [],
+            'total_count': 0,
+            'placed_count': 0,
+            'unplaced_count': 0,
+            'floor': None,
+            'no_floor_warning': True,
+        }
+        return render(request, 'admin/map/map.html', context)
+
+    # ── 공통 필터: 현재 floor에 속하거나 floor가 NULL인 객체 ──
+    floor_filter = Q(floor=floor) | Q(floor__isnull=True)
+
+    objects = []
+
+    # ── 1) 설비 (Equipment) ──
+    for eq in Equipment.objects.filter(floor_filter):
+        objects.append({
+            'id':     eq.equipment_code,
+            'pk':     eq.pk,            # P3-7: DB PK (PATCH 대상 매핑용)
+            'type':   'facility',
+            'name':   eq.equipment_name,
+            'placed': eq.floor_id == floor.id,
+            'badge':  '설비',
+        })
+
+    # ── 2) 유해가스 센서 / 3) 스마트 전력 시스템 ──
+    # T1-β P1: pk = SensorLocation.pk (PATCH endpoint 일치). Device.device_code 는 표시용으로 device_map 에서 lookup.
+    device_map = {d.id: d for d in Device.objects.filter(device_type__in=['gas', 'power'])}
+    sl_filter = Q(floor=floor) | Q(floor__isnull=True)
+    for sl in SensorLocation.objects.filter(sensor_type__in=['gas', 'power']).filter(sl_filter):
+        dev = device_map.get(sl.device_id)
+        if not dev:
+            continue   # Device 가 없으면 orphan (Q6-3 보류 → 추후 정리)
+        if sl.sensor_type == 'gas':
+            type_key, badge = 'gas',   '유해가스 센서'
+        else:
+            type_key, badge = 'power', '스마트 전력 시스템'
+        objects.append({
+            'id':     dev.device_code,
+            'pk':     sl.pk,            # T1-β P1: SensorLocation.pk (PATCH 대상)
+            'type':   type_key,
+            'name':   sl.device_name or dev.device_name,
+            'placed': sl.is_placed,     # T1-β Q1: is_placed 단일 진실 원천
+            'badge':  badge,
+        })
+
+    # ── 4) 위치 노드 (LocationNode) ──
+    for node in LocationNode.objects.filter(floor_filter):
+        objects.append({
+            'id':     node.node_code,
+            'pk':     node.pk,          # P3-7: DB PK (PATCH 대상 매핑용)
+            'type':   'node',
+            'name':   node.node_name,
+            'placed': node.floor_id == floor.id,
+            'badge':  '위치 노드',
+        })
+
+    # ── 5) 위험 구역 (Geofence) ──
+    # 항상 배치 완료 (미배치 개념 없음). is_active=False (자동 비활성/수동 삭제) 는 좌측 패널에서 제외
+    for gf in Geofence.objects.filter(floor=floor, is_active=True):
+        severity_token = SEVERITY_TOKEN_MAP.get(gf.severity, 'UNK')
+        objects.append({
+            'id':     f'DG_{severity_token}_{gf.id}',
+            'pk':     gf.pk,            # P3-7: DB PK (PATCH 대상 매핑용)
+            'type':   'zone',
+            'name':   gf.name,
+            'placed': True,
+            'badge':  '위험 구역',
+        })
+
+    # ── 카운트 계산 ──
+    total_count    = len(objects)
+    placed_count   = sum(1 for o in objects if o['placed'])
+    unplaced_count = total_count - placed_count
+
+    context = {
+        'objects':         objects,
+        'total_count':     total_count,
+        'placed_count':    placed_count,
+        'unplaced_count':  unplaced_count,
+        'floor':           floor,
+        'no_floor_warning': False,
+    }
+    return render(request, 'admin/map/map.html', context)
