@@ -14,3 +14,4 @@ venv/
 # !**/migrations/__init__.py
 
 .claude/
+media/
