@@ -1,9 +1,29 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+
+class Position(models.Model):
+    name = models.CharField(max_length=100)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "positions"
+        ordering = ["order"]
+        verbose_name = "직위"
+        verbose_name_plural = "직위 목록"
+
+    def __str__(self):
+        return self.name
+
+
 class Department(models.Model):
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=50, unique=True, blank=True)
+    leader = models.ForeignKey(
+        'User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='led_departments'
+    )
 
     class Meta:
         db_table            = "departments"

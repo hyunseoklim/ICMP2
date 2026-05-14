@@ -35,7 +35,11 @@
 {% block content %}
 
 <!-- Filter -->
-<div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+<form id="filter-form" method="get" class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+  <input type="hidden" name="date_from"   id="hidden-date-from"   value="{{ date_from }}">
+  <input type="hidden" name="date_to"     id="hidden-date-to"     value="{{ date_to }}">
+  <input type="hidden" name="device_uid"  id="hidden-device-uid"  value="{{ device_uid }}">
+  <input type="hidden" name="sort"        id="hidden-sort"        value="{{ sort }}">
   <div class="flex gap-4 items-end">
 
     <!-- 조회 기간 -->
@@ -44,7 +48,7 @@
       <div class="relative" id="date-picker-wrap">
         <button type="button" id="date-display"
           class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          <span id="date-display-text" class="text-slate-700">2026-04-06 ~ 2026-04-12</span>
+          <span id="date-display-text" class="text-slate-700">{{ date_from }} ~ {{ date_to }}</span>
           <i data-lucide="calendar" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
         </button>
         <!-- Calendar popup -->
@@ -76,7 +80,7 @@
           <div id="cal-grid" class="grid grid-cols-7 gap-y-1"></div>
           <!-- Info -->
           <div class="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-400 leading-relaxed">
-            보관 기간: 최근 1개월<br>검색 기간은 최대 1개월로 조회
+            검색 기간은 최대 1개월로 조회
           </div>
         </div>
       </div>
@@ -87,18 +91,18 @@
       <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명</label>
       <button type="button" id="device-toggle"
         class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-        <span id="device-label" class="text-slate-500">전체</span>
+        <span id="device-label" class="{% if device_uid %}text-slate-800{% else %}text-slate-500{% endif %}">{% if device_uid %}{{ device_uid }}{% else %}전체{% endif %}</span>
         <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="device-chevron"></i>
       </button>
       <div id="device-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-y-auto" style="max-height:200px;">
-        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="" data-label="전체">
-          <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>전체
+        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left {% if not device_uid %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="" data-label="전체">
+          {% if not device_uid %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}전체
         </button>
-        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="GAS-001" data-label="GAS-001">GAS-001</button>
-        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="GAS-014" data-label="GAS-014">GAS-014</button>
-        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="GAS-021" data-label="GAS-021">GAS-021</button>
-        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="GAS-031" data-label="GAS-031">GAS-031</button>
-        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="GAS-051" data-label="GAS-051">GAS-051</button>
+        {% for dev in devices %}
+        <button type="button" class="dev-opt w-full px-3 py-2 text-sm text-left {% if device_uid == dev.device_uid %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="{{ dev.device_uid }}" data-label="{{ dev.device_uid }}">
+          {% if device_uid == dev.device_uid %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}{{ dev.device_uid }}
+        </button>
+        {% endfor %}
       </div>
     </div>
 
@@ -110,27 +114,29 @@
         class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">검색</button>
     </div>
   </div>
-</div>
+</form>
 
 <!-- List -->
 <div class="bg-white rounded-lg border border-slate-200">
   <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
     <div>
-      <span class="text-sm font-semibold text-slate-800">전체 <span class="text-blue-600">5</span>건</span>
+      <span class="text-sm font-semibold text-slate-800">전체 <span class="text-blue-600">{{ total }}</span>건</span>
       <span class="text-xs text-slate-400 ml-2">표출된 리스트를 기준으로 로그 내보내기가 수행됩니다.</span>
     </div>
     <!-- Sort -->
     <div class="relative" id="sort-wrap">
       <button type="button" id="sort-toggle"
         class="flex items-center gap-1.5 text-xs text-slate-600 border border-slate-200 rounded-md px-3 py-1.5 bg-white hover:border-slate-300 transition-colors">
-        <span id="sort-label">수신 시각 최신순</span>
+        <span id="sort-label">{% if sort == 'old' %}수신 시각 오래된순{% else %}수신 시각 최신순{% endif %}</span>
         <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400" id="sort-chevron"></i>
       </button>
       <div id="sort-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 w-48">
-        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="new" data-label="수신 시각 최신순">
-          <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>수신 시각 최신순
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left {% if sort != 'old' %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="new" data-label="수신 시각 최신순">
+          {% if sort != 'old' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}수신 시각 최신순
         </button>
-        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="old" data-label="수신 시각 오래된순">수신 시각 오래된순</button>
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left {% if sort == 'old' %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="old" data-label="수신 시각 오래된순">
+          {% if sort == 'old' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}수신 시각 오래된순
+        </button>
       </div>
     </div>
   </div>
@@ -153,85 +159,58 @@
         </tr>
       </thead>
       <tbody>
+        {% for r in page_obj %}
         <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-12 14:12:26</td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">GAS-001</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">2.8 %LEL</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">20.4 %</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">14 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">710 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">4.2 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.8 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">152 ppb</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.1 ppm</td>
+          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{{ r.measured_at|date:"Y-m-d H:i:s" }}</td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700">{{ r.device.device_uid }}</td>
+          <td class="px-4 py-3 text-xs text-right {% if r.co2 is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.co2 is not None %}{{ r.co2|floatformat:1 }} ppm{% else %}-{% endif %}</td>
+          <td class="px-4 py-3 text-xs text-right {% if r.o2 is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.o2 is not None %}{{ r.o2|floatformat:1 }} %{% else %}-{% endif %}</td>
+          <td class="px-4 py-3 text-xs text-right {% if r.co is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.co is not None %}{{ r.co|floatformat:1 }} ppm{% else %}-{% endif %}</td>
+          <td class="px-4 py-3 text-xs text-right {% if r.h2s is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.h2s is not None %}{{ r.h2s|floatformat:1 }} ppm{% else %}-{% endif %}</td>
+          <td class="px-4 py-3 text-xs text-right {% if r.nh3 is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.nh3 is not None %}{{ r.nh3|floatformat:1 }} ppm{% else %}-{% endif %}</td>
+          <td class="px-4 py-3 text-xs text-right {% if r.voc is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.voc is not None %}{{ r.voc|floatformat:1 }} ppm{% else %}-{% endif %}</td>
+          <td class="px-4 py-3 text-xs text-right {% if r.no2 is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.no2 is not None %}{{ r.no2|floatformat:1 }} ppm{% else %}-{% endif %}</td>
+          <td class="px-4 py-3 text-xs text-right {% if r.so2 is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.so2 is not None %}{{ r.so2|floatformat:1 }} ppm{% else %}-{% endif %}</td>
         </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-12 14:11:58</td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">GAS-014</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.2 %LEL</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">20.7 %</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">3 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">640 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.0 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.2 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">42 ppb</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.0 ppm</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-12 14:11:41</td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">GAS-031</td>
-          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
-          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
-          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
-          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
-          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
-          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
-          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
-          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-12 14:10:32</td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">GAS-021</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.1 %LEL</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">20.6 %</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">5 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.2 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-400 text-right">-</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">98 ppb</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.0 ppm</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">2026-04-12 14:09:57</td>
-          <td class="px-4 py-3 text-xs font-medium text-slate-700">GAS-051</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.0 %LEL</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">20.8 %</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">1 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">602 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.0 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.1 ppm</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">36 ppb</td>
-          <td class="px-4 py-3 text-xs text-slate-600 text-right">0.0 ppm</td>
-        </tr>
+        {% empty %}
+        <tr><td colspan="10" class="px-4 py-8 text-center text-sm text-slate-400">조회된 데이터가 없습니다.</td></tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>
 
   <!-- Pagination -->
   <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-    <span class="text-xs text-slate-500">1 - 5 / 5</span>
+    <span class="text-xs text-slate-500">{{ page_obj.start_index }} - {{ page_obj.end_index }} / {{ total }}</span>
     <div class="flex items-center gap-1">
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+      {% if page_obj.has_previous %}
+      <a href="?date_from={{ date_from }}&date_to={{ date_to }}&device_uid={{ device_uid }}&sort={{ sort }}&page={{ page_obj.previous_page_number }}"
+         class="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-slate-100 transition-colors">
         <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
-      </button>
-      <button class="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-medium">1</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">2</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">3</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">4</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">5</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
+      </a>
+      {% else %}
+      <span class="w-7 h-7 flex items-center justify-center rounded text-slate-300">
+        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+      </span>
+      {% endif %}
+      {% for p in page_obj.paginator.page_range %}
+        {% if p == page_obj.number %}
+        <span class="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-medium">{{ p }}</span>
+        {% elif p >= page_obj.number|add:"-3" and p <= page_obj.number|add:"3" %}
+        <a href="?date_from={{ date_from }}&date_to={{ date_to }}&device_uid={{ device_uid }}&sort={{ sort }}&page={{ p }}"
+           class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+      <a href="?date_from={{ date_from }}&date_to={{ date_to }}&device_uid={{ device_uid }}&sort={{ sort }}&page={{ page_obj.next_page_number }}"
+         class="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-slate-100 transition-colors">
         <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-      </button>
+      </a>
+      {% else %}
+      <span class="w-7 h-7 flex items-center justify-center rounded text-slate-300">
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </span>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -239,10 +218,11 @@
 <script>
 (function() {
   /* ── 달력 상태 ── */
+  var _initEnd = new Date('{{ date_to }}');
   var CAL = {
-    year: 2026, month: 3,
-    startDate: '2026-04-06', endDate: '2026-04-12',
-    activeQuick: '7days', picking: 'start'
+    year: _initEnd.getFullYear(), month: _initEnd.getMonth(),
+    startDate: '{{ date_from }}', endDate: '{{ date_to }}',
+    activeQuick: null, picking: 'start'
   };
 
   function pad2(n) { return String(n).padStart(2, '0'); }
@@ -260,6 +240,8 @@
 
   function updateDisplay() {
     document.getElementById('date-display-text').textContent = CAL.startDate + ' ~ ' + CAL.endDate;
+    document.getElementById('hidden-date-from').value = CAL.startDate;
+    document.getElementById('hidden-date-to').value   = CAL.endDate;
   }
 
   function renderCalendar() {
@@ -404,31 +386,35 @@
 
   document.addEventListener('click', function() { closeAllMenus(); closePicker(); });
 
-  /* ── 초기화 ── */
-  document.getElementById('filter-reset')?.addEventListener('click', function() {
-    setQuick('7days');
-    var dl = document.getElementById('device-label');
-    if(dl) { dl.textContent = '전체'; dl.className = 'text-slate-500'; }
-    document.querySelectorAll('.dev-opt').forEach(function(o, i) {
-      if(i === 0) { o.classList.add('bg-blue-50','text-slate-900'); o.classList.remove('text-slate-700'); var ic=o.querySelector('i');if(ic)ic.style.display=''; }
-      else { o.classList.remove('bg-blue-50','text-slate-900'); o.classList.add('text-slate-700'); var ic=o.querySelector('i');if(ic)ic.style.display='none'; }
+  /* ── 장비 드롭다운 → hidden input 연동 ── */
+  document.querySelectorAll('.dev-opt').forEach(function(opt) {
+    opt.addEventListener('click', function() {
+      document.getElementById('hidden-device-uid').value = this.dataset.value || '';
     });
   });
 
-  /* ── CSV 내보내기 ── */
-  document.getElementById('export-btn')?.addEventListener('click', function() {
-    var headers = ['수집 시각','장비명','CH4','O2','CO','CO2','H2S','NH3','VOC','SO2'];
-    var rows = [];
-    document.querySelectorAll('#gas-table tbody tr').forEach(function(tr) {
-      var cells = tr.querySelectorAll('td');
-      rows.push(Array.from(cells).map(function(td) { return '"' + td.textContent.trim() + '"'; }).join(','));
+  /* ── 정렬 → hidden input 연동 후 즉시 submit ── */
+  document.querySelectorAll('.sort-opt').forEach(function(opt) {
+    opt.addEventListener('click', function() {
+      document.getElementById('hidden-sort').value = this.dataset.value;
+      document.getElementById('filter-form').submit();
     });
-    var csv = '﻿' + headers.join(',') + '\n' + rows.join('\n');
-    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    var link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'gas_data_' + CAL.startDate + '_' + CAL.endDate + '.csv';
-    link.click();
+  });
+
+  /* ── 검색 버튼 → form submit ── */
+  document.getElementById('filter-search')?.addEventListener('click', function() {
+    document.getElementById('filter-form').submit();
+  });
+
+  /* ── 초기화 ── */
+  document.getElementById('filter-reset')?.addEventListener('click', function() {
+    window.location.href = '{% url "gas_data_list" %}';
+  });
+
+  /* ── CSV 내보내기 (서버사이드) ── */
+  document.getElementById('export-btn')?.addEventListener('click', function() {
+    var qs = window.location.search;
+    window.location.href = '{% url "gas_data_export" %}' + qs;
   });
 
   lucide.createIcons();

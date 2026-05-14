@@ -41,8 +41,9 @@
 {% block content %}
 <div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
   <form method="get" id="filter-form">
+    <input type="hidden" name="sort"        value="{{ current_sort }}" />
     <input type="hidden" name="device_name" id="hidden-device-name" value="{{ request.GET.device_name }}" />
-    <input type="hidden" name="facility"    id="hidden-facility"    value="{{ request.GET.facility }}" />
+    <input type="hidden" name="equipment"   id="hidden-equipment"   value="{{ request.GET.equipment }}" />
     <input type="hidden" name="inspect"     id="hidden-inspect"     value="{{ request.GET.inspect }}" />
     <input type="hidden" name="status"      id="hidden-status"      value="{{ request.GET.status }}" />
 
@@ -53,74 +54,100 @@
         <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명</label>
         <button type="button" id="dn-toggle"
           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          <span id="dn-label" class="text-slate-500">전체</span>
+          <span id="dn-label" class="{% if request.GET.device_name %}text-slate-900{% else %}text-slate-500{% endif %}">
+            {% if request.GET.device_name %}{{ request.GET.device_name }}{% else %}전체{% endif %}
+          </span>
           <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform" id="dn-chevron"></i>
         </button>
         <div id="dn-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-y-auto" style="max-height:200px;">
-          <button type="button" class="dn-option w-full px-3 py-2 text-sm text-left text-slate-900 bg-blue-50 flex items-center gap-2" data-value="">
-            <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>전체
+          <button type="button" class="dn-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if not request.GET.device_name %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="">
+            {% if not request.GET.device_name %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}전체
           </button>
-          {% for i in "1234567" %}
-          <button type="button" class="dn-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="PWR-00{{ i }}">PWR-00{{ i }}</button>
+          {% for uid in all_pwr_uids %}
+          <button type="button" class="dn-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if request.GET.device_name == uid %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="{{ uid }}">
+            {% if request.GET.device_name == uid %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}{{ uid }}
+          </button>
           {% endfor %}
         </div>
       </div>
 
       <!-- 연결 설비 -->
-      <div class="relative" id="fc-dropdown-wrap">
+      <div class="relative" id="eq-dropdown-wrap">
         <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 설비</label>
-        <button type="button" id="fc-toggle"
+        <button type="button" id="eq-toggle"
           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          <span id="fc-label" class="text-slate-500">전체</span>
-          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform" id="fc-chevron"></i>
+          <span id="eq-label" class="{% if request.GET.equipment %}text-slate-900{% else %}text-slate-500{% endif %}">
+            {% if request.GET.equipment %}{% for e in all_equipments %}{% if e.id|stringformat:"s" == request.GET.equipment %}{{ e.equipment_name }}{% endif %}{% endfor %}{% else %}전체{% endif %}
+          </span>
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform" id="eq-chevron"></i>
         </button>
-        <div id="fc-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-y-auto" style="max-height:200px;">
-          <button type="button" class="fc-option w-full px-3 py-2 text-sm text-left text-slate-900 bg-blue-50 flex items-center gap-2" data-value="">
-            <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>전체
+        <div id="eq-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-y-auto" style="max-height:200px;">
+          <button type="button" class="eq-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if not request.GET.equipment %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="">
+            {% if not request.GET.equipment %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}전체
           </button>
-          <button type="button" class="fc-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="fac1">냉각 설비 1호</button>
-          <button type="button" class="fc-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="fac2">컴프레서 B-02</button>
-          <button type="button" class="fc-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="fac3">혼합 설비 1호</button>
-          <button type="button" class="fc-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="fac4">컨베이어 D-01</button>
-          <button type="button" class="fc-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="fac5">혼합 설비 E-01</button>
+          {% for e in all_equipments %}
+          <button type="button" class="eq-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if e.id|stringformat:"s" == request.GET.equipment %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="{{ e.id }}">
+            {% if e.id|stringformat:"s" == request.GET.equipment %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}{{ e.equipment_name }}
+          </button>
+          {% endfor %}
         </div>
       </div>
 
       <!-- 점검 상태 -->
+      {% with cur_inspect=request.GET.inspect %}
       <div class="relative" id="ins-dropdown-wrap">
         <label class="block text-xs font-medium text-slate-700 mb-1.5">점검 상태</label>
         <button type="button" id="ins-toggle"
           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          <span id="ins-label" class="text-slate-500">전체</span>
+          <span id="ins-label" class="{% if cur_inspect %}text-slate-900{% else %}text-slate-500{% endif %}">
+            {% if cur_inspect == 'required' %}점검 필요{% elif cur_inspect == 'done' %}점검 완료{% elif cur_inspect == 'scheduled' %}점검 예정{% elif cur_inspect == 'none' %}미점검{% else %}전체{% endif %}
+          </span>
           <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform" id="ins-chevron"></i>
         </button>
         <div id="ins-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40">
-          <button type="button" class="ins-option w-full px-3 py-2 text-sm text-left text-slate-900 bg-blue-50 flex items-center gap-2" data-value="">
-            <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>전체
+          <button type="button" class="ins-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if not cur_inspect %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="">
+            {% if not cur_inspect %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}전체
           </button>
-          <button type="button" class="ins-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="required">점검 필요</button>
-          <button type="button" class="ins-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="done">점검 완료</button>
-          <button type="button" class="ins-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="scheduled">점검 예정</button>
-          <button type="button" class="ins-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="none">미점검</button>
+          <button type="button" class="ins-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if cur_inspect == 'required' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="required">
+            {% if cur_inspect == 'required' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}점검 필요
+          </button>
+          <button type="button" class="ins-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if cur_inspect == 'done' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="done">
+            {% if cur_inspect == 'done' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}점검 완료
+          </button>
+          <button type="button" class="ins-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if cur_inspect == 'scheduled' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="scheduled">
+            {% if cur_inspect == 'scheduled' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}점검 예정
+          </button>
+          <button type="button" class="ins-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if cur_inspect == 'none' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="none">
+            {% if cur_inspect == 'none' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}미점검
+          </button>
         </div>
       </div>
+      {% endwith %}
 
       <!-- 사용 상태 -->
+      {% with cur_status=request.GET.status %}
       <div class="relative" id="st-dropdown-wrap">
         <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 상태</label>
         <button type="button" id="st-toggle"
           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          <span id="st-label" class="text-slate-500">전체</span>
+          <span id="st-label" class="{% if cur_status %}text-slate-900{% else %}text-slate-500{% endif %}">
+            {% if cur_status == 'active' %}사용{% elif cur_status == 'inactive' %}미사용{% else %}전체{% endif %}
+          </span>
           <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform" id="st-chevron"></i>
         </button>
         <div id="st-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40">
-          <button type="button" class="st-option w-full px-3 py-2 text-sm text-left text-slate-900 bg-blue-50 flex items-center gap-2" data-value="">
-            <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>전체
+          <button type="button" class="st-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if not cur_status %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="">
+            {% if not cur_status %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}전체
           </button>
-          <button type="button" class="st-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="active">사용</button>
-          <button type="button" class="st-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="inactive">미사용</button>
+          <button type="button" class="st-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if cur_status == 'active' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="active">
+            {% if cur_status == 'active' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}사용
+          </button>
+          <button type="button" class="st-option w-full px-3 py-2 text-sm text-left flex items-center gap-2 {% if cur_status == 'inactive' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="inactive">
+            {% if cur_status == 'inactive' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>{% endif %}미사용
+          </button>
         </div>
       </div>
+      {% endwith %}
 
     </div>
 
@@ -136,31 +163,58 @@
 <div class="bg-white rounded-lg border border-slate-200">
   <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <span class="text-sm font-semibold text-slate-700">전체 128건</span>
+      <span class="text-sm font-semibold text-slate-700">전체 {{ total_count }}건</span>
       <button type="button" id="pwr-delete-btn" disabled
         class="px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed transition-colors">
         삭제
       </button>
     </div>
+
+    <!-- 정렬 드롭다운 -->
+    {% with cur_sort=current_sort %}
     <div class="relative" id="sort-dropdown-wrap">
       <button type="button" id="sort-toggle"
         class="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-800 transition-colors">
-        <span id="sort-label">장비 코드 오름차순</span>
+        <span id="sort-label">
+          {% if cur_sort == '-device_uid' %}장비 코드 내림차순
+          {% elif cur_sort == '-last_seen_at' %}마지막 데이터 수신 최신순
+          {% elif cur_sort == 'last_seen_at' %}마지막 데이터 수신 오래된순
+          {% elif cur_sort == '-last_inspected_at' %}최근 점검일 최신순
+          {% elif cur_sort == 'last_inspected_at' %}최근 점검일 오래된순
+          {% elif cur_sort == 'manager_asc' %}담당자명 오름차순
+          {% elif cur_sort == 'manager_desc' %}담당자명 내림차순
+          {% else %}장비 코드 오름차순{% endif %}
+        </span>
         <i data-lucide="chevron-down" class="w-3.5 h-3.5" id="sort-chevron"></i>
       </button>
       <div id="sort-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 w-52">
-        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left text-slate-900 bg-blue-50 flex items-center gap-2" data-value="code_asc">
-          <i data-lucide="check" class="w-3 h-3 text-blue-600"></i>장비 코드 오름차순
+        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left flex items-center gap-2 {% if cur_sort == 'device_uid' or not cur_sort %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-7{% endif %}" data-value="device_uid">
+          {% if cur_sort == 'device_uid' or not cur_sort %}<i data-lucide="check" class="w-3 h-3 text-blue-600"></i>{% endif %}장비 코드 오름차순
         </button>
-        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-7" data-value="code_desc">장비 코드 내림차순</button>
-        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-7" data-value="-last_data">마지막 데이터 수신 최신순</button>
-        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-7" data-value="last_data">마지막 데이터 수신 오래된순</button>
-        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-7" data-value="-last_inspected">최근 점검일 최신순</button>
-        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-7" data-value="last_inspected">최근 점검일 오래된순</button>
-        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-7" data-value="manager_asc">담당자명 오름차순</button>
-        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-7" data-value="manager_desc">담당자명 내림차순</button>
+        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left flex items-center gap-2 {% if cur_sort == '-device_uid' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-7{% endif %}" data-value="-device_uid">
+          {% if cur_sort == '-device_uid' %}<i data-lucide="check" class="w-3 h-3 text-blue-600"></i>{% endif %}장비 코드 내림차순
+        </button>
+        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left flex items-center gap-2 {% if cur_sort == '-last_seen_at' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-7{% endif %}" data-value="-last_seen_at">
+          {% if cur_sort == '-last_seen_at' %}<i data-lucide="check" class="w-3 h-3 text-blue-600"></i>{% endif %}마지막 데이터 수신 최신순
+        </button>
+        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left flex items-center gap-2 {% if cur_sort == 'last_seen_at' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-7{% endif %}" data-value="last_seen_at">
+          {% if cur_sort == 'last_seen_at' %}<i data-lucide="check" class="w-3 h-3 text-blue-600"></i>{% endif %}마지막 데이터 수신 오래된순
+        </button>
+        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left flex items-center gap-2 {% if cur_sort == '-last_inspected_at' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-7{% endif %}" data-value="-last_inspected_at">
+          {% if cur_sort == '-last_inspected_at' %}<i data-lucide="check" class="w-3 h-3 text-blue-600"></i>{% endif %}최근 점검일 최신순
+        </button>
+        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left flex items-center gap-2 {% if cur_sort == 'last_inspected_at' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-7{% endif %}" data-value="last_inspected_at">
+          {% if cur_sort == 'last_inspected_at' %}<i data-lucide="check" class="w-3 h-3 text-blue-600"></i>{% endif %}최근 점검일 오래된순
+        </button>
+        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left flex items-center gap-2 {% if cur_sort == 'manager_asc' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-7{% endif %}" data-value="manager_asc">
+          {% if cur_sort == 'manager_asc' %}<i data-lucide="check" class="w-3 h-3 text-blue-600"></i>{% endif %}담당자명 오름차순
+        </button>
+        <button type="button" class="sort-option w-full px-3 py-2 text-xs text-left flex items-center gap-2 {% if cur_sort == 'manager_desc' %}bg-blue-50 text-blue-700{% else %}text-slate-700 hover:bg-slate-50 pl-7{% endif %}" data-value="manager_desc">
+          {% if cur_sort == 'manager_desc' %}<i data-lucide="check" class="w-3 h-3 text-blue-600"></i>{% endif %}담당자명 내림차순
+        </button>
       </div>
     </div>
+    {% endwith %}
   </div>
 
   <div class="overflow-x-auto">
@@ -180,132 +234,100 @@
         </tr>
       </thead>
       <tbody id="pwr-tbody">
-        <tr class="border-t border-slate-100 bg-blue-50/40 cursor-pointer pwr-row"
-          data-device-id="PWR-001" data-device-code="001" data-device-name="PWR-001"
-          data-facility="fac1" data-facility-name="냉각 설비 1호"
-          data-dept="equip" data-manager="m1"
-          data-ip="192.168.1.101" data-port="8080"
-          data-status="active" data-conn-verified="true"
-          data-conn-date="2026.04.12 09:42:18" data-note="">
-          <td class="px-4 py-3"><input type="checkbox" class="row-checkbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /></td>
-          <td class="px-4 py-3 font-medium text-slate-800">PWR-001</td>
-          <td class="px-4 py-3 text-slate-600">냉각 설비 1호</td>
-          <td class="px-4 py-3"><span class="flex items-center gap-1.5 text-red-600 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>연결 이상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-04-12 09:42:18</td>
-          <td class="px-4 py-3"><span class="text-red-600 text-xs font-medium">점검 필요</span></td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full font-medium">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-04-11</td>
+        {% for d in devices %}
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer pwr-row {% if d.status == 'fault' %}bg-red-50/30{% endif %}"
+          data-id="{{ d.id }}"
+          data-device-id="{{ d.device_uid }}"
+          data-device-code="{{ d.device_code|default:d.device_uid }}"
+          data-device-name="{{ d.device_name }}"
+          data-equipment="{{ d.equipment_id|default:'' }}"
+          data-equipment-name="{{ d.equipment.equipment_name|default:'' }}"
+          data-manager="{{ d.manager_id|default:'' }}"
+          data-manager-name="{{ d.manager.name|default:'' }}"
+          data-dept="{{ d.department_id|default:'' }}"
+          data-mac="{{ d.mac_addr }}"
+          data-ip="{{ d.ip_address|default:'' }}"
+          data-port="{{ d.port|default:'' }}"
+          data-status="{% if d.is_active %}active{% else %}inactive{% endif %}"
+          data-conn-verified="{% if d.status == 'active' %}true{% else %}false{% endif %}"
+          data-conn-date="{{ d.last_seen_at|date:'Y.m.d H:i:s'|default:'' }}"
+          data-note="{{ d.note_body|default:'' }}">
+          <td class="px-4 py-3 w-10">
+            <input type="checkbox" class="row-checkbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" value="{{ d.id }}" />
+          </td>
+          <td class="px-4 py-3 font-medium text-slate-800 text-xs">{{ d.device_uid }}</td>
+          <td class="px-4 py-3 text-slate-600 text-xs">{{ d.equipment.equipment_name|default:'—' }}</td>
+          <td class="px-4 py-3">
+            {% if d.status == 'active' %}
+            <span class="flex items-center gap-1.5 text-blue-600 text-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>정상
+            </span>
+            {% elif d.status == 'fault' %}
+            <span class="flex items-center gap-1.5 text-red-600 text-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>연결 이상
+            </span>
+            {% else %}
+            <span class="text-slate-400 text-xs">—</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-slate-600 text-xs">{{ d.last_seen_at|date:'Y-m-d H:i:s'|default:'—' }}</td>
+          <td class="px-4 py-3">
+            {% if d.computed_inspection_status == 'completed' %}
+            <span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span>
+            {% elif d.computed_inspection_status == 'scheduled' %}
+            <span class="px-2 py-0.5 text-xs font-medium rounded bg-yellow-50 text-yellow-600">점검 예정</span>
+            {% elif d.computed_inspection_status == 'required' %}
+            <span class="px-2 py-0.5 text-xs font-medium rounded bg-red-50 text-red-500">점검 필요</span>
+            {% else %}
+            <span class="px-2 py-0.5 text-xs font-medium rounded bg-slate-100 text-slate-500">미점검</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3">
+            {% if d.is_active %}
+            <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span>
+            {% else %}
+            <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-500">미사용</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-slate-600 text-xs">{{ d.last_inspected_at|date:'Y-m-d'|default:'—' }}</td>
         </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer pwr-row"
-          data-device-id="PWR-002" data-device-code="002" data-device-name="PWR-002"
-          data-facility="fac2" data-facility-name="컴프레서 B-02"
-          data-dept="prod1" data-manager="m2"
-          data-ip="192.168.1.102" data-port="8080"
-          data-status="active" data-conn-verified="true"
-          data-conn-date="2026.04.12 09:41:05" data-note="">
-          <td class="px-4 py-3"><input type="checkbox" class="row-checkbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /></td>
-          <td class="px-4 py-3 font-medium text-slate-800">PWR-002</td>
-          <td class="px-4 py-3 text-slate-600">컴프레서 B-02</td>
-          <td class="px-4 py-3"><span class="flex items-center gap-1.5 text-blue-600 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-04-12 09:41:05</td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full font-medium">점검 완료</span></td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full font-medium">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-04-09</td>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="px-4 py-10 text-center text-slate-400 text-sm">조회된 장비가 없습니다.</td>
         </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer pwr-row"
-          data-device-id="PWR-003" data-device-code="003" data-device-name="PWR-003"
-          data-facility="fac3" data-facility-name="혼합 설비 1호"
-          data-dept="prod1" data-manager="m3"
-          data-ip="192.168.1.103" data-port="8080"
-          data-status="active" data-conn-verified="true"
-          data-conn-date="2026.04.12 09:40:31" data-note="">
-          <td class="px-4 py-3"><input type="checkbox" class="row-checkbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /></td>
-          <td class="px-4 py-3 font-medium text-slate-800">PWR-003</td>
-          <td class="px-4 py-3 text-slate-600">혼합 설비 1호</td>
-          <td class="px-4 py-3"><span class="flex items-center gap-1.5 text-blue-600 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-04-12 09:40:31</td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full font-medium">점검 예정</span></td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full font-medium">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-04-07</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer pwr-row"
-          data-device-id="PWR-004" data-device-code="004" data-device-name="PWR-004"
-          data-facility="fac4" data-facility-name="컨베이어 D-01"
-          data-dept="equip" data-manager="m1"
-          data-ip="192.168.1.104" data-port="8080"
-          data-status="active" data-conn-verified="true"
-          data-conn-date="2026.04.12 09:39:42" data-note="">
-          <td class="px-4 py-3"><input type="checkbox" class="row-checkbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /></td>
-          <td class="px-4 py-3 font-medium text-slate-800">PWR-004</td>
-          <td class="px-4 py-3 text-slate-600">컨베이어 D-01</td>
-          <td class="px-4 py-3"><span class="flex items-center gap-1.5 text-blue-600 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-04-12 09:39:42</td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full font-medium">점검 완료</span></td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full font-medium">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-04-05</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer pwr-row"
-          data-device-id="PWR-005" data-device-code="005" data-device-name="PWR-005"
-          data-facility="fac5" data-facility-name="혼합 설비 E-01"
-          data-dept="prod2" data-manager="m2"
-          data-ip="192.168.1.105" data-port="8080"
-          data-status="active" data-conn-verified="true"
-          data-conn-date="2026.04.12 09:38:07" data-note="">
-          <td class="px-4 py-3"><input type="checkbox" class="row-checkbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /></td>
-          <td class="px-4 py-3 font-medium text-slate-800">PWR-005</td>
-          <td class="px-4 py-3 text-slate-600">혼합 설비 E-01</td>
-          <td class="px-4 py-3"><span class="flex items-center gap-1.5 text-blue-600 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-04-12 09:38:07</td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full font-medium">점검 완료</span></td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full font-medium">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-04-03</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer pwr-row"
-          data-device-id="PWR-006" data-device-code="006" data-device-name="PWR-006"
-          data-facility="" data-facility-name=""
-          data-dept="equip" data-manager="m3"
-          data-ip="" data-port=""
-          data-status="inactive" data-conn-verified="false"
-          data-conn-date="" data-note="">
-          <td class="px-4 py-3"><input type="checkbox" class="row-checkbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /></td>
-          <td class="px-4 py-3 font-medium text-slate-800">PWR-006</td>
-          <td class="px-4 py-3 text-slate-400">—</td>
-          <td class="px-4 py-3 text-slate-300 text-xs">—</td>
-          <td class="px-4 py-3 text-slate-400 text-xs">—</td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full font-medium">미점검</span></td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full font-medium">미사용</span></td>
-          <td class="px-4 py-3 text-slate-400 text-xs">—</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer pwr-row"
-          data-device-id="PWR-007" data-device-code="007" data-device-name="PWR-007"
-          data-facility="" data-facility-name=""
-          data-dept="prod1" data-manager="m3"
-          data-ip="" data-port=""
-          data-status="inactive" data-conn-verified="false"
-          data-conn-date="" data-note="">
-          <td class="px-4 py-3"><input type="checkbox" class="row-checkbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /></td>
-          <td class="px-4 py-3 font-medium text-slate-800">PWR-007</td>
-          <td class="px-4 py-3 text-slate-400">—</td>
-          <td class="px-4 py-3 text-slate-300 text-xs">—</td>
-          <td class="px-4 py-3 text-slate-400 text-xs">—</td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full font-medium">미점검</span></td>
-          <td class="px-4 py-3"><span class="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full font-medium">미사용</span></td>
-          <td class="px-4 py-3 text-slate-400 text-xs">—</td>
-        </tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>
 
+  <!-- 페이지네이션 -->
   <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-    <span class="text-xs text-slate-500">1 - 10 / 128</span>
+    <span class="text-xs text-slate-500">
+      {% if page_obj.paginator.count > 0 %}
+      {{ page_obj.start_index }} - {{ page_obj.end_index }} / {{ page_obj.paginator.count }}
+      {% else %}0{% endif %}
+    </span>
     <div class="flex items-center gap-1">
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors text-xs">&lt;</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded bg-slate-900 text-white text-xs font-medium">1</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">2</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">3</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">4</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">5</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors text-xs">&gt;</button>
+      {% if page_obj.has_previous %}
+      <a href="?{{ base_params }}&page={{ page_obj.previous_page_number }}"
+        class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">&lt;</a>
+      {% else %}
+      <span class="w-7 h-7 flex items-center justify-center rounded text-slate-300 text-xs">&lt;</span>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+      {% if num == page_obj.number %}
+      <span class="w-7 h-7 flex items-center justify-center rounded bg-slate-900 text-white text-xs font-medium">{{ num }}</span>
+      {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+      <a href="?{{ base_params }}&page={{ num }}"
+        class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">{{ num }}</a>
+      {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next %}
+      <a href="?{{ base_params }}&page={{ page_obj.next_page_number }}"
+        class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">&gt;</a>
+      {% else %}
+      <span class="w-7 h-7 flex items-center justify-center rounded text-slate-300 text-xs">&gt;</span>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -318,37 +340,71 @@
 {% include "admin/power/power_register.html" %}
 {% include "admin/power/power_detail.html" %}
 {% include "admin/power/power_inspect_register.html" %}
+
+<!-- 삭제 확인 모달 -->
+<div id="pwr-delete-confirm-modal" class="hidden fixed inset-0 bg-slate-900/50 z-[80] items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+    <h3 class="text-base font-bold text-slate-900 mb-2">삭제 확인</h3>
+    <p class="text-sm text-slate-600 mb-6">
+      선택한 스마트 전력 시스템 <span id="pwr-delete-count" class="font-semibold text-slate-900">0</span>건을 삭제하시겠습니까?
+    </p>
+    <div class="flex justify-end gap-2">
+      <button type="button" id="pwr-delete-cancel"
+        class="px-4 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
+      <button type="button" id="pwr-delete-confirm"
+        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_script %}
 {{ block.super }}
 <script>
+  // 행 클릭 → 상세 모달
   document.getElementById('pwr-tbody')?.addEventListener('click', function(e) {
     var row = e.target.closest('.pwr-row');
     if (!row || e.target.tagName === 'INPUT') return;
-    window.openPwrDetailModal(row.dataset);
+    if (typeof window.openPwrDetailModal === 'function') window.openPwrDetailModal(row.dataset);
   });
 
+  // ── 드롭다운 공통 함수 ──
   function makeDrop(wrapId, toggleId, menuId, chevronId, optClass, hiddenId, labelId) {
-    var wrap = document.getElementById(wrapId);
-    var toggle = document.getElementById(toggleId);
-    var menu = document.getElementById(menuId);
+    var wrap    = document.getElementById(wrapId);
+    var toggle  = document.getElementById(toggleId);
+    var menu    = document.getElementById(menuId);
     var chevron = document.getElementById(chevronId);
-    function open() { menu.classList.remove('hidden'); chevron?.classList.add('rotate-180'); }
-    function close() { menu.classList.add('hidden'); chevron?.classList.remove('rotate-180'); }
-    toggle?.addEventListener('click', function(e) { e.stopPropagation(); menu.classList.contains('hidden') ? open() : close(); });
+    function open()  { menu.classList.remove('hidden'); chevron?.classList.add('rotate-180'); }
+    function close() { menu.classList.add('hidden');    chevron?.classList.remove('rotate-180'); }
+    toggle?.addEventListener('click', function(e) {
+      e.stopPropagation();
+      menu.classList.contains('hidden') ? open() : close();
+    });
     menu?.querySelectorAll('.' + optClass).forEach(function(btn) {
       btn.addEventListener('click', function() {
         var val = btn.dataset.value;
         if (hiddenId) document.getElementById(hiddenId).value = val;
         var lbl = document.getElementById(labelId);
-        if (lbl) { lbl.textContent = btn.textContent.trim(); lbl.classList.toggle('text-slate-500', !val); lbl.classList.toggle('text-slate-900', !!val); }
+        if (lbl) {
+          lbl.textContent = btn.textContent.trim();
+          lbl.classList.toggle('text-slate-500', !val);
+          lbl.classList.toggle('text-slate-900', !!val);
+        }
         menu.querySelectorAll('.' + optClass).forEach(function(b) {
           var active = b.dataset.value === val;
-          b.classList.toggle('bg-blue-50', active); b.classList.toggle('text-blue-700', active);
-          b.classList.remove('pl-8'); b.querySelector('i')?.remove();
-          if (active) { var ic = document.createElement('i'); ic.setAttribute('data-lucide','check'); ic.className='w-3.5 h-3.5 text-blue-600 inline-block mr-1.5'; b.prepend(ic); lucide.createIcons(); }
-          else b.classList.add('pl-8');
+          b.classList.toggle('bg-blue-50', active);
+          b.classList.toggle('text-blue-700', active);
+          b.querySelector('i[data-lucide="check"]')?.remove();
+          b.classList.remove('pl-8');
+          if (active) {
+            var ic = document.createElement('i');
+            ic.setAttribute('data-lucide', 'check');
+            ic.className = 'w-3.5 h-3.5 text-blue-600 inline-block mr-1.5';
+            b.prepend(ic);
+            lucide.createIcons({ nodes: [ic] });
+          } else {
+            b.classList.add('pl-8');
+          }
         });
         close();
       });
@@ -356,22 +412,43 @@
     document.addEventListener('click', function(e) { if (!wrap?.contains(e.target)) close(); });
   }
 
-  makeDrop('dn-dropdown-wrap','dn-toggle','dn-menu','dn-chevron','dn-option','hidden-device-name','dn-label');
-  makeDrop('fc-dropdown-wrap','fc-toggle','fc-menu','fc-chevron','fc-option','hidden-facility','fc-label');
-  makeDrop('ins-dropdown-wrap','ins-toggle','ins-menu','ins-chevron','ins-option','hidden-inspect','ins-label');
-  makeDrop('st-dropdown-wrap','st-toggle','st-menu','st-chevron','st-option','hidden-status','st-label');
-  makeDrop('sort-dropdown-wrap','sort-toggle','sort-menu','sort-chevron','sort-option',null,'sort-label');
+  makeDrop('dn-dropdown-wrap',  'dn-toggle',  'dn-menu',  'dn-chevron',  'dn-option',  'hidden-device-name', 'dn-label');
+  makeDrop('eq-dropdown-wrap',  'eq-toggle',  'eq-menu',  'eq-chevron',  'eq-option',  'hidden-equipment',   'eq-label');
+  makeDrop('ins-dropdown-wrap', 'ins-toggle', 'ins-menu', 'ins-chevron', 'ins-option', 'hidden-inspect',     'ins-label');
+  makeDrop('st-dropdown-wrap',  'st-toggle',  'st-menu',  'st-chevron',  'st-option',  'hidden-status',      'st-label');
 
+  // 정렬 드롭다운 (submit)
+  function makeSortDrop() {
+    var wrap    = document.getElementById('sort-dropdown-wrap');
+    var toggle  = document.getElementById('sort-toggle');
+    var menu    = document.getElementById('sort-menu');
+    var chevron = document.getElementById('sort-chevron');
+    function open()  { menu.classList.remove('hidden'); chevron?.classList.add('rotate-180'); }
+    function close() { menu.classList.add('hidden');    chevron?.classList.remove('rotate-180'); }
+    toggle?.addEventListener('click', function(e) {
+      e.stopPropagation();
+      menu.classList.contains('hidden') ? open() : close();
+    });
+    menu?.querySelectorAll('.sort-option').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.getElementById('filter-form').querySelector('[name="sort"]').value = btn.dataset.value;
+        document.getElementById('filter-form').submit();
+      });
+    });
+    document.addEventListener('click', function(e) { if (!wrap?.contains(e.target)) close(); });
+  }
+  makeSortDrop();
+
+  // 초기화
   document.getElementById('filter-reset')?.addEventListener('click', function() {
-    ['hidden-device-name','hidden-facility','hidden-inspect','hidden-status'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
-    ['dn-label','fc-label','ins-label','st-label'].forEach(function(id) { var el = document.getElementById(id); if (el) { el.textContent = '전체'; el.className = el.className.replace('text-slate-900','text-slate-500'); } });
+    window.location.href = '{% url "power_list" %}';
   });
 
-  var checkboxes = document.querySelectorAll('.row-checkbox');
+  // ── 체크박스 / 삭제 버튼 ──
   var deleteBtn = document.getElementById('pwr-delete-btn');
   function updateDeleteBtn() {
-    var checked = document.querySelectorAll('.row-checkbox:checked').length;
-    if (checked > 0) {
+    var cnt = document.querySelectorAll('.row-checkbox:checked').length;
+    if (cnt > 0) {
       deleteBtn.disabled = false;
       deleteBtn.className = 'px-3 py-1.5 text-xs font-medium rounded-md border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer';
     } else {
@@ -379,22 +456,60 @@
       deleteBtn.className = 'px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed transition-colors';
     }
   }
-  checkboxes.forEach(function(cb) { cb.addEventListener('change', updateDeleteBtn); });
+  document.querySelectorAll('.row-checkbox').forEach(function(cb) {
+    cb.addEventListener('change', updateDeleteBtn);
+  });
   document.getElementById('select-all')?.addEventListener('change', function() {
-    checkboxes.forEach(function(cb) { cb.checked = document.getElementById('select-all').checked; });
+    var checked = this.checked;
+    document.querySelectorAll('.row-checkbox').forEach(function(cb) { cb.checked = checked; });
     updateDeleteBtn();
   });
 
-  document.getElementById('pwr-delete-btn')?.addEventListener('click', function() {
+  // 삭제 버튼 클릭 → 확인 모달 오픈
+  deleteBtn?.addEventListener('click', function() {
     var cnt = document.querySelectorAll('.row-checkbox:checked').length;
     if (!cnt) return;
+    document.getElementById('pwr-delete-count').textContent = cnt;
     var m = document.getElementById('pwr-delete-confirm-modal');
-    if (m) {
-      document.getElementById('pwr-delete-count').textContent = cnt;
-      m.classList.remove('hidden'); m.classList.add('flex');
-    }
+    m.classList.remove('hidden'); m.classList.add('flex');
   });
 
+  // 취소
+  document.getElementById('pwr-delete-cancel')?.addEventListener('click', function() {
+    var m = document.getElementById('pwr-delete-confirm-modal');
+    m.classList.add('hidden'); m.classList.remove('flex');
+  });
+
+  // 확인 → API 호출
+  document.getElementById('pwr-delete-confirm')?.addEventListener('click', function() {
+    var ids = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(function(cb) { return cb.value; });
+    if (!ids.length) return;
+
+    var fd = new FormData();
+    ids.forEach(function(id) { fd.append('ids', id); });
+
+    fetch('{% url "power_bulk_delete" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+      body: fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var m = document.getElementById('pwr-delete-confirm-modal');
+      m.classList.add('hidden'); m.classList.remove('flex');
+      if (data.ok) {
+        PWR.showSuccess('삭제되었습니다.', '선택한 장비가 삭제되었습니다.');
+        document.getElementById('pwr-success-confirm')?.addEventListener('click', function() {
+          location.reload();
+        }, { once: true });
+      } else {
+        alert(data.error || '삭제에 실패했습니다.');
+      }
+    })
+    .catch(function() { alert('서버 오류가 발생했습니다.'); });
+  });
+
+  // 장비 등록 버튼
   document.getElementById('pwr-register-btn')?.addEventListener('click', function() {
     var m = document.getElementById('pwr-register-modal');
     if (m) { m.classList.remove('hidden'); m.classList.add('flex'); lucide.createIcons(); }

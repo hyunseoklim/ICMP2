@@ -18,7 +18,7 @@
     <div class="px-8 py-7">
 
       <div class="mb-5">
-        <h3 class="text-xl font-bold text-slate-900 mb-1" id="pwr-detail-title">스마트 전력 시스템 PWR-001</h3>
+        <h3 class="text-xl font-bold text-slate-900 mb-1" id="pwr-detail-title">스마트 전력 시스템</h3>
         <p class="text-xs text-slate-500" id="pwr-detail-subtitle">스마트 전력 시스템의 등록 정보를 확인하고 수정할 수 있습니다.</p>
       </div>
 
@@ -43,7 +43,6 @@
                 <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 유형 <span class="text-red-500">*</span></label>
                 <input type="text" disabled value="스마트 전력 시스템"
                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-600 cursor-not-allowed" />
-                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-type-error">장비 구분을 선택해주세요.</p>
               </div>
               <div>
                 <label class="block text-xs font-medium text-slate-700 mb-1.5">장비코드 <span class="text-red-500">*</span></label>
@@ -54,15 +53,16 @@
 
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명</label>
-                <input type="text" id="pwr-detail-device-name"
+                <label class="block text-xs font-medium text-slate-700 mb-1.5">장비명 <span class="text-red-500">*</span></label>
+                <input type="text" id="pwr-detail-device-name" maxlength="50"
                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pwr-detail-field" />
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-name-error"></p>
               </div>
               <div>
                 <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 ID(MAC) <span class="text-red-500">*</span></label>
                 <input type="text" id="pwr-detail-mac" placeholder="AA:BB:CC:DD:EE:FF"
                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400 pwr-detail-field" />
-                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-mac-error">장비 ID(MAC)를 입력해주세요.</p>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-mac-error"></p>
               </div>
             </div>
 
@@ -72,22 +72,22 @@
                 <select id="pwr-detail-dept"
                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 pwr-detail-field">
                   <option value="">부서 선택</option>
-                  <option value="equip">설비관리팀</option>
-                  <option value="prod1">생산1팀</option>
-                  <option value="prod2">생산2팀</option>
+                  {% for dept in departments %}
+                  <option value="{{ dept.id }}">{{ dept.name }}</option>
+                  {% endfor %}
                 </select>
-                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-dept-error">관리 부서를 선택해주세요.</p>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-dept-error"></p>
               </div>
               <div>
                 <label class="block text-xs font-medium text-slate-700 mb-1.5">담당자 <span class="text-red-500">*</span></label>
                 <select id="pwr-detail-manager"
                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 pwr-detail-field">
                   <option value="">담당자 선택</option>
-                  <option value="m1">박관리</option>
-                  <option value="m2">김현장</option>
-                  <option value="m3">김반장</option>
+                  {% for user in managers %}
+                  <option value="{{ user.id }}">{{ user.name }}</option>
+                  {% endfor %}
                 </select>
-                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-manager-error">담당자를 선택해주세요.</p>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-manager-error"></p>
               </div>
             </div>
 
@@ -97,13 +97,11 @@
                 <select id="pwr-detail-facility"
                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 pwr-detail-field">
                   <option value="">연결 설비 선택</option>
-                  <option value="fac1">냉각 설비 1호</option>
-                  <option value="fac2">컴프레서 B-02</option>
-                  <option value="fac3">혼합 설비 1호</option>
-                  <option value="fac4">컨베이어 D-01</option>
-                  <option value="fac5">혼합 설비 E-01</option>
+                  {% for e in all_equipments %}
+                  <option value="{{ e.id }}">{{ e.equipment_name }}</option>
+                  {% endfor %}
                 </select>
-                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-facility-error">연결 설비를 선택해주세요.</p>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-facility-error"></p>
               </div>
               <div>
                 <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
@@ -117,7 +115,7 @@
                       class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 pwr-detail-field" />미사용
                   </label>
                 </div>
-                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-status-error">사용 여부를 선택해 주세요.</p>
+                <p class="hidden mt-1 text-[11px] text-red-500" id="pwr-detail-status-error"></p>
               </div>
             </div>
 
@@ -173,15 +171,16 @@
 
         <!-- 장비 요약 -->
         <div class="mb-4">
-          <h4 class="text-xs font-semibold text-slate-700 mb-2">장비 요약</h4>
-          <div class="flex items-center justify-between px-4 py-4 bg-blue-50 border border-blue-100 rounded-lg">
-            <div>
-              <p class="text-[11px] text-slate-500 mb-1">장비 코드</p>
-              <p class="text-sm font-semibold text-slate-800" id="pwr-inspect-device-main"></p>
-              <p class="text-xs text-slate-500 mt-1" id="pwr-inspect-facility-manager"></p>
+          <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <div class="flex items-center gap-3">
+              <span class="px-2 py-0.5 bg-slate-800 text-white text-xs font-bold rounded flex-shrink-0" id="pwr-inspect-device-id"></span>
+              <div>
+                <p class="text-sm font-medium text-slate-700" id="pwr-inspect-device-info"></p>
+                <p class="text-xs text-slate-500 mt-0.5" id="pwr-inspect-manager-info"></p>
+              </div>
             </div>
             <button type="button" id="pwr-inspect-register-btn"
-              class="flex-shrink-0 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors">
+              class="flex-shrink-0 px-3 py-1.5 text-xs font-medium border border-slate-300 rounded-md text-slate-700 hover:bg-white transition-colors">
               점검 등록
             </button>
           </div>
@@ -193,19 +192,19 @@
           <div class="grid grid-cols-4 gap-3">
             <div class="px-4 py-3 border border-slate-200 rounded-lg">
               <p class="text-[11px] text-slate-400 mb-1">점검 여부</p>
-              <p class="text-sm font-semibold text-red-600">점검 필요</p>
+              <p class="text-sm font-semibold text-slate-400" id="pwr-summary-check-status">-</p>
             </div>
             <div class="px-4 py-3 border border-slate-200 rounded-lg">
               <p class="text-[11px] text-slate-400 mb-1">최근 점검일</p>
-              <p class="text-sm font-semibold text-slate-700">2026-04-11</p>
+              <p class="text-sm font-semibold text-slate-700" id="pwr-summary-last-inspected">-</p>
             </div>
             <div class="px-4 py-3 border border-slate-200 rounded-lg">
               <p class="text-[11px] text-slate-400 mb-1">다음 점검 예정일</p>
-              <p class="text-sm font-semibold text-slate-700">2026-04-28</p>
+              <p class="text-sm font-semibold text-slate-700" id="pwr-summary-action-date">-</p>
             </div>
             <div class="px-4 py-3 border border-slate-200 rounded-lg">
               <p class="text-[11px] text-slate-400 mb-1">조치 상태</p>
-              <p class="text-sm font-semibold text-red-600">조치 필요</p>
+              <p class="text-sm font-semibold text-slate-400" id="pwr-summary-current-state">-</p>
             </div>
           </div>
         </div>
@@ -213,59 +212,21 @@
         <!-- 점검 이력 -->
         <div>
           <h4 class="text-xs font-semibold text-slate-700 mb-2">점검 이력</h4>
-          <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <div class="overflow-x-auto overflow-y-auto max-h-52 rounded-lg border border-slate-200">
             <table class="w-full text-xs">
-              <thead>
+              <thead class="sticky top-0 z-10">
                 <tr class="bg-slate-50 border-b border-slate-100">
                   <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">점검 구분</th>
-                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">조치 상태</th>
+                  <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">조치 여부</th>
                   <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">점검일</th>
                   <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">점검자</th>
                   <th class="text-left px-3 py-2.5 font-medium text-slate-500 whitespace-nowrap">조치 담당자</th>
                   <th class="text-left px-3 py-2.5 font-medium text-slate-500">점검/조치 내용</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[11px] font-medium">이상</span></td>
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[11px] font-medium">조치 필요</span></td>
-                  <td class="px-3 py-2.5 text-slate-600">2026-04-11</td>
-                  <td class="px-3 py-2.5 text-slate-600">박관리</td>
-                  <td class="px-3 py-2.5">
-                    <button type="button"
-                      class="pwr-action-trigger text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
-                      data-inspect-type="abnormal"
-                      data-inspect-date="2026.04.11"
-                      data-inspect-person="박관리"
-                      data-inspect-note="전송 실패 확인 및 재연결 필요">
-                      조치 등록
-                    </button>
-                  </td>
-                  <td class="px-3 py-2.5 text-slate-600">전송 실패 확인 및 재연결 필요</td>
-                </tr>
-                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">정기</span></td>
-                  <td class="px-3 py-2.5 text-slate-400">—</td>
-                  <td class="px-3 py-2.5 text-slate-600">2026-03-14</td>
-                  <td class="px-3 py-2.5 text-slate-600">박관리</td>
-                  <td class="px-3 py-2.5 text-slate-600">김현장</td>
-                  <td class="px-3 py-2.5 text-slate-600">전원 듀스·수신 상태 정상</td>
-                </tr>
-                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">정기</span></td>
-                  <td class="px-3 py-2.5 text-slate-400">—</td>
-                  <td class="px-3 py-2.5 text-slate-600">2026-02-28</td>
-                  <td class="px-3 py-2.5 text-slate-600">김현장</td>
-                  <td class="px-3 py-2.5 text-slate-400">—</td>
-                  <td class="px-3 py-2.5 text-slate-600">설비 연동 및 전송 상태 정상</td>
-                </tr>
-                <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[11px] font-medium">이상</span></td>
-                  <td class="px-3 py-2.5"><span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[11px] font-medium">조치 완료</span></td>
-                  <td class="px-3 py-2.5 text-slate-600">2026-02-14</td>
-                  <td class="px-3 py-2.5 text-slate-600">박관리</td>
-                  <td class="px-3 py-2.5 text-slate-600">김현장</td>
-                  <td class="px-3 py-2.5 text-slate-600">응급 조치 후 전송 정상화</td>
+              <tbody id="pwr-inspect-history-tbody">
+                <tr>
+                  <td colspan="6" class="px-3 py-4 text-center text-slate-400 text-xs">점검 이력을 불러오는 중...</td>
                 </tr>
               </tbody>
             </table>
@@ -306,8 +267,11 @@
     document.getElementById('pwr-tab-inspect').classList.toggle('hidden', isBasic);
     document.getElementById('pwr-detail-subtitle').textContent = TAB_SUBTITLES[name];
   }
-  document.getElementById('pwr-tab-basic-btn')?.addEventListener('click',   function() { activateTab('basic'); });
-  document.getElementById('pwr-tab-inspect-btn')?.addEventListener('click', function() { activateTab('inspect'); });
+  document.getElementById('pwr-tab-basic-btn')?.addEventListener('click', function() { activateTab('basic'); });
+  document.getElementById('pwr-tab-inspect-btn')?.addEventListener('click', function() {
+    activateTab('inspect');
+    loadInspectionHistory();
+  });
 
   function setDirty() {
     if (isDirty) return;
@@ -325,15 +289,16 @@
   document.getElementById('pwr-detail-form')?.addEventListener('change', setDirty);
 
   window.openPwrDetailModal = function(data) {
-    var managerName = PWR.resolveManager(data.manager);
+    var mac  = data.mac  || '';
+    var note = data.note || '';
 
     document.getElementById('pwr-detail-title').textContent        = '스마트 전력 시스템 ' + (data.deviceId || '');
     document.getElementById('pwr-detail-device-code').value        = data.deviceId   || '';
     document.getElementById('pwr-detail-device-name').value        = data.deviceName || '';
-    document.getElementById('pwr-detail-mac').value                = data.mac        || '';
+    document.getElementById('pwr-detail-mac').value                = mac;
     document.getElementById('pwr-detail-dept').value               = data.dept       || '';
     document.getElementById('pwr-detail-manager').value            = data.manager    || '';
-    document.getElementById('pwr-detail-facility').value           = data.facility   || '';
+    document.getElementById('pwr-detail-facility').value           = data.equipment  || '';
     document.getElementById('pwr-detail-ip').value                 = data.ip         || '';
     document.getElementById('pwr-detail-port').value               = data.port       || '';
     document.getElementById('pwr-detail-status-active').checked    = (data.status !== 'inactive');
@@ -341,15 +306,13 @@
     document.getElementById('pwr-detail-conn-verified').checked    = (data.connVerified === 'true');
     document.getElementById('pwr-detail-conn-label').textContent   = (data.connVerified === 'true') ? '정상' : '미확인';
     document.getElementById('pwr-detail-conn-date').value          = data.connDate   || '';
-    document.getElementById('pwr-detail-note').value               = data.note       || '';
+    document.getElementById('pwr-detail-note').value               = note;
 
-    var deviceMain = (data.deviceId || '') + ' · 스마트 전력 시스템';
-    if (data.deviceName && data.deviceName !== data.deviceId) {
-      deviceMain += ' · ' + data.deviceName;
-    }
-    document.getElementById('pwr-inspect-device-main').textContent    = deviceMain;
-    document.getElementById('pwr-inspect-facility-manager').textContent =
-      '연결 설비: ' + (data.facilityName || '—') + ' / 담당자: ' + managerName;
+    // 점검 탭 장비 요약
+    document.getElementById('pwr-inspect-device-id').textContent   = data.deviceId || '';
+    document.getElementById('pwr-inspect-device-info').textContent = '스마트 전력 시스템' + (mac ? ' · MAC: ' + mac : '');
+    document.getElementById('pwr-inspect-manager-info').textContent =
+      '연결 설비: ' + (data.equipmentName || '—') + ' / 담당자: ' + (data.managerName || '—');
 
     window.currentPwrData = data;
     ipAtOpen    = data.ip   || '';
@@ -364,17 +327,150 @@
     lucide.createIcons();
   };
 
+  function loadInspectionHistory() {
+    var data = window.currentPwrData || {};
+    var dbId = data.id;
+    if (!dbId) {
+      document.getElementById('pwr-inspect-history-tbody').innerHTML =
+        '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400 text-xs">장비 정보를 찾을 수 없습니다.</td></tr>';
+      return;
+    }
+    document.getElementById('pwr-inspect-history-tbody').innerHTML =
+      '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400 text-xs">점검 이력을 불러오는 중...</td></tr>';
+
+    fetch('/manager/power/' + dbId + '/inspections/')
+      .then(function(r) { return r.json(); })
+      .then(function(resp) {
+        if (!resp.ok) return;
+
+        // 최근 점검 상태 요약
+        if (resp.summary) {
+          var s = resp.summary;
+          var checkEl = document.getElementById('pwr-summary-check-status');
+          checkEl.textContent = s.check_status;
+          checkEl.className = 'text-sm font-semibold ' +
+            (s.check_status === '점검 필요' ? 'text-red-600' : 'text-green-600');
+          document.getElementById('pwr-summary-last-inspected').textContent = s.last_inspected;
+          document.getElementById('pwr-summary-action-date').textContent    = s.expected_action_date;
+          var stateEl = document.getElementById('pwr-summary-current-state');
+          stateEl.textContent = s.current_state || '—';
+          stateEl.className = 'text-sm font-semibold ' + (s.current_state === '조치 필요' ? 'text-red-600' : 'text-green-600');
+
+          // 목록 행 점검 상태·최근 점검일 업데이트
+          var listRow = document.querySelector('tr.pwr-row[data-id="' + dbId + '"]');
+          if (listRow) {
+            var inspStatusTd = listRow.querySelector('td:nth-child(6)');
+            if (inspStatusTd) {
+              var badge = '';
+              if (s.check_status === '점검 완료') {
+                badge = '<span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span>';
+              } else if (s.check_status === '점검 필요') {
+                badge = '<span class="px-2 py-0.5 text-xs font-medium rounded bg-red-50 text-red-500">점검 필요</span>';
+              }
+              if (badge) inspStatusTd.innerHTML = badge;
+            }
+            var lastInspTd = listRow.querySelector('td:nth-child(8)');
+            if (lastInspTd && s.last_inspected && s.last_inspected !== '-') {
+              lastInspTd.textContent = s.last_inspected;
+            }
+          }
+        } else {
+          ['pwr-summary-check-status','pwr-summary-last-inspected','pwr-summary-action-date','pwr-summary-current-state'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) { el.textContent = '-'; el.className = 'text-sm font-semibold text-slate-400'; }
+          });
+        }
+
+        // 점검 이력 테이블 렌더링
+        var tbody = document.getElementById('pwr-inspect-history-tbody');
+        if (!resp.inspections.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400 text-xs">점검 이력이 없습니다.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = resp.inspections.map(function(insp) {
+          // 점검 구분 배지
+          var typeBadge = insp.type_code === 'regular'
+            ? '<span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">정기</span>'
+            : '<span class="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-[11px] font-medium">이상</span>';
+
+          // 조치 여부 배지 (column 2)
+          var actionBadge;
+          if (insp.status === 'normal') {
+            actionBadge = '<span class="text-slate-400">—</span>';
+          } else if (insp.has_action) {
+            actionBadge = '<span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[11px] font-medium">조치 완료</span>';
+          } else {
+            actionBadge = '<span class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[11px] font-medium">조치 필요</span>';
+          }
+
+          // 조치 담당자 / 조치 등록 버튼 (column 5)
+          var actorCell;
+          if (insp.has_action && insp.action) {
+            actorCell = '<span class="text-slate-600">' + (insp.action.actor || '—') + '</span>';
+          } else if (insp.status !== 'normal') {
+            actorCell =
+              '<button type="button" class="pwr-action-trigger text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"' +
+              ' data-inspect-id="' + insp.id + '"' +
+              ' data-inspect-type="' + insp.type_code + '"' +
+              ' data-inspect-date="' + insp.date.replace(/-/g, '.') + '"' +
+              ' data-inspect-person="' + (insp.inspector || '') + '"' +
+              ' data-inspect-note="' + (insp.note || '').replace(/"/g, '&quot;') + '">조치 등록</button>';
+          } else {
+            actorCell = '<span class="text-slate-400">—</span>';
+          }
+
+          // 점검/조치 내용
+          var contentHtml = insp.note ? '<span class="text-slate-600">' + insp.note + '</span>' : '';
+          if (insp.action && insp.action.note) {
+            contentHtml += (contentHtml ? '<span class="text-slate-300 mx-1">·</span>' : '') +
+              '<span class="text-emerald-600">' + insp.action.note + '</span>';
+          }
+
+          return '<tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">' +
+            '<td class="px-3 py-2.5">' + typeBadge + '</td>' +
+            '<td class="px-3 py-2.5">' + actionBadge + '</td>' +
+            '<td class="px-3 py-2.5 text-slate-600 whitespace-nowrap">' + insp.date + '</td>' +
+            '<td class="px-3 py-2.5 text-slate-600 whitespace-nowrap">' + (insp.inspector || '—') + '</td>' +
+            '<td class="px-3 py-2.5 whitespace-nowrap">' + actorCell + '</td>' +
+            '<td class="px-3 py-2.5 text-xs">' + (contentHtml || '<span class="text-slate-300">—</span>') + '</td>' +
+            '</tr>';
+        }).join('');
+
+        // 조치 등록 버튼 이벤트 연결
+        tbody.querySelectorAll('.pwr-action-trigger').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (typeof window.openPwrActionRegister === 'function') {
+              window.openPwrActionRegister({
+                id:     btn.dataset.inspectId,
+                type:   btn.dataset.inspectType,
+                date:   btn.dataset.inspectDate,
+                person: btn.dataset.inspectPerson,
+                note:   btn.dataset.inspectNote,
+              });
+            }
+          });
+        });
+      })
+      .catch(function() {
+        document.getElementById('pwr-inspect-history-tbody').innerHTML =
+          '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400 text-xs">이력을 불러오지 못했습니다.</td></tr>';
+      });
+  }
+
+  window.loadPwrInspectionHistory = loadInspectionHistory;
+
   function closeDetailModal() {
     detailModal.classList.add('hidden');
     detailModal.classList.remove('flex');
   }
 
   function clearAllErrors() {
-    ['pwr-detail-mac-error','pwr-detail-dept-error','pwr-detail-manager-error','pwr-detail-facility-error','pwr-detail-comm-error','pwr-detail-status-error'].forEach(function(id) {
+    ['pwr-detail-name-error','pwr-detail-mac-error','pwr-detail-dept-error','pwr-detail-manager-error','pwr-detail-facility-error','pwr-detail-comm-error','pwr-detail-status-error'].forEach(function(id) {
       var el = document.getElementById(id);
-      if (el) el.classList.add('hidden');
+      if (el) { el.textContent = ''; el.classList.add('hidden'); }
     });
-    ['pwr-detail-ip','pwr-detail-port','pwr-detail-mac'].forEach(function(id) {
+    ['pwr-detail-ip','pwr-detail-port','pwr-detail-mac','pwr-detail-device-name'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) { el.classList.remove('border-red-400'); el.classList.add('border-slate-200'); }
     });
@@ -386,35 +482,48 @@
   }
   function hideError(errId, fieldId) {
     var e = document.getElementById(errId);
-    if (e) e.classList.add('hidden');
+    if (e) { e.textContent = ''; e.classList.add('hidden'); }
     if (fieldId) { var f = document.getElementById(fieldId); if (f) { f.classList.remove('border-red-400'); f.classList.add('border-slate-200'); } }
   }
 
   function validate() {
     clearAllErrors();
     var valid = true;
-    if (!document.getElementById('pwr-detail-mac').value.trim()) {
-      showError('pwr-detail-mac-error', '장비 ID(MAC)를 입력해주세요.', 'pwr-detail-mac'); valid = false;
+    var deviceName = document.getElementById('pwr-detail-device-name').value.trim();
+    if (!deviceName) {
+      showError('pwr-detail-name-error', '장비명을 입력해 주세요.', 'pwr-detail-device-name'); valid = false;
+    } else if (deviceName.length > 50) {
+      showError('pwr-detail-name-error', '장비명은 50자 이내로 입력해 주세요.', 'pwr-detail-device-name'); valid = false;
+    }
+    var mac = document.getElementById('pwr-detail-mac').value.trim();
+    if (!mac) {
+      showError('pwr-detail-mac-error', '장비 ID를 입력해 주세요.', 'pwr-detail-mac'); valid = false;
+    } else if (!/^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$/.test(mac)) {
+      showError('pwr-detail-mac-error', '장비 ID 형식이 올바르지 않습니다.', 'pwr-detail-mac'); valid = false;
     }
     if (!document.getElementById('pwr-detail-dept').value) {
-      showError('pwr-detail-dept-error', '관리 부서를 선택해주세요.'); valid = false;
+      showError('pwr-detail-dept-error', '관리 부서를 선택해 주세요.'); valid = false;
     }
     if (!document.getElementById('pwr-detail-manager').value) {
-      showError('pwr-detail-manager-error', '담당자를 선택해주세요.'); valid = false;
+      showError('pwr-detail-manager-error', '관리 담당자를 선택해 주세요.'); valid = false;
     }
     if (!document.getElementById('pwr-detail-facility').value) {
-      showError('pwr-detail-facility-error', '연결 설비를 선택해주세요.'); valid = false;
+      showError('pwr-detail-facility-error', '연결 설비를 선택해 주세요.'); valid = false;
     }
-    if (!document.getElementById('pwr-detail-ip').value.trim()) {
-      showError('pwr-detail-comm-error', '서버 주소(IP)를 입력해주세요.', 'pwr-detail-ip'); valid = false;
-    }
-    if (!document.getElementById('pwr-detail-port').value.trim()) {
-      showError('pwr-detail-comm-error', 'PORT를 입력해주세요.', 'pwr-detail-port'); valid = false;
+    var ip   = document.getElementById('pwr-detail-ip').value.trim();
+    var port = document.getElementById('pwr-detail-port').value.trim();
+    if (!ip) {
+      showError('pwr-detail-comm-error', 'IP 주소를 입력해 주세요.', 'pwr-detail-ip'); valid = false;
+    } else if (!port) {
+      showError('pwr-detail-comm-error', '포트 번호를 입력해 주세요.', 'pwr-detail-port'); valid = false;
     }
     var cbActive   = document.getElementById('pwr-detail-status-active');
     var cbInactive = document.getElementById('pwr-detail-status-inactive');
     if (!cbActive.checked && !cbInactive.checked) {
       showError('pwr-detail-status-error', '사용 여부를 선택해 주세요.'); valid = false;
+    }
+    if (valid && !commChecked) {
+      showError('pwr-detail-comm-error', '연결 확인이 필요합니다. 연결 확인 버튼을 눌러 주세요.'); valid = false;
     }
     return valid;
   }
@@ -426,20 +535,6 @@
     if (typeof window.openPwrInspectRegister === 'function') window.openPwrInspectRegister();
   });
 
-  document.querySelectorAll('.pwr-action-trigger').forEach(function(btn) {
-    btn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      if (typeof window.openPwrActionRegister === 'function') {
-        window.openPwrActionRegister({
-          type:   btn.dataset.inspectType,
-          date:   btn.dataset.inspectDate,
-          person: btn.dataset.inspectPerson,
-          note:   btn.dataset.inspectNote
-        });
-      }
-    });
-  });
-
   var cbActive   = document.getElementById('pwr-detail-status-active');
   var cbInactive = document.getElementById('pwr-detail-status-inactive');
   cbActive?.addEventListener('change',   function() { if (cbActive.checked)   cbInactive.checked = false; });
@@ -448,16 +543,16 @@
   document.getElementById('pwr-detail-conn-check')?.addEventListener('click', function() {
     var ip   = document.getElementById('pwr-detail-ip').value.trim();
     var port = document.getElementById('pwr-detail-port').value.trim();
-    if (!ip) { showError('pwr-detail-comm-error', '서버 주소(IP)를 입력해주세요.', 'pwr-detail-ip'); return; }
+    if (!ip) { showError('pwr-detail-comm-error', 'IP 주소를 입력해 주세요.', 'pwr-detail-ip'); return; }
     var ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!ipRegex.test(ip) || ip.split('.').some(function(n) { return parseInt(n) > 255; })) {
       showError('pwr-detail-comm-error', 'IP 주소 형식이 올바르지 않습니다.', 'pwr-detail-ip'); return;
     }
     hideError('pwr-detail-comm-error', 'pwr-detail-ip');
-    if (!port) { showError('pwr-detail-comm-error', 'PORT를 입력해주세요.', 'pwr-detail-port'); return; }
-    if (!/^\d+$/.test(port)) { showError('pwr-detail-comm-error', 'PORT 형식이 올바르지 않습니다.', 'pwr-detail-port'); return; }
+    if (!port) { showError('pwr-detail-comm-error', '포트 번호를 입력해 주세요.', 'pwr-detail-port'); return; }
+    if (!/^\d+$/.test(port)) { showError('pwr-detail-comm-error', '포트 번호 형식이 올바르지 않습니다.', 'pwr-detail-port'); return; }
     var pn = parseInt(port);
-    if (pn < 1 || pn > 65535) { showError('pwr-detail-comm-error', 'PORT는 1~65535 범위로 입력해 주세요.', 'pwr-detail-port'); return; }
+    if (pn < 1 || pn > 65535) { showError('pwr-detail-comm-error', '포트 번호는 1~65535 범위로 입력해 주세요.', 'pwr-detail-port'); return; }
     hideError('pwr-detail-comm-error', 'pwr-detail-port');
     commChecked = true;
     document.getElementById('pwr-detail-conn-verified').checked = true;
@@ -493,8 +588,35 @@
   document.getElementById('pwr-detail-confirm-ok')?.addEventListener('click', function() {
     confirmModal.classList.add('hidden');
     confirmModal.classList.remove('flex');
-    closeDetailModal();
-    PWR.showSuccess('수정되었습니다.', '장비 정보가 수정되었습니다.');
+
+    var data = window.currentPwrData || {};
+    var dbId = data.id;
+    if (!dbId) return;
+
+    var fd = new FormData();
+    fd.append('csrfmiddlewaretoken', PWR.getCsrfToken());
+    fd.append('device_name', document.getElementById('pwr-detail-device-name').value.trim());
+    fd.append('device_mac',  document.getElementById('pwr-detail-mac').value.trim());
+    fd.append('department',  document.getElementById('pwr-detail-dept').value);
+    fd.append('manager',     document.getElementById('pwr-detail-manager').value);
+    fd.append('equipment',   document.getElementById('pwr-detail-facility').value);
+    fd.append('ip',          document.getElementById('pwr-detail-ip').value.trim());
+    fd.append('port',        document.getElementById('pwr-detail-port').value.trim());
+    fd.append('is_active',   document.getElementById('pwr-detail-status-active').checked ? 'true' : 'false');
+    fd.append('note',        document.getElementById('pwr-detail-note').value.trim());
+
+    fetch('/manager/power/' + dbId + '/edit/', {
+      method:  'POST',
+      headers: { 'X-CSRFToken': PWR.getCsrfToken() },
+      body:    fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+      if (!resp.ok) { alert(resp.error || '수정에 실패했습니다.'); return; }
+      closeDetailModal();
+      PWR.showSuccess('수정되었습니다.', '장비 정보가 수정되었습니다.');
+    })
+    .catch(function() { alert('서버 오류가 발생했습니다.'); });
   });
 })();
 </script>

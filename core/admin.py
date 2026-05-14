@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import ChangeLog
+from .models import CommonCode
 
 
 @admin.register(ChangeLog)
@@ -16,3 +17,10 @@ class ChangeLogAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False   # admin 에서 직접 추가 금지 (로그 무결성)
+
+@admin.register(CommonCode)
+class CommonCodeAdmin(admin.ModelAdmin):
+    list_display = ('group_code', 'code', 'code_name', 'is_active', 'updated_at', 'updated_by')
+    list_filter = ('group_code', 'is_active')
+    search_fields = ('group_code', 'code', 'code_name')
+

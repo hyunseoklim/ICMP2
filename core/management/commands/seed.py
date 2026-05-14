@@ -943,18 +943,409 @@ def seed_safety():
 # Management Command
 # ─────────────────────────────────────────────────────────────
 
+def seed_alarm_policies():
+    """AlarmPolicy 기본 6개 정책 (이벤트 유형별 1개)"""
+    from manager.models import AlarmPolicy
+
+    defaults = [
+        ("가스 경보 알림",               "가스 경보",                   "앱, 관제 실시간 알림", "관리자, 작업자", True,
+         "전체 가스 센서 중 위험 상태를 1분 이상 유지한 장비가 발생하면 알림을 발송합니다.",
+         "가스 경보 발생",
+         "{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}."),
+
+        ("전력 이상 알림",               "전력 이상",                   "앱",                  "관리자",         True,
+         "전체 전력 설비 중 위험 상태로 전환된 장비가 발생하면 즉시 알림을 발송합니다.",
+         "전력 이상 감지",
+         "{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}."),
+
+        ("위험구역 진입 알림",           "위험구역 진입",               "관제 실시간 알림",     "관리자, 작업자", True,
+         "구역 단계가 위험구역인 위험구역 A에 작업자가 진입하면 관리자, 작업자에게 즉시 알림을 발송합니다.",
+         "위험구역 진입 감지",
+         "구역 단계가 위험구역인 {발생대상}에 작업자가 진입하였습니다. 발생 시각: {발생시각}."),
+
+        ("PPE 미착용 경고 알림",         "PPE 미착용",                  "앱",                  "작업자",         True,
+         "전체 작업자 위치 데이터 발생 후 5분 이내 PPE가 미착용 상태이면 즉시 알림을 발송합니다.",
+         "PPE 미착용 감지",
+         "{발생대상}의 PPE 미착용이 감지되었습니다. 발생 시각: {발생시각}."),
+
+        ("체크리스트 미완료 알림",       "작업 안전 체크리스트 미완료", "관제 실시간 알림",     "관리자",         False,
+         "전체 작업자 위치 데이터 발생 후 5분 이내 작업 안전 체크리스트가 미완료 상태이면 즉시 알림을 발송합니다.",
+         "체크리스트 미완료",
+         "{발생대상}의 작업 안전 체크리스트가 미완료 상태입니다. 발생 시각: {발생시각}."),
+
+        ("VR 교육 미이수 알림",          "VR 교육 미이수",              "관제 실시간 알림",     "관리자",         True,
+         "전체 작업자 위치 데이터 발생 후 5분 이내 VR 교육이 미이수 상태이면 즉시 알림을 발송합니다.",
+         "VR 교육 미이수",
+         "{발생대상}의 VR 교육이 미이수 상태입니다. 발생 시각: {발생시각}."),
+    ]
+
+    policy_map = {}
+    for name, event, channels, targets, is_active, cond, title, content in defaults:
+        p, _ = AlarmPolicy.objects.get_or_create(
+            name=name,
+            defaults={
+                "event_type":        event,
+                "channels":          channels,
+                "targets":           targets,
+                "is_active":         is_active,
+                "condition_summary": cond,
+                "alarm_title":       title,
+                "alarm_content":     content,
+            },
+        )
+        policy_map[name] = p
+
+    print(f"  [alarm_policies] {len(policy_map)}개 정책 생성/확인")
+    return policy_map
+
+
+def seed_send_history():
+    """AlarmSendHistory 샘플 발송 이력 — AlarmPolicy FK 연결"""
+    from datetime import timedelta
+    from django.utils import timezone
+    from manager.models import AlarmSendHistory
+
+    AlarmSendHistory.objects.all().delete()   # 기존 데이터 초기화 후 재생성
+
+    # 연결할 정책 맵 확보 (없으면 생성)
+    policy_map = seed_alarm_policies()
+
+    now = timezone.now()
+
+    # (hours_ago, channel, targets, result, policy_name, scope, content, reason)
+    rows = [
+        (0.04, "SMS",         "관리자",            "성공", "가스 경보 알림",         "관리자",
+         "가스 센서 GS-021에서 경고 상태가 감지되었습니다. 관리자 역할에 SMS 알림이 즉시 발송되었습니다.",
+         "통신사 응답 코드 200을 수신했고 추가 재시도는 발생하지 않았습니다."),
+
+        (0.10, "이메일",      "관리자, 슈퍼관리자", "실패", "전력 이상 알림",         "관리자, 슈퍼관리자",
+         "스마트전력시스템 SP-004 이상 감지에 따른 이메일 알림 발송이 실패하였습니다.",
+         "이메일 서버 네트워크 연결 오류로 인해 발송에 실패하였습니다. 재발송 처리가 필요합니다."),
+
+        (0.22, "앱 푸시",     "작업자",            "성공", "위험구역 진입 알림",     "작업자",
+         "위치 노드 LN-014 관할 구역에서 작업자 위치 이탈이 감지되어 작업자 앱 푸시 알림을 발송하였습니다.",
+         "앱 서버 응답 코드 200 수신. 정상 발송 완료되었습니다."),
+
+        (0.35, "SMS",         "작업자, 관리자",     "성공", "PPE 미착용 경고 알림",   "작업자, 관리자",
+         "PPE 미착용 경고 알림을 작업자 및 관리자에게 SMS로 발송하였습니다.",
+         "통신사 응답 코드 200을 수신했고 추가 재시도는 발생하지 않았습니다."),
+
+        (0.48, "이메일",      "슈퍼관리자",         "지연", "VR 교육 미이수 알림",    "슈퍼관리자",
+         "VR 교육 미이수 현황 알림 이메일 발송이 정상 처리되었으나 전송 지연이 발생하였습니다.",
+         "발송 서버 처리 부하로 인해 예정 시간 대비 약 12분 전송 지연이 발생하였습니다."),
+
+        (0.57, "앱 푸시",     "관리자",            "성공", "위험구역 진입 알림",     "관리자",
+         "출입문 A-03에서 제한 시간 내 접근 경보가 감지되어 관리자에게 앱 푸시 알림을 발송하였습니다.",
+         "앱 서버 응답 코드 200 수신. 정상 발송 완료되었습니다."),
+
+        (0.72, "SMS",         "관리자, 작업자",     "성공", "가스 경보 알림",         "관리자, 작업자",
+         "가스 센서 GS-007 경보 상태가 해제되어 관리자 및 작업자에게 SMS 해제 알림을 발송하였습니다.",
+         "통신사 응답 코드 200을 수신했고 추가 재시도는 발생하지 않았습니다."),
+
+        (0.84, "이메일",      "슈퍼관리자",         "성공", "VR 교육 미이수 알림",    "슈퍼관리자",
+         "일간 시스템 운영 리포트를 슈퍼관리자에게 이메일로 발송하였습니다.",
+         "이메일 서버 응답 코드 250 수신. 정상 발송 완료되었습니다."),
+
+        (1.02, "앱 푸시",     "작업자",            "실패", "PPE 미착용 경고 알림",   "작업자",
+         "PPE 미착용 경고 알림을 작업자 앱으로 발송하려 했으나 실패하였습니다.",
+         "수신 작업자 디바이스 토큰 만료로 인해 앱 푸시 발송에 실패하였습니다. 토큰 갱신 후 재발송이 필요합니다."),
+
+        (1.17, "SMS",         "관리자",            "지연", "전력 이상 알림",         "관리자",
+         "스마트전력시스템 SP-002 전력 이상 주의 알림을 관리자에게 SMS로 발송 요청하였으나 전송이 지연되었습니다.",
+         "SMS 게이트웨이 트래픽 집중으로 인해 약 8분 전송 지연이 발생하였습니다."),
+
+        (1.32, "앱 푸시",     "작업자, 관리자",     "성공", "위험구역 진입 알림",     "작업자, 관리자",
+         "출입문 B-01 접근 이벤트 경보 알림을 작업자 및 관리자에게 앱 푸시로 발송하였습니다.",
+         "앱 서버 응답 코드 200 수신. 정상 발송 완료되었습니다."),
+
+        (1.49, "이메일",      "슈퍼관리자",         "성공", "체크리스트 미완료 알림", "슈퍼관리자",
+         "작업 안전 체크리스트 미완료 현황 리포트를 슈퍼관리자에게 이메일로 발송하였습니다.",
+         "이메일 서버 응답 코드 250 수신. 정상 발송 완료되었습니다."),
+    ]
+
+    objs = [
+        AlarmSendHistory(
+            sent_at      = now - timedelta(hours=h),
+            channel      = channel,
+            targets      = targets,
+            result       = result,
+            alarm_policy = policy_map.get(policy_name),
+            policy_name  = policy_name,
+            scope        = scope,
+            content      = content,
+            reason       = reason,
+        )
+        for h, channel, targets, result, policy_name, scope, content, reason in rows
+    ]
+    AlarmSendHistory.objects.bulk_create(objs)
+    print(f"  [send_history] {len(objs)}건 생성 완료 (AlarmPolicy FK 연결)")
+
+
 SECTIONS = {
-    "accounts":   seed_accounts,
-    "facilities": seed_facilities,
-    "workers":    seed_workers,
-    "monitoring": seed_monitoring,
-    "alerts":     seed_alerts,
-    "safety":     seed_safety,
+    "accounts":       seed_accounts,
+    "facilities":     seed_facilities,
+    "workers":        seed_workers,
+    "monitoring":     seed_monitoring,
+    "alerts":         seed_alerts,
+    "safety":         seed_safety,
+    "alarm_policies": seed_alarm_policies,
+    "send_history":   seed_send_history,
 }
 
-# 의존성 순서: accounts → facilities → workers → monitoring → alerts → safety
-ALL_ORDER = ["accounts", "facilities", "workers", "monitoring", "alerts", "safety"]
+# 의존성 순서
+ALL_ORDER = [
+    "accounts", "facilities", "workers", "monitoring",
+    "alerts", "safety", "alarm_policies", "send_history",
+]
 
+def seed_common_codes():
+    """공통 코드 그룹 7개 및 코드값 초기 데이터"""
+    from core.models import CommonCode
+
+    groups = [
+        {
+            "group_code": "DEVICE_TYPE",
+            "code_name": "장비 유형",
+            "scope": "장비 등록 / 센서 연동",
+            "description": "현장에서 운영되는 장비의 유형을 분류합니다.",
+            "codes": [
+                ("GAS_SENSOR",    "유해가스 센서",     10),
+                ("SMART_POWER",   "스마트 전력 시스템", 20),
+                ("LOCATION_NODE", "위치 노드",         30),
+                ("LEGACY_SENSOR", "레거시 센서",        99),
+            ],
+        },
+        {
+            "group_code": "COMM_METHOD",
+            "code_name": "통신 방식",
+            "scope": "장비 등록 / 센서 연동",
+            "description": "장비와 서버 간 데이터 통신 방식을 구분합니다.",
+            "codes": [
+                ("MQTT",    "MQTT",    10),
+                ("HTTP",    "HTTP",    20),
+                ("RS485",   "RS-485",  30),
+                ("MODBUS",  "Modbus",  40),
+            ],
+        },
+        {
+            "group_code": "GAS_TYPE",
+            "code_name": "가스 종류",
+            "scope": "센서 연동 / 임계치 설정",
+            "description": "유해가스 감지 센서가 측정하는 가스 종류를 분류합니다.",
+            "codes": [
+                ("CO",  "일산화탄소 (CO)",  10),
+                ("H2S", "황화수소 (H₂S)",   20),
+                ("CO2", "이산화탄소 (CO₂)", 30),
+                ("O2",  "산소 (O₂)",        40),
+                ("NO2", "이산화질소 (NO₂)", 50),
+                ("CH4", "메탄 (CH₄)",       60),
+                ("NH3", "암모니아 (NH₃)",   70),
+                ("VOC", "휘발성유기화합물 (VOC)", 80),
+            ],
+        },
+        {
+            "group_code": "UNIT_CODE",
+            "code_name": "측정 단위",
+            "scope": "센서 연동 / 임계치 설정",
+            "description": "센서 측정값의 단위를 정의합니다.",
+            "codes": [
+                ("PPM",  "ppm",   10),
+                ("PCT",  "%",     20),
+                ("PCT_LEL", "%LEL", 30),
+                ("V",    "V",     40),
+                ("A",    "A",     50),
+                ("KW",   "kW",    60),
+                ("KWH",  "kWh",   70),
+            ],
+        },
+        {
+            "group_code": "EVENT_TYPE",
+            "code_name": "이벤트 구분",
+            "scope": "알람 / 이벤트 관리",
+            "description": "시스템에서 발생하는 이벤트의 유형을 구분합니다.",
+            "codes": [
+                ("THRESHOLD", "임계치 초과", 10),
+                ("MISSING",   "데이터 누락", 20),
+                ("OFFLINE",   "장비 오프라인", 30),
+                ("POWER",     "전력 이상",   40),
+                ("GEOFENCE",  "지오펜스 침범", 50),
+            ],
+        },
+        {
+            "group_code": "NOTI_CHANNEL",
+            "code_name": "알림 채널",
+            "scope": "알람 정책 관리",
+            "description": "알람 발생 시 알림을 전송하는 채널을 정의합니다.",
+            "codes": [
+                ("EMAIL", "이메일",   10),
+                ("SMS",   "문자(SMS)", 20),
+                ("KAKAO", "카카오톡", 30),
+                ("PUSH",  "앱 푸시",  40),
+            ],
+        },
+        {
+            "group_code": "WORK_TYPE",
+            "code_name": "작업 유형",
+            "scope": "작업자 관리 / 안전 확인",
+            "description": "현장 작업자의 작업 유형을 구분합니다.",
+            "codes": [
+                ("INSPECTION",  "점검",   10),
+                ("MAINTENANCE", "유지보수", 20),
+                ("OPERATION",   "운전",   30),
+                ("EMERGENCY",   "긴급",   40),
+            ],
+        },
+    ]
+
+    print("  [common_codes] 공통 코드 그룹 7개...")
+    for g in groups:
+        meta, _ = CommonCode.objects.get_or_create(
+            group_code=g["group_code"], code="__meta__",
+            defaults={
+                "code_name":   g["code_name"],
+                "sort_order":  0,
+                "is_active":   True,
+                "scope":       g["scope"],
+                "description": g["description"],
+                "updated_by":  "시스템",
+            },
+        )
+        for code_val, code_name, sort_order in g["codes"]:
+            CommonCode.objects.get_or_create(
+                group_code=g["group_code"], code=code_val,
+                defaults={
+                    "code_name":  code_name,
+                    "sort_order": sort_order,
+                    "is_active":  True,
+                    "updated_by": "시스템",
+                },
+            )
+    total = CommonCode.objects.exclude(code="__meta__").count()
+    print(f"  완료: 그룹 {len(groups)}개, 코드값 총 {total}개")
+
+
+def seed_risk_codes():
+    """위험 유형 분류 그룹 및 위험 유형 초기 데이터"""
+    from core.models import CommonCode
+
+    groups = [
+        {
+            "group_code": "RISK_GAS",
+            "code_name": "유해가스",
+            "scope": "위험구역,이벤트,알림",
+            "description": "유해가스 누출 및 농도 초과와 관련된 위험 유형입니다.",
+            "codes": [
+                ("GAS_LEAK",     "가스 누출",       True,  10),
+                ("GAS_HIGH",     "고농도 가스 감지", True,  20),
+                ("GAS_SENSOR_FAIL", "가스 센서 오류", False, 30),
+            ],
+        },
+        {
+            "group_code": "RISK_POWER",
+            "code_name": "전력 이상",
+            "scope": "이벤트,알림",
+            "description": "전력 과부하, 누전 등 전력 관련 위험 유형입니다.",
+            "codes": [
+                ("POWER_OVERLOAD", "전력 과부하",  True,  10),
+                ("POWER_OUTAGE",   "전력 차단",    True,  20),
+                ("POWER_LEAK",     "누전 감지",    True,  30),
+            ],
+        },
+        {
+            "group_code": "RISK_LOCATION",
+            "code_name": "위치 이탈",
+            "scope": "위험구역,알림",
+            "description": "작업자의 허가 구역 이탈 및 위험 구역 진입 위험 유형입니다.",
+            "codes": [
+                ("LOCATION_OUT",   "허가구역 이탈", True,  10),
+                ("LOCATION_ENTER", "위험구역 진입", True,  20),
+                ("LOCATION_LOST",  "위치 신호 유실", False, 30),
+            ],
+        },
+        {
+            "group_code": "RISK_WORK",
+            "code_name": "작업 위험",
+            "scope": "이벤트,알림",
+            "description": "고소 작업, 밀폐 공간 등 작업 환경에 따른 위험 유형입니다.",
+            "codes": [
+                ("FALL_RISK",      "추락 위험",    True,  10),
+                ("CONFINED_SPACE", "밀폐 공간 작업", True,  20),
+                ("HEAVY_EQUIP",    "중장비 근접",  True,  30),
+            ],
+        },
+        {
+            "group_code": "RISK_COMPLEX",
+            "code_name": "복합 위험",
+            "scope": "위험구역,이벤트,알림",
+            "description": "가스 누출과 위치 이탈 등 복합 조건이 충족된 위험 유형입니다.",
+            "codes": [
+                ("COMPLEX_GAS_LOC", "가스+위치 복합", True,  10),
+                ("COMPLEX_MULTI",   "다중 센서 복합", True,  20),
+            ],
+        },
+        {
+            "group_code": "RISK_SYSTEM",
+            "code_name": "시스템 이상",
+            "scope": "이벤트",
+            "description": "장비 오프라인, 통신 단절 등 시스템 이상 위험 유형입니다.",
+            "codes": [
+                ("DEVICE_OFFLINE", "장비 오프라인", False, 10),
+                ("COMM_LOST",      "통신 단절",    False, 20),
+                ("DATA_MISSING",   "데이터 누락",  False, 30),
+            ],
+        },
+        {
+            "group_code": "RISK_COMMON",
+            "code_name": "공통 위험",
+            "scope": "위험구역,이벤트,알림",
+            "description": "특정 유형에 속하지 않는 일반적인 현장 위험 유형입니다.",
+            "codes": [
+                ("GENERAL_RISK", "일반 위험", True,  10),
+                ("UNKNOWN",      "미분류 위험", False, 99),
+            ],
+        },
+    ]
+
+    print("  [risk_codes] 위험 유형 분류 그룹 7개...")
+    for g in groups:
+        CommonCode.objects.get_or_create(
+            group_code=g["group_code"], code="__meta__",
+            defaults={
+                "code_name":   g["code_name"],
+                "sort_order":  0,
+                "is_active":   True,
+                "scope":       g["scope"],
+                "description": g["description"],
+                "updated_by":  "시스템",
+            },
+        )
+        for code_val, code_name, map_reflect, sort_order in g["codes"]:
+            CommonCode.objects.get_or_create(
+                group_code=g["group_code"], code=code_val,
+                defaults={
+                    "code_name":   code_name,
+                    "sort_order":  sort_order,
+                    "is_active":   True,
+                    "map_reflect": map_reflect,
+                    "updated_by":  "시스템",
+                },
+            )
+    print(f"  완료: 위험 분류 그룹 {len(groups)}개 seeded")
+
+
+SECTIONS = {
+    "accounts":      seed_accounts,
+    "facilities":    seed_facilities,
+    "workers":       seed_workers,
+    "monitoring":    seed_monitoring,
+    "alerts":        seed_alerts,
+    "safety":        seed_safety,
+    "common_codes":  seed_common_codes,
+    "risk_codes":    seed_risk_codes,
+}
+
+# 의존성 순서
+ALL_ORDER = ["accounts", "facilities", "workers", "monitoring", "alerts", "safety", "common_codes", "risk_codes"]
 
 class Command(BaseCommand):
     help = "ICMP2 통합 시드: 기준 데이터를 DB에 삽입합니다"

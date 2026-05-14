@@ -156,7 +156,11 @@
   var successModal  = document.getElementById('gas-success-modal');
   var commChecked   = false;
 
-  var TYPE_CODES = { GAS: 'GAS-008', PWR: 'PWR-001', LOC: 'LOC-001' };
+  var TYPE_CODES = {
+    GAS: '{{ next_gas_code|default:"GAS-001" }}',
+    PWR: '{{ next_pwr_code|default:"PWR-001" }}',
+    LOC: '{{ next_loc_code|default:"LOC-001" }}',
+  };
   var TYPE_NAMES = { GAS: '유해가스 센서', PWR: '스마트 전력 시스템', LOC: '위치 노드' };
 
   function openRegisterModal() {
@@ -294,10 +298,35 @@
 
     if (!valid) return;
 
-    closeRegisterModal();
-    successModal.classList.remove('hidden');
-    successModal.classList.add('flex');
-    lucide.createIcons();
+    var fd = new FormData();
+    fd.append('device_type', document.getElementById('reg-device-type').value);
+    fd.append('device_name', document.getElementById('reg-device-name').value.trim());
+    fd.append('device_mac',  document.getElementById('reg-device-mac').value.trim());
+    fd.append('department',  document.getElementById('reg-dept').value);
+    fd.append('manager',     document.getElementById('reg-manager').value);
+    fd.append('ip',          document.getElementById('reg-ip').value.trim());
+    fd.append('port',        document.getElementById('reg-port').value.trim());
+    fd.append('is_active',   cbActive.checked ? 'true' : 'false');
+    fd.append('note',        document.getElementById('reg-note').value.trim());
+
+    fetch('{% url "gas_create" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': GAS.getCsrfToken() },
+      body: fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        closeRegisterModal();
+        GAS.showSuccess('등록되었습니다.', '장비가 목록에 추가되었습니다.');
+        setTimeout(function() { window.location.reload(); }, 1200);
+      } else {
+        alert(data.error || '등록에 실패했습니다.');
+      }
+    })
+    .catch(function() {
+      alert('서버 오류가 발생했습니다.');
+    });
   });
 
   document.getElementById('gas-register-btn')?.addEventListener('click', openRegisterModal);

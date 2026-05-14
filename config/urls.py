@@ -9,6 +9,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('monitoring/api/gas-readings/', monitoring_views.ingest_gas),
     path('monitoring/api/power-readings/', monitoring_views.ingest_power),
+    path('monitoring/api/node-readings/', monitoring_views.ingest_node),
     
     path('', include('dashboard.urls')),
     path('accounts/', include('accounts.urls')),

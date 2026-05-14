@@ -369,6 +369,12 @@ class Equipment(models.Model):
         choices=[('active', '운영중'), ('inactive', '비운영'), ('maintenance', '점검중')],
         default='active',
     )
+    power_system = models.CharField(max_length=50, blank=True, help_text='연결 전력 시스템 코드')
+    note = models.TextField(blank=True)
+    updated_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='updated_equipments'
+    )
     created_at = models.DateTimeField(auto_now_add=True, help_text='생성 날짜')
     updated_at = models.DateTimeField(auto_now=True, help_text='업데이트 내역')
     is_placed = models.BooleanField(default=False, help_text='지도 배치 완료 여부')

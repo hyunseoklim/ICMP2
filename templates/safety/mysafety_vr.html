@@ -43,6 +43,20 @@
   background: var(--bg-panel); border: 1px solid var(--border);
   border-radius: var(--radius-lg); overflow: hidden;
 }
+
+/* 영상 플레이어 */
+.vr-video-wrap {
+  background: #000;
+  width: 100%;
+}
+.vr-video-wrap video {
+  width: 100%;
+  display: block;
+  max-height: 320px;
+  object-fit: contain;
+}
+
+/* 영상 없을 때 플레이스홀더 */
 .vr-card-thumb {
   height: 220px;
   background: linear-gradient(135deg, #0d1117 0%, #1a2744 50%, #0d1117 100%);
@@ -53,6 +67,7 @@
   background: rgba(59,130,246,0.15); border: 2px solid rgba(59,130,246,0.4);
   display: flex; align-items: center; justify-content: center;
 }
+
 .vr-card-body { padding: 24px; }
 .vr-card-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
 .vr-card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 20px; }
@@ -130,21 +145,46 @@
 
   <div class="vr-section">
     <div class="vr-card">
-      <div class="vr-card-thumb">
-        <div class="vr-icon-wrap">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8">
-            <path d="M2 9a2 2 0 012-2h16a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V9z"/>
-            <circle cx="8.5" cy="12" r="1.5"/><circle cx="15.5" cy="12" r="1.5"/>
-            <path d="M10 12h4"/>
-          </svg>
+
+      {% if edu and edu.video %}
+        <!-- ── 실제 영상 플레이어 ── -->
+        <div class="vr-video-wrap">
+          <video id="vr-video"
+            {% if session.vr_completed %}controls{% endif %}
+            preload="metadata"
+            playsinline>
+            <source src="{{ edu.video.url }}" type="video/mp4">
+            브라우저가 비디오를 지원하지 않습니다.
+          </video>
         </div>
-      </div>
+      {% else %}
+        <!-- ── 영상 없을 때 플레이스홀더 ── -->
+        <div class="vr-card-thumb">
+          <div class="vr-icon-wrap">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8">
+              <path d="M2 9a2 2 0 012-2h16a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V9z"/>
+              <circle cx="8.5" cy="12" r="1.5"/><circle cx="15.5" cy="12" r="1.5"/>
+              <path d="M10 12h4"/>
+            </svg>
+          </div>
+        </div>
+      {% endif %}
+
       <div class="vr-card-body">
-        <div class="vr-card-title">산업 안전 VR 체험 교육</div>
+        <div class="vr-card-title">
+          {% if edu %}{{ edu.title }}{% else %}산업 안전 VR 체험 교육{% endif %}
+        </div>
         <div class="vr-card-desc">
-          가상현실(VR) 환경에서 작업 현장의 위험 상황을 직접 체험하고,<br>
-          올바른 안전 행동 방법을 학습합니다.<br>
-          교육 시간: 약 10~15분
+          {% if edu and edu.description %}
+            {{ edu.description|linebreaksbr }}
+          {% else %}
+            가상현실(VR) 환경에서 작업 현장의 위험 상황을 직접 체험하고,<br>
+            올바른 안전 행동 방법을 학습합니다.<br>
+            교육 시간: 약 10~15분
+          {% endif %}
+          {% if edu and edu.duration %}
+            <br><span style="font-size:11px;color:var(--text-muted);">재생 시간: {{ edu.duration_display }}</span>
+          {% endif %}
         </div>
 
         {% if session.vr_completed %}
@@ -176,7 +216,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <div class="done-popup-title">VR 교육 완료</div>
-    <div class="done-popup-msg">VR 안전 교육을 완료하였습니다.<br>오늘도 안전한 하루 되세요!</div>
+    <div class="done-popup-msg">VR 안전 교육을 완료하였습니다.\n오늘도 안전한 하루 되세요!</div>
     <button class="done-popup-confirm" id="done-popup-confirm">확인</button>
   </div>
 </div>
@@ -185,55 +225,89 @@
 {% block script %}
 <script>
 const csrfToken = "{{ csrf_token }}";
-const DURATION = 10000;
+const HAS_VIDEO = {% if edu and edu.video %}true{% else %}false{% endif %};
+const DURATION  = {% if edu and edu.duration %}{{ edu.duration }}{% else %}10{% endif %} * 1000;
 
-const vrStartBtn = document.getElementById("vr-start-btn");
+const vrStartBtn   = document.getElementById("vr-start-btn");
 const progressWrap = document.getElementById("vr-progress-wrap");
-const progressBar = document.getElementById("vr-progress-bar");
+const progressBar  = document.getElementById("vr-progress-bar");
 const progressLabel = document.getElementById("vr-progress-label");
 
-if (vrStartBtn) {
-  vrStartBtn.addEventListener("click", async () => {
-    vrStartBtn.disabled = true;
-    vrStartBtn.style.display = "none";
-    progressWrap.style.display = "block";
-
-    const start = Date.now();
-    const interval = setInterval(() => {
-      const pct = Math.min(((Date.now() - start) / DURATION) * 100, 100);
-      progressBar.style.width = pct + "%";
-      const remaining = Math.ceil((DURATION - (Date.now() - start)) / 1000);
-      if (remaining > 0) progressLabel.textContent = `교육 진행 중... (${remaining}초 남음)`;
-    }, 200);
-
-    await new Promise(r => setTimeout(r, DURATION));
-    clearInterval(interval);
-    progressBar.style.width = "100%";
-    progressLabel.textContent = "완료 처리 중...";
-
-    try {
-      const formData = new FormData();
-      formData.append("action", "vr_complete");
-      const resp = await fetch("{% url 'mysafety_vr' %}", {
-        method: "POST",
-        headers: {"X-CSRFToken": csrfToken},
-        body: formData,
-      });
-      const data = await resp.json();
-      if (data.ok) {
-        const overlay = document.getElementById("done-popup");
-        overlay.style.display = "flex";
-        document.getElementById("done-popup-confirm").onclick = () => {
-          window.location.href = "{% url 'dashboard' %}";
-        };
-      }
-    } catch {
-      alert("서버 오류가 발생하였습니다.");
-      vrStartBtn.style.display = "block";
-      vrStartBtn.disabled = false;
-      progressWrap.style.display = "none";
+async function markComplete() {
+  try {
+    const fd = new FormData();
+    fd.append("action", "vr_complete");
+    const resp = await fetch("{% url 'mysafety_vr' %}", {
+      method: "POST",
+      headers: { "X-CSRFToken": csrfToken },
+      body: fd,
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      const overlay = document.getElementById("done-popup");
+      overlay.style.display = "flex";
+      document.getElementById("done-popup-confirm").onclick = () => {
+        window.location.href = "{% url 'dashboard' %}";
+      };
     }
-  });
+  } catch {
+    alert("서버 오류가 발생하였습니다.");
+    if (vrStartBtn) { vrStartBtn.style.display = "block"; vrStartBtn.disabled = false; }
+    if (progressWrap) progressWrap.style.display = "none";
+  }
+}
+
+if (vrStartBtn) {
+  if (HAS_VIDEO) {
+    /* ── 실제 영상 모드 ── */
+    const video = document.getElementById("vr-video");
+
+    vrStartBtn.addEventListener("click", () => {
+      vrStartBtn.style.display = "none";
+      video.controls = true;
+      video.play();
+      progressWrap.style.display = "block";
+      progressLabel.textContent  = "영상을 끝까지 시청해 주세요.";
+    });
+
+    /* 영상 재생 중 진행률 표시 */
+    video.addEventListener("timeupdate", () => {
+      if (!video.duration) return;
+      const pct = (video.currentTime / video.duration) * 100;
+      progressBar.style.width = pct + "%";
+      const remaining = Math.ceil(video.duration - video.currentTime);
+      if (remaining > 0) progressLabel.textContent = `영상 시청 중... (${remaining}초 남음)`;
+    });
+
+    /* 영상 끝까지 시청 시 완료 처리 */
+    video.addEventListener("ended", () => {
+      progressBar.style.width = "100%";
+      progressLabel.textContent = "완료 처리 중...";
+      markComplete();
+    });
+
+  } else {
+    /* ── 영상 없음: 시뮬레이션 모드 ── */
+    vrStartBtn.addEventListener("click", async () => {
+      vrStartBtn.disabled = true;
+      vrStartBtn.style.display = "none";
+      progressWrap.style.display = "block";
+
+      const start = Date.now();
+      const interval = setInterval(() => {
+        const pct = Math.min(((Date.now() - start) / DURATION) * 100, 100);
+        progressBar.style.width = pct + "%";
+        const remaining = Math.ceil((DURATION - (Date.now() - start)) / 1000);
+        if (remaining > 0) progressLabel.textContent = `교육 진행 중... (${remaining}초 남음)`;
+      }, 200);
+
+      await new Promise(r => setTimeout(r, DURATION));
+      clearInterval(interval);
+      progressBar.style.width = "100%";
+      progressLabel.textContent = "완료 처리 중...";
+      markComplete();
+    });
+  }
 }
 </script>
 {% endblock %}

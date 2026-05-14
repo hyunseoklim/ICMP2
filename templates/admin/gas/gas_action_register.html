@@ -104,15 +104,18 @@
 <script>
 (function() {
   var modal = document.getElementById('action-register-modal');
+  var currentInspectionId = null;
 
   function openActionRegister(inspectData) {
     var sensor      = window.currentSensorData || {};
     var typeLabel   = GAS.resolveDeviceType(sensor.deviceType);
-    var managerName = GAS.resolveManager(sensor.manager);
+    var managerName = sensor.managerName || GAS.resolveManager(sensor.manager);
+
+    currentInspectionId = inspectData.id || null;
 
     document.getElementById('ar-sensor-id').textContent    = sensor.sensorId || '';
-    document.getElementById('ar-device-info').textContent  = typeLabel + (sensor.mac ? ' · MAC ' + sensor.mac : '');
-    document.getElementById('ar-manager-info').textContent = '담당자: ' + managerName;
+    document.getElementById('ar-device-info').textContent  = typeLabel + (sensor.mac ? ' · ' + sensor.mac : '');
+    document.getElementById('ar-manager-info').textContent = '담당자: ' + (managerName || '-');
 
     var TYPE_LABELS = { regular: '정기 점검', abnormal: '이상 점검' };
     document.getElementById('ar-inspect-type').value   = TYPE_LABELS[inspectData.type] || inspectData.type || '';
@@ -121,7 +124,7 @@
     document.getElementById('ar-inspect-note').value   = inspectData.note   || '';
 
     document.getElementById('ar-action-date').value   = GAS.todayStr();
-    document.getElementById('ar-action-person').value = managerName;
+    document.getElementById('ar-action-person').value = '{{ request.user.name }}';
     document.getElementById('ar-action-note').value   = '';
     document.getElementById('ar-note-error').classList.add('hidden');
 
@@ -139,14 +142,38 @@
 
   document.getElementById('action-register-form')?.addEventListener('submit', function(e) {
     e.preventDefault();
+
+    // 조치 의견 검증
     var note = document.getElementById('ar-action-note').value.trim();
+    var noteErr = document.getElementById('ar-note-error');
     if (!note) {
-      document.getElementById('ar-note-error').classList.remove('hidden');
-      return;
+      noteErr.classList.remove('hidden'); return;
     }
-    document.getElementById('ar-note-error').classList.add('hidden');
-    closeActionRegister();
-    GAS.showSuccess('저장되었습니다.', '조치 결과가 등록되었습니다.');
+    noteErr.classList.add('hidden');
+
+    if (!currentInspectionId) { alert('점검 정보를 찾을 수 없습니다.'); return; }
+
+    var fd = new FormData();
+    fd.append('action_date',  document.getElementById('ar-action-date').value.trim());
+    fd.append('actor',        document.getElementById('ar-action-person').value.trim());
+    fd.append('action_note',  note);
+
+    fetch('/manager/gas/inspect/' + currentInspectionId + '/action/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': GAS.getCsrfToken() },
+      body: fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        closeActionRegister();
+        GAS.showSuccess('저장되었습니다.', '조치 결과가 등록되었습니다.');
+        if (typeof window.loadInspectionHistory === 'function') window.loadInspectionHistory();
+      } else {
+        alert(data.error || '등록에 실패했습니다.');
+      }
+    })
+    .catch(function() { alert('서버 오류가 발생했습니다.'); });
   });
 })();
 </script>
