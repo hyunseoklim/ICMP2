@@ -37,9 +37,9 @@ class SystemLog(models.Model):
 
 
 class ChangeLog(models.Model):
-    actor_id = models.IntegerField(null=True, blank=True)
+    actor_id = models.BigIntegerField(null=True, blank=True)   # T1-δ F2: BigInt
     target_type = models.CharField(max_length=100)
-    target_id = models.IntegerField()
+    target_id = models.BigIntegerField()                       # T1-δ F2: BigAutoField PK 호환
     action_type = models.CharField(max_length=50)
     before_data = models.JSONField(null=True, blank=True)
     after_data = models.JSONField(null=True, blank=True)

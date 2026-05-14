@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 from .models import (
     Facility, Building, Floor, FloorGrid,
     Zone, LocationNode, Worker, WorkerLocation,
@@ -22,6 +23,17 @@ class FloorSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class EquipmentSerializer(serializers.ModelSerializer):
+    # 명세 3 Z2: unique 충돌 시 한국어 메시지
+    equipment_code = serializers.CharField(
+        max_length=20,
+        validators=[
+            UniqueValidator(
+                queryset=Equipment.objects.all(),
+                message='이미 등록된 설비 코드입니다.',
+            )
+        ],
+    )
+
     class Meta:
         model = Equipment
         fields = [
@@ -41,6 +53,23 @@ class EquipmentSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
+
+    def validate(self, attrs):
+        # T1-γ: is_placed=True ⇒ floor/center_x/center_y/width/height 모두 비-null 필수.
+        # PATCH 시 일부 필드만 들어오면 기존 instance 값으로 보강해서 검사.
+        instance = self.instance
+        get = lambda f: attrs[f] if f in attrs else getattr(instance, f, None)
+        is_placed = get('is_placed')
+        if is_placed:
+            required = ['floor', 'center_x', 'center_y', 'width', 'height']
+            missing = [f for f in required if get(f) is None]
+            if missing:
+                raise serializers.ValidationError({
+                    f: '배치 완료 상태에서는 비-null 값이 필요합니다.' for f in missing
+                })
+        return attrs
+
+
 class FloorGridSerializer(serializers.ModelSerializer):
     """
     FloorGrid 조회/응답용 Serializer.
@@ -80,6 +109,17 @@ class GeofenceSerializer(serializers.ModelSerializer):
 
 
 class LocationNodeSerializer(serializers.ModelSerializer):
+    # 명세 3 Z2: unique 충돌 시 한국어 메시지
+    node_code = serializers.CharField(
+        max_length=50,
+        validators=[
+            UniqueValidator(
+                queryset=LocationNode.objects.all(),
+                message='이미 등록된 노드 코드입니다.',
+            )
+        ],
+    )
+
     class Meta:
         model = LocationNode
         fields = [
@@ -87,14 +127,30 @@ class LocationNodeSerializer(serializers.ModelSerializer):
             'floor',
             'zone',
             'node_name',
-            'node_code',
+            'node_code',     # T1-α Z1: API 응답에 노출 (frontend 매핑용)
             'x',
             'y',
             'status',
+            'is_placed',     # T1-α X3
             'created_at',
             'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
+
+    def validate(self, attrs):
+        # T1-α W1: is_placed=True ⇒ floor/x/y 모두 비-null 필수.
+        # PATCH 시 일부 필드만 들어오면 기존 instance 값으로 보강해서 검사.
+        instance = self.instance
+        get = lambda f: attrs[f] if f in attrs else getattr(instance, f, None)
+        is_placed = get('is_placed')
+        if is_placed:
+            required = ['floor', 'x', 'y']
+            missing = [f for f in required if get(f) is None]
+            if missing:
+                raise serializers.ValidationError({
+                    f: '배치 완료 상태에서는 비-null 값이 필요합니다.' for f in missing
+                })
+        return attrs
 
 class WorkerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -145,7 +201,22 @@ class SensorLocationSerializer(serializers.ModelSerializer):
             'y',
             'device_name',
             'is_active',
+            'is_placed',     # T1-β Q1
             'created_at',
             'updated_at',
         ]
+
+    def validate(self, attrs):
+        # T1-β W1: is_placed=True ⇒ floor/x/y 모두 비-null 필수.
+        instance = self.instance
+        get = lambda f: attrs[f] if f in attrs else getattr(instance, f, None)
+        is_placed = get('is_placed')
+        if is_placed:
+            required = ['floor', 'x', 'y']
+            missing = [f for f in required if get(f) is None]
+            if missing:
+                raise serializers.ValidationError({
+                    f: '배치 완료 상태에서는 비-null 값이 필요합니다.' for f in missing
+                })
+        return attrs
         read_only_fields = ['created_at', 'updated_at']
