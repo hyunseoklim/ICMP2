@@ -253,6 +253,7 @@ ICMP2/
 GET    /monitoring/api/devices/                        장비 목록 (device_type 필터)
 POST   /monitoring/api/gas-readings/                   가스 데이터 수신 (FastAPI → Django)
 POST   /monitoring/api/power-readings/                 전력 데이터 수신 (FastAPI → Django)
+POST   /monitoring/api/node-readings/                  노드 데이터 수신 (FastAPI → Django)
 GET    /monitoring/api/threshold-policies/             임계값 정책 목록
 PATCH  /monitoring/api/threshold-policies/{id}/        임계값 수정
 ```
@@ -429,16 +430,23 @@ DATABASES = {
 ### `monitoring` — 센서 데이터
 
 - `Device`: 가스 / 전력 장비 등록
+- `DeviceChannel`: 장비별 채널 정의
+- `DeviceStatusLog`: 장비 상태 변경 이력
 - `GasReading`: 9종 가스 측정값 저장
+- `PowerStatusReading`: 전력 장비 ON/OFF·통신 상태
 - `PowerReading`: 채널별 전류·전압·전력 저장
+- `NodeReading`: 위치 노드 수신값 저장
 - `ThresholdPolicy`: 가스 종류별 경고·위험 임계값 관리
 - `services.py`: `calc_danger_level()`, `check_gas_thresholds()`
 
 ### `alerts` — 알람 이벤트
 
+- `RiskCriteria`: 위험 기준 색상·등급 정의
 - `AlarmRule`: 규칙 정의 (threshold / missing / offline / power)
 - `AlarmEvent`: 트리거된 이벤트 (open → acknowledged → closed)
 - `EventHistory`: 상태 변경 이력
+- `Notification`: 알림 발송 기록
+- `NotificationTemplate`: 채널별 알림 템플릿
 - `services.py`: 임계값·전력 알람 생성, 5분 중복 방지 로직
 
 ### `dashboard` — 관제 화면
@@ -449,12 +457,20 @@ DATABASES = {
 
 ### `safety` — 안전 관리
 
-- 안전 체크리스트 작성 및 이력 관리
+- 안전 체크리스트 작성 및 이력 관리 (`SafetyCheckItem`, `SafetyCheckSession`, `SafetyCheckItemResult`)
+- 사고 등록 및 추적 (`Incident`)
+- 작업 허가서 관리 (`WorkPermit`)
+- 위험성 평가 (`RiskAssessment`)
+- 시정 조치 (`CorrectiveAction`)
 - VR 교육 완료 여부 연동
 
-### `manager` — 보고서 및 관리
+### `manager` — 관리자 기능
 
-- 사고·점검 보고서 조회 및 엑셀 출력 (openpyxl)
+- 사용자 관리: 계정 생성·편집·잠금, 일괄 처리
+- 직위 관리: 직위 등록·수정·삭제
+- 조직 관리: 부서 트리, 구성원 추가·제외, 팀장 임명
+- 공통코드 관리: 그룹코드 및 코드값 등록·편집
+- 공지사항(`Notice`), 알람 발송 이력(`AlarmSendHistory`), 알람 정책(`AlarmPolicy`), 데이터 보존 정책(`DataRetentionPolicy`)
 
 ### `fastapi_app` — 가짜 데이터 생성기
 
