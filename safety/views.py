@@ -148,6 +148,37 @@ def mysafety_history(request):
         return render(request, "safety/mysafety_history.html", {"no_worker": True})
 
     today = date.today()
+
+    # ── 인쇄 전용 모드 ──────────────────────────────
+    if request.GET.get("print") == "1":
+        try:
+            print_start = date.fromisoformat(request.GET.get("start", ""))
+            print_end   = date.fromisoformat(request.GET.get("end", ""))
+        except ValueError:
+            print_start = date(today.year, today.month, 1)
+            print_end   = today
+
+        sessions_qs = SafetyCheckSession.objects.filter(worker=worker)
+        print_months = []
+        cy, cm = print_start.year, print_start.month
+        while (cy, cm) <= (print_end.year, print_end.month):
+            weeks = _build_calendar(sessions_qs, cy, cm)
+            print_months.append({"year": cy, "month": cm, "label": f"{cy}년 {cm}월", "weeks": weeks})
+            cm += 1
+            if cm > 12:
+                cm = 1
+                cy += 1
+
+        return render(request, "safety/mysafety_history.html", {
+            "is_print":     True,
+            "print_months": print_months,
+            "print_start":  print_start,
+            "print_end":    print_end,
+            "worker":       worker,
+            "today":        today,
+        })
+
+    # ── 일반 모드 ────────────────────────────────────
     year = int(request.GET.get("year", today.year))
     month = int(request.GET.get("month", today.month))
 
@@ -182,10 +213,10 @@ def mysafety_history(request):
             })
         departments = list(
             Worker.objects.filter(current_state="on_duty")
-            .exclude(department="")
-            .values_list("department", flat=True)
+            .exclude(department=None)
+            .values_list("department_id", flat=True)
             .distinct()
-            .order_by("department")
+            .order_by("department_id")
         )
 
     return render(request, "safety/mysafety_history.html", {

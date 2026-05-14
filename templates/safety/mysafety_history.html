@@ -321,6 +321,60 @@
 {% endblock %}
 
 {% block page_content %}
+{% if is_print %}
+<div style="padding:24px;font-family:sans-serif;background:#fff;color:#111;">
+  <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">안전 확인 이력</h2>
+  <p style="font-size:12px;color:#666;margin-bottom:24px;">{{ worker.worker_name }} | {{ print_start }} ~ {{ print_end }}</p>
+  {% for pm in print_months %}
+  <h3 style="font-size:14px;font-weight:700;margin:16px 0 8px;">{{ pm.label }}</h3>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+    <thead>
+      <tr>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;color:#ef4444;">일</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;">월</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;">화</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;">수</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;">목</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;">금</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;color:#3b82f6;">토</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for week in pm.weeks %}
+      <tr>
+        {% for cell in week %}
+          {% if not cell.day %}
+            <td style="border:1px solid #ddd;height:70px;background:#fafafa;"></td>
+          {% elif cell.date < print_start or cell.date > print_end %}
+            <td style="border:1px solid #ddd;padding:6px 8px;height:70px;vertical-align:top;background:#f0f0f0;opacity:0.4;">
+              <span style="font-size:11px;font-weight:600;{% if forloop.counter == 1 %}color:#ef4444;{% elif forloop.counter == 7 %}color:#3b82f6;{% endif %}">{{ cell.day }}</span>
+            </td>
+          {% else %}
+            <td style="border:1px solid #ddd;padding:6px 8px;height:70px;vertical-align:top;">
+              <span style="font-size:11px;font-weight:600;display:block;margin-bottom:4px;{% if cell.date == today %}color:#3b82f6;{% elif forloop.counter == 1 %}color:#ef4444;{% elif forloop.counter == 7 %}color:#3b82f6;{% endif %}">{{ cell.day }}</span>
+              {% if cell.checklist is not None %}
+              <div style="display:flex;flex-direction:column;gap:2px;font-size:9px;color:#333;">
+                <div style="display:flex;align-items:center;gap:3px;">
+                  {% if cell.checklist %}<span style="color:#22c55e;font-size:11px;">✓</span>{% else %}<span style="color:#ef4444;font-size:11px;">✗</span>{% endif %}
+                  <span>안전 체크리스트</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:3px;">
+                  {% if cell.vr %}<span style="color:#22c55e;font-size:11px;">✓</span>{% else %}<span style="color:#ef4444;font-size:11px;">✗</span>{% endif %}
+                  <span>VR 교육</span>
+                </div>
+              </div>
+              {% endif %}
+            </td>
+          {% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+</div>
+<script>window.addEventListener('load', function(){ window.print(); });</script>
+{% else %}
 <div class="hist-page">
   <h2 class="hist-page-title">안전 확인 이력</h2>
 
@@ -553,6 +607,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block script %}
@@ -677,31 +732,6 @@ document.getElementById("dp-cancel").addEventListener("click", () => {
   document.getElementById("dp-overlay").classList.remove("open");
 });
 
-document.getElementById("dp-confirm").addEventListener("click", () => {
-  if (!dpStartDate || !dpEndDate) { alert("시작 날짜와 종료 날짜를 모두 선택해주세요."); return; }
-  dpConfirmedStart = dpStartDate;
-  dpConfirmedEnd = dpEndDate;
-  document.getElementById("dp-overlay").classList.remove("open");
-
-  const start = fmtDate(dpConfirmedStart);
-  const end = fmtDate(dpConfirmedEnd);
-
-  if (dpMode === "download") {
-    window.location.href = `{% url 'mysafety_history_download' %}?start=${start}&end=${end}`;
-  } else {
-    window.open(`?year={{ year }}&month={{ month }}&print=1&start=${start}&end=${end}`, "_blank");
-    setTimeout(() => window.print(), 500);
-  }
-});
-
-document.getElementById("download-btn").addEventListener("click", () => openDp("download"));
-document.getElementById("print-btn").addEventListener("click", () => openDp("print"));
-
-document.getElementById("dp-overlay").addEventListener("click", function(e) {
-  if (e.target === this) this.classList.remove("open");
-});
-
-// ── dp-confirm (단일 핸들러) ──
 let dpAdminWorkerIds = [];
 
 document.getElementById("dp-confirm").addEventListener("click", () => {
@@ -710,7 +740,7 @@ document.getElementById("dp-confirm").addEventListener("click", () => {
   dpConfirmedEnd = dpEndDate;
   document.getElementById("dp-overlay").classList.remove("open");
   const start = fmtDate(dpConfirmedStart);
-  const end = fmtDate(dpConfirmedEnd);
+  const end   = fmtDate(dpConfirmedEnd);
 
   if (dpMode === "admin-download") {
     const ids = dpAdminWorkerIds.join(",");
@@ -718,8 +748,15 @@ document.getElementById("dp-confirm").addEventListener("click", () => {
   } else if (dpMode === "download") {
     window.location.href = `{% url 'mysafety_history_download' %}?start=${start}&end=${end}`;
   } else {
-    setTimeout(() => window.print(), 300);
+    window.open(`?print=1&start=${start}&end=${end}`, "_blank");
   }
+});
+
+document.getElementById("download-btn").addEventListener("click", () => openDp("download"));
+document.getElementById("print-btn").addEventListener("click", () => openDp("print"));
+
+document.getElementById("dp-overlay").addEventListener("click", function(e) {
+  if (e.target === this) this.classList.remove("open");
 });
 
 // ── 전체 이력 현황 탭 ──
