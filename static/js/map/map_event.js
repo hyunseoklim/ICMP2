@@ -99,17 +99,26 @@ function loadFloorData(floorId) {
                 try { if (window.loadGeofences) loadGeofences(floorId); }
                 catch(e) { console.error('[layer:geofence] 실패', e); }
                 
-                try { if (window.loadSensors) loadSensors(floorId); }
-                catch(e) { console.error('[layer:sensor] 실패', e); }
-                
-                try { if (window.loadLocationNodes) loadLocationNodes(floorId); }  // ← 추가
-                catch(e) { console.error('[layer:locationNode] 실패', e); }
+                // ── 우리 페이지(admin/map/map.html) 에서는 기본 렌더러 건너뛰기 ──
+                // map.html 에서 window._SKIP_DEFAULT_RENDERERS = true 로 설정한다.
+                // 다른 페이지(map_monitoring, _worker_map)는 미설정이므로
+                // 기본 동작이 그대로 유지된다.
+                //
+                // 향후 전체 리팩토링 시 MAP_LAYERS 등록부 기반 오케스트레이션으로
+                // 발전시킬 수 있음 (별도 작업).
+                if (!window._SKIP_DEFAULT_RENDERERS) {
+                    try { if (window.loadSensors) loadSensors(floorId); }
+                    catch(e) { console.error('[layer:sensor] 실패', e); }
+                    
+                    try { if (window.loadLocationNodes) loadLocationNodes(floorId); }
+                    catch(e) { console.error('[layer:locationNode] 실패', e); }
 
-                try { if (window.loadEquipments)    loadEquipments(floorId); }     // ← 추가
-                catch(e) { console.error('[layer:equipment] 실패', e); }
+                    try { if (window.loadEquipments)    loadEquipments(floorId); }
+                    catch(e) { console.error('[layer:equipment] 실패', e); }
 
-                try { if (window.startWorkerSim) startWorkerSim(); }
-                catch(e) { console.error('[layer:worker] 실패', e); }
+                    try { if (window.startWorkerSim) startWorkerSim(); }
+                    catch(e) { console.error('[layer:worker] 실패', e); }
+                }
 
                 if (window.applyPendingFocus) window.applyPendingFocus();
                

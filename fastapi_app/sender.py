@@ -64,6 +64,29 @@ async def post_power_reading(data: dict) -> None:
             print(f"[sender] PowerReading POST 실패: {e}")
 
 
+async def fetch_location_nodes() -> list[dict]:
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        try:
+            res = await client.get(f"{DJANGO_BASE}/facilities/api/location-nodes/")
+            res.raise_for_status()
+            data = res.json()
+            results = data.get("results", data) if isinstance(data, dict) else data
+            return [{"node_code": n["node_code"], "x": n["x"], "y": n["y"]} for n in results]
+        except Exception as e:
+            print(f"[sender] LocationNode 조회 실패: {e}")
+            return []
+
+
+async def post_node_reading(data: dict) -> None:
+    payload = {"node_code": data["node_code"], "x": data["x"], "y": data["y"]}
+    async with httpx.AsyncClient(timeout=3.0) as client:
+        try:
+            await client.post(f"{DJANGO_BASE}/monitoring/api/node-readings/", json=payload)
+            print(f"[sender] NodeReading POST 성공: {data['node_code']}")
+        except Exception as e:
+            print(f"[sender] NodeReading POST 실패: {e}")
+
+
 async def post_location_reading(data: dict) -> None:
     payload = {
         "worker_id": data["worker_id"],

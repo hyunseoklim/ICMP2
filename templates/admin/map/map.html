@@ -1,5 +1,5 @@
 {% extends 'admin/base_manage.html' %}
-
+{% load static %}
 {% block title %}지도 편집 관리 | 산재 예방 통합 관제 시스템{% endblock %}
 
 {% block extra_head %}
@@ -37,36 +37,9 @@
     text-decoration: line-through;
   }
 
-  /* ── 배치된 객체 카드 (캔버스 위) ── */
-  .canvas-object {
-    position: absolute;
-    cursor: grab;
-    user-select: none;
-    transition: box-shadow 0.15s ease;
-  }
-  .canvas-object:active { cursor: grabbing; }
-  .canvas-object:hover { z-index: 50; }
-
-  /* ── 위험구역 원형 오버레이 ── */
-  .danger-zone {
-    position: absolute;
-    border-radius: 50%;
-    border: 2px dashed;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 600;
-    pointer-events: none;
-  }
-
   /* ── 편집 모드 상태 ── */
   #map-canvas[data-mode="edit"] {
     cursor: crosshair;
-  }
-  #map-canvas[data-mode="edit"] .canvas-object {
-    outline: 2px dashed #3b82f6;
-    outline-offset: 2px;
   }
 
   /* ── 위험구역 생성 모드 ── */
@@ -127,20 +100,61 @@
   .badge[data-type="zone"]      { background: #fee2e2; color: #b91c1c; }
 
   /* ── 줌 컨트롤 버튼 ── */
-  .zoom-btn {
-    width: 32px; height: 32px;
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    color: #475569;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.15s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  }
-  .zoom-btn:hover { background: #f8fafc; color: #1e293b; border-color: #cbd5e1; }
+.zoom-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+/* ── 줌 컨트롤: 원형 아이콘 (파란 톤 액센트) ── */
+.zoom-icon-circle {
+  width: 40px; height: 40px;
+  background: #eff6ff;                /* blue-50 — 옅은 파란 배경 */
+  border: 1px solid #dbeafe;          /* blue-100 — 옅은 파란 테두리 */
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #2563eb;                     /* blue-600 — 진한 파란 아이콘 */
+  box-shadow: none;
+  transition: all 0.15s;
+}
+.zoom-btn:hover .zoom-icon-circle {
+  background: #dbeafe;                /* blue-100 — hover 시 살짝 더 진하게 */
+  border-color: #93c5fd;              /* blue-300 */
+  color: #1d4ed8;                     /* blue-700 — 아이콘도 더 진하게 */
+}
+.zoom-label {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+/* ── 줌 컨트롤 박스 ── */
+/* ── 줌 컨트롤: 바깥 박스 (전체 컨테이너) ── */
+.zoom-outer-box {
+  background: white;
+  border: 1px solid #add1fd;          /* blue-200 — 옅은 파란 테두리 */
+  border-radius: 18px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.08);   /* 옅은 파란 그림자 */
+}
 
+/* ── 줌 컨트롤: 안쪽 박스 (버튼 하나당 1개) ── */
+.zoom-inner-box {
+  background: white;
+  border: 1px solid #add1fd;         /* blue-100 — 더 옅은 파란 테두리 */
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
   /* ── 편집 모드 버튼 ── */
   #edit-mode-btn {
     transition: all 0.2s;
@@ -159,65 +173,33 @@
     min-width: 140px;
     box-shadow: 0 2px 8px rgba(59,130,246,0.12);
   }
-  .obj-card-gas {
-    background: white;
-    border: 2px solid #fbbf24;
-    border-radius: 10px;
-    padding: 10px 14px;
-    min-width: 140px;
-    box-shadow: 0 2px 8px rgba(251,191,36,0.15);
-  }
-  .obj-card-power {
-    background: #1e293b;
-    border: 2px solid #334155;
-    border-radius: 10px;
-    padding: 10px 14px;
-    min-width: 140px;
-    color: white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  }
-  .obj-card-node {
-    background: white;
-    border: 2px solid #a5b4fc;
-    border-radius: 10px;
-    padding: 8px 12px;
-    min-width: 110px;
-    box-shadow: 0 2px 6px rgba(99,102,241,0.12);
-  }
 
-  /* ── 툴팁 팝업 ── */
-  .obj-tooltip {
+  /* ── 패널 토글 핸들 (패널-지도 경계) ── */
+  #panel-toggle-handle {
     position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: #1e293b;
-    color: white;
-    font-size: 11px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s;
-    z-index: 100;
-  }
-  .canvas-object:hover .obj-tooltip { opacity: 1; }
-
-  /* ── 패널 열기 버튼 ── */
-  #panel-open-btn {
-    width: 28px; height: 28px;
+    top: 50%;
+    left: 288px;                            /* w-72 = 18rem = 288px */
+    transform: translate(-50%, -50%);       /* 경계에 절반 돌출 */
+    width: 24px; height: 56px;
     display: flex; align-items: center; justify-content: center;
-    border-radius: 6px;
-    border: 1px solid #e2e8f0;
     background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
     color: #64748b;
     cursor: pointer;
-    transition: all 0.15s;
-    flex-shrink: 0;
+    z-index: 1000;                          /* Leaflet pane (400-700) 위에 위치 */
+    box-shadow: 1px 0 4px rgba(0, 0, 0, 0.06);
+    transition: left 0.25s ease, background 0.15s, color 0.15s;
   }
-  #panel-open-btn:hover { background: #f8fafc; color: #334155; }
-  #panel-open-btn.hidden { display: none; }
+  #panel-toggle-handle:hover { background: #f8fafc; color: #334155; }
+  #panel-toggle-handle i { transition: transform 0.25s ease; }
+  #object-panel.panel-hidden ~ #panel-toggle-handle {
+    left: 0;
+    transform: translate(0, -50%);    /* 좌측 정렬 — 핸들 전체 보임 */
+  }
+  #object-panel.panel-hidden ~ #panel-toggle-handle i {
+    transform: rotate(180deg);
+  }
 
   /* ── 위험구역 생성 패널 ── */
   #zone-create-panel {
@@ -261,11 +243,11 @@
   }
 
   /* ── 저장 버튼 활성화 ── */
-  #zone-save-btn:not(:disabled) {
+  #zone-save-btn-floating:not(:disabled) {
     opacity: 1;
     cursor: pointer;
   }
-  #zone-save-btn:not(:disabled):hover {
+  #zone-save-btn-floating:not(:disabled):hover {
     background: #2563eb;
   }
 
@@ -278,6 +260,455 @@
     align-items: center;
     justify-content: center;
     z-index: 9999;
+  }
+  /* ── 카드 outline 부드러운 전환 ── */
+  .obj-card-facility {
+    transition: outline 0.15s ease;
+  }
+
+  /* ── P1-5: Equipment 카드 hover — 자기 색 강조 (Leaflet divIcon 용) ── */
+  /* 가스/전력/노드는 P1-2 에서 .obj-icon-* 로 분리됨 (별도 hover 룰) */
+  .obj-card-facility:hover {
+    outline: 3px solid #2563eb;
+    outline-offset: -2px;
+    box-shadow: 0 0 16px rgba(37, 99, 235, 0.45);
+    z-index: 999;
+    cursor: pointer;
+  }
+
+  /* ── 좌측 패널에서 호버 시 강조 클래스 (JS 가 적용 — 단계 3-G.3) ── */
+  .obj-card-facility.panel-hover {
+    outline: 4px solid #f59e0b;             /* 패널 호버는 주황색으로 구분 */
+    outline-offset: -2px;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
+    z-index: 999;
+  }
+
+  /* ── 배치 모드 (편집 중인 미배치 객체) ── */
+  .obj-card-facility.obj-create-mode {
+    outline: 3px dashed #3b82f6;
+    outline-offset: 2px;
+    animation: place-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes place-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  /* ── R1-H: 가스/전력/노드 텍스트 없는 작은 아이콘 카드 ── */
+  .obj-icon-gas, .obj-icon-power, .obj-icon-node {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+    transition: outline 0.15s ease, box-shadow 0.15s ease;
+  }
+  .obj-icon-gas {
+    width: 28px; height: 28px;
+    background: #fef3c7;
+    border: 2px solid #fbbf24;
+    color: #b45309;
+  }
+  .obj-icon-power {
+    width: 28px; height: 28px;
+    background: #1e293b;
+    border: 2px solid #475569;
+    color: #fde68a;
+  }
+  .obj-icon-node {
+    width: 24px; height: 24px;
+    background: #ede9fe;
+    border: 2px solid #a5b4fc;
+    color: #6d28d9;
+  }
+  /* ── P1-5: 가스/전력/노드 hover — 자기 색 강조 ── */
+  .obj-icon-gas:hover, .obj-icon-power:hover, .obj-icon-node:hover {
+    outline-style: solid;
+    outline-width: 3px;
+    outline-offset: 2px;
+    cursor: pointer;
+  }
+  .obj-icon-gas:hover {
+    outline-color: #d97706;
+    box-shadow: 0 0 14px rgba(217, 119, 6, 0.4);
+  }
+  .obj-icon-power:hover {
+    outline-color: #fde68a;
+    box-shadow: 0 0 14px rgba(253, 230, 138, 0.4);
+  }
+  .obj-icon-node:hover {
+    outline-color: #7c3aed;
+    box-shadow: 0 0 14px rgba(124, 58, 237, 0.4);
+  }
+  .obj-icon-gas.panel-hover, .obj-icon-power.panel-hover, .obj-icon-node.panel-hover {
+    outline: 3px solid #f59e0b;
+    outline-offset: 2px;
+  }
+  .obj-icon-gas.obj-create-mode, .obj-icon-power.obj-create-mode, .obj-icon-node.obj-create-mode {
+    outline: 3px dashed #3b82f6;
+    outline-offset: 2px;
+    animation: place-pulse 1.5s ease-in-out infinite;
+  }
+
+  /* ── R1-B-3: 호버 팝오버 (Leaflet tooltip 커스텀) ── */
+  .leaflet-tooltip.admin-map-popover {
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #1e293b;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .leaflet-tooltip.admin-map-popover::before {
+    border-top-color: white;
+  }
+  .admin-map-popover .popover-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .admin-map-popover .popover-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    font-size: 11px;
+    color: #475569;
+    margin-top: 2px;
+  }
+  .admin-map-popover .popover-row .key {
+    color: #94a3b8;
+  }
+  .admin-map-popover .popover-row .val {
+    font-weight: 500;
+    color: #1e293b;
+  }
+  .admin-map-popover .popover-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .admin-map-popover .popover-badge[data-type="facility"]  { background: #dbeafe; color: #1d4ed8; }
+  .admin-map-popover .popover-badge[data-type="gas"]       { background: #fef3c7; color: #b45309; }
+  .admin-map-popover .popover-badge[data-type="power"]     { background: #d1fae5; color: #065f46; }
+  .admin-map-popover .popover-badge[data-type="node"]      { background: #ede9fe; color: #6d28d9; }
+  .admin-map-popover .popover-badge[data-type="zone-danger"]  { background: #fee2e2; color: #b91c1c; }
+  .admin-map-popover .popover-badge[data-type="zone-warning"] { background: #fef3c7; color: #b45309; }
+  .admin-map-popover .popover-badge[data-type="zone-safe"]    { background: #d1fae5; color: #065f46; }
+
+  /* ── P2-5a: 위험구역 생성 팝오버 카드 (L.Tooltip permanent) ── */
+  .leaflet-tooltip.zone-create-popover {
+    background: #1e293b;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    font-size: 12px;
+    min-width: 220px;
+    max-width: 280px;
+    white-space: normal;
+    pointer-events: auto;
+  }
+  .leaflet-tooltip-right.zone-create-popover::before  { border-right-color: #1e293b; }
+  .leaflet-tooltip-left.zone-create-popover::before   { border-left-color:  #1e293b; }
+  .leaflet-tooltip-top.zone-create-popover::before    { border-top-color:   #1e293b; }
+  .leaflet-tooltip-bottom.zone-create-popover::before { border-bottom-color: #1e293b; }
+
+  .zone-create-popover .popover-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 6px;
+  }
+  .zone-create-popover .popover-shape-toggle {
+    display: flex;
+    background: #0f172a;
+    border-radius: 6px;
+    padding: 2px;
+    margin-bottom: 10px;
+  }
+  .zone-create-popover .popover-shape-toggle button {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 12px;
+    padding: 5px 0;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .zone-create-popover .popover-shape-toggle button[aria-selected="true"] {
+    background: #2563eb;
+    color: white;
+  }
+  .zone-create-popover .popover-name-input {
+    width: 100%;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: white;
+    font-size: 12px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+  }
+  .zone-create-popover .popover-info-label {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-bottom: 2px;
+  }
+  .zone-create-popover .popover-info-value {
+    font-size: 12px;
+    color: white;
+  }
+
+  /* ── P3-4 (R3-E): "생성 중" 뱃지 — 마커 카드 외부 위 좌측 ── */
+  .creating-badge {
+    position: absolute;
+    top: -22px;
+    left: 0;
+    display: inline-block;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #b45309;
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    border-radius: 12px;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* ── P3-5 (R3-G): 배치 중 다른 객체 불투명화 ── */
+  .placing-mode-faded {
+    opacity: 0.4 !important;
+    transition: opacity 0.2s ease;
+  }
+
+  /* ── P3-6 (R3-F): "생성 중" [x] 삭제 버튼 — 마커 카드 외부 우상단 ── */
+  .creating-delete-btn {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 50%;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    pointer-events: auto;
+    z-index: 11;
+    padding: 0;
+    line-height: 1;
+  }
+  .creating-delete-btn:hover {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #dc2626;
+  }
+
+  /* ── P4-2 (R2-G-8): "편집 중" 뱃지 — 마커 카드 외부 위 좌측 ── */
+  .editing-badge {
+    position: absolute;
+    top: -22px;
+    left: 0;
+    display: inline-block;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1e40af;
+    background: #dbeafe;
+    border: 1px solid #2563eb;
+    border-radius: 12px;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* ── P4-4 (R2-F-2): 위험구역 클릭 팝오버 액션 영역 ── */
+  /* zone-edit-popover 는 .zone-create-popover 와 같은 어두운 카드 디자인 재사용 (className 두 개 동시 적용) */
+  .zone-edit-popover-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    align-items: center;
+  }
+  .zone-edit-popover-actions .severity-pick-btn {
+    flex: 1;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #94a3b8;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .zone-edit-popover-actions .severity-pick-btn[aria-selected="true"] {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+  }
+  .zone-edit-popover-actions .zone-edit-done-btn {
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #2563eb;
+    color: white;
+    border: 1px solid #2563eb;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .zone-edit-popover-actions .zone-edit-done-btn:hover {
+    background: #1d4ed8;
+  }
+
+  /* ── P5-A (R2-N): 편집 방법 안내 박스 — 우하단 absolute ── */
+  .edit-guide {
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    max-width: 280px;
+    font-size: 12px;
+  }
+  .edit-guide .edit-guide-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 8px;
+  }
+  .edit-guide-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: #475569;
+  }
+  .edit-guide-list li {
+    padding: 3px 0;
+    line-height: 1.5;
+  }
+  .edit-guide-list li strong {
+    color: #1e40af;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+
+  /* ── P5-C-2 (R2-G-1): 편집 팝오버 액션 영역 (설비) ── */
+  .facility-edit-popover-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .facility-edit-popover-actions button {
+    flex: 1;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid #cbd5e1;
+    transition: all 0.15s;
+  }
+  .facility-edit-popover-actions .edit-popover-resize-btn {
+    background: white;
+    color: #1e40af;
+    border-color: #93c5fd;
+  }
+  .facility-edit-popover-actions .edit-popover-resize-btn:hover {
+    background: #eff6ff;
+  }
+  .facility-edit-popover-actions .edit-popover-delete-btn {
+    background: white;
+    color: #dc2626;
+    border-color: #fca5a5;
+  }
+  .facility-edit-popover-actions .edit-popover-delete-btn:hover {
+    background: #fef2f2;
+  }
+
+  /* ── γ-3: 액션 popover [완료] 버튼 (크기 편집 모드 진입 시 [크기편집] 자리에 토글) ── */
+  /* dirty 발생 시 파란 활성, 아니면 회색 비활성 (disabled 속성으로 토글) */
+  .facility-edit-popover-actions .edit-popover-done-btn {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+  }
+  .facility-edit-popover-actions .edit-popover-done-btn:hover { background: #1d4ed8; }
+  .facility-edit-popover-actions .edit-popover-done-btn:disabled,
+  .facility-edit-popover-actions .edit-popover-done-btn[disabled] {
+    background: #475569;
+    color: #cbd5e1;
+    border-color: #334155;
+    cursor: not-allowed;
+  }
+
+  /* ── γ: [X] 삭제 버튼 — 작은 동그란 형태 (기존 [삭제] 텍스트 버튼과 분리) ── */
+  .facility-edit-popover-actions .edit-popover-delete-x {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  /* ── γ-1: 정보 popover — 액션 popover 와 같은 어두운 톤 (zone-create-popover 베이스) ── */
+  /* 좌표·크기 텍스트만 표시. drag 중 실시간 갱신. */
+  .leaflet-tooltip.admin-info-popover {
+    min-width: 180px;
+    max-width: 240px;
+    padding: 10px 14px;
+    pointer-events: none;     /* 정보 popover 는 인터랙션 없음 */
+  }
+  .admin-info-popover .popover-section-title {
+    margin-bottom: 4px;
+  }
+  .admin-info-popover .popover-info-value {
+    font-size: 12px;
+    color: #ffffff;
+    line-height: 1.6;
+  }
+
+  /* ── P5-D-B (R2-G-3/4): 위험구역 [편집]/[크기 편집] 버튼 ── */
+  .zone-edit-popover-actions .zone-edit-handles-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid #93c5fd;
+    background: white;
+    color: #1e40af;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .zone-edit-popover-actions .zone-edit-handles-btn:hover {
+    background: #eff6ff;
   }
 </style>
 {% endblock %}
@@ -307,7 +738,7 @@
 
 <section
   aria-label="지도 편집 영역"
-  class="flex border-2 border-amber-400 rounded-xl overflow-hidden bg-white shadow-sm"
+  class="relative flex border-2 border-amber-400 rounded-xl overflow-hidden bg-white shadow-sm"
   style="height: calc(100vh - 230px); min-height: 520px;"
 >
 
@@ -317,20 +748,9 @@
     aria-label="객체 선택 패널"
     class="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col"
   >
-    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
-      <div>
-        <h3 class="text-sm font-semibold text-slate-800">객체 선택</h3>
-        <p class="text-xs text-slate-400 mt-0.5">지도에 배치할 장목을 선택하세요.</p>
-      </div>
-      <button
-        id="panel-close-btn"
-        aria-label="패널 닫기"
-        aria-controls="object-panel"
-        aria-expanded="true"
-        class="w-7 h-7 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-      >
-        <i data-lucide="panel-left-close" class="w-4 h-4"></i>
-      </button>
+    <div class="px-4 py-3 border-b border-slate-100 flex-shrink-0">
+      <h3 class="text-sm font-semibold text-slate-800">객체 선택</h3>
+      <p class="text-xs text-slate-400 mt-0.5">지도에 배치할 장목을 선택하세요.</p>
     </div>
 
     <div role="search" class="px-4 py-3 border-b border-slate-100 flex flex-col gap-2 flex-shrink-0">
@@ -344,144 +764,63 @@
       </select>
       <div class="flex gap-2">
         <input id="search-input" type="search" placeholder="객체명 또는 코드 검색"
-          class="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400"/>
+          class="flex-[3] min-w-0 text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400"/>
         <button id="search-btn" type="button"
-          class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">검색</button>
+          class="flex-[1] py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap">검색</button>
       </div>
     </div>
 
     <div role="tablist" class="px-4 py-2.5 border-b border-slate-100 flex gap-1.5 flex-shrink-0">
-      <button role="tab" aria-selected="true"  data-status="all"      class="status-tab">전체 48</button>
-      <button role="tab" aria-selected="false" data-status="placed"   class="status-tab">배치 완료 45</button>
-      <button role="tab" aria-selected="false" data-status="unplaced" class="status-tab">미배치 3</button>
+      <button role="tab" aria-selected="true"  data-status="all"      class="status-tab">전체 <span data-status-count="all">{{ total_count }}</span></button>
+      <button role="tab" aria-selected="false" data-status="placed"   class="status-tab">배치 완료 <span data-status-count="placed">{{ placed_count }}</span></button>
+      <button role="tab" aria-selected="false" data-status="unplaced" class="status-tab">미배치 <span data-status-count="unplaced">{{ unplaced_count }}</span></button>
     </div>
 
     <ul id="object-list" role="listbox" class="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-1">
-      <li role="option" aria-selected="false" data-id="FAC-001" data-type="facility" data-placed="true"
-          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="object-code text-xs font-mono font-semibold text-slate-500">FAC-001</span>
-            <span class="badge" data-type="facility">설비</span>
+      {% for obj in objects %}
+        <li role="option"
+            aria-selected="false"
+            data-id="{{ obj.id }}"
+            data-pk="{{ obj.pk }}"
+            data-type="{{ obj.type }}"
+            data-placed="{{ obj.placed|yesno:'true,false' }}"
+            class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
+
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="object-code text-xs font-mono font-semibold text-slate-500">{{ obj.id }}</span>
+              <span class="badge" data-type="{{ obj.type }}">{{ obj.badge }}</span>
+            </div>
+            <p class="text-sm font-medium text-slate-700 truncate mt-0.5">{{ obj.name }}</p>
           </div>
-          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">집진기 라인</p>
-        </div>
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
-          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
-        </div>
-      </li>
-      <li role="option" aria-selected="false" data-id="FAC-002" data-type="facility" data-placed="true"
-          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="object-code text-xs font-mono font-semibold text-slate-500">FAC-024</span>
-            <span class="badge" data-type="facility">설비</span>
-          </div>
-          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">덕트 구간</p>
-        </div>
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
-          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
-        </div>
-      </li>
-      <li role="option" aria-selected="false" data-id="GAS-001" data-type="gas" data-placed="true"
-          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="object-code text-xs font-mono font-semibold text-slate-500">GAS-001</span>
-            <span class="badge" data-type="gas">유해가스 센서</span>
-          </div>
-          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">유해가스 센서 A</p>
-        </div>
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
-          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
-        </div>
-      </li>
-      <li role="option" aria-selected="false" data-id="PWR-001" data-type="power" data-placed="true"
-          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="object-code text-xs font-mono font-semibold text-slate-500">PWR-001</span>
-            <span class="badge" data-type="power">스마트 전력 시스템</span>
-          </div>
-          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">전력 시스템 A</p>
-        </div>
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
-          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
-        </div>
-      </li>
-      <li role="option" aria-selected="false" data-id="PWR-004" data-type="power" data-placed="false"
-          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="object-code text-xs font-mono font-semibold text-slate-500">PWR-004</span>
-            <span class="badge" data-type="power">스마트 전력 시스템</span>
-          </div>
-          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">전력 시스템 B</p>
-        </div>
-        <div class="flex-shrink-0">
-          <span class="text-xs font-semibold text-amber-500">미배치</span>
-        </div>
-      </li>
-      <li role="option" aria-selected="false" data-id="NODE-003" data-type="node" data-placed="true"
-          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="object-code text-xs font-mono font-semibold text-slate-500">NODE-003</span>
-            <span class="badge" data-type="node">위치 노드</span>
-          </div>
-          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">위치 노드 C</p>
-        </div>
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
-          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
-        </div>
-      </li>
-      <li role="option" aria-selected="false" data-id="NODE-004" data-type="node" data-placed="false"
-          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="object-code text-xs font-mono font-semibold text-slate-500">NODE-004</span>
-            <span class="badge" data-type="node">위치 노드</span>
-          </div>
-          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">위치 노드 D</p>
-        </div>
-        <div class="flex-shrink-0">
-          <span class="text-xs font-semibold text-amber-500">미배치</span>
-        </div>
-      </li>
-      <li role="option" aria-selected="false" data-id="DG-RED-001" data-type="zone" data-placed="true"
-          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="object-code text-xs font-mono font-semibold text-slate-500">DG_RED_001</span>
-            <span class="badge" data-type="zone">위험 구역</span>
-          </div>
-          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">덕트 구간 주변 구역</p>
-        </div>
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
-          <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
-        </div>
-      </li>
-      <li role="option" aria-selected="false" data-id="DG-RED-002" data-type="zone" data-placed="false"
-          class="object-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 group">
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="object-code text-xs font-mono font-semibold text-slate-500">DG_RED_002</span>
-            <span class="badge" data-type="zone">위험 구역</span>
-          </div>
-          <p class="text-sm font-medium text-slate-700 truncate mt-0.5">여과 모터 주변 구역</p>
-        </div>
-        <div class="flex-shrink-0">
-          <span class="text-xs font-semibold text-amber-500">미배치</span>
-        </div>
-      </li>
+
+          {% if obj.placed %}
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <span class="text-xs text-slate-400 group-hover:hidden">배치됨</span>
+              <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-400 hidden group-hover:block"></i>
+            </div>
+          {% else %}
+            <div class="flex-shrink-0">
+              <span class="text-xs font-semibold text-amber-500">미배치</span>
+            </div>
+          {% endif %}
+
+        </li>
+      {% endfor %}
     </ul>
   </aside>
+
+  <!-- 패널-지도 경계 토글 핸들 -->
+  <button
+    id="panel-toggle-handle"
+    type="button"
+    aria-label="객체 선택 패널 토글"
+    aria-controls="object-panel"
+    aria-expanded="true"
+    title="패널 토글"
+  >
+    <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+  </button>
 
   <!-- [좌측] 위험구역 생성 패널 (기본 숨김) -->
   <aside
@@ -492,7 +831,7 @@
   >
     <div class="px-4 py-3 border-b border-slate-100 flex-shrink-0">
       <h3 class="text-sm font-semibold text-slate-800">위험구역 생성</h3>
-      <p class="text-xs text-slate-400 mt-0.5">유형과 생성 방법을 모두 선택하면 생성 모드로 진입합니다.</p>
+      <p class="text-xs text-slate-400 mt-0.5">위험 구역 유형과 생성 방법을 선택하세요.</p>
     </div>
 
     <div class="px-4 py-4 flex flex-col gap-4 flex-1 overflow-y-auto">
@@ -532,12 +871,6 @@
         <p id="zone-guide-text"></p>
       </div>
 
-      <!-- 구역명 입력 -->
-      <div>
-        <p class="text-xs font-semibold text-slate-600 mb-2">구역명</p>
-        <input id="zone-name-input" type="text" placeholder="구역명을 입력하세요"
-          class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-      </div>
 
       <!-- 좌표/크기 정보 (생성 후 표출) -->
       <div id="zone-info" class="text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 hidden">
@@ -552,11 +885,8 @@
         ↩ 다시 그리기
       </button>
 
-      <!-- 저장 버튼 -->
-      <button id="zone-save-btn" disabled
-        class="w-full py-2.5 text-sm font-semibold rounded-lg bg-blue-600 text-white opacity-40 cursor-not-allowed transition-all">
-        저장
-      </button>
+      <!-- P2-5d: 저장 버튼은 우하단 #zone-save-btn-floating 으로 이동 -->
+
 
     </div>
   </aside>
@@ -569,9 +899,6 @@
     class="flex-1 flex flex-col relative overflow-hidden"
   >
     <div class="flex items-center gap-2 px-4 py-2.5 bg-white border-b border-slate-200 flex-shrink-0">
-      <button id="panel-open-btn" aria-label="객체 선택 패널 열기" aria-controls="object-panel" aria-expanded="false" class="hidden" title="패널 열기">
-        <i data-lucide="panel-left-open" class="w-4 h-4"></i>
-      </button>
       <nav role="tablist" class="flex items-center gap-1 flex-1">
         <button role="tab" aria-selected="true"  data-canvas-filter="all"      class="tab-btn">전체</button>
         <button role="tab" aria-selected="false" data-canvas-filter="facility" class="tab-btn">설비</button>
@@ -586,88 +913,50 @@
       </div>
     </div>
 
-    <div
-      id="map-canvas"
-      data-mode="view"
-      class="flex-1 relative overflow-hidden"
-    >
-      <!-- SVG 폴리곤 선 레이어 -->
-      <svg id="polygon-line-svg" style="display:none;"></svg>
-
-      <!-- 기존 위험구역 -->
-      <div class="danger-zone" data-type="zone" data-id="DG-RED-001"
-           style="width:220px;height:220px;top:30px;left:480px;background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.4);color:#dc2626;">
-        <span>덕트 구간 주변 구역</span>
-      </div>
-      <div class="danger-zone" data-type="zone" data-id="DG-RED-002"
-           style="width:260px;height:260px;bottom:30px;right:80px;background:rgba(251,191,36,0.08);border-color:rgba(251,191,36,0.5);color:#b45309;">
-        <span>여과 모터 주변 구역</span>
-      </div>
-
-      <!-- 설비 카드들 -->
-      <div class="canvas-object" data-type="facility" data-id="FAC-021" style="left:60px;top:50px;">
-        <div class="obj-card-facility relative">
-          <div class="obj-tooltip">FAC-021 집진기 라인</div>
-          <span class="text-xs font-mono text-blue-400 font-semibold">FAC-021</span>
-          <p class="text-sm font-bold text-slate-800 mt-0.5">집진기 라인</p>
-          <p class="text-xs text-slate-400 mt-1">설비 관리 및 상태</p>
-          <div class="mt-2 flex items-center gap-1">
-            <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-            <span class="text-xs text-slate-500">정상</span>
-          </div>
-        </div>
-      </div>
-      <div class="canvas-object" data-type="facility" data-id="FAC-024" style="left:460px;top:60px;">
-        <div class="obj-card-facility relative">
-          <div class="obj-tooltip">FAC-024 덕트 구간</div>
-          <span class="text-xs font-mono text-blue-400 font-semibold">FAC-024</span>
-          <p class="text-sm font-bold text-slate-800 mt-0.5">덕트 구간</p>
-          <div class="mt-2 flex items-center gap-1">
-            <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-            <span class="text-xs text-slate-500">정상</span>
-          </div>
-        </div>
-      </div>
-      <div class="canvas-object" data-type="gas" data-id="GAS-012" style="left:560px;top:150px;">
-        <div class="obj-card-gas relative">
-          <div class="obj-tooltip">GAS-012 유해가스 센서</div>
-          <span class="text-xs font-mono text-amber-500 font-semibold">GAS-012</span>
-          <p class="text-sm font-bold text-slate-800 mt-0.5">유해가스 센서 B</p>
-          <div class="mt-2 flex items-center gap-1">
-            <span class="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
-            <span class="text-xs text-slate-500">감지 중</span>
-          </div>
-        </div>
-      </div>
-      <div class="canvas-object" data-type="power" data-id="PWR-004" style="left:310px;bottom:100px;">
-        <div class="obj-card-power relative">
-          <div class="obj-tooltip">PWR-004 스마트 전력 시스템</div>
-          <span class="text-xs font-mono text-emerald-400 font-semibold">PWR-004</span>
-          <p class="text-sm font-bold text-white mt-0.5">스마트 전력 시스템</p>
-          <p class="text-xs text-slate-400 mt-1">전력 관리 및 상태</p>
-          <div class="mt-2 flex items-center gap-1">
-            <span class="text-xs text-slate-400">FAC-021 연결</span>
-          </div>
-        </div>
-      </div>
-      <div class="canvas-object" data-type="node" data-id="NODE-003" style="left:270px;bottom:140px;">
-        <div class="obj-card-node relative">
-          <div class="obj-tooltip">NODE-003 위치 노드</div>
-          <span class="text-xs font-mono text-violet-500 font-semibold">NODE-003</span>
-          <p class="text-sm font-semibold text-slate-700 mt-0.5">위치 노드 C</p>
-        </div>
-      </div>
+    <div class="flex-1 relative overflow-hidden">
+      <script>
+        const API_BASE = '/facilities/api';
+        const SAMPLE_IMAGE = "{{ MEDIA_URL }}img/sample_floor.png";
+        const MAP_AUTO_FLOOR_ID = {{ floor.id|default:"null" }};
+        window._SKIP_DEFAULT_RENDERERS = true;
+      </script>
+      {% include "components/map_only.html" %}
     </div>
 
     <!-- 줌 컨트롤 -->
-    <div role="group" class="absolute top-14 right-4 flex flex-col gap-1.5 z-20">
-      <button class="zoom-btn" id="zoom-in-btn"    aria-label="확대"><i data-lucide="plus" class="w-4 h-4"></i></button>
-      <button class="zoom-btn" id="zoom-out-btn"   aria-label="축소"><i data-lucide="minus" class="w-4 h-4"></i></button>
-      <button class="zoom-btn" id="zoom-reset-btn" aria-label="초기화"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i></button>
-    </div>
+  <div class="absolute top-14 right-4 z-20">
 
+    <!-- 바깥 박스: 전체를 감싸는 컨테이너 -->
+    <div role="group" class="zoom-outer-box">
+
+      <!-- 안쪽 박스 1: 확대 -->
+      <div class="zoom-inner-box">
+        <button class="zoom-btn" id="zoom-in-btn" aria-label="확대">
+          <span class="zoom-icon-circle"><i data-lucide="plus" class="w-4 h-4"></i></span>
+          <span class="zoom-label">확대</span>
+        </button>
+      </div>
+
+      <!-- 안쪽 박스 2: 축소 -->
+      <div class="zoom-inner-box">
+        <button class="zoom-btn" id="zoom-out-btn" aria-label="축소">
+          <span class="zoom-icon-circle"><i data-lucide="minus" class="w-4 h-4"></i></span>
+          <span class="zoom-label">축소</span>
+        </button>
+      </div>
+
+      <!-- 안쪽 박스 3: 되돌리기 (기본 숨김) -->
+      <div class="zoom-inner-box" id="zoom-reset-box" style="display:none;">
+        <button class="zoom-btn" id="zoom-reset-btn" aria-label="되돌리기">
+          <span class="zoom-icon-circle"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i></span>
+          <span class="zoom-label">되돌리기</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
     <!-- 편집 버튼 -->
-    <div class="absolute bottom-5 right-5 z-20">
+    <div class="absolute bottom-5 right-5 z-20" id="edit-mode-wrap">
       <button id="edit-mode-btn" aria-label="편집 모드로 전환" aria-pressed="false"
         class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg shadow-lg flex items-center gap-2 transition-colors">
         <i data-lucide="pencil" class="w-4 h-4"></i>
@@ -675,575 +964,135 @@
       </button>
     </div>
 
+    <!-- P2-5d: 위험구역 생성 모드 전용 [저장] 버튼 (우하단, 기본 숨김) -->
+    <div class="absolute bottom-5 right-5 z-20" id="zone-save-floating-wrap" style="display:none;">
+      <button id="zone-save-btn-floating" disabled
+        class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-lg opacity-40 cursor-not-allowed transition-all">
+        저장
+      </button>
+    </div>
+
+    <!-- P5-A (R2-N): 편집 방법 안내 영역 (우하단, 기본 숨김) -->
+    <div class="absolute right-5 z-20 edit-guide" id="edit-guide-wrap" style="display:none; bottom:80px;">
+      <div class="edit-guide-title">
+        <i data-lucide="info" class="w-3.5 h-3.5"></i>
+        <span>편집 방법</span>
+      </div>
+      <ul id="edit-guide-list" class="edit-guide-list"></ul>
+    </div>
+
+    <!-- P6-CDE: 편집 모드 전용 [전체 되돌리기]/[저장] 우하단 (기본 숨김, isDirty 시 토글) -->
+    <div class="absolute bottom-5 right-5 z-20 flex gap-2" id="edit-actions-wrap" style="display:none;">
+      <button id="edit-undo-btn-floating"
+        class="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg shadow-lg border border-slate-300 transition-all">
+        전체 되돌리기
+      </button>
+      <button id="edit-save-btn-floating"
+        class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-lg transition-all">
+        저장
+      </button>
+    </div>
+
   </div>
 </section>
+
+{% include "components/confirm_modal.html" %}
 
 {% endblock %}
 
 {% block extra_script %}
 <script>
-  if (typeof lucide !== 'undefined') lucide.createIcons();
+  (function () {
+  'use strict';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  // ================================================================
-  // 1. 패널 토글
-  // ================================================================
-  const panel      = document.getElementById('object-panel');
-  const closeBtn   = document.getElementById('panel-close-btn');
-  const openBtn    = document.getElementById('panel-open-btn');
+    // ================================================================
+    // 1. 패널 토글 — listener 는 admin_map_editor.js 다음 별도 script 에서 1회 등록 보장
+    //    (document level capture phase — 다른 stopPropagation 우회)
+    // ================================================================
 
-  function closePanel() {
-    panel.classList.add('panel-hidden');
-    openBtn.classList.remove('hidden');
-    closeBtn.setAttribute('aria-expanded', 'false');
-  }
-  function openPanel() {
-    panel.classList.remove('panel-hidden');
-    openBtn.classList.add('hidden');
-    closeBtn.setAttribute('aria-expanded', 'true');
-  }
-  closeBtn?.addEventListener('click', closePanel);
-  openBtn?.addEventListener('click', openPanel);
+    // ================================================================
+    // 2-4. 통합 필터 (status / type / search 누적 + count 동기화)
+    // ================================================================
+    function _getActiveFilters() {
+      const statusBtn = document.querySelector('[data-status][aria-selected="true"]');
+      return {
+        status: statusBtn?.dataset.status || 'all',
+        type:   document.getElementById('type-filter')?.value || 'all',
+        search: (document.getElementById('search-input')?.value || '').trim().toLowerCase(),
+      };
+    }
 
-  // ================================================================
-  // 2. 배치 상태 탭 필터
-  // ================================================================
-  document.querySelectorAll('[data-status]').forEach(btn => {
-    btn.addEventListener('click', function () {
-      document.querySelectorAll('[data-status]').forEach(b => b.setAttribute('aria-selected', 'false'));
-      this.setAttribute('aria-selected', 'true');
-      const status = this.dataset.status;
+    function _matchesFilters(item, filters) {
+      if (filters.type !== 'all' && item.dataset.type !== filters.type)             return false;
+      if (filters.status === 'placed'   && item.dataset.placed !== 'true')          return false;
+      if (filters.status === 'unplaced' && item.dataset.placed !== 'false')         return false;
+      if (filters.search) {
+        const code = item.querySelector('.object-code')?.textContent.toLowerCase() || '';
+        const name = item.querySelector('p')?.textContent.toLowerCase() || '';
+        if (!code.includes(filters.search) && !name.includes(filters.search))       return false;
+      }
+      return true;
+    }
+
+    // status-tab count = type + search 적용된 부분집합 기준 (status 탭 자체는 부분집합 내 분류)
+    function _updateStatusCounts(filters) {
+      const base = { ...filters, status: 'all' };
+      let total = 0, placed = 0, unplaced = 0;
       document.querySelectorAll('.object-item').forEach(item => {
-        const placed = item.dataset.placed;
-        if (status === 'all')           item.style.display = '';
-        else if (status === 'placed')   item.style.display = placed === 'true'  ? '' : 'none';
-        else if (status === 'unplaced') item.style.display = placed === 'false' ? '' : 'none';
+        if (!_matchesFilters(item, base)) return;
+        total++;
+        if (item.dataset.placed === 'true') placed++;
+        else                                 unplaced++;
+      });
+      const upd = (key, val) => {
+        const el = document.querySelector(`[data-status-count="${key}"]`);
+        if (el) el.textContent = val;
+      };
+      upd('all', total); upd('placed', placed); upd('unplaced', unplaced);
+    }
+
+    function _applyFilters() {
+      const filters = _getActiveFilters();
+      document.querySelectorAll('.object-item').forEach(item => {
+        item.style.display = _matchesFilters(item, filters) ? '' : 'none';
+      });
+      _updateStatusCounts(filters);
+    }
+
+    // 핸들러 등록 (각 필터 변화 시 통합 적용)
+    document.querySelectorAll('[data-status]').forEach(btn => {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('[data-status]').forEach(b => b.setAttribute('aria-selected', 'false'));
+        this.setAttribute('aria-selected', 'true');
+        _applyFilters();
       });
     });
-  });
+    document.getElementById('type-filter')?.addEventListener('change', _applyFilters);
+    document.getElementById('search-btn')?.addEventListener('click', _applyFilters);
+  })(); // IIFE 끝
+</script>
+<!-- 페이지 전용 JS — Leaflet 과 좌측 패널 연동 -->
+<script src="{% static 'js/map/admin_map_editor.js' %}"></script>
 
-  // ================================================================
-  // 3. 유형 드롭다운 필터
-  // ================================================================
-  document.getElementById('type-filter')?.addEventListener('change', function () {
-    const val = this.value;
-    document.querySelectorAll('.object-item').forEach(item => {
-      item.style.display = (val === 'all' || item.dataset.type === val) ? '' : 'none';
-    });
-  });
-
-  // ================================================================
-  // 4. 검색 필터
-  // ================================================================
-  document.getElementById('search-btn')?.addEventListener('click', function () {
-    const q = document.getElementById('search-input').value.trim().toLowerCase();
-    document.querySelectorAll('.object-item').forEach(item => {
-      const code = item.querySelector('.object-code')?.textContent.toLowerCase() || '';
-      const name = item.querySelector('p')?.textContent.toLowerCase() || '';
-      item.style.display = (!q || code.includes(q) || name.includes(q)) ? '' : 'none';
-    });
-  });
-
-  // ================================================================
-  // 5. 캔버스 뷰 필터 탭
-  // ================================================================
-  document.querySelectorAll('[data-canvas-filter]').forEach(btn => {
-    btn.addEventListener('click', function () {
-      document.querySelectorAll('[data-canvas-filter]').forEach(b => b.setAttribute('aria-selected', 'false'));
-      this.setAttribute('aria-selected', 'true');
-      const filter = this.dataset.canvasFilter;
-      document.querySelectorAll('#map-canvas .canvas-object, #map-canvas .danger-zone').forEach(el => {
-        el.style.display = (filter === 'all' || el.dataset.type === filter) ? '' : 'none';
-      });
-    });
-  });
-
-  // ================================================================
-  // 6. 편집 모드 토글
-  // ================================================================
-  const editBtn   = document.getElementById('edit-mode-btn');
-  const canvas    = document.getElementById('map-canvas');
-  const modeBadge = document.getElementById('mode-badge');
-
-  editBtn?.addEventListener('click', function () {
-    const isEdit = canvas.dataset.mode === 'edit';
-    if (isEdit) {
-      canvas.dataset.mode = 'view';
-      editBtn.setAttribute('aria-pressed', 'false');
-      editBtn.innerHTML = '<i data-lucide="pencil" class="w-4 h-4"></i> 편집';
-      editBtn.classList.replace('bg-blue-600', 'bg-slate-800');
-      editBtn.classList.replace('hover:bg-blue-700', 'hover:bg-slate-700');
-      modeBadge.classList.add('hidden');
-      modeBadge.classList.remove('flex');
+<!-- 패널 토글 listener — document level capture phase (어떤 stopPropagation 보다 먼저 잡힘) -->
+<script>
+(function() {
+  if (window._panelToggleBound) return;
+  window._panelToggleBound = true;
+  document.addEventListener('click', function(e) {
+    const h = e.target.closest('#panel-toggle-handle');
+    if (!h) return;
+    const p = document.getElementById('object-panel');
+    if (!p) return;
+    if (p.classList.contains('panel-hidden')) {
+      p.classList.remove('panel-hidden');
+      h.setAttribute('aria-expanded', 'true');
     } else {
-      canvas.dataset.mode = 'edit';
-      editBtn.setAttribute('aria-pressed', 'true');
-      editBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> 완료';
-      editBtn.classList.replace('bg-slate-800', 'bg-blue-600');
-      editBtn.classList.replace('hover:bg-slate-700', 'hover:bg-blue-700');
-      modeBadge.classList.remove('hidden');
-      modeBadge.classList.add('flex');
+      p.classList.add('panel-hidden');
+      h.setAttribute('aria-expanded', 'false');
     }
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  });
-
-  // ================================================================
-  // 7. 객체 리스트 항목 클릭
-  // ================================================================
-  document.querySelectorAll('.object-item').forEach(item => {
-    item.addEventListener('click', function () {
-      closePanel();
-      canvas.dataset.mode = 'edit';
-      editBtn?.setAttribute('aria-pressed', 'true');
-      modeBadge?.classList.remove('hidden');
-      modeBadge?.classList.add('flex');
-    });
-  });
-
-  // ================================================================
-  // 8. 캔버스 객체 클릭
-  // ================================================================
-  document.querySelectorAll('.canvas-object').forEach(obj => {
-    obj.addEventListener('click', function () {
-      if (canvas.dataset.mode !== 'edit') {
-        canvas.dataset.mode = 'edit';
-        editBtn?.setAttribute('aria-pressed', 'true');
-        modeBadge?.classList.remove('hidden');
-        modeBadge?.classList.add('flex');
-        if (editBtn) {
-          editBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> 완료';
-          editBtn.classList.replace('bg-slate-800', 'bg-blue-600');
-          editBtn.classList.replace('hover:bg-slate-700', 'hover:bg-blue-700');
-        }
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-      }
-    });
-  });
-
-  // ================================================================
-  // 9. 드래그 앤 드롭
-  // ================================================================
-  let dragging = null;
-  let offsetX = 0, offsetY = 0;
-
-  document.querySelectorAll('.canvas-object').forEach(obj => {
-    obj.addEventListener('mousedown', function (e) {
-      if (canvas.dataset.mode !== 'edit') return;
-      dragging = this;
-      const rect = this.getBoundingClientRect();
-      offsetX = e.clientX - rect.left;
-      offsetY = e.clientY - rect.top;
-      this.style.zIndex = 999;
-      e.preventDefault();
-    });
-  });
-
-  canvas?.addEventListener('mousemove', function (e) {
-    if (!dragging) return;
-    const canvasRect = canvas.getBoundingClientRect();
-    let x = e.clientX - canvasRect.left - offsetX;
-    let y = e.clientY - canvasRect.top  - offsetY;
-    x = Math.max(0, Math.min(x, canvasRect.width  - dragging.offsetWidth));
-    y = Math.max(0, Math.min(y, canvasRect.height - dragging.offsetHeight));
-    dragging.style.left   = x + 'px';
-    dragging.style.top    = y + 'px';
-    dragging.style.bottom = 'auto';
-    dragging.style.right  = 'auto';
-  });
-
-  document.addEventListener('mouseup', function () {
-    if (dragging) { dragging.style.zIndex = ''; dragging = null; }
-  });
-
-  // ================================================================
-  // 10. 줌 컨트롤
-  // ================================================================
-  let scale = 1;
-  const SCALE_STEP = 0.15, SCALE_MIN = 0.4, SCALE_MAX = 2.5;
-  function applyScale() {
-    canvas.style.transform = `scale(${scale})`;
-    canvas.style.transformOrigin = 'top left';
-  }
-  document.getElementById('zoom-in-btn')?.addEventListener('click',    () => { scale = Math.min(scale + SCALE_STEP, SCALE_MAX); applyScale(); });
-  document.getElementById('zoom-out-btn')?.addEventListener('click',   () => { scale = Math.max(scale - SCALE_STEP, SCALE_MIN); applyScale(); });
-  document.getElementById('zoom-reset-btn')?.addEventListener('click', () => { scale = 1; applyScale(); });
-
-  // ================================================================
-  // 11. 위험구역 생성 모드
-  // ================================================================
-  const addZoneBtn      = document.getElementById('add-zone-btn');
-  const zoneCreatePanel = document.getElementById('zone-create-panel');
-  const zoneSaveBtn     = document.getElementById('zone-save-btn');
-  const zoneResetBtn    = document.getElementById('zone-reset-btn');
-  const zoneInfo        = document.getElementById('zone-info');
-  const zoneGuide       = document.getElementById('zone-guide');
-  const zoneGuideText   = document.getElementById('zone-guide-text');
-  const zoneCoordText   = document.getElementById('zone-coord-text');
-  const zoneSizeText    = document.getElementById('zone-size-text');
-
-  let zoneCreateMode   = false;
-  let selectedSeverity = null;
-  let selectedShape    = null;
-  let zoneDrawData     = null;
-
-  // ── 색상 매핑 ──
-  const SEVERITY_COLORS = {
-    danger:  { bg: 'rgba(239,68,68,0.12)', border: '#ef4444', text: '#dc2626' },
-    warning: { bg: 'rgba(245,158,11,0.12)', border: '#f59e0b', text: '#b45309' },
-  };
-
-  // ── 재확인 팝업 ──
-  function showConfirmPopup(message, onConfirm, onCancel) {
-    const overlay = document.createElement('div');
-    overlay.className = 'confirm-overlay';
-    overlay.innerHTML = `
-      <div style="background:white;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.2);padding:24px;width:320px;">
-        <p style="font-size:14px;font-weight:600;color:#1e293b;margin-bottom:16px;">${message}</p>
-        <div style="display:flex;gap:10px;">
-          <button id="cp-cancel" style="flex:1;padding:8px;font-size:13px;font-weight:500;border-radius:8px;border:1px solid #e2e8f0;color:#64748b;cursor:pointer;background:white;">취소</button>
-          <button id="cp-ok"     style="flex:1;padding:8px;font-size:13px;font-weight:600;border-radius:8px;border:none;background:#3b82f6;color:white;cursor:pointer;">확인</button>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector('#cp-cancel').addEventListener('click', () => { overlay.remove(); if (onCancel) onCancel(); });
-    overlay.querySelector('#cp-ok').addEventListener('click',     () => { overlay.remove(); onConfirm(); });
-  }
-
-  // ── 완료 팝업 ──
-  function showDonePopup(message, onOk) {
-    const overlay = document.createElement('div');
-    overlay.className = 'confirm-overlay';
-    overlay.innerHTML = `
-      <div style="background:white;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.2);padding:24px;width:280px;text-align:center;">
-        <div style="font-size:32px;margin-bottom:12px;">✅</div>
-        <p style="font-size:14px;font-weight:600;color:#1e293b;margin-bottom:16px;">${message}</p>
-        <button id="dp-ok" style="width:100%;padding:8px;font-size:13px;font-weight:600;border-radius:8px;border:none;background:#3b82f6;color:white;cursor:pointer;">확인</button>
-      </div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector('#dp-ok').addEventListener('click', () => { overlay.remove(); if (onOk) onOk(); });
-  }
-
-  // ── 생성 모드 진입 ──
-  function enterZoneCreateMode() {
-    zoneCreateMode = true;
-    addZoneBtn.innerHTML = '<i data-lucide="x" class="w-4 h-4"></i> 생성 취소';
-    addZoneBtn.className = addZoneBtn.className
-      .replace('bg-blue-600', 'bg-slate-500')
-      .replace('hover:bg-blue-700', 'hover:bg-slate-600');
-    panel.style.display = 'none';
-    zoneCreatePanel.style.display = 'flex';
-    zoneCreatePanel.style.flexDirection = 'column';
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  }
-
-  // ── 생성 모드 종료 ──
-  function exitZoneCreateMode() {
-    zoneCreateMode   = false;
-    selectedSeverity = null;
-    selectedShape    = null;
-    zoneDrawData     = null;
-
-    addZoneBtn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> 위험 구역 추가';
-    addZoneBtn.className = addZoneBtn.className
-      .replace('bg-slate-500', 'bg-blue-600')
-      .replace('hover:bg-slate-600', 'hover:bg-blue-700');
-
-    zoneCreatePanel.style.display = 'none';
-    panel.style.display = '';
-
-    // 선택 상태 초기화
-    document.querySelectorAll('.severity-btn').forEach(b => b.style.outline = '');
-    document.querySelectorAll('.shape-btn').forEach(b => {
-      b.classList.remove('shape-btn-selected');
-      b.style.borderColor = ''; b.style.color = ''; b.style.background = '';
-    });
-
-    // UI 초기화
-    zoneInfo.classList.add('hidden');
-    zoneGuide.classList.add('hidden');
-    zoneResetBtn.classList.add('hidden');
-    zoneSaveBtn.disabled = true;
-    zoneSaveBtn.classList.add('opacity-40', 'cursor-not-allowed');
-    document.getElementById('zone-name-input').value = '';
-
-    // 프리뷰 제거
-    clearZonePreview();
-    canvas.style.cursor = '';
-    canvas.dataset.mode = 'view';
-
-    // 폴리곤 상태 초기화
-    polygonPoints = [];
-    updatePolygonSVG();
-
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  }
-
-  // ── 프리뷰 제거 ──
-  function clearZonePreview() {
-    document.getElementById('zone-preview-circle')?.remove();
-    document.querySelectorAll('.polygon-point').forEach(p => p.remove());
-    const svg = document.getElementById('polygon-line-svg');
-    if (svg) { svg.style.display = 'none'; svg.innerHTML = ''; }
-  }
-
-  // ── [위험구역 추가] / [생성 취소] 버튼 ──
-  addZoneBtn?.addEventListener('click', function (e) {
-    e.preventDefault();
-    if (!zoneCreateMode) {
-      enterZoneCreateMode();
-    } else {
-      if (zoneDrawData || polygonPoints.length > 0) {
-        showConfirmPopup('생성을 중단하시겠습니까?', () => exitZoneCreateMode());
-      } else {
-        exitZoneCreateMode();
-      }
-    }
-  });
-
-  // ── 위험도 선택 ──
-  document.querySelectorAll('.severity-btn').forEach(btn => {
-    btn.addEventListener('click', function () {
-      document.querySelectorAll('.severity-btn').forEach(b => {
-        b.style.outline = '';
-        b.style.outlineOffset = '';
-      });
-      this.style.outline = '3px solid #3b82f6';
-      this.style.outlineOffset = '2px';
-      selectedSeverity = this.dataset.severity;
-      updateZoneCreateState();
-    });
-  });
-
-  // ── 생성 방법 선택 ──
-  document.querySelectorAll('.shape-btn').forEach(btn => {
-    btn.addEventListener('click', function () {
-      document.querySelectorAll('.shape-btn').forEach(b => {
-        b.style.borderColor = ''; b.style.color = ''; b.style.background = '';
-        b.style.outline = '';
-      });
-      this.style.borderColor = '#3b82f6';
-      this.style.color = '#2563eb';
-      this.style.background = '#eff6ff';
-      this.style.outline = '3px solid #93c3fd';
-      this.style.outlineOffset = '2px';
-      selectedShape = this.dataset.shape;
-      // 이전 프리뷰 초기화
-      clearZonePreview();
-      polygonPoints = [];
-      zoneDrawData = null;
-      zoneInfo.classList.add('hidden');
-      zoneResetBtn.classList.add('hidden');
-      zoneSaveBtn.disabled = true;
-      zoneSaveBtn.classList.add('opacity-40', 'cursor-not-allowed');
-      updateZoneCreateState();
-    });
-  });
-
-  // ── 생성 모드 상태 업데이트 ──
-  function updateZoneCreateState() {
-    if (selectedSeverity && selectedShape) {
-      canvas.style.cursor = 'crosshair';
-      canvas.dataset.mode = 'zone-create';
-      zoneGuide.classList.remove('hidden');
-      zoneGuideText.textContent = selectedShape === 'circle'
-        ? '캔버스를 클릭하고 드래그하여 원형 구역을 그리세요.'
-        : '캔버스를 클릭하여 꼭짓점을 찍고, 첫 번째 점을 다시 클릭하면 완성됩니다.';
-    }
-  }
-
-  // ── 저장 버튼 활성화 체크 ──
-  function checkSaveEnabled() {
-    if (zoneDrawData || (selectedShape === 'polygon' && polygonPoints.length >= 3 && polygonClosed)) {
-      zoneSaveBtn.disabled = false;
-      zoneSaveBtn.classList.remove('opacity-40', 'cursor-not-allowed');
-    }
-  }
-
-  // ================================================================
-  // 12. 원형 구역 생성 (클릭 + 드래그)
-  // ================================================================
-  let circleDrawing = false;
-  let circleStart   = { x: 0, y: 0 };
-
-  canvas.addEventListener('mousedown', function (e) {
-    if (canvas.dataset.mode !== 'zone-create') return;
-    if (selectedShape !== 'circle') return;
-    if (e.target.closest('.canvas-object')) return;
-
-    const rect = canvas.getBoundingClientRect();
-    circleStart = {
-      x: (e.clientX - rect.left) / scale,
-      y: (e.clientY - rect.top)  / scale,
-    };
-    circleDrawing = true;
-
-    // 프리뷰 원 생성
-    let preview = document.getElementById('zone-preview-circle');
-    if (!preview) {
-      preview = document.createElement('div');
-      preview.id = 'zone-preview-circle';
-      canvas.appendChild(preview);
-    }
-    const colors = SEVERITY_COLORS[selectedSeverity] || SEVERITY_COLORS.danger;
-    preview.style.cssText = `
-      position:absolute;border-radius:50%;border:2px dashed ${colors.border};
-      background:${colors.bg};pointer-events:none;z-index:10;
-      left:${circleStart.x}px;top:${circleStart.y}px;width:0;height:0;
-    `;
-    e.preventDefault();
-  });
-
-  canvas.addEventListener('mousemove', function (e) {
-    if (!circleDrawing || selectedShape !== 'circle') return;
-    const rect = canvas.getBoundingClientRect();
-    const cx = (e.clientX - rect.left) / scale;
-    const cy = (e.clientY - rect.top)  / scale;
-    const r  = Math.sqrt((cx - circleStart.x) ** 2 + (cy - circleStart.y) ** 2);
-    const preview = document.getElementById('zone-preview-circle');
-    if (preview) {
-      preview.style.left   = (circleStart.x - r) + 'px';
-      preview.style.top    = (circleStart.y - r) + 'px';
-      preview.style.width  = (r * 2) + 'px';
-      preview.style.height = (r * 2) + 'px';
-    }
-    // 좌표 정보 업데이트
-    zoneInfo.classList.remove('hidden');
-    zoneCoordText.textContent = `중심: (${Math.round(circleStart.x)}, ${Math.round(circleStart.y)})`;
-    zoneSizeText.textContent  = `반경: ${Math.round(r)}px`;
-  });
-
-  document.addEventListener('mouseup', function (e) {
-    if (!circleDrawing || selectedShape !== 'circle') return;
-    circleDrawing = false;
-
-    const rect = canvas.getBoundingClientRect();
-    const cx = (e.clientX - rect.left) / scale;
-    const cy = (e.clientY - rect.top)  / scale;
-    const r  = Math.sqrt((cx - circleStart.x) ** 2 + (cy - circleStart.y) ** 2);
-
-    if (r < 5) return; // 너무 작으면 무시
-
-    zoneDrawData = { type: 'circle', cx: circleStart.x, cy: circleStart.y, r };
-    zoneResetBtn.classList.remove('hidden');
-    checkSaveEnabled();
-  });
-
-  // ================================================================
-  // 13. 폴리곤 구역 생성 (클릭으로 꼭짓점)
-  // ================================================================
-  let polygonPoints = [];
-  let polygonClosed = false;
-
-  function updatePolygonSVG() {
-    const svg = document.getElementById('polygon-line-svg');
-    if (!svg) return;
-    if (polygonPoints.length < 2) { svg.style.display = 'none'; svg.innerHTML = ''; return; }
-
-    svg.style.display = 'block';
-    const pts = polygonPoints.map(p => `${p.x},${p.y}`).join(' ');
-    svg.innerHTML = polygonClosed
-      ? `<polygon points="${pts}" fill="${SEVERITY_COLORS[selectedSeverity]?.bg || 'rgba(239,68,68,0.12)'}" stroke="${SEVERITY_COLORS[selectedSeverity]?.border || '#ef4444'}" stroke-width="2" stroke-dasharray="6,3"/>`
-      : `<polyline points="${pts}" fill="none" stroke="${SEVERITY_COLORS[selectedSeverity]?.border || '#ef4444'}" stroke-width="2" stroke-dasharray="6,3"/>`;
-  }
-
-  canvas.addEventListener('click', function (e) {
-    if (canvas.dataset.mode !== 'zone-create') return;
-    if (selectedShape !== 'polygon') return;
-    if (e.target.closest('.canvas-object')) return;
-    if (polygonClosed) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / scale;
-    const y = (e.clientY - rect.top)  / scale;
-
-    // 첫 번째 점 클릭으로 닫기
-    if (polygonPoints.length >= 3) {
-      const first = polygonPoints[0];
-      const dist  = Math.sqrt((x - first.x) ** 2 + (y - first.y) ** 2);
-      if (dist < 15) {
-        polygonClosed = true;
-        updatePolygonSVG();
-        zoneDrawData = { type: 'polygon', points: [...polygonPoints] };
-        zoneInfo.classList.remove('hidden');
-        const xs = polygonPoints.map(p => p.x), ys = polygonPoints.map(p => p.y);
-        zoneCoordText.textContent = `꼭짓점: ${polygonPoints.length}개`;
-        zoneSizeText.textContent  = `범위: ${Math.round(Math.max(...xs)-Math.min(...xs))} × ${Math.round(Math.max(...ys)-Math.min(...ys))}px`;
-        zoneResetBtn.classList.remove('hidden');
-        checkSaveEnabled();
-        return;
-      }
-    }
-
-    // 꼭짓점 추가
-    polygonPoints.push({ x, y });
-
-    // 꼭짓점 점 렌더
-    const dot = document.createElement('div');
-    dot.className = 'polygon-point';
-    dot.style.left = x + 'px';
-    dot.style.top  = y + 'px';
-    canvas.appendChild(dot);
-
-    updatePolygonSVG();
-
-    // 좌표 안내
-    zoneInfo.classList.remove('hidden');
-    zoneCoordText.textContent = `현재 꼭짓점: (${Math.round(x)}, ${Math.round(y)})`;
-    zoneSizeText.textContent  = `꼭짓점 수: ${polygonPoints.length}개 (3개 이상 후 첫 점 클릭으로 완성)`;
-  });
-
-  // ── 다시 그리기 ──
-  zoneResetBtn?.addEventListener('click', function () {
-    clearZonePreview();
-    polygonPoints = [];
-    polygonClosed = false;
-    zoneDrawData  = null;
-    zoneInfo.classList.add('hidden');
-    zoneResetBtn.classList.add('hidden');
-    zoneSaveBtn.disabled = true;
-    zoneSaveBtn.classList.add('opacity-40', 'cursor-not-allowed');
-  });
-
-  // ================================================================
-  // 14. 저장
-  // ================================================================
-  zoneSaveBtn?.addEventListener('click', function () {
-    if (this.disabled) return;
-    showConfirmPopup('저장하시겠습니까?', function () {
-      // 실제 저장 로직 (백엔드 연동 시 여기서 API 호출)
-      const name     = document.getElementById('zone-name-input').value.trim() || '새 위험구역';
-      const colors   = SEVERITY_COLORS[selectedSeverity] || SEVERITY_COLORS.danger;
-
-      if (zoneDrawData?.type === 'circle') {
-        // 원형 구역 캔버스에 추가
-        const zone = document.createElement('div');
-        zone.className = 'danger-zone';
-        zone.dataset.type = 'zone';
-        const d = zoneDrawData;
-        zone.style.cssText = `
-          width:${d.r*2}px;height:${d.r*2}px;
-          left:${d.cx - d.r}px;top:${d.cy - d.r}px;
-          background:${colors.bg};border-color:${colors.border};color:${colors.text};
-          pointer-events:none;
-        `;
-        zone.innerHTML = `<span>${name}</span>`;
-        canvas.appendChild(zone);
-      } else if (zoneDrawData?.type === 'polygon') {
-        // 폴리곤 구역 — SVG를 유지 (이미 렌더됨)
-        const svg = document.getElementById('polygon-line-svg');
-        if (svg) {
-          // 라벨 추가
-          const xs = polygonPoints.map(p => p.x), ys = polygonPoints.map(p => p.y);
-          const mx = (Math.min(...xs) + Math.max(...xs)) / 2;
-          const my = (Math.min(...ys) + Math.max(...ys)) / 2;
-          const label = document.createElement('div');
-          label.style.cssText = `position:absolute;left:${mx}px;top:${my}px;transform:translate(-50%,-50%);font-size:12px;font-weight:600;color:${colors.text};pointer-events:none;`;
-          label.textContent = name;
-          canvas.appendChild(label);
-        }
-      }
-
-      showDonePopup('저장되었습니다.', () => exitZoneCreateMode());
-    });
-  });
+  }, true);   // capture phase
+})();
 </script>
 {% endblock %}

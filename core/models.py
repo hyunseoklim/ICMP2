@@ -7,6 +7,11 @@ class CommonCode(models.Model):
     code_name = models.CharField(max_length=100)
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    description = models.TextField(blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.CharField(max_length=100, blank=True, default='')
+    scope = models.CharField(max_length=200, blank=True, default='')
+    map_reflect = models.BooleanField(default=False)
 
     class Meta:
         db_table = "common_codes"
@@ -32,9 +37,9 @@ class SystemLog(models.Model):
 
 
 class ChangeLog(models.Model):
-    actor_id = models.IntegerField(null=True, blank=True)
+    actor_id = models.BigIntegerField(null=True, blank=True)   # T1-δ F2: BigInt
     target_type = models.CharField(max_length=100)
-    target_id = models.IntegerField()
+    target_id = models.BigIntegerField()                       # T1-δ F2: BigAutoField PK 호환
     action_type = models.CharField(max_length=50)
     before_data = models.JSONField(null=True, blank=True)
     after_data = models.JSONField(null=True, blank=True)

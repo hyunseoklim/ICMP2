@@ -21,6 +21,7 @@ router.register(r'sensor-locations', SensorLocationViewSet,        basename='sen
 urlpatterns = [
     path('api/', include(router.urls)),
     path('api/floors/<int:floor_id>/grid-data/', views.floor_grid_data, name='floor-grid-data'),
+    path('api/map-editor/bulk-save/', views.bulk_map_editor_save, name='map-editor-bulk-save'),   # T1-ε
     path('monitoring/', views.monitoring_view, name='map_monitoring'),
     path('', views.monitoring_view, name='index'),
     path("floors/<int:floor_id>/setup/", FloorGridSetupView.as_view(), name="floor-grid-setup"),

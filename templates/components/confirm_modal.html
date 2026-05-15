@@ -1,0 +1,48 @@
+{% load static %}
+
+{# 공용 모달 — admin/map/map.html 의 {% block content %} 안에 include #}
+<div id="common-modal-overlay" class="common-modal-overlay" style="display:none;" aria-hidden="true">
+  <div class="common-modal" role="dialog" aria-modal="true" aria-labelledby="common-modal-title">
+    <h3 id="common-modal-title" class="common-modal-title"></h3>
+    <p id="common-modal-message" class="common-modal-message"></p>
+    <div class="common-modal-actions">
+      <button type="button" id="common-modal-cancel"  class="common-modal-btn common-modal-btn-cancel">취소</button>
+      <button type="button" id="common-modal-confirm" class="common-modal-btn common-modal-btn-confirm">확인</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .common-modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center; z-index: 9999;
+  }
+  .common-modal {
+    background: white; border-radius: 12px; padding: 24px 28px;
+    min-width: 320px; max-width: 480px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  }
+  .common-modal-title {
+    font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px;
+  }
+  .common-modal-message {
+    font-size: 14px; color: #475569; margin: 0 0 20px; line-height: 1.5;
+  }
+  .common-modal-actions {
+    display: flex; gap: 8px; justify-content: flex-end;
+  }
+  .common-modal-btn {
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid transparent; transition: all 0.15s;
+  }
+  .common-modal-btn-cancel {
+    background: white; border-color: #cbd5e1; color: #475569;
+  }
+  .common-modal-btn-cancel:hover { background: #f1f5f9; }
+  .common-modal-btn-confirm {
+    background: #2563eb; color: white;
+  }
+  .common-modal-btn-confirm:hover { background: #1d4ed8; }
+</style>
+
+<script src="{% static 'js/common/modal.js' %}"></script>
