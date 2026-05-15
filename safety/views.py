@@ -158,24 +158,38 @@ def mysafety_history(request):
             print_start = date(today.year, today.month, 1)
             print_end   = today
 
-        sessions_qs = SafetyCheckSession.objects.filter(worker=worker)
-        print_months = []
-        cy, cm = print_start.year, print_start.month
-        while (cy, cm) <= (print_end.year, print_end.month):
-            weeks = _build_calendar(sessions_qs, cy, cm)
-            print_months.append({"year": cy, "month": cm, "label": f"{cy}년 {cm}월", "weeks": weeks})
-            cm += 1
-            if cm > 12:
-                cm = 1
-                cy += 1
+        worker_ids_str = request.GET.get("workers", "")
+        if worker_ids_str and request.user.is_staff:
+            from facilities.models import Worker as FacWorker
+            try:
+                worker_ids = [int(i) for i in worker_ids_str.split(",") if i.strip()]
+            except ValueError:
+                worker_ids = []
+            target_workers = list(FacWorker.objects.filter(pk__in=worker_ids).select_related("department"))
+        else:
+            target_workers = [worker]
+
+        def build_months(tw):
+            sessions_qs = SafetyCheckSession.objects.filter(worker=tw)
+            months = []
+            cy, cm = print_start.year, print_start.month
+            while (cy, cm) <= (print_end.year, print_end.month):
+                weeks = _build_calendar(sessions_qs, cy, cm)
+                months.append({"year": cy, "month": cm, "label": f"{cy}년 {cm}월", "weeks": weeks})
+                cm += 1
+                if cm > 12:
+                    cm = 1
+                    cy += 1
+            return months
+
+        print_workers = [{"worker": tw, "months": build_months(tw)} for tw in target_workers]
 
         return render(request, "safety/mysafety_history.html", {
-            "is_print":     True,
-            "print_months": print_months,
-            "print_start":  print_start,
-            "print_end":    print_end,
-            "worker":       worker,
-            "today":        today,
+            "is_print":      True,
+            "print_workers": print_workers,
+            "print_start":   print_start,
+            "print_end":     print_end,
+            "today":         today,
         })
 
     # ── 일반 모드 ────────────────────────────────────
@@ -211,13 +225,14 @@ def mysafety_history(request):
                 "attendance": "출근" if s and s.checklist_completed else "미출근",
                 "attendance_ok": bool(s and s.checklist_completed),
             })
-        departments = list(
+        from accounts.models import Department
+        dept_ids = (
             Worker.objects.filter(current_state="on_duty")
             .exclude(department=None)
             .values_list("department_id", flat=True)
             .distinct()
-            .order_by("department_id")
         )
+        departments = list(Department.objects.filter(id__in=dept_ids).order_by("name"))
 
     return render(request, "safety/mysafety_history.html", {
         "weeks": weeks,
