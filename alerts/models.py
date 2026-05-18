@@ -81,9 +81,11 @@ class AlarmRule(models.Model):
 
 class AlarmEvent(models.Model):
     class Severity(models.TextChoices):
-        NORMAL = "normal", "정상"
-        WARNING = "warning", "주의"
-        DANGER = "danger", "위험"
+        NORMAL             = "normal",             "정상"
+        WARNING            = "warning",            "주의"
+        DANGER             = "danger",             "위험"
+        ANOMALY            = "anomaly",            "통계/AI 이상 탐지"
+        PREDICTIVE_WARNING = "predictive_warning", "AI 조기 예측 경보"
 
     class EventType(models.TextChoices):
         GAS = "gas", "유해가스"
@@ -147,7 +149,9 @@ class AlarmEvent(models.Model):
         db_index=True,
     )
 
-    occurred_at = models.DateTimeField(default=timezone.now, db_index=True)
+    occurred_at  = models.DateTimeField(default=timezone.now, db_index=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True, help_text="마지막 감지 시각 (이상 지속 시 갱신)")
+    current_value = models.FloatField(null=True, blank=True, help_text="마지막 감지 시 측정값 (대표값)")
 
     acknowledged_by = models.ForeignKey(
         "accounts.User",
