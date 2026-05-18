@@ -23,7 +23,8 @@ async def fetch_gas_devices() -> list[dict]:
 async def post_gas_reading(data: dict) -> None:
     # device_uid 기준으로 전송 (ingest_gas 함수가 device_uid로 장비 조회)
     payload = {
-        "device_uid": data["device_uid"],
+        "device_uid":  data["device_uid"],
+        "measured_at": data["measured_at"],
         "co":  data["co"],
         "h2s": data["h2s"],
         "co2": data["co2"],
@@ -49,6 +50,7 @@ async def post_power_reading(data: dict) -> None:
     payload = {
         "device_uid":   data["device_uid"],
         "channel_code": data["channel_code"],
+        "measured_at":  data.get("measured_at"),
         "current_a":    data["current_a"],
         "voltage_v":    data["voltage_v"],
         "power_w":      data["power_w"],

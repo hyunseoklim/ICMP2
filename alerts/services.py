@@ -9,21 +9,14 @@ _SEVERITY_LABEL = {AlarmEvent.Severity.DANGER: '위험', AlarmEvent.Severity.WAR
 
 
 def check_gas_thresholds(device, reading) -> None:
-    """GasReading 인스턴스 임계치 체크 → AlarmEvent 생성 (5분 중복 방지)"""
+    """GasReading 임계치 체크 → open 이벤트 갱신 또는 신규 생성. 정상 복귀 시 자동 closed."""
     from monitoring.services import check_threshold_exceeded
 
     if not device.facility_id:
         return
 
-    exceeded = check_threshold_exceeded(reading)
-    if not exceeded:
+    if getattr(reading, 'quality_flag', 'ok') != 'ok':
         return
-
-    severity = (
-        AlarmEvent.Severity.DANGER
-        if any(e['level'] == '위험' for e in exceeded)
-        else AlarmEvent.Severity.WARNING
-    )
 
     rule = AlarmRule.objects.filter(
         rule_type=AlarmRule.RuleType.THRESHOLD,
@@ -32,25 +25,55 @@ def check_gas_thresholds(device, reading) -> None:
     if not rule:
         return
 
-    already = AlarmEvent.objects.filter(
+    exceeded = check_threshold_exceeded(reading)
+    now = timezone.now()
+
+    open_event = AlarmEvent.objects.filter(
         rule=rule,
         device=device,
         event_status=AlarmEvent.EventStatus.OPEN,
-        occurred_at__gte=timezone.now() - timedelta(minutes=5),
-    ).exists()
-    if already:
+    ).order_by('-occurred_at').first()
+
+    if not exceeded:
+        # 정상 복귀 → open 이벤트 자동 closed
+        if open_event:
+            open_event.event_status = AlarmEvent.EventStatus.CLOSED
+            open_event.closed_at = now
+            open_event.save(update_fields=['event_status', 'closed_at', 'updated_at'])
+            EventHistory.objects.create(
+                alarm_event=open_event,
+                action_type='close',
+                action_note='센서값 정상 복귀로 자동 종료',
+            )
         return
 
-    gases_str = ', '.join(e['gas'].upper() for e in exceeded)
-    message   = ', '.join(f"{e['gas'].upper()}: {e['value']} ({e['level']})" for e in exceeded)
-    create_alarm_event(
-        rule=rule,
-        facility=device.facility,
-        severity=severity,
-        title=f"[가스] {gases_str} 농도 이상 감지",
-        device=device,
-        message=message,
+    severity = (
+        AlarmEvent.Severity.DANGER
+        if any(e['level'] == '위험' for e in exceeded)
+        else AlarmEvent.Severity.WARNING
     )
+    gases_str     = ', '.join(e['gas'].upper() for e in exceeded)
+    message       = ', '.join(f"{e['gas'].upper()}: {e['value']} ({e['level']})" for e in exceeded)
+    max_value     = max(e['value'] for e in exceeded)
+
+    if open_event:
+        # 기존 open 이벤트 갱신
+        open_event.last_seen_at   = now
+        open_event.current_value  = max_value
+        open_event.severity       = severity
+        open_event.message        = message
+        open_event.save(update_fields=['last_seen_at', 'current_value', 'severity', 'message', 'updated_at'])
+    else:
+        # 신규 생성
+        create_alarm_event(
+            rule=rule,
+            facility=device.facility,
+            severity=severity,
+            title=f"[가스] {gases_str} 농도 이상 감지",
+            device=device,
+            message=message,
+            current_value=max_value,
+        )
 
 
 def check_power_thresholds(device, channel, power_w: float) -> None:
@@ -98,6 +121,54 @@ def check_power_thresholds(device, channel, power_w: float) -> None:
         message=f"현재 전력: {power_w}W, 부하율: {load_rate:.1f}%",
     )
 
+def trigger_anomaly_alarms(device, zscore_results: list) -> None:
+    """Z-score ANOMALY_WARNING 결과 → AlarmEvent 생성 (open 이벤트 있으면 갱신)."""
+    if not device.facility_id:
+        return
+
+    anomalies = [r for r in zscore_results if r['final_status'] == 'ANOMALY_WARNING']
+    if not anomalies:
+        return
+
+    rule = AlarmRule.objects.filter(
+        rule_type=AlarmRule.RuleType.THRESHOLD,
+        is_active=True,
+    ).first()
+    if not rule:
+        return
+
+    now = timezone.now()
+    gases_str = ', '.join(r['metric'].upper() for r in anomalies)
+    message   = ', '.join(
+        f"{r['metric'].upper()}: {r['value']} (z={r['z_score']:.2f})"
+        for r in anomalies
+    )
+    max_value = max(abs(r['z_score']) for r in anomalies)
+
+    open_event = AlarmEvent.objects.filter(
+        rule=rule,
+        device=device,
+        severity=AlarmEvent.Severity.ANOMALY,
+        event_status=AlarmEvent.EventStatus.OPEN,
+    ).order_by('-occurred_at').first()
+
+    if open_event:
+        open_event.last_seen_at  = now
+        open_event.current_value = max_value
+        open_event.message       = message
+        open_event.save(update_fields=['last_seen_at', 'current_value', 'message', 'updated_at'])
+    else:
+        create_alarm_event(
+            rule=rule,
+            facility=device.facility,
+            severity=AlarmEvent.Severity.ANOMALY,
+            title=f"[AI] {gases_str} 통계 이상 감지",
+            device=device,
+            message=message,
+            current_value=max_value,
+        )
+
+
 _RULE_TYPE_TO_EVENT_TYPE = {
     AlarmRule.RuleType.THRESHOLD: AlarmEvent.EventType.GAS,
     AlarmRule.RuleType.POWER:     AlarmEvent.EventType.POWER,
@@ -115,8 +186,10 @@ def create_alarm_event(
     worker=None,
     channel=None,
     message: str = "",
+    current_value: float = None,
 ) -> AlarmEvent:
     event_type = _RULE_TYPE_TO_EVENT_TYPE.get(rule.rule_type, AlarmEvent.EventType.DEVICE)
+    now = timezone.now()
     return AlarmEvent.objects.create(
         rule=rule,
         facility=facility,
@@ -128,6 +201,8 @@ def create_alarm_event(
         severity=severity,
         title=title,
         message=message,
+        current_value=current_value,
+        last_seen_at=now,
     )
 
 

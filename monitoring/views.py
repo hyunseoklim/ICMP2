@@ -63,23 +63,44 @@ def ingest_gas(request):
     if not device:
         return Response({'error': f'장비 없음: {device_uid}'}, status=404)
 
+    raw = request.data
+    gas_fields = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
+    values = {f: raw.get(f) for f in gas_fields}
+
+    missing_count = sum(1 for v in values.values() if v is None)
+    if missing_count == len(gas_fields):
+        quality_flag = 'missing'
+    elif missing_count > 0:
+        quality_flag = 'partial'
+    else:
+        quality_flag = 'ok'
+
+    measured_at_raw = raw.get('measured_at')
+    if measured_at_raw:
+        from django.utils.dateparse import parse_datetime
+        measured_at = parse_datetime(measured_at_raw) or timezone.now()
+    else:
+        measured_at = timezone.now()
+
     reading = GasReading.objects.create(
         device=device,
-        co=request.data.get('co', 0),
-        h2s=request.data.get('h2s', 0),
-        co2=request.data.get('co2', 0),
-        o2=request.data.get('o2', 0),
-        no2=request.data.get('no2', 0),
-        so2=request.data.get('so2', 0),
-        o3=request.data.get('o3', 0),
-        nh3=request.data.get('nh3', 0),
-        voc=request.data.get('voc', 0),
-        measured_at=timezone.now(),
+        **values,
+        measured_at=measured_at,
+        quality_flag=quality_flag,
+        raw_payload=dict(raw),
     )
     update_last_seen(device)
 
+    from monitoring.anomaly.window import push as window_push
+    window_push(device.device_uid, reading)
+
     from alerts.services import check_gas_thresholds
     check_gas_thresholds(device, reading)
+
+    from monitoring.anomaly.zscore import analyze as zscore_analyze
+    from alerts.services import trigger_anomaly_alarms
+    zscore_results = zscore_analyze(device.device_uid, reading)
+    trigger_anomaly_alarms(device, zscore_results)
 
     # ─── sensor WebSocket broadcast ───────────────────────
     try:
@@ -168,13 +189,35 @@ def ingest_power(request):
     if not channel:
         return Response({'error': f'채널 없음: {channel_code}'}, status=404)
 
+    raw = request.data
+    measured_at_raw = raw.get('measured_at')
+    if measured_at_raw:
+        from django.utils.dateparse import parse_datetime
+        power_measured_at = parse_datetime(measured_at_raw) or timezone.now()
+    else:
+        power_measured_at = timezone.now()
+
+    current_a = raw.get('current_a', -1)
+    voltage_v = raw.get('voltage_v', -1)
+    power_w   = raw.get('power_w',   -1)
+
+    power_fields = [current_a, voltage_v, power_w]
+    if all(v == -1 for v in power_fields):
+        quality_flag = 'comm_err'
+    elif any(v == -1 for v in power_fields):
+        quality_flag = 'partial'
+    else:
+        quality_flag = 'ok'
+
     PowerReading.objects.create(
         device=device,
         channel=channel,
-        current_a=request.data.get('current_a', 0),
-        voltage_v=request.data.get('voltage_v', 0),
-        power_w=request.data.get('power_w', 0),
-        measured_at=timezone.now(),
+        current_a=current_a,
+        voltage_v=voltage_v,
+        power_w=power_w,
+        measured_at=power_measured_at,
+        quality_flag=quality_flag,
+        raw_payload=dict(raw),
     )
     update_last_seen(device)
 

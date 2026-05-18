@@ -133,13 +133,18 @@ class GasReading(models.Model):
     voc = models.FloatField(null=True, blank=True, help_text="휘발성유기화합물 ppm")
     measured_at = models.DateTimeField(help_text="센서 측정 시각", db_index=True)
     received_at = models.DateTimeField(auto_now_add=True, help_text="서버 수신 시각")
+    quality_flag = models.CharField(
+        max_length=20, default='ok',
+        help_text="ok / missing / comm_err / partial",
+    )
+    raw_payload = models.JSONField(null=True, blank=True, help_text="원본 수신 payload")
 
     class Meta:
         db_table            = "gas_readings"
         ordering            = ["-measured_at"]
         verbose_name        = "유해가스 측정값"
         verbose_name_plural = "유해가스 측정값 목록"
-        # 복합 인덱스 (특정 장비의 시간대별 조회 성능 향상)
+        unique_together = [('device', 'measured_at')]
         indexes = [
             models.Index(fields=['device', 'measured_at']),
         ]
@@ -183,6 +188,11 @@ class PowerReading(models.Model):
     # db_index=True 추가 완료
     measured_at = models.DateTimeField(db_index=True)
     received_at = models.DateTimeField(auto_now_add=True)
+    quality_flag = models.CharField(
+        max_length=20, default='ok',
+        help_text="ok / missing / comm_err / partial",
+    )
+    raw_payload = models.JSONField(null=True, blank=True, help_text="원본 수신 payload")
 
     class Meta:
         db_table            = "power_readings"
