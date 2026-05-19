@@ -1334,19 +1334,57 @@ def seed_risk_codes():
     print(f"  완료: 위험 분류 그룹 {len(groups)}개 seeded")
 
 
+def seed_retention_policies():
+    """데이터 보관 주기 초기 설정 (법적 기준 + 운영 기본값)"""
+    from manager.models import DataRetentionPolicy
+
+    policies = [
+        # 유해가스 센서 — 산업안전보건법: 측정 기록 3년 보관
+        ("gas", "raw",       3 * 365, 3 * 365, "monthly_1",  "산업안전보건법 시행규칙 제186조: 가스 측정 기록 3년 보관"),
+        ("gas", "event",     3 * 365, 3 * 365, "monthly_1",  "산업안전보건법 시행규칙: 이벤트 이력 3년 보관"),
+        ("gas", "aggregate", 3 * 365, 3 * 365, "monthly_15", "산업안전보건법: 집계 이력 3년 보관"),
+        # 스마트 전력 — 전기사업법/산안법: 점검 기록 2년
+        ("power", "raw",       180,     2 * 365, "monthly_1",  "운영 기본값: 원천 로그 180일, 이력 2년"),
+        ("power", "event",     2 * 365, 2 * 365, "monthly_1",  "전기사업법: 전력 점검 기록 2년 보관"),
+        ("power", "aggregate", 2 * 365, 2 * 365, "monthly_15", "전기사업법: 집계 이력 2년 보관"),
+        # 위치 노드 — 별도 법적 규정 없음: 운영 기본값 적용
+        ("node", "raw",      180, 365, "monthly_1",  "법적 규정 없음: 원천 로그 6개월, 이력 1년"),
+        ("node", "location", 180, 365, "monthly_15", "법적 규정 없음: 위치 이력 6개월~1년"),
+    ]
+
+    print("  [retention_policies] 데이터 보관 주기 설정...")
+    created = 0
+    for device_type, data_category, origin_days, history_days, delete_schedule, memo in policies:
+        _, is_new = DataRetentionPolicy.objects.get_or_create(
+            device_type=device_type,
+            data_category=data_category,
+            defaults={
+                "origin_days":     origin_days,
+                "history_days":    history_days,
+                "delete_schedule": delete_schedule,
+                "is_active":       True,
+                "memo":            memo,
+            },
+        )
+        if is_new:
+            created += 1
+    print(f"  완료: 보관 주기 {created}건 추가 (기존 항목 유지)")
+
+
 SECTIONS = {
-    "accounts":      seed_accounts,
-    "facilities":    seed_facilities,
-    "workers":       seed_workers,
-    "monitoring":    seed_monitoring,
-    "alerts":        seed_alerts,
-    "safety":        seed_safety,
-    "common_codes":  seed_common_codes,
-    "risk_codes":    seed_risk_codes,
+    "accounts":           seed_accounts,
+    "facilities":         seed_facilities,
+    "workers":            seed_workers,
+    "monitoring":         seed_monitoring,
+    "alerts":             seed_alerts,
+    "safety":             seed_safety,
+    "common_codes":       seed_common_codes,
+    "risk_codes":         seed_risk_codes,
+    "retention_policies": seed_retention_policies,
 }
 
 # 의존성 순서
-ALL_ORDER = ["accounts", "facilities", "workers", "monitoring", "alerts", "safety", "common_codes", "risk_codes"]
+ALL_ORDER = ["accounts", "facilities", "workers", "monitoring", "alerts", "safety", "common_codes", "risk_codes", "retention_policies"]
 
 class Command(BaseCommand):
     help = "ICMP2 통합 시드: 기준 데이터를 DB에 삽입합니다"
