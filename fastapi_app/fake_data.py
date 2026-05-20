@@ -49,6 +49,12 @@ _POWER_CHANNELS = [
     {"device_uid": "PWR-002", "channel_code": "slave22", "rated_w": 700},
     {"device_uid": "PWR-002", "channel_code": "slave31", "rated_w": 300},
     {"device_uid": "PWR-002", "channel_code": "slave32", "rated_w": 300},
+    {"device_uid": "PWR-003", "channel_code": "slave01", "rated_w": 800},
+    {"device_uid": "PWR-003", "channel_code": "slave02", "rated_w": 800},
+    {"device_uid": "PWR-003", "channel_code": "slave11", "rated_w":  50},
+    {"device_uid": "PWR-003", "channel_code": "slave12", "rated_w":  50},
+    {"device_uid": "PWR-003", "channel_code": "slave21", "rated_w": 300},
+    {"device_uid": "PWR-003", "channel_code": "slave22", "rated_w": 300},
 ]
 
 
@@ -68,11 +74,21 @@ def _spike(low: float, high: float, warn: float, danger: float) -> float:
 
 # ── 가스 센서 데이터 생성 ─────────────────────────────────────
 def generate_sensor_data(device_id: int, device_uid: str) -> dict:
+    # 2% 확률 통신 불능 → 모든 가스값 -1
+    if random.random() < 0.02:
+        return {
+            "type":       "gas_update",
+            "device_id":  device_id,
+            "device_uid": device_uid,
+            "co": -1, "h2s": -1, "co2": -1, "o2": -1,
+            "no2": -1, "so2": -1, "o3": -1, "nh3": -1, "voc": -1,
+            "measured_at": datetime.now(timezone.utc).isoformat(),
+        }
+
     return {
         "type":       "gas_update",
         "device_id":  device_id,
         "device_uid": device_uid,
-        # 스파이크 가능 가스 (임계치 명시)
         "co":  _spike(*_GAS_RANGES["co"],  warn=25.0,  danger=200.0),
         "h2s": _spike(*_GAS_RANGES["h2s"], warn=10.0,  danger=15.0),
         "co2": _spike(*_GAS_RANGES["co2"], warn=1000.0, danger=5000.0),
@@ -103,34 +119,32 @@ def _generate_o2() -> float:
         return round(random.uniform(18.5, 23.0), 2)
 
 
-# ── 전력 채널 데이터 생성 ─────────────────────────────────────
-def generate_power_data() -> dict:
-    ch = random.choice(_POWER_CHANNELS)
-    rated_w = ch["rated_w"]
+# 디바이스별 채널 그룹 (device_uid → 채널 목록)
+_POWER_DEVICES: dict[str, list[dict]] = {}
+for _ch in _POWER_CHANNELS:
+    _POWER_DEVICES.setdefault(_ch["device_uid"], []).append(_ch)
 
+
+def _generate_channel_data(ch: dict) -> dict:
+    """채널 1개의 전류/전압/전력 생성"""
+    rated_w = ch["rated_w"]
     rand = random.random()
     if rand < 0.05:
-        # 5% 통신불능
-        current_a, voltage_v, power_w = -1, -1, -1
+        current_a, voltage_v, power_w = -1, -1, -1      # 통신불능
     elif rand < 0.15:
-        # 10% OFF
-        current_a, voltage_v, power_w = 0, 0, 0
+        current_a, voltage_v, power_w = 0, 0, 0          # OFF
     elif rand < 0.25:
-        # 10% 위험 (75% 초과)
         power_w   = round(random.uniform(rated_w * 0.76, rated_w * 1.2), 1)
         voltage_v = 220.0
         current_a = round(power_w / voltage_v, 1)
     elif rand < 0.40:
-        # 15% 주의 (50~75%)
         power_w   = round(random.uniform(rated_w * 0.51, rated_w * 0.74), 1)
         voltage_v = 220.0
         current_a = round(power_w / voltage_v, 1)
     else:
-        # 60% 정상 (0~50%)
         power_w   = round(random.uniform(0, rated_w * 0.49), 1)
         voltage_v = 220.0
         current_a = round(power_w / voltage_v, 1)
-
     return {
         "type":         "power_update",
         "device_uid":   ch["device_uid"],
@@ -140,6 +154,18 @@ def generate_power_data() -> dict:
         "power_w":      power_w,
         "measured_at":  datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ── 전력 전체 채널 데이터 생성 (정의서 기준: 디바이스당 전체 채널 한꺼번에) ──
+def generate_all_power_data_for_device(device_uid: str) -> list[dict]:
+    """디바이스 1개의 전체 채널 데이터 생성 (정의서 기준)"""
+    return [_generate_channel_data(ch) for ch in _POWER_DEVICES.get(device_uid, [])]
+
+
+def generate_power_data() -> dict:
+    """하위 호환용 — 채널 1개 랜덤 생성"""
+    ch = random.choice(_POWER_CHANNELS)
+    return _generate_channel_data(ch)
 
 
 # ── 작업자 위치 데이터 생성 ───────────────────────────────────

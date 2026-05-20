@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_power_data, generate_node_readings
+from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_node_readings, generate_all_power_data_for_device, _POWER_DEVICES
 from fastapi_app.sender import fetch_gas_devices, post_gas_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading
 
 # 연결된 클라이언트 목록
@@ -35,10 +35,11 @@ async def _emit_once() -> None:
         await _broadcast(data)
         await post_gas_reading(data)
 
-    for _ in range(5):
-        power = generate_power_data()
-        await _broadcast(power)
-        await post_power_reading(power)
+    # 정의서 기준: 디바이스당 전체 채널을 한꺼번에 전송
+    for device_uid in _POWER_DEVICES:
+        for power in generate_all_power_data_for_device(device_uid):
+            await _broadcast(power)
+            await post_power_reading(power)
 
     for location in generate_all_location_data():
         await _broadcast(location)
@@ -96,9 +97,16 @@ async def websocket_endpoint(ws: WebSocket):
     print(f"[WS] 연결됨 — 현재 {len(_clients)}명")
     try:
         while True:
-            await ws.receive_text()  # 연결 유지 (클라이언트 ping 수신용)
+            msg = await ws.receive()
+            if msg.get("type") == "websocket.disconnect":
+                break
     except WebSocketDisconnect:
-        _clients.remove(ws)
+        pass
+    except Exception:
+        pass
+    finally:
+        if ws in _clients:
+            _clients.remove(ws)
         print(f"[WS] 해제됨 — 현재 {len(_clients)}명")
 
 

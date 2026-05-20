@@ -107,9 +107,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const res    = await axios.get('/alerts/api/recent/?minutes=1440&limit=20' + mineParam);
             const alarms = Array.isArray(res.data) ? res.data : [];
 
+            const SEV_ORDER = { danger: 3, warning: 2, anomaly: 1 };
+            alarms.sort((a, b) => (SEV_ORDER[b.severity] || 0) - (SEV_ORDER[a.severity] || 0));
+
             const alarmItems = alarms.map(a => {
-                const icon = a.severity === 'danger'
+                const isDanger  = a.severity === 'danger';
+                const isAnomaly = a.severity === 'anomaly';
+                const icon = isDanger
                     ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 3.5l8.7 15H3.3L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>`
+                    : isAnomaly
+                    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/><text x="12" y="16" text-anchor="middle" font-size="12" fill="white">AI</text></svg>`
                     : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
                 return `
                 <li class="event-item event--${a.severity}" data-id="${a.id}">
@@ -122,14 +129,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 </li>`;
             });
 
-            list.innerHTML = buildWorkerItem() + alarmItems.join('') || '<li class="event-empty">현재 이벤트가 없습니다.</li>';
+            const items = buildWorkerItem() + alarmItems.join('');
+            list.innerHTML = items || '<li class="event-empty">현재 이벤트가 없습니다.</li>';
 
             const dangerCount  = alarms.filter(a => a.severity === 'danger').length;
             const warningCount = alarms.filter(a => a.severity === 'warning').length;
+            const anomalyCount = alarms.filter(a => a.severity === 'anomaly').length;
             const dangerEl  = document.querySelector('.event-count-danger');
             const warningEl = document.querySelector('.event-count-warning');
+            const anomalyEl = document.querySelector('.event-count-anomaly');
             if (dangerEl)  dangerEl.textContent  = `위험 ${dangerCount}건`;
             if (warningEl) warningEl.textContent = `주의 ${warningCount}건`;
+            if (anomalyEl) anomalyEl.textContent = `AI탐지 ${anomalyCount}건`;
 
         } catch (e) {
             console.error('[EventList] 로딩 실패:', e);

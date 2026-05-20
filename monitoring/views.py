@@ -67,8 +67,11 @@ def ingest_gas(request):
     gas_fields = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
     values = {f: raw.get(f) for f in gas_fields}
 
+    comm_err = all(v is not None and float(v) == -1 for v in values.values())
     missing_count = sum(1 for v in values.values() if v is None)
-    if missing_count == len(gas_fields):
+    if comm_err:
+        quality_flag = 'comm_err'
+    elif missing_count == len(gas_fields):
         quality_flag = 'missing'
     elif missing_count > 0:
         quality_flag = 'partial'
@@ -91,8 +94,11 @@ def ingest_gas(request):
     )
     update_last_seen(device)
 
-    from monitoring.anomaly.window import push as window_push
+    from monitoring.anomaly.window import push as window_push, _buffers, init_from_db as window_init
     window_push(device.device_uid, reading)
+    # 서버 재시작 후 첫 수신 시 DB에서 버퍼를 채움 (최소 10개 미만이면 보충)
+    if len(_buffers.get(device.device_uid, {}).get('co', [])) < 10:
+        window_init(device.device_uid)
 
     from alerts.services import check_gas_thresholds
     check_gas_thresholds(device, reading)
@@ -101,6 +107,51 @@ def ingest_gas(request):
     from alerts.services import trigger_anomaly_alarms
     zscore_results = zscore_analyze(device.device_uid, reading)
     trigger_anomaly_alarms(device, zscore_results)
+
+    # STEP E: Change Point detection
+    try:
+        from monitoring.anomaly.changepoint import analyze as cp_analyze
+        from alerts.services import trigger_changepoint_alarms
+        cp_results = cp_analyze(device.device_uid, reading)
+        if cp_results:
+            trigger_changepoint_alarms(device, cp_results)
+    except Exception as _e:
+        pass
+
+    # STEP F: Isolation Forest
+    try:
+        from monitoring.anomaly.isolation import analyze as iso_analyze
+        from alerts.services import trigger_isolation_alarm
+        iso_result = iso_analyze(device.device_uid, reading)
+        if iso_result.get('is_anomaly'):
+            trigger_isolation_alarm(device, iso_result)
+    except Exception as _e:
+        pass
+
+    # STEP G: ARIMA 예측 — 백그라운드 스레드로 실행
+    # Celery 워커는 별도 프로세스라 _latest 캐시를 공유 못 함.
+    # daemon 스레드는 같은 프로세스 메모리를 공유하므로 get_latest()에서 읽힘.
+    try:
+        import threading
+        import django.db
+
+        _uid     = device.device_uid
+        _reading = reading
+        _device  = device
+
+        def _arima_bg():
+            try:
+                from monitoring.anomaly.arima import analyze as arima_analyze
+                from alerts.services import trigger_arima_alarms
+                results = arima_analyze(_uid, _reading)
+                if results:
+                    trigger_arima_alarms(_device, results)
+            finally:
+                django.db.close_old_connections()
+
+        threading.Thread(target=_arima_bg, daemon=True).start()
+    except Exception as _e:
+        pass
 
     # ─── sensor WebSocket broadcast ───────────────────────
     try:
@@ -223,6 +274,50 @@ def ingest_power(request):
 
     from alerts.services import check_power_thresholds
     check_power_thresholds(device, channel, float(request.data.get('power_w', 0)))
+
+    # 전력 슬라이딩 윈도우 + ARIMA 예측 (백그라운드 스레드)
+    if quality_flag == 'ok' and float(power_w) >= 0:
+        rated = float(channel.rated_power_w or 1000)
+        load_ratio = float(power_w) / rated * 100
+
+        from monitoring.anomaly.power_window import push as pw_push
+        pw_push(device_uid, channel_code, load_ratio)
+
+        # Z-score 통계 이상탐지 (동기 — 빠름)
+        try:
+            from monitoring.anomaly.power_zscore import analyze as pz_analyze
+            from alerts.services import check_power_zscore_alarms
+            zs_result = pz_analyze(device_uid, channel_code, load_ratio)
+            check_power_zscore_alarms(device, channel, zs_result)
+        except Exception:
+            pass
+
+        # Change Point 탐지 (동기 — 빠름)
+        try:
+            from monitoring.anomaly.power_changepoint import analyze as pcp_analyze
+            from alerts.services import trigger_power_changepoint_alarms
+            cp_result = pcp_analyze(device_uid, channel_code, load_ratio)
+            trigger_power_changepoint_alarms(device, channel, cp_result)
+        except Exception:
+            pass
+
+        # ARIMA 예측 (백그라운드 스레드 — 느림)
+        try:
+            import threading
+            import django.db
+
+            _uid, _ch_code, _rated = device_uid, channel_code, rated
+
+            def _power_arima_bg():
+                try:
+                    from monitoring.anomaly.power_arima import analyze as pa_analyze
+                    pa_analyze(_uid, _ch_code, _rated)
+                finally:
+                    django.db.close_old_connections()
+
+            threading.Thread(target=_power_arima_bg, daemon=True).start()
+        except Exception:
+            pass
 
     return Response({'status': 'ok'})
 
@@ -425,3 +520,241 @@ class ActionLogViewSet(viewsets.ModelViewSet):
     serializer_class = ActionLogSerializer
     filter_backends  = [DjangoFilterBackend]
     filterset_fields = ["inspection"]
+
+
+# ── AI 상태 API ───────────────────────────────────────────
+
+@api_view(['GET'])
+def ai_gas_status(request):
+    """
+    GET /monitoring/api/ai-status/
+    메모리에 캐시된 각 장비별 최신 AI 분석 결과 반환.
+    FastAPI가 데이터를 보내는 즉시 갱신되므로 폴링에 적합.
+    """
+    from monitoring.anomaly.zscore import get_latest as zs_latest
+    from monitoring.anomaly.changepoint import get_latest as cp_latest
+    from monitoring.anomaly.isolation import get_latest as iso_latest
+    from monitoring.anomaly.arima import get_latest as arima_latest, get_latest_forecasts as arima_forecasts
+
+    devices = Device.objects.filter(device_type='gas', is_active=True).values(
+        'id', 'device_uid', 'device_name', 'status', 'last_seen_at'
+    )
+
+    _STATUS_PRIORITY = (
+        'CHANGE_POINT_ALERT', 'ISOLATION_ANOMALY', 'CRITICAL',
+        'ANOMALY_WARNING', 'PREDICTIVE_WARNING',
+        'CHANGE_POINT_WARNING', 'CHANGE_POINT_VARIANCE',
+        'NORMAL', 'INSUFFICIENT_DATA',
+    )
+
+    def _worst(items):
+        statuses = {r.get('final_status', 'NORMAL') for r in (items if isinstance(items, list) else [items])}
+        for s in _STATUS_PRIORITY:
+            if s in statuses:
+                return s
+        return 'NORMAL'
+
+    result = []
+    for d in devices:
+        uid = d['device_uid']
+        zs   = zs_latest(uid)
+        cp   = cp_latest(uid)
+        iso  = iso_latest(uid)
+        ar   = arima_latest(uid)
+        ar_fc = arima_forecasts(uid)
+
+        result.append({
+            'device_uid':   uid,
+            'device_name':  d['device_name'],
+            'status':       d['status'],
+            'last_seen_at': d['last_seen_at'].isoformat() if d['last_seen_at'] else None,
+            'zscore': {
+                'status':    _worst(zs),
+                'anomalies': [r for r in zs if r['final_status'] not in ('NORMAL',)],
+            },
+            'changepoint': {
+                'status':  _worst(cp),
+                'details': cp,
+            },
+            'isolation': {
+                'status':   iso.get('final_status', 'NORMAL') if iso else 'NORMAL',
+                'score':    iso.get('score') if iso else None,
+                'is_anomaly': iso.get('is_anomaly', False) if iso else False,
+            },
+            'arima': {
+                'status':      _worst(ar),
+                'predictions': ar,
+                'forecasts':   ar_fc,  # gas → [v1,v2,v3,v4,v5] 전체 예측값 (차트용)
+            },
+        })
+
+    return Response({
+        'updated_at': timezone.now().isoformat(),
+        'devices':    result,
+    })
+
+
+@api_view(['GET'])
+def power_history(request):
+    """
+    GET /monitoring/api/power-history/?device_id={id}&limit={n}
+    채널별 최근 N개 전력 측정값 반환 (시계열 AI 예측 차트용)
+    """
+    device_id = request.query_params.get('device_id')
+    limit = min(int(request.query_params.get('limit', 30)), 100)
+
+    if not device_id:
+        return Response({'error': 'device_id required'}, status=400)
+
+    channels = DeviceChannel.objects.filter(device_id=device_id, is_active=True)
+    result = {}
+
+    for ch in channels:
+        readings = list(
+            PowerReading.objects
+            .filter(channel=ch, quality_flag='ok', power_w__gte=0)
+            .order_by('-measured_at')[:limit]
+        )
+        readings.reverse()
+        rated = ch.rated_power_w or 1000
+        result[ch.channel_code] = {
+            'channel_name': ch.channel_name or ch.channel_code,
+            'rated_w':      rated,
+            'readings': [
+                {
+                    'power_w':    r.power_w,
+                    'load_ratio': round(r.power_w / rated * 100, 1),
+                    'measured_at': r.measured_at.isoformat(),
+                }
+                for r in readings
+            ],
+        }
+
+    return Response(result)
+
+
+@api_view(['GET'])
+def gas_history(request):
+    """
+    GET /monitoring/api/gas-history/?device_id={id}&limit={n}
+    최근 N개 가스 측정값 반환 (시계열 AI 예측 차트용, 시간순 정렬)
+    """
+    device_id = request.query_params.get('device_id')
+    limit = min(int(request.query_params.get('limit', 30)), 100)
+
+    if not device_id:
+        return Response({'error': 'device_id required'}, status=400)
+
+    readings = list(
+        GasReading.objects
+        .filter(device_id=device_id, quality_flag='ok')
+        .order_by('-measured_at')[:limit]
+    )
+    readings.reverse()
+    serializer = GasReadingSerializer(readings, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def ai_power_status(request):
+    """
+    GET /monitoring/api/ai-power-status/
+    전력 장비별 채널 과부하 분석 (룰 기반).
+    최근 수신된 채널별 PowerReading에서 rated_power_w 대비 사용률 계산.
+    """
+    from monitoring.models import PowerReading, DeviceChannel
+    from datetime import timedelta
+
+    stale_cutoff = timezone.now() - timedelta(minutes=30)  # 30분 이내면 유효
+    devices = Device.objects.filter(device_type='power', is_active=True)
+
+    result = []
+    for device in devices:
+        channels = DeviceChannel.objects.filter(device=device, is_active=True)
+
+        ch_stats = []
+        total_power = 0
+        overload_count = 0
+
+        for ch in channels:
+            # 시간 제한 없이 가장 최신 값 조회 (단, 30분 초과면 stale 표시)
+            r = (
+                PowerReading.objects
+                .filter(channel=ch, power_w__gte=0)
+                .order_by('-measured_at')
+                .first()
+            )
+            if not r:
+                continue
+            is_stale = r.measured_at < stale_cutoff
+
+            rated   = ch.rated_power_w or 1000
+            ratio   = round(r.power_w / rated * 100, 1)
+            total_power += r.power_w
+
+            if ratio >= 100:
+                ch_status = 'DANGER'
+                overload_count += 1
+            elif ratio >= 80:
+                ch_status = 'WARNING'
+            else:
+                ch_status = 'NORMAL'
+
+            from monitoring.anomaly.power_arima       import get_latest as pa_latest
+            from monitoring.anomaly.power_zscore      import get_latest as pz_latest
+            from monitoring.anomaly.power_changepoint import get_latest as pcp_latest
+            arima  = pa_latest(device.device_uid, ch.channel_code)
+            zscore = pz_latest(device.device_uid, ch.channel_code)
+            cp     = pcp_latest(device.device_uid, ch.channel_code)
+
+            ch_stats.append({
+                'channel_code': ch.channel_code,
+                'channel_name': ch.channel_name or ch.channel_code,
+                'power_w':      r.power_w,
+                'rated_w':      rated,
+                'ratio':        ratio,
+                'status':       ch_status,
+                'is_stale':     is_stale,
+                'zscore': {
+                    'final_status': zscore['final_status'] if zscore else 'NORMAL',
+                    'z_score':      zscore['z_score']      if zscore else None,
+                    'mean':         zscore['mean']         if zscore else None,
+                },
+                'arima': {
+                    'forecast':   arima['forecast']   if arima else None,
+                    'eta_warn':   arima['eta_warn']   if arima else None,
+                    'eta_danger': arima['eta_danger'] if arima else None,
+                    'max_load':   arima['max_load']   if arima else None,
+                },
+                'changepoint': {
+                    'final_status':     cp['final_status']     if cp else 'NORMAL',
+                    'mean_shift_score': cp['mean_shift_score'] if cp else None,
+                    'std_ratio':        cp['std_ratio']        if cp else None,
+                    'direction':        cp['direction']        if cp else None,
+                },
+            })
+
+        if overload_count > 0:
+            dev_status = 'DANGER'
+        elif any(c['status'] == 'WARNING' for c in ch_stats):
+            dev_status = 'WARNING'
+        elif ch_stats:
+            dev_status = 'NORMAL'
+        else:
+            dev_status = 'NO_DATA'
+
+        result.append({
+            'device_uid':    device.device_uid,
+            'device_name':   device.device_name,
+            'status':        dev_status,
+            'total_power_w': total_power,
+            'overload_count': overload_count,
+            'channel_count':  len(ch_stats),
+            'channels':      sorted(ch_stats, key=lambda x: x['ratio'], reverse=True)[:5],
+        })
+
+    return Response({
+        'updated_at': timezone.now().isoformat(),
+        'devices':    result,
+    })
+

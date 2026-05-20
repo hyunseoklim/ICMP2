@@ -132,6 +132,7 @@ function initPowerChartGrid(channels) {
 
     if (!channels || channels.length === 0) {
         grid.innerHTML = '<p class="text-center text-muted">채널 데이터 없음</p>';
+        powerCharts = {};
         return;
     }
 
@@ -454,6 +455,10 @@ function updatePowerNav() {
     if (pageEl) pageEl.textContent = `${powerCurrentIndex + 1} / ${powerDevices.length}`;
 
     loadLatestPower(device.id);
+
+    // AI 예측 탭이 활성화 상태면 해당 장비로 AI 차트도 갱신
+    const aiTabActive = document.getElementById('tab-ai')?.classList.contains('active');
+    if (aiTabActive) loadPowerAICharts(device.id, device.device_uid);
 }
 
 
@@ -461,6 +466,7 @@ function updatePowerNav() {
 // 초기화
 // ══════════════════════════════════════════════════════════
 window.initPowerWidget = async function () {
+    initPowerAITab();
     try {
         const res = await DeviceAPI.getList({ device_type: 'power', is_active: true });
         powerDevices = res.data.results || res.data;
@@ -493,6 +499,294 @@ window.initPowerWidget = async function () {
 
 
 // ══════════════════════════════════════════════════════════
+// AI 예측 탭 — 채널별 부하율 라인차트
+// ══════════════════════════════════════════════════════════
+
+// 현재 시점 수직 파란선 플러그인
+const powerForecastSeparatorPlugin = {
+    id: 'powerForecastSeparator',
+    afterDraw(chart) {
+        const splitIdx = chart.config._splitIdx;
+        if (splitIdx == null) return;
+        const { ctx, chartArea: area, scales: { x } } = chart;
+        if (!area || !x) return;
+
+        const xPos = x.getPixelForValue(splitIdx - 0.5);
+
+        // 파란 실선
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(xPos, area.top);
+        ctx.lineTo(xPos, area.bottom);
+        ctx.strokeStyle = 'rgba(56,189,248,0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([]);
+        ctx.stroke();
+        ctx.restore();
+
+        // "현재" 레이블
+        ctx.save();
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('현재', xPos, area.top + 10);
+        ctx.restore();
+    },
+};
+Chart.register(powerForecastSeparatorPlugin);
+
+let powerAICharts = {};
+
+// 최근 트렌드 기반 예측 (최근 5개 포인트의 변화율을 미래로 연장)
+function trendForecast(values, steps) {
+    const clean = values.filter(v => v !== null && v !== undefined);
+    if (clean.length === 0) return Array(steps).fill(0);
+    if (clean.length === 1) return Array(steps).fill(clean[0]);
+
+    // 최근 최대 5개 포인트로 트렌드 계산
+    const recent = clean.slice(Math.max(0, clean.length - 5));
+    const trend  = (recent[recent.length - 1] - recent[0]) / Math.max(1, recent.length - 1);
+    const last   = clean[clean.length - 1];
+
+    return Array.from({ length: steps }, (_, i) => {
+        const v = last + trend * (i + 1);
+        return Math.round(Math.max(0, Math.min(150, v)) * 10) / 10;
+    });
+}
+
+function initPowerAITab() {
+    const grid = document.getElementById('power-ai-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div class="ai-loading-msg">채널 데이터 로딩 중...</div>';
+}
+
+async function loadPowerAICharts(deviceId, deviceUid) {
+    if (!deviceId) return;
+
+    Object.values(powerAICharts).forEach(c => { try { c.destroy(); } catch (_) {} });
+    powerAICharts = {};
+
+    const grid = document.getElementById('power-ai-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div class="ai-loading-msg">로딩 중...</div>';
+
+    try {
+        const [histData, aiData] = await Promise.all([
+            fetch(`/monitoring/api/power-history/?device_id=${deviceId}&limit=30`).then(r => r.json()),
+            fetch('/monitoring/api/ai-power-status/').then(r => r.json()),
+        ]);
+
+        const entries = Object.entries(histData);
+        if (entries.length === 0) {
+            grid.innerHTML = '<div class="ai-loading-msg">채널 데이터 없음</div>';
+            return;
+        }
+
+        // 현재 device의 채널별 ARIMA 결과 추출
+        const deviceAI = (aiData.devices || []).find(d => d.device_uid === deviceUid);
+        const arimaMap = {};
+        if (deviceAI) {
+            (deviceAI.channels || []).forEach(ch => {
+                arimaMap[ch.channel_code] = ch.arima;
+            });
+        }
+
+        grid.innerHTML = entries.map(([code, ch]) => {
+            const readings     = ch.readings || [];
+            const histValues   = readings.map(r => r.load_ratio);
+            const currentLoad  = histValues.length > 0 ? histValues[histValues.length - 1] : null;
+            const cardLevel    = currentLoad === null ? 'normal'
+                               : currentLoad > DANGER_LOAD ? 'danger'
+                               : currentLoad > WARN_LOAD   ? 'warning' : 'normal';
+            return `
+            <div class="power-ai-card power-ai-card--${cardLevel}" id="pai-card-${code}">
+                <div class="power-ai-card__header">
+                    <span class="power-ai-card__name">• ${ch.channel_name}</span>
+                    <span class="level-badge" id="pai-badge-${code}">-</span>
+                </div>
+                <div class="power-ai-insight" id="pai-insight-${code}">
+                    <span class="ai-insight-muted">로딩 중...</span>
+                </div>
+                <div class="power-ai-card__canvas-wrap">
+                    <canvas id="pai-chart-${code}"></canvas>
+                </div>
+            </div>`;
+        }).join('');
+
+        requestAnimationFrame(() => {
+            entries.forEach(([code, ch]) => {
+                const readings   = ch.readings || [];
+                const histLabels = readings.map(r => {
+                    const t = new Date(r.measured_at);
+                    return t.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+                });
+                const histValues   = readings.map(r => r.load_ratio);
+                const arima        = arimaMap[code] || null;
+                // 백엔드 ARIMA 결과가 있으면 사용, 없으면 단순 트렌드로 폴백
+                const forecastValues = (arima && arima.forecast) ? arima.forecast : trendForecast(histValues, 12);
+                const currentLoad  = histValues.length > 0 ? histValues[histValues.length - 1] : null;
+                const level = currentLoad === null ? 'normal'
+                            : currentLoad > DANGER_LOAD ? 'danger'
+                            : currentLoad > WARN_LOAD   ? 'warning' : 'normal';
+
+                createPowerAILineChart(code, ch.channel_name, histLabels, histValues, forecastValues, currentLoad, level, arima);
+            });
+        });
+
+    } catch (e) {
+        console.error('전력 AI 차트 로드 실패:', e);
+        grid.innerHTML = '<div class="ai-loading-msg">로드 실패</div>';
+    }
+}
+
+function createPowerAILineChart(code, name, histLabels, histValues, forecastValues, currentLoad, level, arima = null) {
+    const ctx = document.getElementById(`pai-chart-${code}`);
+    if (!ctx) return;
+
+    // Badge
+    const badge = document.getElementById(`pai-badge-${code}`);
+    if (badge) {
+        const ko = level === 'danger' ? '위험' : level === 'warning' ? '주의' : '정상';
+        badge.textContent = ko;
+        badge.className = `level-badge level--${level}`;
+    }
+
+    // Insight — 백엔드 ARIMA 결과 우선, 없으면 프론트 트렌드 폴백
+    const insight = document.getElementById(`pai-insight-${code}`);
+    if (insight) {
+        const valStr = currentLoad !== null ? `${currentLoad}%` : '-';
+
+        let etaStr = '';
+        if (arima) {
+            // 백엔드 ARIMA 결과 사용
+            if (currentLoad !== null && currentLoad >= DANGER_LOAD) {
+                etaStr = `<span class="ai-insight-danger">현재 위험 초과</span>`;
+            } else if (arima.eta_danger !== null && arima.eta_danger !== undefined) {
+                etaStr = `<span class="ai-insight-warn">위험 도달 예상: ${arima.eta_danger}분 후</span>`;
+            } else if (arima.eta_warn !== null && arima.eta_warn !== undefined) {
+                etaStr = `<span class="ai-insight-warn">주의 도달 예상: ${arima.eta_warn}분 후</span>`;
+            }
+        } else {
+            // 폴백: 단순 트렌드 직선 계산
+            if (currentLoad !== null && currentLoad >= DANGER_LOAD) {
+                etaStr = `<span class="ai-insight-danger">현재 위험 초과</span>`;
+            } else if (currentLoad !== null) {
+                const recent = histValues.slice(Math.max(0, histValues.length - 5)).filter(v => v != null);
+                if (recent.length >= 2) {
+                    const trend = (recent[recent.length - 1] - recent[0]) / Math.max(1, recent.length - 1);
+                    if (trend > 0) {
+                        const eta = Math.ceil((DANGER_LOAD - currentLoad) / trend);
+                        if (eta <= 1440) etaStr = `<span class="ai-insight-warn">위험 도달 예상: ${eta}분 후</span>`;
+                    }
+                }
+            }
+        }
+
+        let maxStr = '';
+        const maxLoad = arima ? arima.max_load : null;
+        if (maxLoad !== null && maxLoad !== undefined) {
+            const cls = maxLoad > DANGER_LOAD ? 'ai-insight-danger'
+                      : maxLoad > WARN_LOAD   ? 'ai-insight-warn' : 'ai-insight-ok';
+            maxStr = `<span class="${cls}">예측 최대: ${maxLoad}%</span>`;
+        }
+
+        insight.innerHTML = `<span class="ai-insight-val">현재: <b>${valStr}</b></span>${etaStr}${maxStr}`;
+    }
+
+    const N_HIST = histValues.length;
+    const N_FORE = forecastValues.length;
+    const forecastLabels = forecastValues.map((_, i) => `+${i + 1}분`);
+    const allLabels      = [...histLabels, ...forecastLabels];
+
+    const histDataset = [...histValues, ...Array(N_FORE).fill(null)];
+    const foreDataset = N_HIST > 0
+        ? [...Array(N_HIST - 1).fill(null), histValues[N_HIST - 1], ...forecastValues]
+        : null;
+
+    const datasets = [{
+        label: '실측',
+        data: histDataset,
+        borderColor: '#38bdf8',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        spanGaps: false,
+        tension: 0.2,
+    }];
+    if (foreDataset) {
+        datasets.push({
+            label: 'AI 예측',
+            data: foreDataset,
+            borderColor: '#fb923c',
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderDash: [5, 4],
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            pointBackgroundColor: '#fb923c',
+            spanGaps: false,
+            tension: 0.2,
+        });
+    }
+
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: allLabels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 0 },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                powerZoneBackground: {},
+                tooltip: {
+                    backgroundColor: 'rgba(22,27,34,0.95)',
+                    borderColor: '#2a3448',
+                    borderWidth: 1,
+                    titleColor: '#94a3b8',
+                    bodyColor: '#e2e8f0',
+                    titleFont: { size: 10 },
+                    bodyFont:  { size: 11 },
+                    padding: 8,
+                    filter: item => item.parsed.y !== null,
+                    callbacks: {
+                        label: ctx => {
+                            const v = ctx.parsed.y;
+                            return v === null ? null : `${ctx.dataset.label}: ${v}%`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    grid:   { color: 'rgba(255,255,255,0.04)' },
+                    ticks:  { color: '#4b5563', font: { size: 8 }, maxTicksLimit: 7, maxRotation: 0 },
+                    border: { color: 'rgba(255,255,255,0.08)' },
+                },
+                y: (() => {
+                    const allVals = [...histValues, ...forecastValues].filter(v => v !== null);
+                    const yMin = allVals.length ? Math.max(0,   Math.floor(Math.min(...allVals) / 10) * 10 - 10) : 0;
+                    const yMax = allVals.length ? Math.min(120, Math.ceil(Math.max(...allVals)  / 10) * 10 + 10) : 110;
+                    return {
+                        min: yMin,
+                        max: yMax,
+                        grid:   { color: 'rgba(255,255,255,0.04)' },
+                        ticks:  { color: '#4b5563', font: { size: 8 }, maxTicksLimit: 5, callback: v => `${v}%` },
+                        border: { color: 'rgba(255,255,255,0.08)' },
+                    };
+                })(),
+            },
+        },
+    });
+
+    chart.config._splitIdx = N_HIST;
+    powerAICharts[code] = chart;
+}
+
+
+// ══════════════════════════════════════════════════════════
 // 상세 페이지 전용 이벤트
 // ══════════════════════════════════════════════════════════
 document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
@@ -501,6 +795,17 @@ document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById(`tab-${btn.dataset.tab}`)?.classList.add('active');
+
+        const isAI = btn.dataset.tab === 'ai';
+        const legendRT = document.getElementById('power-legend-realtime');
+        const legendAI = document.getElementById('power-legend-ai');
+        if (legendRT) legendRT.style.display = isAI ? 'none' : '';
+        if (legendAI) legendAI.style.display = isAI ? '' : 'none';
+
+        if (isAI) {
+            const device = powerDevices[powerCurrentIndex];
+            if (device) loadPowerAICharts(device.id, device.device_uid);
+        }
     });
 });
 

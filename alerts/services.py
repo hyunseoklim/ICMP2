@@ -76,22 +76,74 @@ def check_gas_thresholds(device, reading) -> None:
         )
 
 
+def check_power_zscore_alarms(device, channel, zs_result: dict) -> None:
+    """전력 Z-score ANOMALY_WARNING → AlarmEvent 생성/갱신. 정상 복귀 시 자동 closed."""
+    if not device.facility_id:
+        return
+    if not zs_result:
+        return
+
+    final_status = zs_result.get('final_status', 'NORMAL')
+
+    rule = AlarmRule.objects.filter(
+        rule_type=AlarmRule.RuleType.POWER,
+        is_active=True,
+    ).first()
+    if not rule:
+        return
+
+    now = timezone.now()
+    open_event = AlarmEvent.objects.filter(
+        rule=rule,
+        device=device,
+        channel=channel,
+        severity=AlarmEvent.Severity.ANOMALY,
+        event_status=AlarmEvent.EventStatus.OPEN,
+    ).order_by('-occurred_at').first()
+
+    if final_status not in ('ANOMALY_WARNING',):
+        if open_event:
+            open_event.event_status = AlarmEvent.EventStatus.CLOSED
+            open_event.closed_at = now
+            open_event.save(update_fields=['event_status', 'closed_at', 'updated_at'])
+            EventHistory.objects.create(
+                alarm_event=open_event,
+                action_type='close',
+                action_note='전력 부하율 통계 정상 복귀로 자동 종료',
+            )
+        return
+
+    z     = zs_result.get('z_score')
+    mean  = zs_result.get('mean')
+    value = zs_result.get('value')
+    ch_label = channel.channel_name or channel.channel_code
+    message  = f"부하율: {value}% (평균: {mean}%, z={z:.2f})" if z is not None else f"부하율: {value}%"
+
+    if open_event:
+        open_event.last_seen_at  = now
+        open_event.current_value = value
+        open_event.message       = message
+        open_event.save(update_fields=['last_seen_at', 'current_value', 'message', 'updated_at'])
+    else:
+        create_alarm_event(
+            rule=rule,
+            facility=device.facility,
+            severity=AlarmEvent.Severity.ANOMALY,
+            title=f"[전력 AI] {ch_label} 부하율 통계 이상",
+            device=device,
+            channel=channel,
+            message=message,
+            current_value=value,
+        )
+
+
 def check_power_thresholds(device, channel, power_w: float) -> None:
-    """전력 부하율 임계치 체크 → AlarmEvent 생성 (5분 중복 방지)"""
+    """전력 부하율 임계치 체크 → open 이벤트 갱신 또는 신규 생성. 정상 복귀 시 자동 closed."""
     if not device.facility_id:
         return
 
     rated_w = float(channel.rated_power_w or 1000)
-    if power_w <= 0 or rated_w <= 0:
-        return
-
-    load_rate = (power_w / rated_w) * 100
-
-    if load_rate >= 75:
-        severity = AlarmEvent.Severity.DANGER
-    elif load_rate >= 50:
-        severity = AlarmEvent.Severity.WARNING
-    else:
+    if rated_w <= 0:
         return
 
     rule = AlarmRule.objects.filter(
@@ -101,25 +153,51 @@ def check_power_thresholds(device, channel, power_w: float) -> None:
     if not rule:
         return
 
-    already = AlarmEvent.objects.filter(
+    load_rate = (power_w / rated_w) * 100 if power_w > 0 else 0
+    now = timezone.now()
+
+    open_event = AlarmEvent.objects.filter(
         rule=rule,
         device=device,
         channel=channel,
         event_status=AlarmEvent.EventStatus.OPEN,
-        occurred_at__gte=timezone.now() - timedelta(minutes=5),
-    ).exists()
-    if already:
+    ).order_by('-occurred_at').first()
+
+    if load_rate < 50:
+        # 정상 복귀 → open 이벤트 자동 closed
+        if open_event:
+            open_event.event_status = AlarmEvent.EventStatus.CLOSED
+            open_event.closed_at = now
+            open_event.save(update_fields=['event_status', 'closed_at', 'updated_at'])
+            EventHistory.objects.create(
+                alarm_event=open_event,
+                action_type='close',
+                action_note='부하율 정상 복귀로 자동 종료',
+            )
         return
 
-    create_alarm_event(
-        rule=rule,
-        facility=device.facility,
-        severity=severity,
-        title=f"[전력] {channel.channel_name or channel.channel_code} 부하율 {load_rate:.0f}% {_SEVERITY_LABEL[severity]}",
-        device=device,
-        channel=channel,
-        message=f"현재 전력: {power_w}W, 부하율: {load_rate:.1f}%",
-    )
+    severity = AlarmEvent.Severity.DANGER if load_rate >= 75 else AlarmEvent.Severity.WARNING
+    channel_label = channel.channel_name or channel.channel_code
+    message = f"현재 전력: {power_w}W, 부하율: {load_rate:.1f}%"
+
+    if open_event:
+        # 기존 open 이벤트 갱신
+        open_event.last_seen_at  = now
+        open_event.current_value = load_rate
+        open_event.severity      = severity
+        open_event.message       = message
+        open_event.save(update_fields=['last_seen_at', 'current_value', 'severity', 'message', 'updated_at'])
+    else:
+        create_alarm_event(
+            rule=rule,
+            facility=device.facility,
+            severity=severity,
+            title=f"[전력] {channel_label} 부하율 {load_rate:.0f}% {_SEVERITY_LABEL[severity]}",
+            device=device,
+            channel=channel,
+            message=message,
+            current_value=load_rate,
+        )
 
 def trigger_anomaly_alarms(device, zscore_results: list) -> None:
     """Z-score ANOMALY_WARNING 결과 → AlarmEvent 생성 (open 이벤트 있으면 갱신)."""
@@ -166,6 +244,155 @@ def trigger_anomaly_alarms(device, zscore_results: list) -> None:
             device=device,
             message=message,
             current_value=max_value,
+        )
+
+
+def trigger_changepoint_alarms(device, cp_results: list) -> None:
+    """Change Point 결과 → AlarmEvent 생성/갱신."""
+    if not device.facility_id:
+        return
+    anomalies = [r for r in cp_results if r.get('final_status', '').startswith('CHANGE_POINT')]
+    if not anomalies:
+        return
+
+    rule = AlarmRule.objects.filter(rule_type=AlarmRule.RuleType.THRESHOLD, is_active=True).first()
+    if not rule:
+        return
+
+    now = timezone.now()
+    gases_str = ', '.join(r['metric'].upper() for r in anomalies)
+    message   = ', '.join(
+        f"{r['metric'].upper()}: shift={r['mean_shift_score']:.2f}"
+        for r in anomalies
+    )
+    max_score = max(r['mean_shift_score'] for r in anomalies)
+
+    open_event = AlarmEvent.objects.filter(
+        rule=rule, device=device,
+        severity=AlarmEvent.Severity.ANOMALY,
+        event_status=AlarmEvent.EventStatus.OPEN,
+    ).order_by('-occurred_at').first()
+
+    if open_event:
+        open_event.last_seen_at  = now
+        open_event.current_value = max_score
+        open_event.message       = message
+        open_event.save(update_fields=['last_seen_at', 'current_value', 'message', 'updated_at'])
+    else:
+        create_alarm_event(
+            rule=rule, facility=device.facility,
+            severity=AlarmEvent.Severity.ANOMALY,
+            title=f"[AI] {gases_str} 변화점 감지",
+            device=device, message=message, current_value=max_score,
+        )
+
+
+def trigger_power_changepoint_alarms(device, channel, cp_result: dict) -> None:
+    """전력 Change Point 결과 → AlarmEvent 생성/갱신."""
+    if not device.facility_id:
+        return
+    status = cp_result.get('final_status', 'NORMAL')
+    if not status.startswith('CHANGE_POINT'):
+        return
+
+    rule = AlarmRule.objects.filter(rule_type=AlarmRule.RuleType.THRESHOLD, is_active=True).first()
+    if not rule:
+        return
+
+    now = timezone.now()
+    ch_name = channel.channel_name or channel.channel_code
+    score   = cp_result.get('mean_shift_score') or cp_result.get('std_ratio') or 0
+    message = (
+        f"{ch_name}: shift={cp_result.get('mean_shift_score', 0):.2f}, "
+        f"std_ratio={cp_result.get('std_ratio', 0):.2f}, "
+        f"direction={cp_result.get('direction', '-')}"
+    )
+
+    open_event = AlarmEvent.objects.filter(
+        rule=rule, device=device,
+        severity=AlarmEvent.Severity.ANOMALY,
+        event_status=AlarmEvent.EventStatus.OPEN,
+    ).order_by('-occurred_at').first()
+
+    if open_event:
+        open_event.last_seen_at  = now
+        open_event.current_value = score
+        open_event.message       = message
+        open_event.save(update_fields=['last_seen_at', 'current_value', 'message', 'updated_at'])
+    else:
+        create_alarm_event(
+            rule=rule, facility=device.facility,
+            severity=AlarmEvent.Severity.ANOMALY,
+            title=f"[AI] 전력 변화점 감지 — {ch_name}",
+            device=device, message=message, current_value=score,
+        )
+
+
+def trigger_isolation_alarm(device, iso_result: dict) -> None:
+    """Isolation Forest 이상 결과 → AlarmEvent 생성/갱신."""
+    if not device.facility_id or not iso_result.get('is_anomaly'):
+        return
+
+    rule = AlarmRule.objects.filter(rule_type=AlarmRule.RuleType.THRESHOLD, is_active=True).first()
+    if not rule:
+        return
+
+    now   = timezone.now()
+    score = iso_result.get('score', 0)
+    message = f"다변량 이상 감지 (score={score:.4f})"
+
+    open_event = AlarmEvent.objects.filter(
+        rule=rule, device=device,
+        severity=AlarmEvent.Severity.ANOMALY,
+        event_status=AlarmEvent.EventStatus.OPEN,
+    ).order_by('-occurred_at').first()
+
+    if open_event:
+        open_event.last_seen_at  = now
+        open_event.current_value = abs(score)
+        open_event.message       = message
+        open_event.save(update_fields=['last_seen_at', 'current_value', 'message', 'updated_at'])
+    else:
+        create_alarm_event(
+            rule=rule, facility=device.facility,
+            severity=AlarmEvent.Severity.ANOMALY,
+            title="[AI] 복합 가스 이상 패턴 감지",
+            device=device, message=message, current_value=abs(score),
+        )
+
+
+def trigger_arima_alarms(device, arima_results: list) -> None:
+    """ARIMA 예측 결과 → PREDICTIVE_WARNING AlarmEvent 생성/갱신."""
+    if not device.facility_id or not arima_results:
+        return
+
+    rule = AlarmRule.objects.filter(rule_type=AlarmRule.RuleType.THRESHOLD, is_active=True).first()
+    if not rule:
+        return
+
+    now = timezone.now()
+    gases_str = ', '.join(r['metric'].upper() for r in arima_results)
+    message   = ', '.join(
+        f"{r['metric'].upper()} {r['first_exceed_step']}분 후 초과 예측"
+        for r in arima_results
+    )
+
+    open_event = AlarmEvent.objects.filter(
+        rule=rule, device=device,
+        severity=AlarmEvent.Severity.PREDICTIVE_WARNING,
+        event_status=AlarmEvent.EventStatus.OPEN,
+    ).order_by('-occurred_at').first()
+
+    if open_event:
+        open_event.last_seen_at = now
+        open_event.message      = message
+        open_event.save(update_fields=['last_seen_at', 'message', 'updated_at'])
+    else:
+        create_alarm_event(
+            rule=rule, facility=device.facility,
+            severity=AlarmEvent.Severity.PREDICTIVE_WARNING,
+            title=f"[AI] {gases_str} 위험 임박 예측",
+            device=device, message=message,
         )
 
 

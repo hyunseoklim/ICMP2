@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -11,9 +12,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-8%t_y(+&5(&zcg6yba$)r&thfvrydt!pi4r%r!-pqhlc(u81d('
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', '1') == '1'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -80,11 +81,13 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
+_REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379')
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
+            'hosts': [_REDIS_URL],
         },
     },
 }
@@ -150,3 +153,23 @@ MEDIA_ROOT = BASE_DIR / 'media'
 AUTH_USER_MODEL = 'accounts.User'
 
 # LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# ── Celery ────────────────────────────────────────────────
+CELERY_BROKER_URL        = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND    = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_TASK_SERIALIZER   = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT    = ['json']
+CELERY_TIMEZONE          = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # ARIMA는 느려서 한 번에 하나씩
+
+# 매일 00:10 데이터 보관 주기 실행
+from celery.schedules import crontab
+CELERY_BEAT_SCHEDULE = {
+    'execute-retention-policies': {
+        'task':     'monitoring.tasks.execute_retention_policies',
+        'schedule': crontab(hour=0, minute=10),
+    },
+}
+CELERY_BEAT_SCHEDULER = 'celery.beat:PersistentScheduler'

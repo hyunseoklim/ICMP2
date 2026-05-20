@@ -24,6 +24,7 @@ const LEVEL_COLOR = {
 let gasSensors = [];
 let gasCurrentIndex = 0;
 let gasCharts = {};
+let aiCharts = {};
 let currentReading = null;
 let selectedGas = null;
 
@@ -74,6 +75,39 @@ const zoneBackgroundPlugin = {
     }
 };
 Chart.register(zoneBackgroundPlugin);
+
+
+// ══════════════════════════════════════════════════════════
+// Chart.js 커스텀 플러그인 — 예측 구간 수직 분리선
+// ══════════════════════════════════════════════════════════
+const forecastSeparatorPlugin = {
+    id: 'forecastSeparator',
+    afterDraw(chart) {
+        const splitIdx = chart.config._splitIdx;
+        if (splitIdx == null) return;
+        const { ctx, chartArea: area, scales: { x } } = chart;
+        if (!area || !x) return;
+
+        const xPos = x.getPixelForValue(splitIdx - 0.5);
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(xPos, area.top);
+        ctx.lineTo(xPos, area.bottom);
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(251,146,60,0.55)';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('예측 →', xPos + 4, area.top + 11);
+        ctx.restore();
+    },
+};
+Chart.register(forecastSeparatorPlugin);
 
 
 // ══════════════════════════════════════════════════════════
@@ -186,6 +220,21 @@ function createGasChart(gas) {
     gasCharts[gas] = chart;
 }
 
+function clearGasCharts() {
+    Object.keys(GAS_META).forEach(gas => {
+        const chart = gasCharts[gas];
+        if (chart) {
+            chart.data.datasets[0].data = [0];
+            chart.data.datasets[0].backgroundColor = LEVEL_COLOR['normal'];
+            chart.update();
+        }
+        const card  = document.getElementById(`card-${gas}`);
+        const badge = document.getElementById(`badge-${gas}`);
+        if (card)  card.className  = 'gas-chart-card gas-chart-card--normal';
+        if (badge) { badge.textContent = '-'; badge.className = 'gas-chart-card__badge level-badge level--normal'; }
+    });
+}
+
 function updateGasCharts(reading, gasLevels) {
     if (!reading) return;
 
@@ -228,6 +277,7 @@ function renderGasTable(reading) {
 
     if (!reading) {
         tbody.innerHTML = '<tr><td colspan="4" class="text-center">데이터 없음</td></tr>';
+        clearGasCharts();
         return;
     }
 
@@ -448,6 +498,10 @@ function updateGasNav() {
     if (currentEl) currentEl.textContent = device.device_uid;
 
     loadLatestGas(device.id);
+
+    // AI 예측 탭이 활성화 상태면 해당 장비로 AI 차트도 갱신
+    const aiTabActive = document.getElementById('tab-ai')?.classList.contains('active');
+    if (aiTabActive) loadAICharts(device.id, device.device_uid);
 }
 
 
@@ -456,6 +510,7 @@ function updateGasNav() {
 // ══════════════════════════════════════════════════════════
 window.initGasWidget = async function () {
     initGasChartGrid();
+    initAITab();
 
     try {
         const res = await DeviceAPI.getList({ device_type: 'gas', is_active: true });
@@ -507,6 +562,250 @@ window.initGasWidget = async function () {
 
 
 // ══════════════════════════════════════════════════════════
+// AI 예측 탭 — 가스별 라인 차트
+// ══════════════════════════════════════════════════════════
+
+function calcSingleGasLevel(gas, value) {
+    const t = GAS_THRESHOLDS[gas];
+    if (!t || value === null || value === undefined) return 'normal';
+    if (t.reverse) {
+        return value < t.danger ? 'danger'
+             : value < t.warn   ? 'warning'
+             : (t.high && value > t.high) ? 'warning'
+             : 'normal';
+    }
+    return value >= t.danger ? 'danger' : value >= t.warn ? 'warning' : 'normal';
+}
+
+function initAITab() {
+    const grid = document.getElementById('ai-chart-grid');
+    if (!grid) return;
+
+    grid.innerHTML = Object.keys(GAS_META).map(gas => `
+        <div class="ai-chart-card" id="ai-card-${gas}">
+            <div class="ai-chart-card__header">
+                <span class="ai-chart-card__name">• ${GAS_META[gas].formula}(${GAS_META[gas].name})</span>
+                <span class="ai-chart-card__badge level-badge" id="ai-badge-${gas}">-</span>
+            </div>
+            <div class="ai-chart-insight" id="ai-insight-${gas}">
+                <span class="ai-insight-muted">데이터 로딩 중...</span>
+            </div>
+            <div class="ai-chart-card__canvas-wrap">
+                <canvas id="ai-chart-${gas}"></canvas>
+            </div>
+        </div>`
+    ).join('');
+}
+
+async function loadAICharts(deviceId, deviceUid) {
+    if (!deviceId) return;
+
+    Object.values(aiCharts).forEach(c => { try { c.destroy(); } catch (_) {} });
+    aiCharts = {};
+
+    Object.keys(GAS_META).forEach(gas => {
+        const insight = document.getElementById(`ai-insight-${gas}`);
+        if (insight) insight.innerHTML = '<span class="ai-insight-muted">로딩 중...</span>';
+    });
+
+    try {
+        const [histData, aiData] = await Promise.all([
+            fetch(`/monitoring/api/gas-history/?device_id=${deviceId}&limit=30`).then(r => r.json()),
+            fetch('/monitoring/api/ai-status/').then(r => r.json()),
+        ]);
+
+        const history = Array.isArray(histData) ? histData : [];
+        const deviceAI = (aiData.devices || []).find(d => d.device_uid === deviceUid);
+
+        // Isolation Forest 상태 카드 업데이트
+        const ifCard  = document.getElementById('if-status-card');
+        const ifBadge = document.getElementById('if-status-badge');
+        const ifScore = document.getElementById('if-status-score');
+        if (ifCard && deviceAI?.isolation) {
+            const iso = deviceAI.isolation;
+            const isAnomaly = iso.is_anomaly;
+            ifBadge.textContent  = isAnomaly ? '이상 감지' : '정상';
+            ifBadge.style.background    = isAnomaly ? '#ef4444' : '#22c55e';
+            ifBadge.style.color         = '#fff';
+            ifScore.textContent  = iso.score != null ? `score: ${iso.score}` : '(실시간 데이터 대기 중)';
+            ifCard.style.display = 'flex';
+        }
+
+        Object.keys(GAS_META).forEach(gas => {
+            const histValues = history.map(r => r[gas] ?? null);
+            const histLabels = history.map(r => {
+                const t = new Date(r.measured_at);
+                return t.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            });
+
+            // ARIMA 예측값: forecasts(전체) → predictions(임계 초과) 순서로 탐색
+            let forecastValues = null;
+            let firstExceedStep = null;
+            if (deviceAI?.arima) {
+                if (deviceAI.arima.forecasts?.[gas]) {
+                    forecastValues = deviceAI.arima.forecasts[gas];
+                }
+                const pred = deviceAI.arima.predictions?.find(p => p.metric === gas);
+                if (pred) {
+                    if (!forecastValues) forecastValues = pred.forecast;
+                    firstExceedStep = pred.first_exceed_step;
+                }
+            }
+
+            const currentValue = histValues.length > 0 ? histValues[histValues.length - 1] : null;
+            const level = currentValue !== null ? calcSingleGasLevel(gas, currentValue) : 'normal';
+
+            createAILineChart(gas, histLabels, histValues, forecastValues, firstExceedStep, currentValue, level);
+        });
+
+    } catch (e) {
+        console.error('AI 차트 로드 실패:', e);
+        Object.keys(GAS_META).forEach(gas => {
+            const insight = document.getElementById(`ai-insight-${gas}`);
+            if (insight) insight.innerHTML = '<span class="ai-insight-muted">로드 실패</span>';
+        });
+    }
+}
+
+function createAILineChart(gas, histLabels, histValues, forecastValues, firstExceedStep, currentValue, level) {
+    const ctx = document.getElementById(`ai-chart-${gas}`);
+    if (!ctx) return;
+
+    const meta = GAS_META[gas];
+    const t = GAS_THRESHOLDS[gas];
+
+    // Badge
+    const badge = document.getElementById(`ai-badge-${gas}`);
+    if (badge) {
+        const levelKo = level === 'danger' ? '위험' : level === 'warning' ? '주의' : '정상';
+        badge.textContent = levelKo;
+        badge.className = `ai-chart-card__badge level-badge level--${level}`;
+    }
+
+    // Insight row
+    const insight = document.getElementById(`ai-insight-${gas}`);
+    if (insight) {
+        const valStr = currentValue !== null ? `${currentValue} ${meta.unit}` : '-';
+        let warn = '';
+        if (forecastValues && firstExceedStep) {
+            warn = `<span class="ai-insight-warn">⚠ ${firstExceedStep}분 후 임계치 초과 예상</span>`;
+        } else if (forecastValues) {
+            warn = `<span class="ai-insight-ok">예측 범위 정상</span>`;
+        } else {
+            warn = `<span class="ai-insight-muted">예측 데이터 부족</span>`;
+        }
+        insight.innerHTML = `<span class="ai-insight-val">현재: <b>${valStr}</b></span>${warn}`;
+    }
+
+    const N_HIST = histValues.length;
+    const N_FORE = forecastValues ? forecastValues.length : 0;
+
+    const forecastLabels = forecastValues ? forecastValues.map((_, i) => `+${i + 1}분`) : [];
+    const allLabels = [...histLabels, ...forecastLabels];
+
+    // History: values + nulls for forecast region
+    const histDataset = [...histValues, ...Array(N_FORE).fill(null)];
+
+    // Forecast: bridge from last history point + forecast values
+    let forecastDataset = null;
+    if (forecastValues && N_HIST > 0) {
+        forecastDataset = [
+            ...Array(N_HIST - 1).fill(null),
+            histValues[N_HIST - 1],
+            ...forecastValues,
+        ];
+    }
+
+    const datasets = [
+        {
+            label: '실측',
+            data: histDataset,
+            borderColor: '#38bdf8',
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+            spanGaps: false,
+            tension: 0.2,
+        },
+    ];
+    if (forecastDataset) {
+        datasets.push({
+            label: '예측',
+            data: forecastDataset,
+            borderColor: '#fb923c',
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderDash: [5, 4],
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            pointBackgroundColor: '#fb923c',
+            spanGaps: false,
+            tension: 0.2,
+        });
+    }
+
+    const yMin = gas === 'o2' ? 10 : 0;
+    const yMax = t?.max ?? 100;
+
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: allLabels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 0 },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(22,27,34,0.95)',
+                    borderColor: '#2a3448',
+                    borderWidth: 1,
+                    titleColor: '#94a3b8',
+                    bodyColor: '#e2e8f0',
+                    titleFont: { size: 10 },
+                    bodyFont: { size: 11 },
+                    padding: 8,
+                    filter: item => item.parsed.y !== null,
+                    callbacks: {
+                        label: ctx => {
+                            const v = ctx.parsed.y;
+                            if (v === null) return null;
+                            return `${ctx.dataset.label}: ${v} ${meta.unit}`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    ticks: {
+                        color: '#4b5563',
+                        font: { size: 8 },
+                        maxTicksLimit: 7,
+                        maxRotation: 0,
+                    },
+                    border: { color: 'rgba(255,255,255,0.08)' },
+                },
+                y: {
+                    min: yMin,
+                    max: yMax,
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    ticks: { color: '#4b5563', font: { size: 8 }, maxTicksLimit: 5 },
+                    border: { color: 'rgba(255,255,255,0.08)' },
+                },
+            },
+        },
+    });
+
+    chart.config._gasKey  = gas;
+    chart.config._splitIdx = N_HIST;
+    aiCharts[gas] = chart;
+}
+
+
+// ══════════════════════════════════════════════════════════
 // 상세 페이지 전용 이벤트
 // ══════════════════════════════════════════════════════════
 document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
@@ -515,6 +814,15 @@ document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById(`tab-${btn.dataset.tab}`)?.classList.add('active');
+
+        const isAI = btn.dataset.tab === 'ai';
+        document.getElementById('legend-realtime').style.display = isAI ? 'none' : '';
+        document.getElementById('legend-ai').style.display       = isAI ? ''     : 'none';
+
+        if (isAI) {
+            const device = gasSensors[gasCurrentIndex];
+            if (device) loadAICharts(device.id, device.device_uid);
+        }
     });
 });
 

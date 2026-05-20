@@ -16,6 +16,11 @@ from monitoring.views import (
     ThresholdPolicyViewSet,
     InspectionLogViewSet,
     ActionLogViewSet,
+    # AI
+    ai_gas_status,
+    ai_power_status,
+    gas_history,
+    power_history,
 )
 
 # ── API Router ─────────────────────────────────────────────
@@ -39,4 +44,8 @@ urlpatterns = [
 
     # API URL
     path("api/", include(router.urls)),
+    path("api/ai-status/", ai_gas_status, name="ai-gas-status"),
+    path("api/ai-power-status/", ai_power_status, name="ai-power-status"),
+    path("api/gas-history/", gas_history, name="gas-history"),
+    path("api/power-history/", power_history, name="power-history"),
 ]

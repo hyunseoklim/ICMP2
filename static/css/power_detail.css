@@ -377,3 +377,86 @@
     color: var(--text-muted);
     flex-shrink: 0;
 }
+
+/* ── AI 예측 탭 범례 라인 ─────────────────────────────────── */
+.legend-line--history  { background: #38bdf8; }
+.legend-line--forecast {
+    background: transparent;
+    border-bottom: 2px dashed #fb923c;
+    height: 0;
+    margin-bottom: 1px;
+}
+
+/* ── AI 예측 그리드 ──────────────────────────────────────── */
+.power-ai-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--gap);
+    padding: var(--gap);
+}
+
+.ai-loading-msg {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--text-muted);
+    padding: 40px 0;
+    font-size: 13px;
+}
+
+/* ── AI 예측 카드 ─────────────────────────────────────────── */
+.power-ai-card {
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: 180px;
+    transition: border-color 0.2s;
+}
+.power-ai-card:hover             { border-color: var(--border-light); }
+.power-ai-card--danger           { border-color: var(--danger-border)  !important; }
+.power-ai-card--warning          { border-color: var(--warning-border) !important; }
+
+.power-ai-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.power-ai-card__name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.power-ai-insight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    flex-shrink: 0;
+    min-height: 15px;
+    flex-wrap: wrap;
+}
+.ai-insight-val      { color: var(--text-secondary); }
+.ai-insight-val b    { color: var(--text-primary); font-weight: 700; }
+.ai-insight-warn     { color: var(--warning); font-weight: 600; }
+.ai-insight-danger   { color: var(--danger);  font-weight: 600; }
+.ai-insight-ok       { color: var(--normal); }
+.ai-insight-muted    { color: var(--text-muted); }
+
+.power-ai-card__canvas-wrap {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+.power-ai-card__canvas-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+}

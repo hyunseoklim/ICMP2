@@ -81,9 +81,15 @@
                     <button class="tab-btn active" data-tab="realtime" role="tab">실시간 현황</button>
                     <button class="tab-btn" data-tab="ai" role="tab">AI 예측</button>
                 </nav>
-                <div class="chart-legend">
+                <div class="chart-legend" id="legend-realtime">
                     <span class="legend-item"><i class="legend-line legend-line--warn"></i> 주의 임계치</span>
                     <span class="legend-item"><i class="legend-line legend-line--danger"></i> 위험 임계치</span>
+                    <span class="legend-item"><i class="legend-swatch legend-swatch--warn"></i> 주의 범위</span>
+                    <span class="legend-item"><i class="legend-swatch legend-swatch--danger"></i> 위험 범위</span>
+                </div>
+                <div class="chart-legend" id="legend-ai" style="display:none">
+                    <span class="legend-item"><i class="legend-line legend-line--history"></i> 실측값</span>
+                    <span class="legend-item"><i class="legend-line legend-line--forecast"></i> AI 예측</span>
                     <span class="legend-item"><i class="legend-swatch legend-swatch--warn"></i> 주의 범위</span>
                     <span class="legend-item"><i class="legend-swatch legend-swatch--danger"></i> 위험 범위</span>
                 </div>
@@ -96,10 +102,16 @@
                 </div>
             </div>
 
-            <!-- AI 예측 탭 (4차) -->
+            <!-- AI 예측 탭 -->
             <div class="tab-content" id="tab-ai">
-                <div class="coming-soon">
-                    <p>🔧 AI 예측 기능은 4차에서 구현 예정입니다.</p>
+                <!-- Isolation Forest 상태 요약 -->
+                <div id="if-status-card" style="display:none; margin-bottom:12px; padding:10px 16px; border-radius:8px; background:#1e293b; border:1px solid #334155; display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:13px; color:#94a3b8;">다변량 이상탐지 (Isolation Forest)</span>
+                    <span id="if-status-badge" style="font-size:12px; font-weight:600; padding:3px 10px; border-radius:20px;"></span>
+                    <span id="if-status-score" style="font-size:12px; color:#64748b;"></span>
+                </div>
+                <div class="ai-chart-grid" id="ai-chart-grid">
+                    <!-- JS에서 9개 AI 예측 차트 동적 생성 -->
                 </div>
             </div>
 

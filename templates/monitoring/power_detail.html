@@ -65,9 +65,15 @@
                     <button class="tab-btn active" data-tab="realtime" role="tab">실시간 현황</button>
                     <button class="tab-btn" data-tab="ai" role="tab">AI 예측</button>
                 </nav>
-                <div class="chart-legend">
+                <div class="chart-legend" id="power-legend-realtime">
                     <span class="legend-item"><i class="legend-line legend-line--warn"></i> 주의 임계치</span>
                     <span class="legend-item"><i class="legend-line legend-line--danger"></i> 위험 임계치</span>
+                    <span class="legend-item"><i class="legend-swatch legend-swatch--warn"></i> 주의 범위</span>
+                    <span class="legend-item"><i class="legend-swatch legend-swatch--danger"></i> 위험 범위</span>
+                </div>
+                <div class="chart-legend" id="power-legend-ai" style="display:none">
+                    <span class="legend-item"><i class="legend-line legend-line--history"></i> 실측 부하율</span>
+                    <span class="legend-item"><i class="legend-line legend-line--forecast"></i> AI 예측</span>
                     <span class="legend-item"><i class="legend-swatch legend-swatch--warn"></i> 주의 범위</span>
                     <span class="legend-item"><i class="legend-swatch legend-swatch--danger"></i> 위험 범위</span>
                 </div>
@@ -80,10 +86,10 @@
                 </div>
             </div>
 
-            <!-- AI 예측 탭 (4차) -->
+            <!-- AI 예측 탭 -->
             <div class="tab-content" id="tab-ai">
-                <div class="coming-soon">
-                    <p>🔧 AI 예측 기능은 4차에서 구현 예정입니다.</p>
+                <div class="power-ai-grid" id="power-ai-grid">
+                    <!-- JS에서 채널별 AI 예측 라인차트 동적 생성 -->
                 </div>
             </div>
 

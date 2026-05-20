@@ -1,0 +1,70 @@
+services:
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DJANGO_BASE_URL=http://django:8000
+    volumes:
+      - ./db.sqlite3:/app/db.sqlite3
+      - ./media:/app/media
+    depends_on:
+      - redis
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate --run-syncdb &&
+             daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./db.sqlite3:/app/db.sqlite3
+    depends_on:
+      - redis
+      - django
+    restart: unless-stopped
+    command: celery -A config worker -l info -Q default -c 2
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./db.sqlite3:/app/db.sqlite3
+    depends_on:
+      - redis
+      - django
+    restart: unless-stopped
+    command: celery -A config beat -l info --scheduler celery.beat:PersistentScheduler
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile.fastapi
+    ports:
+      - "8001:8001"
+    env_file: .env
+    environment:
+      - DJANGO_BASE_URL=http://django:8000
+    depends_on:
+      - django
+    restart: unless-stopped

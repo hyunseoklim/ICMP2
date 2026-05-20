@@ -1,10 +1,193 @@
 {% load static %}
 <div class="widget ai-power-widget">
     <div class="widget-header">
-        <h3>AI 예측 — 스마트 전력 시스템 위험</h3>
+        <h3>AI 예측 — 스마트 전력</h3>
+        <span class="ai-updated-at" id="ai-power-updated">-</span>
         <a href="{% url 'monitoring_power' %}" class="widget-more-link">+ 상세 보기</a>
     </div>
-    <div class="coming-soon-widget">
-        <p>🔧 AI 예측 기능은 4차에서 구현 예정입니다.</p>
+
+    <!-- 장비 네비게이터 -->
+    <div class="ai-nav-row">
+        <button class="ai-nav-btn" id="ai-pwr-prev">&#8249;</button>
+        <span class="ai-nav-label" id="ai-pwr-nav-label">-</span>
+        <button class="ai-nav-btn" id="ai-pwr-next">&#8250;</button>
     </div>
+
+    <!-- 채널 탭 -->
+    <div class="ai-gas-tabs" id="ai-pwr-tabs"></div>
+
+    <!-- 미니 라인차트 (부하율) -->
+    <div class="ai-chart-wrap">
+        <canvas id="ai-pwr-mini-chart"></canvas>
+    </div>
+
+    <!-- 채널별 수평 바 -->
+    <div id="ai-pwr-channels"></div>
+
+    <!-- ARIMA 경고 -->
+    <div id="ai-pwr-arima-msg"></div>
 </div>
+
+<style>
+.ai-power-total { font-size: 10px; color: var(--text-muted); margin-left: auto; }
+.ai-pwr-ch { display: flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: 10px; }
+.ai-pwr-ch-name { width: 72px; flex-shrink: 0; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-pwr-bar-wrap { flex: 1; height: 4px; background: var(--bg-panel-2); border-radius: 2px; overflow: hidden; }
+.ai-pwr-bar { height: 100%; border-radius: 2px; transition: width 0.3s; }
+.ai-pwr-ch-val { width: 36px; text-align: right; flex-shrink: 0; font-weight: 600; }
+</style>
+
+<script>
+(function () {
+    let devices    = [];
+    let deviceIdx  = 0;
+    let channels   = [];
+    let chIdx      = 0;
+    let miniChart  = null;
+    let aiData     = null;
+
+    function badgeColor(status) {
+        return status === 'DANGER' ? '#ef4444' : status === 'WARNING' ? '#eab308' : '#22c55e';
+    }
+
+    function buildChTabs() {
+        const el = document.getElementById('ai-pwr-tabs');
+        if (!el || !channels.length) return;
+        el.innerHTML = channels.map((ch, i) =>
+            `<span class="ai-gas-tab ${i === chIdx ? 'active' : ''}" data-idx="${i}">${ch.channel_name || ch.channel_code}</span>`
+        ).join('');
+        el.querySelectorAll('.ai-gas-tab').forEach(t => {
+            t.addEventListener('click', () => {
+                chIdx = parseInt(t.dataset.idx);
+                buildChTabs();
+                loadChart();
+            });
+        });
+    }
+
+    async function loadChart() {
+        const device = devices[deviceIdx];
+        if (!device) return;
+
+        const [histRes, aiRes] = await Promise.all([
+            fetch(`/monitoring/api/power-history/?device_id=${device.id}&limit=30`).then(r => r.json()),
+            aiData ? Promise.resolve(aiData) :
+                fetch('/monitoring/api/ai-power-status/').then(r => r.json()),
+        ]);
+        if (!aiData) aiData = aiRes;
+
+        const deviceAI = (aiRes.devices || []).find(d => d.device_uid === device.device_uid);
+        channels = deviceAI?.channels || [];
+        buildChTabs();
+
+        const ch = channels[chIdx];
+        if (!ch) return;
+
+        const chHist = histRes[ch.channel_code];
+        const readings = chHist?.readings || [];
+        const histVals   = readings.map(r => r.load_ratio);
+        const histLabels = readings.map(r => {
+            const t = new Date(r.measured_at);
+            return t.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        });
+
+        const arima    = ch.arima || null;
+        const forecast = arima?.forecast || null;
+        const forecastLabels = forecast ? forecast.map((_, i) => `+${i + 1}분`) : [];
+        const allLabels = [...histLabels, ...forecastLabels];
+
+        const N = histVals.length;
+        const histDataset = [...histVals, ...Array(forecastLabels.length).fill(null)];
+        const forecastDataset = forecast && N > 0
+            ? [...Array(N - 1).fill(null), histVals[N - 1], ...forecast]
+            : null;
+
+        const datasets = [
+            { label: '부하율', data: histDataset, borderColor: '#38bdf8', borderWidth: 1.5, pointRadius: 0, spanGaps: false, tension: 0.2, fill: false },
+        ];
+        if (forecastDataset) {
+            datasets.push({ label: 'AI예측', data: forecastDataset, borderColor: '#f59e0b', borderDash: [4, 3], borderWidth: 1.5, pointRadius: 0, spanGaps: false, tension: 0.2, fill: false });
+        }
+
+        const ctx = document.getElementById('ai-pwr-mini-chart');
+        if (!ctx) return;
+        if (miniChart) { miniChart.destroy(); miniChart = null; }
+
+        miniChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: allLabels, datasets },
+            options: {
+                responsive: false,
+                animation: { duration: 200 },
+                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                scales: {
+                    x: { ticks: { display: false }, grid: { display: false }, border: { display: false } },
+                    y: { min: 0, max: 110,
+                         ticks: { color: '#4b5563', font: { size: 8 }, maxTicksLimit: 4, callback: v => `${v}%` },
+                         grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } },
+                },
+            },
+        });
+
+        // 채널별 수평 바
+        const chEl = document.getElementById('ai-pwr-channels');
+        if (chEl && channels.length) {
+            chEl.innerHTML = channels.map(c => {
+                const color = badgeColor(c.status);
+                const bar   = Math.min(c.ratio || 0, 100);
+                return `<div class="ai-pwr-ch">
+                    <span class="ai-pwr-ch-name">${c.channel_name || c.channel_code}</span>
+                    <div class="ai-pwr-bar-wrap"><div class="ai-pwr-bar" style="width:${bar}%;background:${color}"></div></div>
+                    <span class="ai-pwr-ch-val" style="color:${color}">${c.ratio || 0}%</span>
+                </div>`;
+            }).join('');
+        }
+
+        // ARIMA 경고
+        const arimaEl = document.getElementById('ai-pwr-arima-msg');
+        if (arimaEl && arima) {
+            let msg = '';
+            if (arima.eta_danger) msg = `<div class="ai-predict-msg">⚠ 위험 도달 예상: ${arima.eta_danger}분 후</div>`;
+            else if (arima.eta_warn) msg = `<div class="ai-predict-msg">⚠ 주의 도달 예상: ${arima.eta_warn}분 후</div>`;
+            arimaEl.innerHTML = msg;
+        }
+
+        const updEl = document.getElementById('ai-power-updated');
+        if (updEl) updEl.textContent = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function updateNav() {
+        const device = devices[deviceIdx];
+        const navEl  = document.getElementById('ai-pwr-nav-label');
+        if (navEl && device) navEl.textContent = `${device.device_uid} (${deviceIdx + 1}/${devices.length})`;
+        aiData = null;
+        chIdx  = 0;
+        loadChart();
+    }
+
+    async function init() {
+        try {
+            const res = await fetch('/monitoring/api/devices/?device_type=power&is_active=true');
+            const data = await res.json();
+            devices = data.results || data;
+            if (!devices.length) return;
+
+            document.getElementById('ai-pwr-prev')?.addEventListener('click', () => {
+                deviceIdx = (deviceIdx - 1 + devices.length) % devices.length;
+                updateNav();
+            });
+            document.getElementById('ai-pwr-next')?.addEventListener('click', () => {
+                deviceIdx = (deviceIdx + 1) % devices.length;
+                updateNav();
+            });
+
+            updateNav();
+            setInterval(updateNav, 60000);
+        } catch (e) {
+            console.error('AI 전력 위젯 초기화 실패:', e);
+        }
+    }
+
+    init();
+})();
+</script>

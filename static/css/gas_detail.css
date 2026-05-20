@@ -274,14 +274,71 @@
     height: 100% !important;
 }
 
-/* ── 4차 coming soon ─────────────────────────────────────── */
-.coming-soon {
+/* ── AI 예측 탭 범례 라인 ─────────────────────────────────── */
+.legend-line--history  { background: #38bdf8; }
+.legend-line--forecast { background: transparent; border-bottom: 2px dashed #fb923c; height: 0; margin-bottom: 1px; }
+
+/* ── AI 예측 차트 그리드 ─────────────────────────────────── */
+.ai-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--gap);
+    padding: var(--gap);
+}
+
+/* ── AI 예측 카드 ─────────────────────────────────────────── */
+.ai-chart-card {
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: 200px;
+    transition: border-color 0.2s;
+}
+.ai-chart-card:hover { border-color: var(--border-light); }
+
+.ai-chart-card__header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    height: 200px;
-    color: var(--text-muted);
-    font-size: 13px;
+    justify-content: space-between;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.ai-chart-card__name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.ai-chart-card__badge { font-size: 10px; flex-shrink: 0; }
+
+/* ── AI 인사이트 행 ──────────────────────────────────────── */
+.ai-chart-insight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    flex-shrink: 0;
+    min-height: 16px;
+    flex-wrap: wrap;
+}
+.ai-insight-val  { color: var(--text-secondary); }
+.ai-insight-val b { color: var(--text-primary); font-weight: 700; }
+.ai-insight-warn { color: var(--warning); font-weight: 600; }
+.ai-insight-ok   { color: var(--normal); }
+.ai-insight-muted { color: var(--text-muted); }
+
+/* ── AI 차트 캔버스 ──────────────────────────────────────── */
+.ai-chart-card__canvas-wrap {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+.ai-chart-card__canvas-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
 }
 
 /* ── 긴급 액션바 ─────────────────────────────────────────── */
