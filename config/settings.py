@@ -1,4 +1,8 @@
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -79,6 +83,29 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
+
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/1'
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
+CELERY_TIMEZONE = 'Asia/Seoul'
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/2',
+    }
+}
+
+SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
+DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
+
+# AI 추론 서버 (팀원1 FastAPI 서버 URL — 미설정 시 AI 단계 건너뜀)
+AI_SERVER_URL = os.getenv('AI_SERVER_URL', '')
+
+# Redis Pub/Sub 채널명 (확정 후 .env에서 교체)
+REDIS_PUBSUB_CHANNEL = os.getenv('REDIS_PUBSUB_CHANNEL', 'sensor_events')
+REDIS_PUBSUB_TIMEOUT = int(os.getenv('REDIS_PUBSUB_TIMEOUT', '30'))
 
 CHANNEL_LAYERS = {
     'default': {

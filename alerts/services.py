@@ -190,7 +190,7 @@ def create_alarm_event(
 ) -> AlarmEvent:
     event_type = _RULE_TYPE_TO_EVENT_TYPE.get(rule.rule_type, AlarmEvent.EventType.DEVICE)
     now = timezone.now()
-    return AlarmEvent.objects.create(
+    event = AlarmEvent.objects.create(
         rule=rule,
         facility=facility,
         device=device,
@@ -204,6 +204,9 @@ def create_alarm_event(
         current_value=current_value,
         last_seen_at=now,
     )
+    from .tasks import send_all_notifications
+    send_all_notifications.delay(event.id)
+    return event
 
 
 def get_base_qs():
