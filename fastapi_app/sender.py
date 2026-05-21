@@ -1,6 +1,7 @@
 import httpx
+import os
 
-DJANGO_BASE = "http://localhost:8000"
+DJANGO_BASE = os.environ.get("DJANGO_BASE", "http://localhost:8000")
 
 # 시작 시 Django에서 가스 장비 목록을 가져옴
 # 반환값: [{"id": 1, "device_uid": "AA:BB:CC"}, ...]
