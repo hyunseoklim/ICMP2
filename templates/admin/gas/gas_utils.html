@@ -1,7 +1,7 @@
 <script>
 window.GAS = window.GAS || {};
 
-GAS.MANAGER_NAMES = { u1: '최점검', u2: '정운영', u3: '김민준', u4: '이서현' };
+GAS.MANAGER_NAMES = {};
 GAS.DEVICE_TYPE_LABELS = { GAS: '유해가스 센서', PWR: '스마트 전력 시스템', LOC: '위치 노드' };
 
 GAS.getCsrfToken = function() {
@@ -35,6 +35,16 @@ GAS.showSuccess = function(msg, sub) {
   document.getElementById('gas-success-sub').textContent = sub || '장비가 목록에 추가되었습니다.';
   sm.classList.remove('hidden');
   sm.classList.add('flex');
+  lucide.createIcons();
+};
+
+GAS.showError = function(msg, sub) {
+  var em = document.getElementById('gas-error-modal');
+  if (!em) return;
+  document.getElementById('gas-error-msg').textContent = msg || '오류가 발생했습니다.';
+  document.getElementById('gas-error-sub').textContent = sub || '';
+  em.classList.remove('hidden');
+  em.classList.add('flex');
   lucide.createIcons();
 };
 

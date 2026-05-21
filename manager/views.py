@@ -6,7 +6,7 @@ from datetime import timedelta, datetime, date
 from django.contrib.auth.decorators import login_required, user_passes_test
 
 def _is_admin(user):
-    return user.is_superuser or getattr(user, 'user_type', '') == 'admin'
+    return getattr(user, 'user_type', '') == 'admin'
 
 def admin_required(view_func):
     decorated = login_required(user_passes_test(_is_admin, login_url='/')(view_func))
@@ -73,10 +73,7 @@ def user_list(request):
     if dept := request.GET.get('dept'):
         qs = qs.filter(department_id=dept)
     if user_type := request.GET.get('user_type'):
-        if user_type == 'superuser':
-            qs = qs.filter(is_superuser=True)
-        else:
-            qs = qs.filter(user_type=user_type, is_superuser=False)
+        qs = qs.filter(user_type=user_type)
     if is_active := request.GET.get('is_active'):
         qs = qs.filter(is_active=(is_active == 'true'))
     if position := request.GET.get('position'):
@@ -128,6 +125,15 @@ def user_bulk_unlock(request):
         count = User.objects.filter(pk__in=ids).update(is_active=True)
         messages.success(request, f'{count}명의 계정 잠금이 해제되었습니다.')
     return redirect('user_list')
+
+
+@admin_required
+def check_username(request):
+    """아이디 중복 확인 API"""
+    from django.http import JsonResponse
+    username = request.GET.get('username', '').strip()
+    exists = User.objects.filter(username=username).exists() if username else False
+    return JsonResponse({'exists': exists})
 
 
 def user_create(request):
@@ -335,6 +341,9 @@ def org_dept_api(request, pk):
             'member_count': qs.count(),
             'leader_id': dept.leader_id,
             'leader_name': dept.leader.name if dept.leader else None,
+            'created_at': dept.created_at.strftime('%Y-%m-%d %H:%M:%S') if dept.created_at else '-',
+            'updated_at': dept.updated_at.strftime('%Y-%m-%d %H:%M:%S') if dept.updated_at else '-',
+            'updated_by': dept.updated_by.name if dept.updated_by else '-',
         }
 
     q = request.GET.get('q', '').strip()
@@ -429,7 +438,8 @@ def org_appoint_leader(request):
     dept = get_object_or_404(Department, pk=dept_id)
     user = get_object_or_404(User, pk=user_id)
     dept.leader = user
-    dept.save(update_fields=['leader'])
+    dept.updated_by = request.user
+    dept.save(update_fields=['leader', 'updated_by', 'updated_at'])
     messages.success(request, f'{user.name}을(를) {dept.name}의 조직장으로 임명했습니다.')
     return redirect('org_list')
 
@@ -446,7 +456,8 @@ def org_revoke_leader(request):
     dept = get_object_or_404(Department, pk=dept_id)
     prev_name = dept.leader.name if dept.leader else ''
     dept.leader = None
-    dept.save(update_fields=['leader'])
+    dept.updated_by = request.user
+    dept.save(update_fields=['leader', 'updated_by', 'updated_at'])
     messages.success(request, f'{prev_name}의 조직장 직위가 해제되었습니다.')
     return redirect('org_list')
 
@@ -580,7 +591,7 @@ def code_group_edit(request, group_code):
             'group_name':  meta.code_name,
             'scope':       meta.scope,
             'description': meta.description,
-            'updated_at':  meta.updated_at.strftime('%Y-%m-%d %H:%M') if meta.updated_at else '',
+            'updated_at':  meta.updated_at.strftime('%Y-%m-%d %H:%M:%S') if meta.updated_at else '',
             'updated_by':  meta.updated_by or '-',
             'code_count':  code_count,
         })
@@ -893,7 +904,7 @@ def risk_group_edit(request, group_code):
             'scope':        meta.scope or '',
             'is_active':    meta.is_active,
             'description':  meta.description or '',
-            'updated_at':   meta.updated_at.strftime('%Y-%m-%d %H:%M') if meta.updated_at else '',
+            'updated_at':   meta.updated_at.strftime('%Y-%m-%d %H:%M:%S') if meta.updated_at else '',
             'updated_by':   meta.updated_by or '-',
             'type_count':   type_count,
         })
@@ -1042,7 +1053,7 @@ def risk_criteria_edit(request, pk):
         'priority':       obj.priority,
         'is_active':      obj.is_active,
         'description':    obj.description,
-        'updated_at':     obj.updated_at.strftime('%Y-%m-%d %H:%M') if obj.updated_at else '',
+        'updated_at':     obj.updated_at.strftime('%Y-%m-%d %H:%M:%S') if obj.updated_at else '',
         'updated_by':     obj.updated_by or '-',
     })
 
@@ -1236,7 +1247,7 @@ def threshold_group_edit(request, cat_code):
             'scope':      obj.scope,
             'is_active':  obj.is_active,
             'description': obj.description,
-            'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M') if obj.updated_at else '-',
+            'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S') if obj.updated_at else '-',
             'updated_by': obj.updated_by or '-',
             'type_count': type_count.count(),
         })
@@ -1328,7 +1339,7 @@ def threshold_edit(request, pk):
         'scope':       policy.scope or '',
         'description': policy.description or '',
         'is_active':   policy.is_active,
-        'updated_at':  policy.updated_at.strftime('%Y-%m-%d %H:%M') if policy.updated_at else '',
+        'updated_at':  policy.updated_at.strftime('%Y-%m-%d %H:%M:%S') if policy.updated_at else '',
         'updated_by':  policy.updated_by or '-',
     })
 
@@ -1375,7 +1386,7 @@ def safety_checklist_list(request):
     snap_data = [
         {
             'id':       s['id'],
-            'saved_at': s['saved_at'].strftime('%Y-%m-%d %H:%M'),
+            'saved_at': s['saved_at'].strftime('%Y-%m-%d %H:%M:%S'),
             'date':     s['saved_at'].strftime('%Y-%m-%d'),
             'time':     s['saved_at'].strftime('%H:%M'),
             'saved_by': s['saved_by__name'] or '-',
@@ -1451,7 +1462,7 @@ def safety_checklist_save(request):
 
     return JsonResponse({
         'success':    True,
-        'saved_at':   snapshot.saved_at.strftime('%Y-%m-%d %H:%M'),
+        'saved_at':   snapshot.saved_at.strftime('%Y-%m-%d %H:%M:%S'),
         'saved_date': snapshot.saved_at.strftime('%Y-%m-%d'),
     })
 
@@ -1744,6 +1755,59 @@ def gas_list(request):
     })
 
 
+def gas_comm_check(request):
+    """장비 통신 확인 API — TCP 소켓으로 IP:PORT 연결 가능 여부 확인"""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+
+    import socket
+
+    ip   = request.POST.get('ip', '').strip()
+    port_str = request.POST.get('port', '').strip()
+    mac  = request.POST.get('mac', '').strip()
+
+    if not ip:
+        return JsonResponse({'ok': False, 'error': 'IP 주소를 입력해 주세요.'})
+    if not port_str or not port_str.isdigit():
+        return JsonResponse({'ok': False, 'error': '포트 번호를 입력해 주세요.'})
+    port = int(port_str)
+    if port < 1 or port > 65535:
+        return JsonResponse({'ok': False, 'error': '포트 번호는 1~65535 범위로 입력해 주세요.'})
+
+    from django.conf import settings
+    if not settings.DEBUG:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(3)
+            result = sock.connect_ex((ip, port))
+            sock.close()
+        except socket.gaierror:
+            return JsonResponse({'ok': False, 'conn_fail': True, 'error': '장비와 연결할 수 없습니다. 통신 정보를 확인해 주세요.'})
+        except Exception:
+            return JsonResponse({'ok': False, 'conn_fail': True, 'error': '장비와 연결할 수 없습니다. 통신 정보를 확인해 주세요.'})
+
+        if result != 0:
+            return JsonResponse({'ok': False, 'conn_fail': True, 'error': '장비와 연결할 수 없습니다. 통신 정보를 확인해 주세요.'})
+
+    # MAC이 주어진 경우 이미 등록된 장비의 IP와 대조
+    if mac:
+        matched = Device.objects.filter(ip_address=ip, port=port).first()
+        if matched:
+            existing_mac = ''
+            if matched.note and matched.note.startswith('MAC: '):
+                existing_mac = matched.note.split('\n')[0].replace('MAC: ', '').strip()
+            if existing_mac and existing_mac != mac:
+                return JsonResponse({'ok': False, 'mac_mismatch': True,
+                                     'error': '입력한 장비 ID와 실제 응답 장비 정보가 일치하지 않습니다.'})
+
+    from django.utils import timezone as tz
+    now = tz.localtime(tz.now())
+    pad = lambda n: str(n).zfill(2)
+    ts = (f"{now.year}-{pad(now.month)}-{pad(now.day)} "
+          f"{pad(now.hour)}:{pad(now.minute)}:{pad(now.second)}")
+    return JsonResponse({'ok': True, 'checked_at': ts})
+
+
 def gas_create(request):
     """장비 등록 API (GAS / PWR / LOC 공통)"""
     if request.method != 'POST':
@@ -1787,7 +1851,7 @@ def gas_create(request):
         note         = request.POST.get('note', '').strip()
 
         if mac and Device.objects.filter(note__startswith=f'MAC: {mac}').exists():
-            return JsonResponse({'ok': False, 'error': '이미 등록된 장비 ID입니다.'}, status=400)
+            return JsonResponse({'ok': False, 'duplicate_mac': True, 'error': '이미 등록된 장비 ID입니다.'}, status=400)
 
         note_full = (f'MAC: {mac}\n' + note if mac else note)
 
@@ -1835,6 +1899,9 @@ def gas_edit(request, pk):
     device.is_active     = is_active
     device.department_id = dept_id
     device.manager_id    = manager_id
+    if mac and Device.objects.filter(note__startswith=f'MAC: {mac}').exclude(pk=pk).exists():
+        return JsonResponse({'ok': False, 'duplicate_mac': True, 'error': '이미 등록된 장비 ID입니다.'}, status=400)
+
     note_full = (f'MAC: {mac}\n' + note if mac else note)
     device.note = note_full
 
@@ -3347,7 +3414,7 @@ def map_edit_log_list(request):
 #   - manager/mixins.py 의 AdminRequiredMixin 슈퍼유저 우회 보강
 #   - 거부 응답을 redirect(302) → PermissionDenied(403) 으로 통일할지 결정
 @login_required
-@user_passes_test(lambda u: u.is_superuser or getattr(u, 'user_type', None) == 'admin')
+@user_passes_test(lambda u: getattr(u, 'user_type', None) == 'admin')
 def map_editor(request):
     """지도 편집 관리 — 첫 번째 floor의 전체 객체 조회 (미배치 포함)
 
