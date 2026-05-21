@@ -1,5 +1,5 @@
 groups:
-  - name: django-alerts
+  - name: application-alerts
     rules:
       - alert: DjangoHighP95Warning
         expr: |
@@ -55,8 +55,6 @@ groups:
           summary: "Django 서버 다운"
           description: "Django 서버에 연결할 수 없습니다."
 
-  - name: fastapi-alerts
-    rules:
       - alert: FastAPIHighP95
         expr: |
           histogram_quantile(
@@ -81,6 +79,44 @@ groups:
           summary: "FastAPI 서버 다운"
           description: "FastAPI 서버에 연결할 수 없습니다."
 
+  - name: worker-alerts
+    rules:
+      - alert: CeleryDown
+        expr: up{job="celery"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: celery
+        annotations:
+          summary: "Celery exporter 다운"
+          description: "Celery exporter에 연결할 수 없습니다."
+
+      - alert: CeleryHighTaskFailureRate
+        expr: |
+          (
+            sum(rate(celery_tasks_total{state="FAILURE"}[5m])) or vector(0)
+          )
+          /
+          clamp_min(sum(rate(celery_tasks_total[5m])), 1e-9)
+          > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: celery
+        annotations:
+          summary: "Celery 작업 실패율 높음"
+          description: "Celery 작업 실패율이 10%를 초과했습니다."
+
+      - alert: CeleryQueueBacklog
+        expr: sum(celery_queue_length) > 50
+        for: 3m
+        labels:
+          severity: warning
+          service: celery
+        annotations:
+          summary: "Celery 큐 적체"
+          description: "Celery 큐에 처리되지 않은 작업이 50개를 초과했습니다."
+
   - name: infrastructure-alerts
     rules:
       - alert: RedisDown
@@ -92,3 +128,13 @@ groups:
         annotations:
           summary: "Redis 서버 다운"
           description: "Redis 서버에 연결할 수 없습니다."
+
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: "PostgreSQL 서버 다운"
+          description: "PostgreSQL 서버에 연결할 수 없습니다."

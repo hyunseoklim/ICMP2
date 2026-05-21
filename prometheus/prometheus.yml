@@ -19,3 +19,18 @@ scrape_configs:
     static_configs:
       - targets: ['fastapi:8001']
     metrics_path: /metrics
+
+  - job_name: redis
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    metrics_path: /metrics
+
+  - job_name: postgres
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    metrics_path: /metrics
+
+  - job_name: celery
+    static_configs:
+      - targets: ['celery-exporter:9808']
+    metrics_path: /metrics

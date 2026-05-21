@@ -81,6 +81,40 @@ services:
       django:
         condition: service_started
 
+  redis-exporter:
+    image: oliver006/redis_exporter
+    container_name: redis-exporter
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    ports:
+      - "9121:9121"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: postgresql://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}?sslmode=disable
+    ports:
+      - "9187:9187"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  celery-exporter:
+    image: danihodovic/celery-exporter
+    container_name: celery-exporter
+    command: --broker-url=${REDIS_URL}
+    ports:
+      - "9808:9808"
+    depends_on:
+      redis:
+        condition: service_healthy
+      celery:
+        condition: service_started
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -93,6 +127,8 @@ services:
       django:
         condition: service_started
       fastapi:
+        condition: service_started
+      celery-exporter:
         condition: service_started
 
   alertmanager:
