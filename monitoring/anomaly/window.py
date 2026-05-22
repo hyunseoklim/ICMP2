@@ -2,26 +2,29 @@
 Sliding Window — 장비별·가스별 최근 N개 값 버퍼
 
 구조:
-  _buffers[device_uid][gas] = deque(maxlen=WINDOW_SIZE)
+  _buffers[device_uid][gas] = deque(maxlen=BUFFER_SIZE)
+
+WINDOW_SIZE(W): STEP D 계산 단위 (최근 30개)
+BUFFER_SIZE:    STEP E 비교 단위 (이전 W개 + 최근 W개 = 2W개)
 
 MVP: Python 메모리 deque (Redis로 교체 가능)
 서버 재시작 시 init_from_db()로 버퍼 복원.
 """
 
-from collections import defaultdict, deque
-from typing import Optional
+from collections import deque
 
 GAS_FIELDS = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
-WINDOW_SIZE = 30  # 기본 윈도우 크기 (30개 = 30분치)
+WINDOW_SIZE = 30               # STEP D 단위 (W)
+BUFFER_SIZE = WINDOW_SIZE * 2  # STEP E 단위 (2W = 60)
 
-# _buffers[device_uid][gas] = deque(maxlen=WINDOW_SIZE)
+# _buffers[device_uid][gas] = deque(maxlen=BUFFER_SIZE)
 _buffers: dict[str, dict[str, deque]] = {}
 
 
 def _ensure_buffer(device_uid: str) -> None:
     if device_uid not in _buffers:
         _buffers[device_uid] = {
-            gas: deque(maxlen=WINDOW_SIZE) for gas in GAS_FIELDS
+            gas: deque(maxlen=BUFFER_SIZE) for gas in GAS_FIELDS
         }
 
 
@@ -83,7 +86,7 @@ def is_ready(device_uid: str, gas: str, min_samples: int = 10) -> bool:
     return len(_buffers[device_uid].get(gas, [])) >= min_samples
 
 
-def init_from_db(device_uid: str, n: int = WINDOW_SIZE) -> None:
+def init_from_db(device_uid: str, n: int = BUFFER_SIZE) -> None:
     """
     DB에서 최근 N개 읽어 버퍼를 채움.
     서버 재시작 시 또는 버퍼가 비어있을 때 호출.

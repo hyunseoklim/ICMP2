@@ -169,6 +169,77 @@ def trigger_anomaly_alarms(device, zscore_results: list) -> None:
         )
 
 
+def trigger_changepoint_alarms(device, cp_results: list) -> None:
+    """
+    Change Point 탐지 결과 → AlarmEvent 생성/종료.
+    - CHANGE_POINT  : WARNING 이벤트 신규 생성
+    - BACK_TO_STABLE: 해당 가스 open 이벤트 자동 종료
+    - 이벤트 없는 경우 무시 (상태 유지 중인 SHIFT/STABLE은 처리 안 함)
+    """
+    if not device.facility_id:
+        return
+
+    rule = AlarmRule.objects.filter(
+        rule_type=AlarmRule.RuleType.THRESHOLD,
+        is_active=True,
+    ).first()
+    if not rule:
+        return
+
+    now = timezone.now()
+
+    for r in cp_results:
+        event = r.get('event')
+        if event is None:
+            continue
+
+        gas = r['metric'].upper()
+
+        open_event = AlarmEvent.objects.filter(
+            rule=rule,
+            device=device,
+            severity=AlarmEvent.Severity.ANOMALY,
+            event_status=AlarmEvent.EventStatus.OPEN,
+            title__contains=f'[CP] {gas}',
+        ).order_by('-occurred_at').first()
+
+        if event == 'CHANGE_POINT':
+            if open_event:
+                open_event.last_seen_at  = now
+                open_event.current_value = r['mean_shift_score']
+                open_event.message = (
+                    f"mean_shift={r['mean_shift_score']:.2f}, "
+                    f"std_ratio={r['std_ratio']:.2f} | "
+                    f"prev_mean={r['prev_mean']:.2f} → curr_mean={r['curr_mean']:.2f}"
+                )
+                open_event.save(update_fields=['last_seen_at', 'current_value', 'message', 'updated_at'])
+            else:
+                create_alarm_event(
+                    rule=rule,
+                    facility=device.facility,
+                    severity=AlarmEvent.Severity.ANOMALY,
+                    title=f"[CP] {gas} 상태 변화 감지",
+                    device=device,
+                    message=(
+                        f"mean_shift={r['mean_shift_score']:.2f}, "
+                        f"std_ratio={r['std_ratio']:.2f} | "
+                        f"prev_mean={r['prev_mean']:.2f} → curr_mean={r['curr_mean']:.2f}"
+                    ),
+                    current_value=r['mean_shift_score'],
+                )
+
+        elif event == 'BACK_TO_STABLE':
+            if open_event:
+                open_event.event_status = AlarmEvent.EventStatus.CLOSED
+                open_event.closed_at    = now
+                open_event.save(update_fields=['event_status', 'closed_at', 'updated_at'])
+                EventHistory.objects.create(
+                    alarm_event=open_event,
+                    action_type='close',
+                    action_note=f'{gas} 상태 안정화로 자동 종료',
+                )
+
+
 _RULE_TYPE_TO_EVENT_TYPE = {
     AlarmRule.RuleType.THRESHOLD: AlarmEvent.EventType.GAS,
     AlarmRule.RuleType.POWER:     AlarmEvent.EventType.POWER,

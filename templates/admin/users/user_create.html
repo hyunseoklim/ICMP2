@@ -1,122 +1,278 @@
 <div id="register-modal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="modal-content bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
     <div class="px-8 py-7">
-      {# 헤더 #}
       <div class="mb-6">
         <h3 class="text-xl font-bold text-slate-900 mb-1">사용자 등록</h3>
         <p class="text-xs text-slate-500">관리자 또는 사용자 계정을 등록합니다.</p>
       </div>
 
-      <form method="post" action="{% url 'user_create' %}">
+      <form id="user-create-form" method="post" action="{% url 'user_create' %}" novalidate>
         {% csrf_token %}
 
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">
-                사용자명 <span class="text-red-500">*</span>
-              </label>
-              <input type="text" name="name" required placeholder="이름을 입력하세요"
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">사용자명 <span class="text-red-500">*</span></label>
+              <input id="f-name" type="text" name="name" placeholder="이름을 입력하세요"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400" />
+              <p id="e-name" class="hidden mt-1 text-xs text-red-500"></p>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">
-                아이디 <span class="text-red-500">*</span>
-              </label>
-              <input type="text" name="username" required placeholder="아이디를 입력하세요"
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">아이디 <span class="text-red-500">*</span></label>
+              <input id="f-username" type="text" name="username" placeholder="아이디를 입력하세요"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400" />
+              <p id="e-username" class="hidden mt-1 text-xs text-red-500"></p>
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">
-                비밀번호 <span class="text-red-500">*</span>
-              </label>
-              <input type="password" name="password1" required placeholder="비밀번호를 입력하세요"
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">비밀번호 <span class="text-red-500">*</span></label>
+              <input id="f-password1" type="password" name="password1" placeholder="비밀번호를 입력하세요"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400" />
+              <p id="e-password1" class="hidden mt-1 text-xs text-red-500"></p>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">
-                비밀번호 확인 <span class="text-red-500">*</span>
-              </label>
-              <input type="password" name="password2" required placeholder="비밀번호를 다시 입력하세요"
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">비밀번호 확인 <span class="text-red-500">*</span></label>
+              <input id="f-password2" type="password" name="password2" placeholder="비밀번호를 다시 입력하세요"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400" />
+              <p id="e-password2" class="hidden mt-1 text-xs text-red-500"></p>
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">
-                소속 <span class="text-red-500">*</span>
-              </label>
-              <select name="department" required class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">소속 <span class="text-red-500">*</span></label>
+              <select id="f-department" name="department"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
                 <option value="">소속을 선택하세요</option>
                 {% for dept in departments %}
                   <option value="{{ dept.id }}">{{ dept.name }}</option>
                 {% endfor %}
               </select>
+              <p id="e-department" class="hidden mt-1 text-xs text-red-500"></p>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">
-                권한 <span class="text-red-500">*</span>
-              </label>
-              <select name="user_type" required class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">권한 <span class="text-red-500">*</span></label>
+              <select id="f-user-type" name="user_type"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
                 <option value="">권한을 선택하세요</option>
                 <option value="admin">관리자</option>
                 <option value="manager">현장 관리자</option>
                 <option value="worker">작업자</option>
               </select>
+              <p id="e-user-type" class="hidden mt-1 text-xs text-red-500"></p>
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-medium text-slate-700 mb-1.5">직위</label>
-              <select name="position" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
+              <select id="f-position" name="position"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
                 <option value="">직위를 선택하세요</option>
                 {% for pos in positions %}
-                  <option value="{{ pos.name }}">{{ pos.name }}</option>
+                  <option value="{{ pos }}">{{ pos }}</option>
                 {% endfor %}
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">
-                계정 상태 <span class="text-red-500">*</span>
-              </label>
-              <select name="is_active" required class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">계정 상태 <span class="text-red-500">*</span></label>
+              <select id="f-is-active" name="is_active"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-400">
                 <option value="">상태를 선택하세요</option>
                 <option value="true">사용</option>
+                <option value="locked">잠금</option>
                 <option value="false">비활성</option>
               </select>
+              <p id="e-is-active" class="hidden mt-1 text-xs text-red-500"></p>
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">
-                이메일 <span class="text-red-500">*</span>
-              </label>
-              <input type="email" name="email" required placeholder="example@company.com"
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">이메일 <span class="text-red-500">*</span></label>
+              <input id="f-email" type="text" name="email" placeholder="example@company.com"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400" />
+              <p id="e-email" class="hidden mt-1 text-xs text-red-500"></p>
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1.5">
-                연락처 <span class="text-red-500">*</span>
-              </label>
-              <input type="text" name="phone" required placeholder="010-0000-0000"
-                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-400" />
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">연락처 <span class="text-red-500">*</span></label>
+              <input id="f-phone" type="text" name="phone" placeholder="010-0000-0000"
+                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400" />
+              <p id="e-phone" class="hidden mt-1 text-xs text-red-500"></p>
             </div>
           </div>
         </div>
 
         <div class="flex items-center justify-end gap-2 mt-6">
-          <a href="#" id = "register-cancel" class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</a>
-          <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">등록</button>
+          <a href="#" id="register-cancel"
+            class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</a>
+          <button type="submit"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">등록</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
+<script>
+(function () {
+  const form = document.getElementById('user-create-form');
+  if (!form) return;
 
+  function getVal(id) {
+    const el = document.getElementById(id);
+    return el ? el.value : '';
+  }
+
+  function showErr(fieldId, msg) {
+    const input = document.getElementById('f-' + fieldId);
+    const err   = document.getElementById('e-' + fieldId);
+    if (input) {
+      input.classList.add('border-red-400');
+      input.classList.remove('border-slate-200');
+    }
+    if (err) {
+      err.textContent = msg;
+      err.classList.remove('hidden');
+    }
+  }
+
+  function clearErrs() {
+    ['name','username','password1','password2','department','user-type','is-active','email','phone'].forEach(function(id) {
+      const input = document.getElementById('f-' + id);
+      const err   = document.getElementById('e-' + id);
+      if (input) { input.classList.remove('border-red-400'); input.classList.add('border-slate-200'); }
+      if (err)   { err.textContent = ''; err.classList.add('hidden'); }
+    });
+  }
+
+  // ── 아이디 중복 체크 (blur 시 AJAX)
+  const usernameInput = document.getElementById('f-username');
+  usernameInput.addEventListener('blur', function () {
+    const val = this.value.trim();
+    if (!val || !/^[a-zA-Z0-9]{4,20}$/.test(val)) return;
+
+    fetch('{% url "check_username" %}?username=' + encodeURIComponent(val))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        usernameInput.dataset.duplicate = data.available ? 'false' : 'true';
+        if (!data.available) {
+          showErr('username', '이미 사용 중인 아이디입니다.');
+        } else {
+          const err = document.getElementById('e-username');
+          if (err && err.textContent === '이미 사용 중인 아이디입니다.') {
+            err.textContent = '';
+            err.classList.add('hidden');
+            usernameInput.classList.remove('border-red-400');
+            usernameInput.classList.add('border-slate-200');
+          }
+        }
+      });
+  });
+
+  // 아이디 값이 바뀌면 중복 플래그 초기화
+  usernameInput.addEventListener('input', function () {
+    usernameInput.dataset.duplicate = 'false';
+  });
+
+  form.addEventListener('submit', function (e) {
+    clearErrs();
+    let ok = true;
+
+    // ── 사용자명
+    const name = getVal('f-name').trim();
+    if (!name) {
+      showErr('name', '사용자명을 입력해 주세요.'); ok = false;
+    } else if (name.length < 2) {
+      showErr('name', '사용자명을 2자 이상 입력해 주세요.'); ok = false;
+    } else if (name.length > 20) {
+      showErr('name', '사용자명은 20자 이하로 입력해 주세요.'); ok = false;
+    } else if (!/^[가-힣a-zA-Z0-9]+$/.test(name)) {
+      showErr('name', '사용자명은 한글, 영문, 숫자만 입력할 수 있습니다.'); ok = false;
+    }
+
+    // ── 아이디
+    const username = getVal('f-username').trim();
+    if (!username) {
+      showErr('username', '아이디를 입력해 주세요.'); ok = false;
+    } else if (username.includes(' ')) {
+      showErr('username', '아이디에는 공백을 입력할 수 없습니다.'); ok = false;
+    } else if (!/^[a-zA-Z0-9]+$/.test(username)) {
+      showErr('username', '아이디는 영문 또는 숫자만 입력할 수 있습니다.'); ok = false;
+    } else if (username.length < 4) {
+      showErr('username', '아이디를 4자 이상 입력해 주세요.'); ok = false;
+    } else if (username.length > 20) {
+      showErr('username', '아이디는 20자 이하로 입력해 주세요.'); ok = false;
+    } else if (document.getElementById('f-username').dataset.duplicate === 'true') {
+      showErr('username', '이미 사용 중인 아이디입니다.'); ok = false;
+    }
+
+    // ── 비밀번호
+    const pw1 = getVal('f-password1');
+    let pwOk = true;
+    if (!pw1) {
+      showErr('password1', '비밀번호를 입력해 주세요.'); ok = false; pwOk = false;
+    } else if (pw1.includes(' ')) {
+      showErr('password1', '비밀번호에는 공백을 입력할 수 없습니다.'); ok = false; pwOk = false;
+    } else if (pw1.length < 8) {
+      showErr('password1', '비밀번호는 8자 이상 입력해 주세요.'); ok = false; pwOk = false;
+    } else if (pw1.length > 20) {
+      showErr('password1', '비밀번호는 20자 이하로 입력해 주세요.'); ok = false; pwOk = false;
+    } else {
+      const combo = [/[a-zA-Z]/.test(pw1), /[0-9]/.test(pw1), /[^a-zA-Z0-9]/.test(pw1)].filter(Boolean).length;
+      if (combo < 2) {
+        showErr('password1', '비밀번호는 영문, 숫자, 특수문자 중 2가지 이상을 포함해 주세요.'); ok = false; pwOk = false;
+      }
+    }
+
+    // ── 비밀번호 확인
+    const pw2 = getVal('f-password2');
+    if (!pw2) {
+      showErr('password2', '비밀번호 확인을 입력해 주세요.'); ok = false;
+    } else if (pwOk && pw1 !== pw2) {
+      showErr('password2', '비밀번호가 일치하지 않습니다.'); ok = false;
+    }
+
+    // ── 소속
+    if (!getVal('f-department')) {
+      showErr('department', '소속을 선택해 주세요.'); ok = false;
+    }
+
+    // ── 권한
+    if (!getVal('f-user-type')) {
+      showErr('user-type', '권한을 선택해 주세요.'); ok = false;
+    }
+
+    // ── 계정 상태
+    if (!getVal('f-is-active')) {
+      showErr('is-active', '계정 상태를 선택해 주세요.'); ok = false;
+    }
+
+    // ── 이메일
+    const email = getVal('f-email').trim();
+    if (!email) {
+      showErr('email', '이메일을 입력해 주세요.'); ok = false;
+    } else if (email.length > 100) {
+      showErr('email', '이메일은 100자 이하로 입력해 주세요.'); ok = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showErr('email', '이메일 형식이 올바르지 않습니다.'); ok = false;
+    }
+
+    // ── 연락처
+    const phone = getVal('f-phone').trim();
+    if (!phone) {
+      showErr('phone', '연락처를 입력해 주세요.'); ok = false;
+    } else if (/[^0-9\-]/.test(phone)) {
+      showErr('phone', '연락처는 숫자만 입력할 수 있습니다.'); ok = false;
+    } else if (!/^\d{10,11}$/.test(phone.replace(/-/g, ''))) {
+      showErr('phone', '연락처를 정확히 입력해 주세요.'); ok = false;
+    } else if (!/^0\d{1,2}-\d{3,4}-\d{4}$/.test(phone)) {
+      showErr('phone', '연락처 형식이 올바르지 않습니다. (예: 010-1234-5678)'); ok = false;
+    }
+
+    if (!ok) e.preventDefault();
+  });
+})();
+</script>

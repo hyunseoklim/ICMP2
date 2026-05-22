@@ -5,6 +5,7 @@ urlpatterns = [
     # 사용자 관리
     path('', views.user_list, name='user_list'),
     path('create/', views.user_create, name='user_create'),
+    path('check-username/', views.check_username, name='check_username'),
     path('bulk-delete/', views.user_bulk_delete, name='user_bulk_delete'),
     path('bulk-lock/', views.user_bulk_lock, name='user_bulk_lock'),
     path('bulk-unlock/', views.user_bulk_unlock, name='user_bulk_unlock'),

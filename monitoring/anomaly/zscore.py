@@ -9,7 +9,7 @@ STEP D — Z-score 기반 통계적 조기 이상탐지
 O2는 감소 방향이 위험이므로 z <= -3 조건으로 별도 처리.
 """
 
-import statistics
+import numpy as np
 from .window import get, is_ready, GAS_FIELDS
 
 MIN_SAMPLES = 10   # 최소 샘플 수 (미달 시 판단 보류)
@@ -68,8 +68,9 @@ def analyze(device_uid: str, reading) -> list[dict]:
         if len(history) < 2:
             continue
 
-        mean = statistics.mean(history)
-        std  = statistics.stdev(history) + 1e-9  # 0 나누기 방지
+        arr  = np.array(history, dtype=float)
+        mean = float(np.mean(arr))
+        std  = float(np.std(arr)) + 1e-9  # 0 나누기 방지 (모집단 표준편차, ddof=0)
         z    = (current - mean) / std
 
         direction = 'decrease' if z < 0 else 'increase'

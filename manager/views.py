@@ -72,8 +72,13 @@ def user_list(request):
             qs = qs.filter(is_superuser=True)
         else:
             qs = qs.filter(user_type=user_type, is_superuser=False)
-    if is_active := request.GET.get('is_active'):
-        qs = qs.filter(is_active=(is_active == 'true'))
+    account_status = request.GET.get('is_active')
+    if account_status == 'true':
+        qs = qs.filter(is_active=True, is_locked=False)
+    elif account_status == 'false':
+        qs = qs.filter(is_active=False)
+    elif account_status == 'locked':
+        qs = qs.filter(is_locked=True)
     if position := request.GET.get('position'):
         qs = qs.filter(position__icontains=position)
 
@@ -90,7 +95,12 @@ def user_list(request):
         'page_obj': page_obj,
         'total_count': paginator.count,
         'departments': Department.objects.all(),
-        'positions': Position.objects.filter(is_active=True),
+        'positions': (
+            User.objects.exclude(position='')
+            .values_list('position', flat=True)
+            .distinct()
+            .order_by('position')
+        ),
         'base_params': base_params,
     })
 
@@ -110,7 +120,7 @@ def user_bulk_lock(request):
         return redirect('user_list')
     ids = request.POST.getlist('selected_ids')
     if ids:
-        count = User.objects.filter(pk__in=ids).update(is_active=False)
+        count = User.objects.filter(pk__in=ids).update(is_locked=True)
         messages.success(request, f'{count}명의 계정이 잠금 처리되었습니다.')
     return redirect('user_list')
 
@@ -120,49 +130,123 @@ def user_bulk_unlock(request):
         return redirect('user_list')
     ids = request.POST.getlist('selected_ids')
     if ids:
-        count = User.objects.filter(pk__in=ids).update(is_active=True)
+        count = User.objects.filter(pk__in=ids).update(is_locked=False)
         messages.success(request, f'{count}명의 계정 잠금이 해제되었습니다.')
     return redirect('user_list')
+
+
+def check_username(request):
+    """GET /manager/check-username/?username=xxx → {available: true/false}"""
+    username = request.GET.get('username', '').strip()
+    exists = User.objects.filter(username=username).exists() if username else False
+    return JsonResponse({'available': not exists})
 
 
 def user_create(request):
     """사용자 등록"""
     if request.method == 'POST':
-        name       = request.POST.get('name', '').strip()
-        username   = request.POST.get('username', '').strip()
-        password1  = request.POST.get('password1', '')
-        password2  = request.POST.get('password2', '')
-        department = request.POST.get('department')
-        user_type  = request.POST.get('user_type', 'worker')
-        position   = request.POST.get('position', '')
-        is_active  = request.POST.get('is_active', 'true') == 'true'
-        email      = request.POST.get('email', '').strip()
-        phone      = request.POST.get('phone', '').strip()
+        name           = request.POST.get('name', '').strip()
+        username       = request.POST.get('username', '').strip()
+        password1      = request.POST.get('password1', '')
+        password2      = request.POST.get('password2', '')
+        department     = request.POST.get('department', '').strip()
+        user_type      = request.POST.get('user_type', '').strip()
+        position       = request.POST.get('position', '').strip()
+        account_status = request.POST.get('is_active', '').strip()
+        email          = request.POST.get('email', '').strip()
+        phone          = request.POST.get('phone', '').strip()
 
         errors = []
+
+        # ── 사용자명 ──────────────────────────────────────────
         if not name:
-            errors.append('사용자명을 입력하세요.')
+            errors.append('사용자명을 입력해 주세요.')
+        elif len(name) < 2:
+            errors.append('사용자명을 2자 이상 입력해 주세요.')
+        elif len(name) > 20:
+            errors.append('사용자명은 20자 이하로 입력해 주세요.')
+        elif not re.fullmatch(r'[가-힣a-zA-Z0-9]+', name):
+            errors.append('사용자명은 한글, 영문, 숫자만 입력할 수 있습니다.')
+
+        # ── 아이디 ───────────────────────────────────────────
         if not username:
-            errors.append('아이디를 입력하세요.')
-        if User.objects.filter(username=username).exists():
-            errors.append(f'이미 사용 중인 아이디입니다: {username}')
+            errors.append('아이디를 입력해 주세요.')
+        elif ' ' in username:
+            errors.append('아이디에는 공백을 입력할 수 없습니다.')
+        elif not re.fullmatch(r'[a-zA-Z0-9]+', username):
+            errors.append('아이디는 영문 또는 숫자만 입력할 수 있습니다.')
+        elif len(username) < 4:
+            errors.append('아이디를 4자 이상 입력해 주세요.')
+        elif len(username) > 20:
+            errors.append('아이디는 20자 이하로 입력해 주세요.')
+        elif User.objects.filter(username=username).exists():
+            errors.append('이미 사용 중인 아이디입니다.')
+
+        # ── 비밀번호 ─────────────────────────────────────────
+        pw_ok = True
         if not password1:
-            errors.append('비밀번호를 입력하세요.')
-        if password1 != password2:
+            errors.append('비밀번호를 입력해 주세요.')
+            pw_ok = False
+        elif ' ' in password1:
+            errors.append('비밀번호에는 공백을 입력할 수 없습니다.')
+            pw_ok = False
+        elif len(password1) < 8:
+            errors.append('비밀번호는 8자 이상 입력해 주세요.')
+            pw_ok = False
+        elif len(password1) > 20:
+            errors.append('비밀번호는 20자 이하로 입력해 주세요.')
+            pw_ok = False
+        else:
+            has_letter  = bool(re.search(r'[a-zA-Z]', password1))
+            has_number  = bool(re.search(r'[0-9]', password1))
+            has_special = bool(re.search(r'[^a-zA-Z0-9]', password1))
+            if sum([has_letter, has_number, has_special]) < 2:
+                errors.append('비밀번호는 영문, 숫자, 특수문자 중 2가지 이상을 포함해 주세요.')
+                pw_ok = False
+
+        # ── 비밀번호 확인 ─────────────────────────────────────
+        if not password2:
+            errors.append('비밀번호 확인을 입력해 주세요.')
+        elif pw_ok and password1 != password2:
             errors.append('비밀번호가 일치하지 않습니다.')
+
+        # ── 소속 ─────────────────────────────────────────────
+        if not department:
+            errors.append('소속을 선택해 주세요.')
+
+        # ── 권한 ─────────────────────────────────────────────
         if not user_type:
-            errors.append('권한을 선택하세요.')
+            errors.append('권한을 선택해 주세요.')
+
+        # ── 계정 상태 ─────────────────────────────────────────
+        if not account_status:
+            errors.append('계정 상태를 선택해 주세요.')
+
+        # ── 이메일 ───────────────────────────────────────────
+        if not email:
+            errors.append('이메일을 입력해 주세요.')
+        elif len(email) > 100:
+            errors.append('이메일은 100자 이하로 입력해 주세요.')
+        elif not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
+            errors.append('이메일 형식이 올바르지 않습니다.')
+
+        # ── 연락처 ───────────────────────────────────────────
+        if not phone:
+            errors.append('연락처를 입력해 주세요.')
+        elif re.search(r'[^0-9\-]', phone):
+            errors.append('연락처는 숫자만 입력할 수 있습니다.')
+        elif len(re.sub(r'\D', '', phone)) not in (10, 11):
+            errors.append('연락처를 정확히 입력해 주세요.')
+        elif not re.fullmatch(r'0\d{1,2}-\d{3,4}-\d{4}', phone):
+            errors.append('연락처 형식이 올바르지 않습니다. (예: 010-1234-5678)')
 
         if errors:
             for e in errors:
                 messages.error(request, e)
-            return render(request, 'admin/users/user_list.html', {
-                'active_menu': 'account',
-                'departments': Department.objects.all(),
-                'positions': Position.objects.filter(is_active=True),
-                'create_errors': errors,
-                'show_create_modal': True,
-            })
+            return redirect('user_list')
+
+        is_locked = account_status == 'locked'
+        is_active = account_status != 'false'
 
         user = User(
             username=username,
@@ -170,15 +254,19 @@ def user_create(request):
             user_type=user_type,
             position=position,
             is_active=is_active,
+            is_locked=is_locked,
             email=email,
             phone=phone,
         )
-        if department:
-            user.department_id = int(department)
+        user.department_id = int(department)
         if user_type == 'admin':
             user.is_staff = True
         user.set_password(password1)
-        user.save()
+        try:
+            user.save()
+        except Exception as e:
+            messages.error(request, f'사용자 등록 중 오류가 발생했습니다: {e}')
+            return redirect('user_list')
 
         messages.success(request, f'사용자 "{name}"({username})이 등록되었습니다.')
         return redirect('user_list')
@@ -186,7 +274,7 @@ def user_create(request):
     return render(request, 'admin/users/user_create.html', {
         'active_menu': 'account',
         'departments': Department.objects.all(),
-        'positions': Position.objects.filter(is_active=True),
+        'positions': User.objects.exclude(position='').values_list('position', flat=True).distinct().order_by('position'),
     })
 
 def user_create_error(request):
@@ -214,7 +302,16 @@ def user_edit(request, pk):
         target_user.phone      = request.POST.get('phone', target_user.phone).strip()
         target_user.position   = request.POST.get('position', target_user.position).strip()
         target_user.user_type  = request.POST.get('user_type', target_user.user_type)
-        target_user.is_active  = request.POST.get('is_active', 'true') == 'true'
+        account_status = request.POST.get('is_active', 'true')
+        if account_status == 'locked':
+            target_user.is_locked = True
+            target_user.is_active = True
+        elif account_status == 'false':
+            target_user.is_locked = False
+            target_user.is_active = False
+        else:
+            target_user.is_locked = False
+            target_user.is_active = True
 
         dept_id = request.POST.get('department')
         target_user.department_id = int(dept_id) if dept_id else None
@@ -238,7 +335,7 @@ def user_edit(request, pk):
         'active_menu': 'account',
         'target_user': target_user,
         'departments': Department.objects.all(),
-        'positions': Position.objects.filter(is_active=True),
+        'positions': User.objects.exclude(position='').values_list('position', flat=True).distinct().order_by('position'),
     })
 
 def logout_complete(request):

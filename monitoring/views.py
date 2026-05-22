@@ -102,6 +102,11 @@ def ingest_gas(request):
     zscore_results = zscore_analyze(device.device_uid, reading)
     trigger_anomaly_alarms(device, zscore_results)
 
+    from monitoring.anomaly.changepoint import detect as cp_detect
+    from alerts.services import trigger_changepoint_alarms
+    cp_results = cp_detect(device.device_uid, reading)
+    trigger_changepoint_alarms(device, cp_results)
+
     # ─── sensor WebSocket broadcast ───────────────────────
     try:
         from facilities.models import SensorLocation

@@ -44,6 +44,7 @@ class User(AbstractUser):
     user_type = models.CharField(max_length=20, choices=UserType.choices, default=UserType.WORKER)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True,related_name="users")
     position = models.CharField(max_length=100, blank=True)
+    is_locked = models.BooleanField(default=False, help_text="계정 잠금 여부")
     last_login_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
