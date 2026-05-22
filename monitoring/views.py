@@ -56,121 +56,14 @@ class PowerSystemManageView(TemplateView):
 def ingest_gas(request):
     """
     POST /ingest/gas/
-    FastAPI 가짜 데이터 생성기 → Django DB 저장
+    FastAPI 가짜 데이터 생성기 → Django DB 저장 (Redis 미사용 시 fallback)
     """
     device_uid = request.data.get('device_uid')
-    device = Device.objects.filter(device_uid=device_uid).first()
-    if not device:
+    if not Device.objects.filter(device_uid=device_uid).exists():
         return Response({'error': f'장비 없음: {device_uid}'}, status=404)
 
-    raw = request.data
-    gas_fields = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
-    values = {f: raw.get(f) for f in gas_fields}
-
-    missing_count = sum(1 for v in values.values() if v is None)
-    if missing_count == len(gas_fields):
-        quality_flag = 'missing'
-    elif missing_count > 0:
-        quality_flag = 'partial'
-    else:
-        quality_flag = 'ok'
-
-    measured_at_raw = raw.get('measured_at')
-    if measured_at_raw:
-        from django.utils.dateparse import parse_datetime
-        measured_at = parse_datetime(measured_at_raw) or timezone.now()
-    else:
-        measured_at = timezone.now()
-
-    reading = GasReading.objects.create(
-        device=device,
-        **values,
-        measured_at=measured_at,
-        quality_flag=quality_flag,
-        raw_payload=dict(raw),
-    )
-    update_last_seen(device)
-
-    from monitoring.anomaly.window import push as window_push
-    window_push(device.device_uid, reading)
-
-    from alerts.services import check_gas_thresholds
-    check_gas_thresholds(device, reading)
-
-    from monitoring.anomaly.zscore import analyze as zscore_analyze
-    from alerts.services import trigger_anomaly_alarms
-    zscore_results = zscore_analyze(device.device_uid, reading)
-    trigger_anomaly_alarms(device, zscore_results)
-
-    from monitoring.anomaly.changepoint import detect as cp_detect
-    from alerts.services import trigger_changepoint_alarms
-    cp_results = cp_detect(device.device_uid, reading)
-    trigger_changepoint_alarms(device, cp_results)
-
-    # ─── sensor WebSocket broadcast ───────────────────────
-    try:
-        from facilities.models import SensorLocation
-        from asgiref.sync import async_to_sync
-        from channels.layers import get_channel_layer
-        from monitoring.services import calc_danger_level
-
-        sensor = SensorLocation.objects.filter(
-            device_id = device.id,
-            is_active = True,
-        ).first()
-
-        if sensor:
-            level_kr = calc_danger_level(reading)
-            status = {
-                '위험': 'danger',
-                '주의': 'warning',
-                '정상': 'normal',
-            }.get(level_kr, 'normal')
-
-            payload = {
-                'id':          sensor.id,
-                'device_id':   device.id,
-                'sensor_type': sensor.sensor_type,
-                'x':           float(sensor.x),
-                'y':           float(sensor.y),
-                'device_name': sensor.device_name,
-                'is_active':   sensor.is_active,
-                'status':      status,
-                'latest_value': {
-                    'co':  reading.co,
-                    'h2s': reading.h2s,
-                    'co2': reading.co2,
-                    'o2':  reading.o2,
-                    'no2': reading.no2,
-                    'so2': reading.so2,
-                    'o3':  reading.o3,
-                    'nh3': reading.nh3,
-                    'voc': reading.voc,
-                },
-            }
-
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f'floor_{sensor.floor_id}_sensor',
-                {
-                    'type':     'sensor.update',
-                    'msg_type': 'delta',
-                    'data':     [payload],
-                },
-            )
-    except Exception as e:
-        print(f'[sensor_ws] broadcast 실패: {e}')
-    # ─── sensor WebSocket broadcast 끝 ────────────────────
-        # ─── geofence 자동 생성/갱신/삭제 ───────────────────────
-    # 가스 위험도(danger/warning/safe) 기반으로 geofence 자동 처리
-    # safe: 기존 geofence 비활성화 / danger,warning: 생성 또는 갱신
-    try:
-        from facilities.services.geofence_service import update_geofence_from_gas
-        update_geofence_from_gas(reading)
-    except Exception as e:
-        print(f'[geofence] 업데이트 실패: {e}')
-    # ─── geofence 끝 ─────────────────────────────────────
-
+    from monitoring.services import process_gas_ingest
+    process_gas_ingest(device_uid, dict(request.data))
     return Response({'status': 'ok'})
 
 

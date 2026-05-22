@@ -1,6 +1,113 @@
 from datetime import timedelta
 from django.utils import timezone
 
+
+# ══════════════════════════════════════════════════════════
+# 가스 수신 처리 파이프라인 (HTTP 뷰 & Celery 공용)
+# ══════════════════════════════════════════════════════════
+
+GAS_FIELDS = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
+
+
+def process_gas_ingest(device_uid: str, payload: dict) -> None:
+    """
+    가스 센서 데이터 1건 처리.
+    HTTP ingest 뷰와 Celery Redis 소비자 양쪽에서 호출한다.
+
+    payload 예시:
+        {"device_uid": "GAS-001", "measured_at": "...", "co": 5.2, ...}
+    """
+    from monitoring.models import Device, GasReading
+    from monitoring.collector import update_last_seen
+
+    device = Device.objects.filter(device_uid=device_uid).first()
+    if not device:
+        return
+
+    values = {f: payload.get(f) for f in GAS_FIELDS}
+    missing_count = sum(1 for v in values.values() if v is None)
+    if missing_count == len(GAS_FIELDS):
+        quality_flag = 'missing'
+    elif missing_count > 0:
+        quality_flag = 'partial'
+    else:
+        quality_flag = 'ok'
+
+    measured_at_raw = payload.get('measured_at')
+    if measured_at_raw:
+        from django.utils.dateparse import parse_datetime
+        measured_at = parse_datetime(str(measured_at_raw)) or timezone.now()
+    else:
+        measured_at = timezone.now()
+
+    reading = GasReading.objects.create(
+        device=device,
+        **values,
+        measured_at=measured_at,
+        quality_flag=quality_flag,
+        raw_payload=dict(payload),
+    )
+    update_last_seen(device)
+
+    # STEP C — Sliding Window 버퍼 갱신
+    from monitoring.anomaly.window import push as window_push
+    window_push(device.device_uid, reading)
+
+    # STEP B — 임계치 초과 판단
+    from alerts.services import check_gas_thresholds
+    check_gas_thresholds(device, reading)
+
+    # STEP D — Z-score 통계 이상 탐지
+    from monitoring.anomaly.zscore import analyze as zscore_analyze
+    from alerts.services import trigger_anomaly_alarms
+    zscore_results = zscore_analyze(device.device_uid, reading)
+    trigger_anomaly_alarms(device, zscore_results)
+
+    # STEP E — Change Point 탐지
+    from monitoring.anomaly.changepoint import detect as cp_detect
+    from alerts.services import trigger_changepoint_alarms
+    cp_results = cp_detect(device.device_uid, reading)
+    trigger_changepoint_alarms(device, cp_results)
+
+    # WebSocket 브로드캐스트
+    try:
+        from facilities.models import SensorLocation
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        sensor = SensorLocation.objects.filter(
+            device_id=device.id, is_active=True
+        ).first()
+
+        if sensor:
+            level_kr = calc_danger_level(reading)
+            status = {'위험': 'danger', '주의': 'warning', '정상': 'normal'}.get(level_kr, 'normal')
+            ws_payload = {
+                'id': sensor.id,
+                'device_id': device.id,
+                'sensor_type': sensor.sensor_type,
+                'x': float(sensor.x),
+                'y': float(sensor.y),
+                'device_name': sensor.device_name,
+                'is_active': sensor.is_active,
+                'status': status,
+                'latest_value': {f: getattr(reading, f) for f in GAS_FIELDS},
+            }
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'floor_{sensor.floor_id}_sensor',
+                {'type': 'sensor.update', 'msg_type': 'delta', 'data': [ws_payload]},
+            )
+    except Exception as e:
+        print(f'[sensor_ws] broadcast 실패: {e}')
+
+    # Geofence 자동 갱신
+    try:
+        from facilities.services.geofence_service import update_geofence_from_gas
+        update_geofence_from_gas(reading)
+    except Exception as e:
+        print(f'[geofence] 업데이트 실패: {e}')
+
 # ──────────────────────────────────────────────────────────
 # 가스 위험도 상수
 # ──────────────────────────────────────────────────────────

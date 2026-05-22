@@ -81,6 +81,7 @@ services:
       django:
         condition: service_started
 
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
