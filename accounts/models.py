@@ -24,6 +24,12 @@ class Department(models.Model):
         'User', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='led_departments'
     )
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+    updated_by = models.ForeignKey(
+        'User', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='updated_departments'
+    )
 
     class Meta:
         db_table            = "departments"
@@ -35,15 +41,16 @@ class Department(models.Model):
     
 class User(AbstractUser):
     class UserType(models.TextChoices):
-        ADMIN = "admin", "관리자"
-        MANAGER = "manager", "현장 관리자"
-        WORKER = "worker", "작업자"
+        ADMIN = "admin", "슈퍼관리자"
+        MANAGER = "manager", "관리자"
+        WORKER = "worker", "일반사용자"
 
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True)
     user_type = models.CharField(max_length=20, choices=UserType.choices, default=UserType.WORKER)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True,related_name="users")
     position = models.CharField(max_length=100, blank=True)
+    is_locked = models.BooleanField(default=False, help_text="계정 잠금 여부")
     last_login_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

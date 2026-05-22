@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_power_data, generate_node_readings
 from fastapi_app.sender import fetch_gas_devices, post_gas_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading
@@ -80,6 +81,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ICMP2 실시간 데이터 서버", lifespan=lifespan)
+
+Instrumentator(
+    excluded_handlers=["/metrics", "/docs", "/openapi.json"]
+).instrument(app).expose(app, endpoint="/metrics")
 
 app.add_middleware(
     CORSMiddleware,

@@ -5,6 +5,7 @@ urlpatterns = [
     # 사용자 관리
     path('', views.user_list, name='user_list'),
     path('create/', views.user_create, name='user_create'),
+    path('check-username/', views.check_username, name='check_username'),
     path('bulk-delete/', views.user_bulk_delete, name='user_bulk_delete'),
     path('bulk-lock/', views.user_bulk_lock, name='user_bulk_lock'),
     path('bulk-unlock/', views.user_bulk_unlock, name='user_bulk_unlock'),
@@ -75,6 +76,7 @@ urlpatterns = [
     path('facilities/bulk-delete/', views.facility_bulk_delete, name='facility_bulk_delete'),
     path('facilities/<int:pk>/edit/', views.facility_edit, name='facility_edit'),
     path('gas/', views.gas_list, name='gas_list'),
+    path('gas/comm-check/', views.gas_comm_check, name='gas_comm_check'),
     path('gas/create/', views.gas_create, name='gas_create'),
     path('gas/bulk-delete/', views.gas_bulk_delete, name='gas_bulk_delete'),
     path('gas/<int:pk>/edit/', views.gas_edit, name='gas_edit'),

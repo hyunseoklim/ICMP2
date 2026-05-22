@@ -23,3 +23,5 @@ db.sqlite3-journal
 *.md
 *.pdf
 dump.rdb
+dump.json
+staticfiles/

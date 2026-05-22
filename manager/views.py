@@ -3,9 +3,14 @@ import re
 import csv
 from datetime import timedelta, datetime, date
 
-# ⚠️ 임시: 운영 전 일괄 권한 정책으로 교체 예정 — map_editor 함수 페이지 진입 차단 전용
-# API ViewSet 등 다른 경로는 별도 단계에서 보호 적용
 from django.contrib.auth.decorators import login_required, user_passes_test
+
+def _is_admin(user):
+    return getattr(user, 'user_type', '') == 'admin'
+
+def admin_required(view_func):
+    decorated = login_required(user_passes_test(_is_admin, login_url='/')(view_func))
+    return decorated
 
 
 from django.db import models as db_models
@@ -72,8 +77,13 @@ def user_list(request):
             qs = qs.filter(is_superuser=True)
         else:
             qs = qs.filter(user_type=user_type, is_superuser=False)
-    if is_active := request.GET.get('is_active'):
-        qs = qs.filter(is_active=(is_active == 'true'))
+    account_status = request.GET.get('is_active')
+    if account_status == 'true':
+        qs = qs.filter(is_active=True, is_locked=False)
+    elif account_status == 'false':
+        qs = qs.filter(is_active=False)
+    elif account_status == 'locked':
+        qs = qs.filter(is_locked=True)
     if position := request.GET.get('position'):
         qs = qs.filter(position__icontains=position)
 
@@ -90,7 +100,12 @@ def user_list(request):
         'page_obj': page_obj,
         'total_count': paginator.count,
         'departments': Department.objects.all(),
-        'positions': Position.objects.filter(is_active=True),
+        'positions': (
+            User.objects.exclude(position='')
+            .values_list('position', flat=True)
+            .distinct()
+            .order_by('position')
+        ),
         'base_params': base_params,
     })
 
@@ -110,7 +125,7 @@ def user_bulk_lock(request):
         return redirect('user_list')
     ids = request.POST.getlist('selected_ids')
     if ids:
-        count = User.objects.filter(pk__in=ids).update(is_active=False)
+        count = User.objects.filter(pk__in=ids).update(is_locked=True)
         messages.success(request, f'{count}명의 계정이 잠금 처리되었습니다.')
     return redirect('user_list')
 
@@ -120,49 +135,123 @@ def user_bulk_unlock(request):
         return redirect('user_list')
     ids = request.POST.getlist('selected_ids')
     if ids:
-        count = User.objects.filter(pk__in=ids).update(is_active=True)
+        count = User.objects.filter(pk__in=ids).update(is_locked=False)
         messages.success(request, f'{count}명의 계정 잠금이 해제되었습니다.')
     return redirect('user_list')
+
+
+@admin_required
+def check_username(request):
+    username = request.GET.get('username', '').strip()
+    exists = User.objects.filter(username=username).exists() if username else False
+    return JsonResponse({'exists': exists})
 
 
 def user_create(request):
     """사용자 등록"""
     if request.method == 'POST':
-        name       = request.POST.get('name', '').strip()
-        username   = request.POST.get('username', '').strip()
-        password1  = request.POST.get('password1', '')
-        password2  = request.POST.get('password2', '')
-        department = request.POST.get('department')
-        user_type  = request.POST.get('user_type', 'worker')
-        position   = request.POST.get('position', '')
-        is_active  = request.POST.get('is_active', 'true') == 'true'
-        email      = request.POST.get('email', '').strip()
-        phone      = request.POST.get('phone', '').strip()
+        name           = request.POST.get('name', '').strip()
+        username       = request.POST.get('username', '').strip()
+        password1      = request.POST.get('password1', '')
+        password2      = request.POST.get('password2', '')
+        department     = request.POST.get('department', '').strip()
+        user_type      = request.POST.get('user_type', '').strip()
+        position       = request.POST.get('position', '').strip()
+        account_status = request.POST.get('is_active', '').strip()
+        email          = request.POST.get('email', '').strip()
+        phone          = request.POST.get('phone', '').strip()
 
         errors = []
+
+        # ── 사용자명 ──────────────────────────────────────────
         if not name:
-            errors.append('사용자명을 입력하세요.')
+            errors.append('사용자명을 입력해 주세요.')
+        elif len(name) < 2:
+            errors.append('사용자명을 2자 이상 입력해 주세요.')
+        elif len(name) > 20:
+            errors.append('사용자명은 20자 이하로 입력해 주세요.')
+        elif not re.fullmatch(r'[가-힣a-zA-Z0-9]+', name):
+            errors.append('사용자명은 한글, 영문, 숫자만 입력할 수 있습니다.')
+
+        # ── 아이디 ───────────────────────────────────────────
         if not username:
-            errors.append('아이디를 입력하세요.')
-        if User.objects.filter(username=username).exists():
-            errors.append(f'이미 사용 중인 아이디입니다: {username}')
+            errors.append('아이디를 입력해 주세요.')
+        elif ' ' in username:
+            errors.append('아이디에는 공백을 입력할 수 없습니다.')
+        elif not re.fullmatch(r'[a-zA-Z0-9]+', username):
+            errors.append('아이디는 영문 또는 숫자만 입력할 수 있습니다.')
+        elif len(username) < 4:
+            errors.append('아이디를 4자 이상 입력해 주세요.')
+        elif len(username) > 20:
+            errors.append('아이디는 20자 이하로 입력해 주세요.')
+        elif User.objects.filter(username=username).exists():
+            errors.append('이미 사용 중인 아이디입니다.')
+
+        # ── 비밀번호 ─────────────────────────────────────────
+        pw_ok = True
         if not password1:
-            errors.append('비밀번호를 입력하세요.')
-        if password1 != password2:
+            errors.append('비밀번호를 입력해 주세요.')
+            pw_ok = False
+        elif ' ' in password1:
+            errors.append('비밀번호에는 공백을 입력할 수 없습니다.')
+            pw_ok = False
+        elif len(password1) < 8:
+            errors.append('비밀번호는 8자 이상 입력해 주세요.')
+            pw_ok = False
+        elif len(password1) > 20:
+            errors.append('비밀번호는 20자 이하로 입력해 주세요.')
+            pw_ok = False
+        else:
+            has_letter  = bool(re.search(r'[a-zA-Z]', password1))
+            has_number  = bool(re.search(r'[0-9]', password1))
+            has_special = bool(re.search(r'[^a-zA-Z0-9]', password1))
+            if sum([has_letter, has_number, has_special]) < 2:
+                errors.append('비밀번호는 영문, 숫자, 특수문자 중 2가지 이상을 포함해 주세요.')
+                pw_ok = False
+
+        # ── 비밀번호 확인 ─────────────────────────────────────
+        if not password2:
+            errors.append('비밀번호 확인을 입력해 주세요.')
+        elif pw_ok and password1 != password2:
             errors.append('비밀번호가 일치하지 않습니다.')
+
+        # ── 소속 ─────────────────────────────────────────────
+        if not department:
+            errors.append('소속을 선택해 주세요.')
+
+        # ── 권한 ─────────────────────────────────────────────
         if not user_type:
-            errors.append('권한을 선택하세요.')
+            errors.append('권한을 선택해 주세요.')
+
+        # ── 계정 상태 ─────────────────────────────────────────
+        if not account_status:
+            errors.append('계정 상태를 선택해 주세요.')
+
+        # ── 이메일 ───────────────────────────────────────────
+        if not email:
+            errors.append('이메일을 입력해 주세요.')
+        elif len(email) > 100:
+            errors.append('이메일은 100자 이하로 입력해 주세요.')
+        elif not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
+            errors.append('이메일 형식이 올바르지 않습니다.')
+
+        # ── 연락처 ───────────────────────────────────────────
+        if not phone:
+            errors.append('연락처를 입력해 주세요.')
+        elif re.search(r'[^0-9\-]', phone):
+            errors.append('연락처는 숫자만 입력할 수 있습니다.')
+        elif len(re.sub(r'\D', '', phone)) not in (10, 11):
+            errors.append('연락처를 정확히 입력해 주세요.')
+        elif not re.fullmatch(r'0\d{1,2}-\d{3,4}-\d{4}', phone):
+            errors.append('연락처 형식이 올바르지 않습니다. (예: 010-1234-5678)')
 
         if errors:
             for e in errors:
                 messages.error(request, e)
-            return render(request, 'admin/users/user_list.html', {
-                'active_menu': 'account',
-                'departments': Department.objects.all(),
-                'positions': Position.objects.filter(is_active=True),
-                'create_errors': errors,
-                'show_create_modal': True,
-            })
+            return redirect('user_list')
+
+        is_locked = account_status == 'locked'
+        is_active = account_status != 'false'
 
         user = User(
             username=username,
@@ -170,15 +259,19 @@ def user_create(request):
             user_type=user_type,
             position=position,
             is_active=is_active,
+            is_locked=is_locked,
             email=email,
             phone=phone,
         )
-        if department:
-            user.department_id = int(department)
+        user.department_id = int(department)
         if user_type == 'admin':
             user.is_staff = True
         user.set_password(password1)
-        user.save()
+        try:
+            user.save()
+        except Exception as e:
+            messages.error(request, f'사용자 등록 중 오류가 발생했습니다: {e}')
+            return redirect('user_list')
 
         messages.success(request, f'사용자 "{name}"({username})이 등록되었습니다.')
         return redirect('user_list')
@@ -186,7 +279,7 @@ def user_create(request):
     return render(request, 'admin/users/user_create.html', {
         'active_menu': 'account',
         'departments': Department.objects.all(),
-        'positions': Position.objects.filter(is_active=True),
+        'positions': User.objects.exclude(position='').values_list('position', flat=True).distinct().order_by('position'),
     })
 
 def user_create_error(request):
@@ -214,7 +307,16 @@ def user_edit(request, pk):
         target_user.phone      = request.POST.get('phone', target_user.phone).strip()
         target_user.position   = request.POST.get('position', target_user.position).strip()
         target_user.user_type  = request.POST.get('user_type', target_user.user_type)
-        target_user.is_active  = request.POST.get('is_active', 'true') == 'true'
+        account_status = request.POST.get('is_active', 'true')
+        if account_status == 'locked':
+            target_user.is_locked = True
+            target_user.is_active = True
+        elif account_status == 'false':
+            target_user.is_locked = False
+            target_user.is_active = False
+        else:
+            target_user.is_locked = False
+            target_user.is_active = True
 
         dept_id = request.POST.get('department')
         target_user.department_id = int(dept_id) if dept_id else None
@@ -238,7 +340,7 @@ def user_edit(request, pk):
         'active_menu': 'account',
         'target_user': target_user,
         'departments': Department.objects.all(),
-        'positions': Position.objects.filter(is_active=True),
+        'positions': User.objects.exclude(position='').values_list('position', flat=True).distinct().order_by('position'),
     })
 
 def logout_complete(request):
@@ -330,6 +432,9 @@ def org_dept_api(request, pk):
             'member_count': qs.count(),
             'leader_id': dept.leader_id,
             'leader_name': dept.leader.name if dept.leader else None,
+            'created_at': dept.created_at.strftime('%Y-%m-%d %H:%M:%S') if dept.created_at else '-',
+            'updated_at': dept.updated_at.strftime('%Y-%m-%d %H:%M:%S') if dept.updated_at else '-',
+            'updated_by': dept.updated_by.name if dept.updated_by else '-',
         }
 
     q = request.GET.get('q', '').strip()
@@ -424,7 +529,8 @@ def org_appoint_leader(request):
     dept = get_object_or_404(Department, pk=dept_id)
     user = get_object_or_404(User, pk=user_id)
     dept.leader = user
-    dept.save(update_fields=['leader'])
+    dept.updated_by = request.user
+    dept.save(update_fields=['leader', 'updated_by', 'updated_at'])
     messages.success(request, f'{user.name}을(를) {dept.name}의 조직장으로 임명했습니다.')
     return redirect('org_list')
 
@@ -441,7 +547,8 @@ def org_revoke_leader(request):
     dept = get_object_or_404(Department, pk=dept_id)
     prev_name = dept.leader.name if dept.leader else ''
     dept.leader = None
-    dept.save(update_fields=['leader'])
+    dept.updated_by = request.user
+    dept.save(update_fields=['leader', 'updated_by', 'updated_at'])
     messages.success(request, f'{prev_name}의 조직장 직위가 해제되었습니다.')
     return redirect('org_list')
 
@@ -468,6 +575,7 @@ def _get_code_groups(prefix=''):
     return qs.order_by('sort_order', 'group_code')
 
 
+@admin_required
 def code_list(request):
     """공통 코드 관리 메인 페이지"""
     group_code = request.GET.get('group', '')
@@ -514,6 +622,7 @@ def code_list(request):
         'current_user_name': getattr(user, 'name', None) or user.get_full_name() or user.username,
     })
 
+@admin_required
 def code_group_create(request):
     """코드 그룹 등록"""
     user = request.user
@@ -546,6 +655,7 @@ def code_group_create(request):
     })
 
 
+@admin_required
 def code_group_edit(request, group_code):
     """코드 그룹 수정 (GET: JSON 반환, POST: 저장)"""
     meta = get_object_or_404(CommonCode, group_code=group_code, code='__meta__')
@@ -572,7 +682,7 @@ def code_group_edit(request, group_code):
             'group_name':  meta.code_name,
             'scope':       meta.scope,
             'description': meta.description,
-            'updated_at':  meta.updated_at.strftime('%Y-%m-%d %H:%M') if meta.updated_at else '',
+            'updated_at':  meta.updated_at.strftime('%Y-%m-%d %H:%M:%S') if meta.updated_at else '',
             'updated_by':  meta.updated_by or '-',
             'code_count':  code_count,
         })
@@ -584,6 +694,7 @@ def code_group_edit(request, group_code):
     })
 
 
+@admin_required
 def code_value_create(request):
     """공통 코드 등록"""
     group_code = request.GET.get('group', '') or request.POST.get('group_code', '')
@@ -622,6 +733,7 @@ def code_value_create(request):
     })
 
 
+@admin_required
 def code_value_edit(request, pk):
     """공통 코드 수정 (GET: JSON 반환, POST: 저장)"""
     code_obj = get_object_or_404(CommonCode, pk=pk)
@@ -664,6 +776,7 @@ def code_value_edit(request, pk):
     })
 
 
+@admin_required
 @require_POST
 def code_value_delete(request):
     """공통 코드 삭제 (복수)"""
@@ -678,6 +791,7 @@ def code_value_delete(request):
 
 # ===== 위험 유형 관리 =====
 
+@admin_required
 def risk_list(request):
     """위험 유형 관리 메인 페이지"""
     group_code = request.GET.get('group', '')
@@ -718,6 +832,7 @@ def risk_list(request):
     })
 
 
+@admin_required
 def risk_create(request):
     """위험 유형 코드 등록 (AJAX POST 지원)"""
     group_code = request.GET.get('group', '') or request.POST.get('group_code', '')
@@ -763,6 +878,7 @@ def risk_create(request):
     })
 
 
+@admin_required
 def risk_edit(request, pk):
     """위험 유형 코드 수정 (AJAX 지원)"""
     code_obj = get_object_or_404(CommonCode, pk=pk)
@@ -807,6 +923,7 @@ def risk_edit(request, pk):
     })
 
 
+@admin_required
 def risk_group_create(request):
     """위험 분류 그룹 등록"""
     user = request.user
@@ -847,6 +964,7 @@ def risk_group_create(request):
     })
 
 
+@admin_required
 def risk_group_edit(request, group_code):
     """위험 분류 그룹 수정 (AJAX 지원)"""
     meta = get_object_or_404(CommonCode, group_code=group_code, code='__meta__')
@@ -877,7 +995,7 @@ def risk_group_edit(request, group_code):
             'scope':        meta.scope or '',
             'is_active':    meta.is_active,
             'description':  meta.description or '',
-            'updated_at':   meta.updated_at.strftime('%Y-%m-%d %H:%M') if meta.updated_at else '',
+            'updated_at':   meta.updated_at.strftime('%Y-%m-%d %H:%M:%S') if meta.updated_at else '',
             'updated_by':   meta.updated_by or '-',
             'type_count':   type_count,
         })
@@ -891,6 +1009,7 @@ def risk_group_edit(request, group_code):
     })
 
 
+@admin_required
 @require_POST
 def risk_delete(request):
     """위험 유형 코드 삭제 (복수)"""
@@ -905,6 +1024,7 @@ def risk_delete(request):
 
 # ===== 위험 기준 관리 =====
 
+@admin_required
 def risk_criteria_list(request):
     search        = request.GET.get('search', '')
     is_active_f   = request.GET.get('is_active', '')
@@ -935,6 +1055,7 @@ def risk_criteria_list(request):
     })
 
 
+@admin_required
 def risk_criteria_create(request):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'method not allowed'}, status=405)
@@ -978,6 +1099,7 @@ def risk_criteria_create(request):
     return JsonResponse({'ok': True})
 
 
+@admin_required
 def risk_criteria_edit(request, pk):
     obj = get_object_or_404(RiskCriteria, pk=pk)
     if request.method == 'POST':
@@ -1022,11 +1144,12 @@ def risk_criteria_edit(request, pk):
         'priority':       obj.priority,
         'is_active':      obj.is_active,
         'description':    obj.description,
-        'updated_at':     obj.updated_at.strftime('%Y-%m-%d %H:%M') if obj.updated_at else '',
+        'updated_at':     obj.updated_at.strftime('%Y-%m-%d %H:%M:%S') if obj.updated_at else '',
         'updated_by':     obj.updated_by or '-',
     })
 
 
+@admin_required
 @require_POST
 def risk_criteria_delete(request):
     pks = request.POST.getlist('pks')
@@ -1094,6 +1217,7 @@ def _ensure_th_categories():
     ThresholdPolicy.objects.filter(condition='미만').update(condition='이하')
 
 
+@admin_required
 def threshold_list(request):
     """임계치 기준 관리 메인 페이지 (모든 모달 포함)"""
     _ensure_th_categories()
@@ -1157,6 +1281,7 @@ def threshold_list(request):
     })
 
 
+@admin_required
 def threshold_group_create(request):
     """임계치 기준 분류 등록 (AJAX)"""
     if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1183,6 +1308,7 @@ def threshold_group_create(request):
     return JsonResponse({'ok': False}, status=400)
 
 
+@admin_required
 def threshold_group_edit(request, cat_code):
     """임계치 기준 분류 수정 (GET: JSON, POST: 저장)"""
     obj = get_object_or_404(CommonCode, group_code='TH_CATEGORY', code=cat_code)
@@ -1212,13 +1338,14 @@ def threshold_group_edit(request, cat_code):
             'scope':      obj.scope,
             'is_active':  obj.is_active,
             'description': obj.description,
-            'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M') if obj.updated_at else '-',
+            'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S') if obj.updated_at else '-',
             'updated_by': obj.updated_by or '-',
             'type_count': type_count.count(),
         })
     return JsonResponse({'ok': False}, status=400)
 
 
+@admin_required
 def threshold_create(request):
     """임계치 기준 등록"""
     if request.method == 'POST':
@@ -1264,6 +1391,7 @@ def threshold_create(request):
     return redirect(f"/manager/thresholds/?category={request.POST.get('category', 'TH_GAS')}")
 
 
+@admin_required
 def threshold_edit(request, pk):
     """임계치 기준 수정 (GET: JSON 반환, POST: 저장)"""
     policy = get_object_or_404(ThresholdPolicy, pk=pk)
@@ -1302,11 +1430,12 @@ def threshold_edit(request, pk):
         'scope':       policy.scope or '',
         'description': policy.description or '',
         'is_active':   policy.is_active,
-        'updated_at':  policy.updated_at.strftime('%Y-%m-%d %H:%M') if policy.updated_at else '',
+        'updated_at':  policy.updated_at.strftime('%Y-%m-%d %H:%M:%S') if policy.updated_at else '',
         'updated_by':  policy.updated_by or '-',
     })
 
 
+@admin_required
 @require_POST
 def threshold_delete(request):
     """임계치 기준 삭제 (복수)"""
@@ -1348,7 +1477,7 @@ def safety_checklist_list(request):
     snap_data = [
         {
             'id':       s['id'],
-            'saved_at': s['saved_at'].strftime('%Y-%m-%d %H:%M'),
+            'saved_at': s['saved_at'].strftime('%Y-%m-%d %H:%M:%S'),
             'date':     s['saved_at'].strftime('%Y-%m-%d'),
             'time':     s['saved_at'].strftime('%H:%M'),
             'saved_by': s['saved_by__name'] or '-',
@@ -1424,7 +1553,7 @@ def safety_checklist_save(request):
 
     return JsonResponse({
         'success':    True,
-        'saved_at':   snapshot.saved_at.strftime('%Y-%m-%d %H:%M'),
+        'saved_at':   snapshot.saved_at.strftime('%Y-%m-%d %H:%M:%S'),
         'saved_date': snapshot.saved_at.strftime('%Y-%m-%d'),
     })
 
@@ -1717,6 +1846,59 @@ def gas_list(request):
     })
 
 
+def gas_comm_check(request):
+    """장비 통신 확인 API — TCP 소켓으로 IP:PORT 연결 가능 여부 확인"""
+    if request.method != 'POST':
+        return JsonResponse({'ok': False}, status=405)
+
+    import socket
+
+    ip   = request.POST.get('ip', '').strip()
+    port_str = request.POST.get('port', '').strip()
+    mac  = request.POST.get('mac', '').strip()
+
+    if not ip:
+        return JsonResponse({'ok': False, 'error': 'IP 주소를 입력해 주세요.'})
+    if not port_str or not port_str.isdigit():
+        return JsonResponse({'ok': False, 'error': '포트 번호를 입력해 주세요.'})
+    port = int(port_str)
+    if port < 1 or port > 65535:
+        return JsonResponse({'ok': False, 'error': '포트 번호는 1~65535 범위로 입력해 주세요.'})
+
+    from django.conf import settings
+    if not settings.DEBUG:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(3)
+            result = sock.connect_ex((ip, port))
+            sock.close()
+        except socket.gaierror:
+            return JsonResponse({'ok': False, 'conn_fail': True, 'error': '장비와 연결할 수 없습니다. 통신 정보를 확인해 주세요.'})
+        except Exception:
+            return JsonResponse({'ok': False, 'conn_fail': True, 'error': '장비와 연결할 수 없습니다. 통신 정보를 확인해 주세요.'})
+
+        if result != 0:
+            return JsonResponse({'ok': False, 'conn_fail': True, 'error': '장비와 연결할 수 없습니다. 통신 정보를 확인해 주세요.'})
+
+    # MAC이 주어진 경우 이미 등록된 장비의 IP와 대조
+    if mac:
+        matched = Device.objects.filter(ip_address=ip, port=port).first()
+        if matched:
+            existing_mac = ''
+            if matched.note and matched.note.startswith('MAC: '):
+                existing_mac = matched.note.split('\n')[0].replace('MAC: ', '').strip()
+            if existing_mac and existing_mac != mac:
+                return JsonResponse({'ok': False, 'mac_mismatch': True,
+                                     'error': '입력한 장비 ID와 실제 응답 장비 정보가 일치하지 않습니다.'})
+
+    from django.utils import timezone as tz
+    now = tz.localtime(tz.now())
+    pad = lambda n: str(n).zfill(2)
+    ts = (f"{now.year}-{pad(now.month)}-{pad(now.day)} "
+          f"{pad(now.hour)}:{pad(now.minute)}:{pad(now.second)}")
+    return JsonResponse({'ok': True, 'checked_at': ts})
+
+
 def gas_create(request):
     """장비 등록 API (GAS / PWR / LOC 공통)"""
     if request.method != 'POST':
@@ -1760,7 +1942,7 @@ def gas_create(request):
         note         = request.POST.get('note', '').strip()
 
         if mac and Device.objects.filter(note__startswith=f'MAC: {mac}').exists():
-            return JsonResponse({'ok': False, 'error': '이미 등록된 장비 ID입니다.'}, status=400)
+            return JsonResponse({'ok': False, 'duplicate_mac': True, 'error': '이미 등록된 장비 ID입니다.'}, status=400)
 
         note_full = (f'MAC: {mac}\n' + note if mac else note)
 
@@ -1808,6 +1990,9 @@ def gas_edit(request, pk):
     device.is_active     = is_active
     device.department_id = dept_id
     device.manager_id    = manager_id
+    if mac and Device.objects.filter(note__startswith=f'MAC: {mac}').exclude(pk=pk).exists():
+        return JsonResponse({'ok': False, 'duplicate_mac': True, 'error': '이미 등록된 장비 ID입니다.'}, status=400)
+
     note_full = (f'MAC: {mac}\n' + note if mac else note)
     device.note = note_full
 
@@ -2566,6 +2751,7 @@ def _parse_date_range(request):
     return date_from, date_to
 
 
+@admin_required
 def gas_data_list(request):
     """유해가스 센서 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
@@ -2597,6 +2783,7 @@ def gas_data_list(request):
     })
 
 
+@admin_required
 def gas_data_export(request):
     """유해가스 센서 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
@@ -2635,6 +2822,7 @@ def gas_data_export(request):
     return response
 
 
+@admin_required
 def power_data_list(request):
     """스마트 전력 시스템 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
@@ -2660,6 +2848,7 @@ def power_data_list(request):
     })
 
 
+@admin_required
 def power_data_export(request):
     """스마트 전력 시스템 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
@@ -2687,6 +2876,7 @@ def power_data_export(request):
     return response
 
 
+@admin_required
 def node_data_list(request):
     """위치 노드 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
@@ -2716,6 +2906,7 @@ def node_data_list(request):
     })
 
 
+@admin_required
 def node_data_export(request):
     """위치 노드 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
@@ -2748,6 +2939,7 @@ def node_data_export(request):
     return response
 
 
+@admin_required
 def worker_data_list(request):
     """작업자 위치 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
@@ -2777,6 +2969,7 @@ def worker_data_list(request):
     })
 
 
+@admin_required
 def worker_data_export(request):
     """작업자 위치 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
@@ -2806,6 +2999,7 @@ def worker_data_export(request):
     return response
 
 
+@admin_required
 def retention_list(request):
     """데이터 보관 주기 관리"""
     device_type     = request.GET.get('device_type', '')
@@ -2859,6 +3053,7 @@ def retention_list(request):
     })
 
 
+@admin_required
 @require_POST
 def retention_create(request):
     """보관 주기 등록 AJAX"""
@@ -2893,6 +3088,7 @@ def retention_create(request):
     return JsonResponse({'ok': True, 'id': policy.pk})
 
 
+@admin_required
 @require_POST
 def retention_update(request, pk):
     """보관 주기 수정 AJAX"""
@@ -2922,6 +3118,7 @@ def retention_update(request, pk):
     return JsonResponse({'ok': True})
 
 
+@admin_required
 @require_POST
 def retention_delete(request):
     """보관 주기 삭제 AJAX (복수)"""
@@ -3308,7 +3505,7 @@ def map_edit_log_list(request):
 #   - manager/mixins.py 의 AdminRequiredMixin 슈퍼유저 우회 보강
 #   - 거부 응답을 redirect(302) → PermissionDenied(403) 으로 통일할지 결정
 @login_required
-@user_passes_test(lambda u: u.is_superuser or getattr(u, 'user_type', None) == 'admin')
+@user_passes_test(lambda u: getattr(u, 'user_type', None) == 'admin')
 def map_editor(request):
     """지도 편집 관리 — 첫 번째 floor의 전체 객체 조회 (미배치 포함)
 

@@ -49,6 +49,14 @@ _POWER_CHANNELS = [
     {"device_uid": "PWR-002", "channel_code": "slave22", "rated_w": 700},
     {"device_uid": "PWR-002", "channel_code": "slave31", "rated_w": 300},
     {"device_uid": "PWR-002", "channel_code": "slave32", "rated_w": 300},
+    {"device_uid": "PWR-003", "channel_code": "slave01", "rated_w": 800},
+    {"device_uid": "PWR-003", "channel_code": "slave02", "rated_w": 800},
+    {"device_uid": "PWR-003", "channel_code": "slave11", "rated_w": 50},
+    {"device_uid": "PWR-003", "channel_code": "slave12", "rated_w": 50},
+    {"device_uid": "PWR-003", "channel_code": "slave21", "rated_w": 500},
+    {"device_uid": "PWR-003", "channel_code": "slave22", "rated_w": 500},
+    {"device_uid": "PWR-003", "channel_code": "slave31", "rated_w": 300},
+    {"device_uid": "PWR-003", "channel_code": "slave32", "rated_w": 300},
 ]
 
 

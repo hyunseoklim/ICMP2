@@ -63,11 +63,6 @@
                   <option value="">부서 선택</option>
                   {% for dept in departments %}
                   <option value="{{ dept.id }}">{{ dept.name }}</option>
-                  {% empty %}
-                  <option value="maint">유지보수팀</option>
-                  <option value="prod">생산부</option>
-                  <option value="safety">안전관리부</option>
-                  <option value="env">환경관리부</option>
                   {% endfor %}
                 </select>
                 <p class="hidden mt-1 text-[11px] text-red-500" id="detail-dept-error">관리 부서를 선택해 주세요.</p>
@@ -79,11 +74,6 @@
                   <option value="">담당자 선택</option>
                   {% for user in managers %}
                   <option value="{{ user.id }}">{{ user.name }}</option>
-                  {% empty %}
-                  <option value="u1">최점검</option>
-                  <option value="u2">정운영</option>
-                  <option value="u3">김민준</option>
-                  <option value="u4">이서현</option>
                   {% endfor %}
                 </select>
                 <p class="hidden mt-1 text-[11px] text-red-500" id="detail-manager-error">관리 담당자를 선택해 주세요.</p>
@@ -155,11 +145,15 @@
 
         <!-- 센서 요약 -->
         <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg mb-4">
-          <div class="flex items-center gap-3">
-            <span class="px-2 py-0.5 bg-slate-800 text-white text-xs font-bold rounded" id="inspect-sensor-id"></span>
+          <div class="flex items-start gap-3">
+            <span class="px-2 py-0.5 bg-slate-800 text-white text-xs font-bold rounded flex-shrink-0 mt-0.5" id="inspect-sensor-id"></span>
             <div>
               <p class="text-sm font-medium text-slate-700" id="inspect-device-info"></p>
-              <p class="text-xs text-slate-500 mt-0.5" id="inspect-manager-info"></p>
+              <p class="text-xs text-slate-500 mt-0.5">
+                <span id="inspect-location-info"></span>
+                <span class="mx-2 text-slate-300">|</span>
+                <span id="inspect-manager-info"></span>
+              </p>
             </div>
           </div>
           <button type="button" id="inspect-register-btn"
@@ -281,10 +275,15 @@
     document.getElementById('detail-conn-date').value         = data.connDate    || '';
     document.getElementById('detail-note').value              = data.note        || '';
 
-    var typeLabel   = GAS.resolveDeviceType(data.deviceType);
-    var managerName = data.managerName || GAS.resolveManager(data.manager);
+    var typeLabel    = GAS.resolveDeviceType(data.deviceType);
+    var managerName  = data.managerName || '';
+    var locationParts = [];
+    if (data.building) locationParts.push(data.building);
+    if (data.floor)    locationParts.push(data.floor);
+    var locationStr = locationParts.join(' ');
     document.getElementById('inspect-sensor-id').textContent    = data.sensorId || '';
     document.getElementById('inspect-device-info').textContent  = typeLabel + (data.mac ? ' · ' + data.mac : '');
+    document.getElementById('inspect-location-info').textContent = '설치 위치: ' + (locationStr || '-');
     document.getElementById('inspect-manager-info').textContent = '담당자 : ' + (managerName || '-');
 
     window.currentSensorData = data;
@@ -480,25 +479,61 @@
   document.getElementById('detail-comm-check')?.addEventListener('click', function() {
     var ip   = document.getElementById('detail-ip').value.trim();
     var port = document.getElementById('detail-port').value.trim();
+    var mac  = document.getElementById('detail-mac').value.trim();
+
     if (!ip) { showError('detail-comm-error', 'IP 주소를 입력해 주세요.', 'detail-ip'); return; }
     var ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!ipRegex.test(ip) || ip.split('.').some(function(n) { return parseInt(n) > 255; })) {
       showError('detail-comm-error', 'IP 주소 형식이 올바르지 않습니다.', 'detail-ip'); return;
     }
-    hideError('detail-comm-error', 'detail-ip');
     if (!port) { showError('detail-comm-error', '포트 번호를 입력해 주세요.', 'detail-port'); return; }
     if (!/^\d+$/.test(port)) { showError('detail-comm-error', '포트 번호 형식이 올바르지 않습니다.', 'detail-port'); return; }
     var pn = parseInt(port);
     if (pn < 1 || pn > 65535) { showError('detail-comm-error', '포트 번호는 1~65535 범위로 입력해 주세요.', 'detail-port'); return; }
+    hideError('detail-comm-error', 'detail-ip');
     hideError('detail-comm-error', 'detail-port');
-    commChecked = true;
-    document.getElementById('detail-conn-verified').checked = true;
-    var now = new Date();
-    var pad = function(n) { return String(n).padStart(2,'0'); };
-    document.getElementById('detail-conn-date').value =
-      now.getFullYear() + '.' + pad(now.getMonth()+1) + '.' + pad(now.getDate()) + ' ' +
-      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-    setDirty();
+
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = '확인 중...';
+
+    var fd = new FormData();
+    fd.append('ip', ip);
+    fd.append('port', port);
+    if (mac) fd.append('mac', mac);
+
+    fetch('{% url "gas_comm_check" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': GAS.getCsrfToken() },
+      body: fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.textContent = '통신 확인';
+      if (data.ok) {
+        commChecked = true;
+        document.getElementById('detail-conn-verified').checked = true;
+        document.getElementById('detail-conn-date').value = data.checked_at || '';
+        hideError('detail-comm-error');
+        setDirty();
+      } else if (data.mac_mismatch) {
+        commChecked = false;
+        showError('detail-comm-error', '입력한 장비 ID와 실제 응답 장비 정보가 일치하지 않습니다.');
+      } else if (data.conn_fail) {
+        commChecked = false;
+        showError('detail-comm-error', data.error || '장비와 연결할 수 없습니다. 통신 정보를 확인해 주세요.');
+      } else {
+        commChecked = false;
+        showError('detail-comm-error', data.error || '장비와 연결할 수 없습니다. 통신 정보를 확인해 주세요.');
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = '통신 확인';
+      commChecked = false;
+      showError('detail-comm-error', '장비 응답이 없습니다. 전원 및 상태를 확인해 주세요.');
+    });
   });
 
   ['detail-ip','detail-port'].forEach(function(id) {
@@ -535,7 +570,7 @@
     if (!valid) return;
 
     var deviceId = window.currentDeviceId;
-    if (!deviceId) { alert('장비 정보를 찾을 수 없습니다.'); return; }
+    if (!deviceId) { GAS.showError('장비 정보를 찾을 수 없습니다.'); return; }
 
     var fd = new FormData();
     fd.append('device_name', document.getElementById('detail-device-name').value.trim());
@@ -558,11 +593,13 @@
         closeDetailModal();
         GAS.showSuccess('저장되었습니다.', '장비 정보가 수정되었습니다.');
         setTimeout(function() { window.location.reload(); }, 1200);
+      } else if (data.duplicate_mac) {
+        showError('detail-mac-error', '이미 등록된 장비 ID입니다.', 'detail-mac');
       } else {
-        alert(data.error || '저장에 실패했습니다.');
+        GAS.showError('저장에 실패했습니다.', data.error || '');
       }
     })
-    .catch(function() { alert('서버 오류가 발생했습니다.'); });
+    .catch(function() { GAS.showError('서버 오류가 발생했습니다.', '잠시 후 다시 시도해 주세요.'); });
   });
 })();
 </script>

@@ -11,71 +11,7 @@ class Migration(migrations.Migration):
         ('monitoring', '0002_add_loc_device_type'),
     ]
 
-    operations = [
-        migrations.AddField(
-            model_name='powerreading',
-            name='temperature_c',
-            field=models.FloatField(blank=True, help_text='온도 ℃', null=True),
-        ),
-        migrations.AddField(
-            model_name='thresholdpolicy',
-            name='category',
-            field=models.CharField(default='TH_GAS', max_length=50),
-        ),
-        migrations.AddField(
-            model_name='thresholdpolicy',
-            name='condition',
-            field=models.CharField(default='이상', max_length=10),
-        ),
-        migrations.AddField(
-            model_name='thresholdpolicy',
-            name='description',
-            field=models.TextField(blank=True, default=''),
-        ),
-        migrations.AddField(
-            model_name='thresholdpolicy',
-            name='scope',
-            field=models.CharField(blank=True, default='', max_length=200),
-        ),
-        migrations.AddField(
-            model_name='thresholdpolicy',
-            name='unit',
-            field=models.CharField(blank=True, default='', max_length=20),
-        ),
-        migrations.AddField(
-            model_name='thresholdpolicy',
-            name='updated_at',
-            field=models.DateTimeField(auto_now=True),
-        ),
-        migrations.AddField(
-            model_name='thresholdpolicy',
-            name='updated_by',
-            field=models.CharField(blank=True, default='', max_length=100),
-        ),
-        migrations.AlterField(
-            model_name='thresholdpolicy',
-            name='metric_code',
-            field=models.CharField(max_length=50),
-        ),
-        migrations.AlterUniqueTogether(
-            name='thresholdpolicy',
-            unique_together={('metric_code', 'category')},
-        ),
-        migrations.CreateModel(
-            name='NodeReading',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('x', models.FloatField(blank=True, help_text='수신 X 좌표', null=True)),
-                ('y', models.FloatField(blank=True, help_text='수신 Y 좌표', null=True)),
-                ('received_at', models.DateTimeField(db_index=True)),
-                ('node', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='readings', to='facilities.locationnode')),
-            ],
-            options={
-                'verbose_name': '위치 노드 수신 로그',
-                'verbose_name_plural': '위치 노드 수신 로그 목록',
-                'db_table': 'node_readings',
-                'ordering': ['-received_at'],
-                'indexes': [models.Index(fields=['node', 'received_at'], name='node_readin_node_id_efadc3_idx')],
-            },
-        ),
-    ]
+    # 모든 operations이 0002_add_threshold_audit_fields, 0003_thresholdpolicy_new_fields,
+    # 0004_thresholdpolicy_unique_metric_category, 0005_add_temperature_to_power_reading,
+    # 0006_add_node_reading에서 이미 처리됨
+    operations = []

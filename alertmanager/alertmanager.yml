@@ -1,0 +1,22 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 1h
+  receiver: discord
+
+receivers:
+  - name: discord
+    discord_configs:
+      - webhook_url: ${ALERTMANAGER_DISCORD_WEBHOOK_URL}
+        title: '[{{ .Status | toUpper }}] {{ .CommonLabels.service }} 시스템 알림'
+        message: |
+          {{ range .Alerts }}
+          **{{ .Annotations.summary }}**
+          {{ .Annotations.description }}
+          심각도: {{ .Labels.severity }}
+          시각: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}

@@ -88,20 +88,24 @@
       <div id="dept-info-content" class="hidden">
         <div class="grid grid-cols-2 gap-y-3 gap-x-8">
           <div class="flex items-center gap-4">
-            <span class="text-sm text-slate-500 w-20 shrink-0">부서명</span>
+            <span class="text-sm text-slate-500 w-24 shrink-0">부서명</span>
             <span id="info-name" class="text-sm font-medium text-slate-800">-</span>
           </div>
           <div class="flex items-center gap-4">
-            <span class="text-sm text-slate-500 w-20 shrink-0">구성원 수</span>
-            <span id="info-member-count" class="text-sm font-medium text-slate-800">-</span>
+            <span class="text-sm text-slate-500 w-24 shrink-0">최근 수정일</span>
+            <span id="info-updated-at" class="text-sm font-medium text-slate-800">-</span>
           </div>
           <div class="flex items-center gap-4">
-            <span class="text-sm text-slate-500 w-20 shrink-0">부서 코드</span>
+            <span class="text-sm text-slate-500 w-24 shrink-0">부서 코드</span>
             <span id="info-code" class="text-sm font-medium text-slate-800">-</span>
           </div>
           <div class="flex items-center gap-4">
-            <span class="text-sm text-slate-500 w-20 shrink-0">조직장</span>
-            <span id="info-leader" class="text-sm font-medium text-slate-800">-</span>
+            <span class="text-sm text-slate-500 w-24 shrink-0">최근 수정자</span>
+            <span id="info-updated-by" class="text-sm font-medium text-slate-800">-</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-slate-500 w-24 shrink-0">생성일</span>
+            <span id="info-created-at" class="text-sm font-medium text-slate-800">-</span>
           </div>
         </div>
       </div>
@@ -455,10 +459,11 @@
   function renderDeptInfo(dept) {
     document.getElementById('dept-info-placeholder').classList.add('hidden');
     document.getElementById('dept-info-content').classList.remove('hidden');
-    document.getElementById('info-name').textContent         = dept.name;
-    document.getElementById('info-code').textContent         = dept.code || '-';
-    document.getElementById('info-member-count').textContent = dept.member_count + '명';
-    document.getElementById('info-leader').textContent       = dept.leader_name || '-';
+    document.getElementById('info-name').textContent       = dept.name;
+    document.getElementById('info-code').textContent       = dept.code || '-';
+    document.getElementById('info-updated-at').textContent = dept.updated_at || '-';
+    document.getElementById('info-updated-by').textContent = dept.updated_by || '-';
+    document.getElementById('info-created-at').textContent = dept.created_at || '-';
     currentLeaderId = dept.leader_id || null;
   }
 

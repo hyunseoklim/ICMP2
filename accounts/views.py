@@ -49,6 +49,11 @@ def login_view(request):
 
         user = authenticate(request, username=username, password=password)
         if user is not None:
+            if user.is_locked:
+                return render(request, "accounts/login.html", {
+                    "username": username,
+                    "auth_error": "계정이 잠금 처리되어 있습니다. 관리자에게 문의하세요.",
+                })
             login(request, user)
             return redirect("dashboard")
 
