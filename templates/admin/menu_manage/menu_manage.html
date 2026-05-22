@@ -57,7 +57,7 @@
         <div class="role-card border border-slate-200 rounded-lg p-4 cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-all"
              data-role="worker">
           <div class="flex items-center justify-between mb-1">
-            <span class="text-sm font-semibold text-slate-900">작업자</span>
+            <span class="text-sm font-semibold text-slate-900">일반사용자</span>
             <div class="flex items-center gap-1.5">
               <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">앱 전용</span>
               <span class="role-active-badge text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">활성화</span>
@@ -125,7 +125,7 @@
       <i data-lucide="smartphone" class="w-4 h-4 text-amber-500 shrink-0"></i>
       <div>
         <span class="text-sm font-medium text-amber-800">앱 전용 메뉴</span>
-        <span class="text-xs text-amber-600 ml-2">작업자는 앱만 사용하며 웹 로그인이 불가능합니다.</span>
+        <span class="text-xs text-amber-600 ml-2">일반사용자는 앱만 사용하며 웹 로그인이 불가능합니다.</span>
       </div>
     </div>
 
@@ -169,8 +169,11 @@
       <div class="w-6 h-6 bg-white rounded-md"></div>
     </div>
     <p class="text-xs text-slate-500 mb-3">역할 활성화</p>
-    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">
-      해당 역할을 활성화하시겠습니까?
+    <p class="text-base font-bold leading-relaxed mb-6">
+      <span id="modal-activate-role-name" class="text-orange-500"></span>
+      <span class="text-slate-900"> 역할을<br></span>
+      <span class="text-blue-600">활성화</span>
+      <span class="text-slate-900">하시겠습니까?</span>
     </p>
     <div class="flex items-center gap-2 justify-center">
       <button onclick="closeModal('modal-activate')"
@@ -192,8 +195,11 @@
       <div class="w-6 h-6 bg-white rounded-md"></div>
     </div>
     <p class="text-xs text-slate-500 mb-3">역할 비활성화</p>
-    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">
-      해당 역할을 비활성화하시겠습니까?
+    <p class="text-base font-bold leading-relaxed mb-6">
+      <span id="modal-deactivate-role-name" class="text-orange-500"></span>
+      <span class="text-slate-900"> 역할을<br></span>
+      <span class="text-red-500">비활성화</span>
+      <span class="text-slate-900">하시겠습니까?</span>
     </p>
     <div class="flex items-center gap-2 justify-center">
       <button onclick="closeModal('modal-deactivate')"
@@ -327,7 +333,7 @@ const roleData = {
     }
   },
   worker: {
-    name: '작업자',
+    name: '일반사용자',
     desc: '앱을 통한 업무 및 안전 정보 확인',
     isActive: true,
     menus: {
@@ -485,8 +491,16 @@ document.getElementById('btn-deactivate').addEventListener('click', function () 
   if (!this.disabled) showDeactivateConfirm();
 });
 
-function showActivateConfirm()   { openModal('modal-activate'); }
-function showDeactivateConfirm() { openModal('modal-deactivate'); }
+function showActivateConfirm() {
+  const name = selectedRole ? roleData[selectedRole].name : '';
+  document.getElementById('modal-activate-role-name').textContent = name;
+  openModal('modal-activate');
+}
+function showDeactivateConfirm() {
+  const name = selectedRole ? roleData[selectedRole].name : '';
+  document.getElementById('modal-deactivate-role-name').textContent = name;
+  openModal('modal-deactivate');
+}
 
 function confirmActivate() {
   if (!selectedRole) return;

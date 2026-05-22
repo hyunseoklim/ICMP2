@@ -6,6 +6,7 @@ from monitoring import views as monitoring_views
  
 
 urlpatterns = [
+    path('', include('django_prometheus.urls')),
     path('admin/', admin.site.urls),
     path('monitoring/api/gas-readings/', monitoring_views.ingest_gas),
     path('monitoring/api/power-readings/', monitoring_views.ingest_power),

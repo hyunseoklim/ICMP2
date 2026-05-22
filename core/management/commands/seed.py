@@ -24,8 +24,26 @@ from django.db import transaction, connection
 # ─────────────────────────────────────────────────────────────
 
 def seed_accounts():
-    """departments, users (admin / manager1 / worker1 / worker_002~005 / worker_006~105)"""
-    from accounts.models import Department, User
+    """departments, positions, users (admin / manager1 / worker1 / worker_002~005 / worker_006~105)"""
+    from accounts.models import Department, Position, User
+
+    print("  [accounts] positions...")
+    positions = [
+        ("사원",       1),
+        ("대리",       2),
+        ("과장",       3),
+        ("차장",       4),
+        ("부장",       5),
+        ("조장",       6),
+        ("반장",       7),
+        ("현장소장",   8),
+        ("이사",       9),
+        ("상무",      10),
+        ("전무",      11),
+        ("대표이사",  12),
+    ]
+    for name, order in positions:
+        Position.objects.get_or_create(name=name, defaults={"order": order, "is_active": True})
 
     print("  [accounts] departments...")
     depts = [
@@ -109,7 +127,7 @@ def seed_accounts():
 
     print("  [accounts] users (worker_006~105)...")
     BULK_USERS = [
-        ("W006","박서연",11,"010-5251-5704","safe","worker_006","박서연","admin","차장","worker_006@icmp.co.kr",1),
+        ("W006","박서연",11,"010-5251-5704","safe","worker_006","박서연","manager","차장","worker_006@icmp.co.kr",1),
         ("W007","권지유",4,"010-5253-6380","warning","worker_007","권지유","worker","대리","worker_007@icmp.co.kr",0),
         ("W008","한지민",2,"010-7336-7970","danger","worker_008","한지민","worker","사원","worker_008@icmp.co.kr",0),
         ("W009","권민재",3,"010-9605-9661","danger","worker_009","권민재","worker","대리","worker_009@icmp.co.kr",0),
@@ -119,13 +137,13 @@ def seed_accounts():
         ("W013","서채원",12,"010-7651-6223","safe","worker_013","서채원","worker","사원","worker_013@icmp.co.kr",0),
         ("W014","서현우",12,"010-8842-1034","safe","worker_014","서현우","worker","사원","worker_014@icmp.co.kr",0),
         ("W015","김도윤",4,"010-1131-4005","safe","worker_015","김도윤","worker","사원","worker_015@icmp.co.kr",0),
-        ("W016","오채원",7,"010-6127-1873","safe","worker_016","오채원","admin","차장","worker_016@icmp.co.kr",1),
+        ("W016","오채원",7,"010-6127-1873","safe","worker_016","오채원","manager","차장","worker_016@icmp.co.kr",1),
         ("W017","정지유",13,"010-6381-7355","safe","worker_017","정지유","worker","사원","worker_017@icmp.co.kr",0),
         ("W018","이서윤",1,"010-8571-3707","safe","worker_018","이서윤","worker","대리","worker_018@icmp.co.kr",0),
-        ("W019","오민준",1,"010-5825-9702","safe","worker_019","오민준","admin","차장","worker_019@icmp.co.kr",1),
+        ("W019","오민준",1,"010-5825-9702","safe","worker_019","오민준","manager","차장","worker_019@icmp.co.kr",1),
         ("W020","김하은",2,"010-3545-8398","safe","worker_020","김하은","worker","사원","worker_020@icmp.co.kr",0),
         ("W021","신예준",3,"010-3421-7061","safe","worker_021","신예준","worker","사원","worker_021@icmp.co.kr",0),
-        ("W022","오지아",6,"010-6396-4120","safe","worker_022","오지아","admin","차장","worker_022@icmp.co.kr",1),
+        ("W022","오지아",6,"010-6396-4120","safe","worker_022","오지아","manager","차장","worker_022@icmp.co.kr",1),
         ("W023","임채원",3,"010-7403-9647","safe","worker_023","임채원","worker","사원","worker_023@icmp.co.kr",0),
         ("W024","오예준",7,"010-9316-5732","safe","worker_024","오예준","worker","사원","worker_024@icmp.co.kr",0),
         ("W025","김수아",7,"010-1111-6008","safe","worker_025","김수아","worker","사원","worker_025@icmp.co.kr",0),
@@ -616,35 +634,58 @@ def seed_monitoring():
     floor1 = Floor.objects.get(building=bld1, floor_no=1)
 
     print("  [monitoring] devices...")
+    from accounts.models import User as _User
+    mgr_ids = list(_User.objects.filter(user_type='manager').values_list('id', flat=True))
+    def _mgr(i): return _User.objects.filter(id=mgr_ids[i % len(mgr_ids)]).first() if mgr_ids else None
+
     device_data = [
-        # uid, code, type, name, port, facility, building, floor
-        ("GAS-001","GAS-001","gas","가스센서-A",  502, fac1, bld1, floor1),
-        ("GAS-002","GAS-002","gas","가스센서-B",  502, fac1, bld1, floor1),
-        ("GAS-003","GAS-003","gas","가스센서-C",  502, fac2, bld2, None),
-        ("PWR-001","PWR-001","power","전력계-A",  502, fac1, bld1, floor1),
-        ("PWR-002","PWR-002","power","전력계-B",  502, fac2, bld2, None),
-        ("PWR-003","PWR-003","power","전력계-C",  502, fac3, bld3, None),
-        ("GAS-004","GAS-004","gas","창고동 가스센서", 8084, fac3, None, None),
+        # uid,      code,      type,    name,             mac,                  ip,              port,  fac,  bld,  flr,  mgr_idx
+        ("GAS-001","GAS-001","gas",  "가스센서-A",      "AA:BB:CC:DD:EE:01","192.168.1.101", 502,  fac1, bld1, floor1, 0),
+        ("GAS-002","GAS-002","gas",  "가스센서-B",      "AA:BB:CC:DD:EE:02","192.168.1.102", 502,  fac1, bld1, floor1, 1),
+        ("GAS-003","GAS-003","gas",  "가스센서-C",      "AA:BB:CC:DD:EE:03","192.168.1.103", 502,  fac2, bld2, None,   2),
+        ("PWR-001","PWR-001","power","전력계-A",        "AA:BB:CC:DD:EF:01","192.168.1.111", 502,  fac1, bld1, floor1, 0),
+        ("PWR-002","PWR-002","power","전력계-B",        "AA:BB:CC:DD:EF:02","192.168.1.112", 502,  fac2, bld2, None,   1),
+        ("PWR-003","PWR-003","power","전력계-C",        "AA:BB:CC:DD:EF:03","192.168.1.113", 502,  fac3, bld3, None,   2),
+        ("GAS-004","GAS-004","gas",  "창고동 가스센서", "AA:BB:CC:DD:EE:04","192.168.1.104", 8084, fac3, bld3, None,   3),
     ]
     device_map = {}
-    for uid, code, dtype, name, port, fac, bld, flr in device_data:
-        dev, _ = Device.objects.get_or_create(
+    for uid, code, dtype, name, mac, ip, port, fac, bld, flr, mgr_idx in device_data:
+        note_val = f"MAC: {mac}"
+        dev, created = Device.objects.get_or_create(
             device_uid=uid,
             defaults={
                 "device_code": code,
                 "device_type": dtype,
                 "device_name": name,
+                "ip_address": ip,
                 "port": port,
                 "is_active": True,
                 "status": "active",
                 "software_version": "",
                 "model_name": "",
-                "note": "",
+                "note": note_val,
                 "facility": fac,
                 "building": bld,
                 "floor": flr,
+                "manager": _mgr(mgr_idx),
             },
         )
+        if not created:
+            updated = False
+            if not dev.ip_address:
+                dev.ip_address = ip
+                updated = True
+            if not dev.note or not dev.note.startswith("MAC: "):
+                dev.note = note_val
+                updated = True
+            if not dev.manager:
+                dev.manager = _mgr(mgr_idx)
+                updated = True
+            if not dev.building and bld:
+                dev.building = bld
+                updated = True
+            if updated:
+                dev.save(update_fields=['ip_address', 'note', 'manager', 'building'])
         device_map[uid] = dev
 
     print("  [monitoring] device_channels...")
@@ -691,6 +732,28 @@ def seed_monitoring():
     for code, name, rated in pwr2_channels:
         DeviceChannel.objects.get_or_create(
             device=device_map["PWR-002"],
+            channel_code=code,
+            defaults={
+                "channel_name": name,
+                "is_active": True,
+                "status": "active",
+                "rated_power_w": rated,
+            },
+        )
+
+    pwr3_channels = [
+        ("slave01", "창고 설비 A",    800),
+        ("slave02", "창고 설비 B",    800),
+        ("slave11", "CCTV 5번",        50),
+        ("slave12", "CCTV 6번",        50),
+        ("slave21", "창고 조명 A",    500),
+        ("slave22", "창고 조명 B",    500),
+        ("slave31", "환기팬",         300),
+        ("slave32", "안전장치 전원",  300),
+    ]
+    for code, name, rated in pwr3_channels:
+        DeviceChannel.objects.get_or_create(
+            device=device_map["PWR-003"],
             channel_code=code,
             defaults={
                 "channel_name": name,
@@ -754,6 +817,38 @@ def seed_monitoring():
                     "is_placed": True,       # T1-β Q1: 시드 데이터는 배치 완료 상태
                 },
             )
+
+    # ── InspectionLog (점검 이력) ──────────────────────────────
+    print("  [monitoring] inspection_logs...")
+    from monitoring.models import InspectionLog, ActionLog
+    from accounts.models import User
+    from datetime import date
+
+    inspector = User.objects.filter(user_type='manager').first()
+
+    inspection_data = [
+        # device_uid, inspection_date, type, status, expected_action_date, note
+        ("GAS-001", date(2026, 5, 10), "regular",  "normal",          None,              "정상 작동 확인"),
+        ("GAS-002", date(2026, 4, 28), "regular",  "action_required", date(2026, 5, 30), "센서 감도 저하, 교체 예정"),
+        ("GAS-003", date(2026, 3, 15), "abnormal", "action_required", None,              "누설 감지 오작동 의심"),
+        ("GAS-004", date(2026, 5, 1),  "regular",  "normal",          None,              "정상"),
+    ]
+
+    for uid, insp_date, itype, status, exp_date, note in inspection_data:
+        dev = device_map.get(uid)
+        if not dev:
+            continue
+        log, _ = InspectionLog.objects.get_or_create(
+            device=dev,
+            inspection_date=insp_date,
+            defaults={
+                "inspector": inspector,
+                "inspection_type": itype,
+                "status": status,
+                "note": note,
+                "expected_action_date": exp_date,
+            },
+        )
 
     print("  [monitoring] ✓ done")
 
@@ -1334,19 +1429,57 @@ def seed_risk_codes():
     print(f"  완료: 위험 분류 그룹 {len(groups)}개 seeded")
 
 
+def seed_retention_policies():
+    """데이터 보관 주기 초기 설정 (법적 기준 + 운영 기본값)"""
+    from manager.models import DataRetentionPolicy
+
+    policies = [
+        # 유해가스 센서 — 산업안전보건법: 측정 기록 3년 보관
+        ("gas", "raw",       3 * 365, 3 * 365, "monthly_1",  "산업안전보건법 시행규칙 제186조: 가스 측정 기록 3년 보관"),
+        ("gas", "event",     3 * 365, 3 * 365, "monthly_1",  "산업안전보건법 시행규칙: 이벤트 이력 3년 보관"),
+        ("gas", "aggregate", 3 * 365, 3 * 365, "monthly_15", "산업안전보건법: 집계 이력 3년 보관"),
+        # 스마트 전력 — 전기사업법/산안법: 점검 기록 2년
+        ("power", "raw",       180,     2 * 365, "monthly_1",  "운영 기본값: 원천 로그 180일, 이력 2년"),
+        ("power", "event",     2 * 365, 2 * 365, "monthly_1",  "전기사업법: 전력 점검 기록 2년 보관"),
+        ("power", "aggregate", 2 * 365, 2 * 365, "monthly_15", "전기사업법: 집계 이력 2년 보관"),
+        # 위치 노드 — 별도 법적 규정 없음: 운영 기본값 적용
+        ("node", "raw",      180, 365, "monthly_1",  "법적 규정 없음: 원천 로그 6개월, 이력 1년"),
+        ("node", "location", 180, 365, "monthly_15", "법적 규정 없음: 위치 이력 6개월~1년"),
+    ]
+
+    print("  [retention_policies] 데이터 보관 주기 설정...")
+    created = 0
+    for device_type, data_category, origin_days, history_days, delete_schedule, memo in policies:
+        _, is_new = DataRetentionPolicy.objects.get_or_create(
+            device_type=device_type,
+            data_category=data_category,
+            defaults={
+                "origin_days":     origin_days,
+                "history_days":    history_days,
+                "delete_schedule": delete_schedule,
+                "is_active":       True,
+                "memo":            memo,
+            },
+        )
+        if is_new:
+            created += 1
+    print(f"  완료: 보관 주기 {created}건 추가 (기존 항목 유지)")
+
+
 SECTIONS = {
-    "accounts":      seed_accounts,
-    "facilities":    seed_facilities,
-    "workers":       seed_workers,
-    "monitoring":    seed_monitoring,
-    "alerts":        seed_alerts,
-    "safety":        seed_safety,
-    "common_codes":  seed_common_codes,
-    "risk_codes":    seed_risk_codes,
+    "accounts":           seed_accounts,
+    "facilities":         seed_facilities,
+    "workers":            seed_workers,
+    "monitoring":         seed_monitoring,
+    "alerts":             seed_alerts,
+    "safety":             seed_safety,
+    "common_codes":       seed_common_codes,
+    "risk_codes":         seed_risk_codes,
+    "retention_policies": seed_retention_policies,
 }
 
 # 의존성 순서
-ALL_ORDER = ["accounts", "facilities", "workers", "monitoring", "alerts", "safety", "common_codes", "risk_codes"]
+ALL_ORDER = ["accounts", "facilities", "workers", "monitoring", "alerts", "safety", "common_codes", "risk_codes", "retention_policies"]
 
 class Command(BaseCommand):
     help = "ICMP2 통합 시드: 기준 데이터를 DB에 삽입합니다"

@@ -76,6 +76,7 @@ urlpatterns = [
     path('facilities/bulk-delete/', views.facility_bulk_delete, name='facility_bulk_delete'),
     path('facilities/<int:pk>/edit/', views.facility_edit, name='facility_edit'),
     path('gas/', views.gas_list, name='gas_list'),
+    path('gas/comm-check/', views.gas_comm_check, name='gas_comm_check'),
     path('gas/create/', views.gas_create, name='gas_create'),
     path('gas/bulk-delete/', views.gas_bulk_delete, name='gas_bulk_delete'),
     path('gas/<int:pk>/edit/', views.gas_edit, name='gas_edit'),

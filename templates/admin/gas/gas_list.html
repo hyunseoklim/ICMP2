@@ -68,9 +68,7 @@
             class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
             data-value="{{ sensor.device_uid }}">{{ sensor.device_uid }}</button>
           {% empty %}
-          <button type="button"
-            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
-            data-value="GAS-001">GAS-001</button>
+          <p class="px-3 py-2 text-xs text-slate-400">등록된 센서가 없습니다.</p>
           {% endfor %}
         </div>
       </div>
@@ -205,6 +203,7 @@
           data-device-name="{{ s.device_name }}" data-mac="{{ s.mac_addr }}"
           data-dept="{{ s.department_id|default:'' }}" data-dept-name="{{ s.department.name|default:'' }}"
           data-manager="{{ s.manager_id|default:'' }}" data-manager-name="{{ s.manager.name|default:'' }}"
+          data-building="{{ s.building.building_name|default:'' }}" data-floor="{{ s.floor.floor_name|default:'' }}"
           data-ip="{{ s.ip_address|default:'' }}"
           data-port="{{ s.port|default:'' }}" data-status="{% if s.is_active %}active{% else %}inactive{% endif %}"
           data-conn-verified="{% if s.status == 'active' %}true{% else %}false{% endif %}"
@@ -225,7 +224,7 @@
             <span class="text-slate-400 text-xs">-</span>
             {% endif %}
           </td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">{{ s.last_seen_at|default:"-" }}</td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-44">{{ s.last_seen_at|date:"Y-m-d H:i:s"|default:"-" }}</td>
           <td class="px-4 py-3 w-28">
             {% if s.computed_inspection_status == 'completed' %}
             <span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span>
@@ -247,74 +246,8 @@
           <td class="px-4 py-3 text-slate-600 text-xs w-32">{{ s.last_inspected_at|date:'Y-m-d'|default:'-' }}</td>
         </tr>
         {% empty %}
-        <tr class="border-t border-slate-100 bg-blue-50/40 cursor-pointer sensor-row"
-          data-sensor-id="GAS-001" data-device-type="GAS" data-device-code="001"
-          data-mac="00:1A:7D:DA:71:13" data-install-date="2026.03.28"
-          data-dept="maint" data-manager="u1"
-          data-ip="192.168.0.101" data-port="8080"
-          data-status="active" data-conn-verified="false"
-          data-conn-date="2026.04.12 09:42:18" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" checked /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-001</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-500"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>연결 끊김</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:42:18</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-red-50 text-red-500">점검 필요</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-11</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-002" data-device-type="GAS" data-device-code="002" data-mac="00:1A:7D:DA:71:14" data-install-date="2026.03.01" data-dept="maint" data-manager="u2" data-ip="192.168.0.102" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:41:05" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-002</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:41:05</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-09</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-003" data-device-type="GAS" data-device-code="003" data-mac="00:1A:7D:DA:71:15" data-install-date="2026.02.15" data-dept="safety" data-manager="u2" data-ip="192.168.0.103" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:40:31" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-003</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:40:31</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-yellow-50 text-yellow-600">점검 예정</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-07</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-004" data-device-type="GAS" data-device-code="004" data-mac="00:1A:7D:DA:71:16" data-install-date="2026.02.01" data-dept="maint" data-manager="u3" data-ip="192.168.0.104" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:39:42" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-004</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:39:42</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-05</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-005" data-device-type="GAS" data-device-code="005" data-mac="00:1A:7D:DA:71:17" data-install-date="2026.01.20" data-dept="prod" data-manager="u3" data-ip="192.168.0.105" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:38:07" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-005</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:38:07</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-03</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-006" data-device-type="GAS" data-device-code="006" data-mac="00:1A:7D:DA:71:18" data-install-date="2026.01.10" data-dept="env" data-manager="u4" data-ip="192.168.0.106" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:37:54" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-006</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:37:54</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-01</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-007" data-device-type="GAS" data-device-code="007" data-mac="" data-install-date="" data-dept="" data-manager="" data-ip="" data-port="" data-status="inactive" data-conn-verified="false" data-conn-date="" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-007</td>
-          <td class="px-4 py-3 w-28"><span class="text-slate-400 text-xs">-</span></td>
-          <td class="px-4 py-3 text-slate-400 text-xs w-44">-</td>
-          <td class="px-4 py-3 w-28"><span class="text-slate-400 text-xs">-</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-500">미사용</span></td>
-          <td class="px-4 py-3 text-slate-400 text-xs w-32">-</td>
+        <tr>
+          <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-400">등록된 장비가 없습니다.</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -376,6 +309,7 @@
 {% include "admin/users/logout_complete.html" %}
 {% include "admin/gas/gas_utils.html" %}
 {% include "admin/gas/gas_success.html" %}
+{% include "admin/gas/gas_error.html" %}
 {% include "admin/gas/gas_register.html" %}
 {% include "admin/gas/gas_detail.html" %}
 {% include "admin/gas/gas_inspect_register.html" %}

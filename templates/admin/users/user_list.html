@@ -56,10 +56,9 @@
         <label class="block text-xs font-medium text-slate-700 mb-1.5">권한</label>
         <select name="user_type" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
           <option value="">전체</option>
-          <option value="superuser">슈퍼관리자</option>
-          <option value="admin">관리자</option>
-          <option value="manager">현장 관리자</option>
-          <option value="worker">작업자</option>
+          <option value="admin">슈퍼관리자</option>
+          <option value="manager">관리자</option>
+          <option value="worker">일반사용자</option>
         </select>
       </div>
       <div>
@@ -159,14 +158,12 @@
           <td class="px-4 py-3 text-slate-600">{{ u.position|default:"-" }}</td>
           <td class="px-4 py-3 text-slate-600 font-mono text-xs">{{ u.username }}</td>
           <td class="px-4 py-3">
-            {% if u.is_superuser %}
+            {% if u.user_type == 'admin' %}
               <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-purple-100 text-purple-700">슈퍼관리자</span>
-            {% elif u.user_type == 'admin' %}
-              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span>
             {% elif u.user_type == 'manager' %}
-              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-cyan-100 text-cyan-700">현장 관리자</span>
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span>
             {% else %}
-              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">작업자</span>
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">일반사용자</span>
             {% endif %}
           </td>
           <td class="px-4 py-3">
@@ -518,9 +515,9 @@
             <span class="text-xs font-medium text-slate-700">권한 <span class="text-red-500">*</span></span>
             <select id="d-user-type" name="user_type" disabled
               class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700">
-              <option value="admin">관리자</option>
-              <option value="manager">현장 관리자</option>
-              <option value="worker">작업자</option>
+              <option value="admin">슈퍼관리자</option>
+              <option value="manager">관리자</option>
+              <option value="worker">일반사용자</option>
             </select>
           </div>
 
