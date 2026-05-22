@@ -235,26 +235,51 @@ def notify_ai_server_down(error_msg: str = ''):
 
 
 # ---------------------------------------------------------------------------
-# B. Redis Pub/Sub 수신 → process_alarm_event 트리거
+# B. 가스 센서 인제스트 태스크 (FastAPI → Celery 큐 → 파이프라인)
+# ---------------------------------------------------------------------------
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=10)
+def ingest_gas_task(self, payload: dict):
+    """
+    FastAPI가 Celery 큐에 넣은 가스 센서 데이터를 받아
+    DB 저장 + STEP B/C/D/E 파이프라인을 실행한다.
+
+    Celery Worker가 순서대로 보장 처리 (메시지 유실 없음).
+    """
+    device_uid = payload.get('device_uid')
+    if not device_uid:
+        logger.warning("ingest_gas_task: payload에 device_uid 없음")
+        return
+
+    try:
+        from monitoring.services import process_gas_ingest
+        process_gas_ingest(device_uid, payload)
+        logger.debug("ingest_gas_task 완료 — device=%s", device_uid)
+    except Exception as exc:
+        logger.error("ingest_gas_task 실패 — device=%s: %s", device_uid, exc)
+        raise self.retry(exc=exc)
+
+
+# ---------------------------------------------------------------------------
+# C. Redis Pub/Sub 수신 (레거시 — ingest_gas_task로 대체됨)
 # ---------------------------------------------------------------------------
 
 @shared_task
 def consume_redis_pubsub():
     """
-    Redis Pub/Sub 채널을 구독하여 수신된 센서 이벤트를 처리한다.
-    채널명은 settings.REDIS_PUBSUB_CHANNEL (기본값: 'sensor_events').
-    팀원2가 채널명 확정 시 settings.py의 REDIS_PUBSUB_CHANNEL 값만 교체하면 된다.
+    Redis Pub/Sub 'sensor_events' 채널을 구독하여
+    FastAPI가 publish한 가스 센서 데이터를 수신하고 처리한다.
 
-    사용법: celery -A config worker 실행 후
-            celery -A config call alerts.tasks.consume_redis_pubsub
-            또는 Celery Beat 스케줄로 주기 실행.
+    Celery Beat으로 settings.REDIS_PUBSUB_TIMEOUT(기본 30초) 간격마다 실행.
+    한 번 실행 시 timeout_sec 동안 메시지를 소비한 뒤 종료.
     """
     import json
+    import time
 
     import redis
     from django.conf import settings
 
-    redis_url   = getattr(settings, 'CELERY_BROKER_URL', 'redis://127.0.0.1:6379/1')
+    redis_url   = getattr(settings, 'CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
     channel     = getattr(settings, 'REDIS_PUBSUB_CHANNEL', 'sensor_events')
     timeout_sec = getattr(settings, 'REDIS_PUBSUB_TIMEOUT', 30)
 
@@ -263,9 +288,9 @@ def consume_redis_pubsub():
     ps.subscribe(channel)
     logger.info("Redis Pub/Sub 구독 시작 — channel=%s", channel)
 
-    deadline = __import__('time').time() + timeout_sec
+    deadline = time.time() + timeout_sec
     for message in ps.listen():
-        if __import__('time').time() > deadline:
+        if time.time() > deadline:
             break
         if message['type'] != 'message':
             continue
@@ -283,57 +308,26 @@ def consume_redis_pubsub():
 
 def _handle_pubsub_message(data: dict):
     """
-    팀원2가 Redis에 publish하는 메시지를 받아 AlarmEvent를 생성하고
-    process_alarm_event task를 트리거한다.
+    FastAPI가 publish한 가스 센서 raw 데이터를 받아
+    DB 저장 + STEP B/C/D/E 파이프라인을 실행한다.
 
-    예상 메시지 형식 (팀원2 확정 후 필드명 조정):
+    메시지 형식 (fastapi_app/sender.py의 publish_gas_reading 참고):
     {
-        "event_type": "gas"|"power"|"device",
-        "device_id": 123,
-        "facility_id": 456,
-        "severity": "danger"|"warning"|"anomaly",
-        "title": "CO 농도 이상 감지",
-        "message": "CO: 55ppm (위험)",
-        "current_value": 55.0
+        "device_uid":  "GAS-001",
+        "measured_at": "2026-05-22T10:00:00+00:00",
+        "co": 5.2, "h2s": 1.1, "co2": 420.0,
+        "o2": 20.9, "no2": 0.5, "so2": 0.3,
+        "o3": 0.02, "nh3": 3.0, "voc": 0.1
     }
     """
-    from .models import AlarmEvent, AlarmRule
-    from .services import create_alarm_event
-
-    device_id   = data.get('device_id')
-    facility_id = data.get('facility_id')
-    severity    = data.get('severity', AlarmEvent.Severity.WARNING)
-    title       = data.get('title', '센서 이상 감지')
-    message     = data.get('message', '')
-    current_val = data.get('current_value')
-
-    if not device_id or not facility_id:
-        logger.warning("Pub/Sub 메시지 필수 필드 누락: %s", data)
+    device_uid = data.get('device_uid')
+    if not device_uid:
+        logger.warning("Pub/Sub 메시지에 device_uid 없음: %s", data)
         return
 
     try:
-        from monitoring.models import Device
-        from facilities.models import Facility
-        device   = Device.objects.get(pk=device_id)
-        facility = Facility.objects.get(pk=facility_id)
+        from monitoring.services import process_gas_ingest
+        process_gas_ingest(device_uid, data)
+        logger.debug("Pub/Sub 처리 완료 — device=%s", device_uid)
     except Exception as exc:
-        logger.warning("Pub/Sub device/facility 조회 실패: %s", exc)
-        return
-
-    rule = AlarmRule.objects.filter(is_active=True).first()
-    if not rule:
-        logger.warning("활성 AlarmRule 없음 — Pub/Sub 이벤트 무시")
-        return
-
-    event = create_alarm_event(
-        rule=rule,
-        facility=facility,
-        severity=severity,
-        title=title,
-        device=device,
-        message=message,
-        current_value=current_val,
-    )
-    # create_alarm_event 내부에서 send_all_notifications.delay() 호출됨.
-    # AI 추론도 원하면 아래 주석 해제:
-    # process_alarm_event.delay(event.id)
+        logger.error("Pub/Sub 처리 실패 — device=%s: %s", device_uid, exc)

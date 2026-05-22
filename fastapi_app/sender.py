@@ -1,7 +1,14 @@
-import httpx
+import asyncio
 import os
 
+import httpx
+from celery import Celery
+
 DJANGO_BASE = os.environ.get("DJANGO_BASE", "http://localhost:8000")
+REDIS_URL   = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+
+# Django 없이 태스크 큐잉만 담당하는 Celery 클라이언트
+_celery = Celery(broker=REDIS_URL)
 
 # 시작 시 Django에서 가스 장비 목록을 가져옴
 # 반환값: [{"id": 1, "device_uid": "AA:BB:CC"}, ...]
@@ -21,8 +28,7 @@ async def fetch_gas_devices() -> list[dict]:
             return []
 
 
-async def post_gas_reading(data: dict) -> None:
-    # device_uid 기준으로 전송 (ingest_gas 함수가 device_uid로 장비 조회)
+async def queue_gas_reading(data: dict) -> None:
     payload = {
         "device_uid":  data["device_uid"],
         "measured_at": data["measured_at"],
@@ -36,15 +42,16 @@ async def post_gas_reading(data: dict) -> None:
         "nh3": data["nh3"],
         "voc": data["voc"],
     }
-    async with httpx.AsyncClient(timeout=3.0) as client:
-        try:
-            await client.post(
-                f"{DJANGO_BASE}/monitoring/api/gas-readings/",
-                json=payload,
-            )
-            print(f"[sender] GasReading POST 성공: {data['device_uid']}")
-        except Exception as e:
-            print(f"[sender] GasReading POST 실패: {e}")
+    try:
+        # send_task는 Redis에 쓰기만 하므로 to_thread로 이벤트 루프 블로킹 방지
+        await asyncio.to_thread(
+            _celery.send_task,
+            'alerts.tasks.ingest_gas_task',
+            args=[payload],
+        )
+        print(f"[sender] Celery 큐 전송 성공: {data['device_uid']}")
+    except Exception as e:
+        print(f"[sender] Celery 큐 전송 실패: {e}")
 
 
 async def post_power_reading(data: dict) -> None:
