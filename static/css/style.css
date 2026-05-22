@@ -963,3 +963,54 @@ body {
 .snb-overlay.active {
     display: block;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   AI 예측 가스 위젯 (components/ai_gas_predict.html)
+   — 전부 .ai-gas-widget 네임스페이스. 기존 규칙 무수정 append.
+   ═══════════════════════════════════════════════════════════ */
+.ai-gas-widget { display: flex; flex-direction: column; }
+.ai-gas-widget__body { flex: 1; display: flex; min-height: 0; padding: 8px; }
+.ai-gas-widget__card {
+    flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0;
+    background: var(--bg-panel-2); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 10px 12px;
+}
+.ai-gas-widget__card-head { display: flex; align-items: center; gap: 8px; }
+.ai-gas-widget__channel {
+    font-size: 13px; font-weight: 700; color: var(--text-primary);
+    border-left: 3px solid var(--accent-cyan); padding-left: 7px;
+}
+.ai-gas-widget__device {
+    font-size: 10px; font-family: var(--font-mono); color: var(--accent-cyan);
+    background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2);
+    border-radius: 9999px; padding: 2px 8px; white-space: nowrap;
+}
+.ai-gas-widget__nav { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.ai-gas-widget__nav-btn {
+    width: 22px; height: 22px; flex-shrink: 0; line-height: 1;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-primary);
+    cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+}
+.ai-gas-widget__nav-btn:hover { background: var(--bg-hover); }
+.ai-gas-widget__page {
+    font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);
+    min-width: 36px; text-align: center;
+}
+.ai-gas-widget__metrics { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.ai-gas-widget__metric { display: flex; flex-direction: column; gap: 2px; }
+.ai-gas-widget__metric-label { font-size: 10px; color: var(--text-muted); }
+.ai-gas-widget__metric-value {
+    font-size: 20px; font-weight: 700; color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+.ai-gas-widget__metric-divider { width: 1px; align-self: stretch; background: var(--border); }
+.ai-gas-widget__chart { flex: 1; min-height: 0; position: relative; }
+.ai-gas-widget__chart canvas { width: 100% !important; height: 100% !important; }
+.ai-gas-widget__dots { display: flex; justify-content: center; gap: 5px; flex-shrink: 0; }
+.ai-gas-widget__dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border-light); cursor: pointer;
+}
+.ai-gas-widget__dot--active { background: var(--accent-cyan); }
