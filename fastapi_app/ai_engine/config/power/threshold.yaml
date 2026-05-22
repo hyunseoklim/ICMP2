@@ -1,0 +1,37 @@
+# 전력 3채널 임계치 — 결정 A 시스템 전제 조건서 Phase 2 기준
+#
+# 본 파일은 common/modules/threshold.py의 ThresholdClassifier 생성자와
+# 호환되는 형식.
+#
+# 형식:
+#   <sensor_type>:
+#     direction: "high" | "low" | "both"
+#     high/low 시: caution, danger
+#     both 시: caution_high, danger_high, caution_low, danger_low
+#     unit, description: 문서·디버깅용
+
+# 전압 — 양방향 (높아도 낮아도 위험)
+voltage:
+  direction: both
+  caution_high: 240.0
+  danger_high: 260.0
+  caution_low: 200.0
+  danger_low: 180.0
+  unit: "V"
+  description: "전압 (Voltage, 양방향: 220V 평균 기준)"
+
+# 전류 — 직선형 (높을수록 위험)
+current:
+  direction: high
+  caution: 20.0
+  danger: 30.0
+  unit: "A"
+  description: "전류 (Current, WORKING 평균 11A)"
+
+# 전력 — 직선형 (높을수록 위험)
+power:
+  direction: high
+  caution: 4000.0
+  danger: 6000.0
+  unit: "W"
+  description: "전력 (Power, WORKING 평균 2,420W)"

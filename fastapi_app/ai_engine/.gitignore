@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+
+# 가상 환경
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 로그
+logs/*.log
+*.log
+
+# 학습된 모델 (큰 바이너리)
+models/gas/*.joblib
+models/power/*.joblib
+models/gas/arima/*.joblib
+models/power/arima/*.joblib
+
+# 생성된 데이터 (큰 데이터)
+data/**/*.parquet
+data/**/*.csv
+
+# 보고서 임시
+reports/*.tmp
+
+# OS
+Thumbs.db
+.DS_Store

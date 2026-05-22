@@ -1,0 +1,124 @@
+{
+  "events": [
+    {
+      "event_id": "U.1",
+      "time_offset_seconds": 0,
+      "name": "IDLE 시작",
+      "ventilation": "보통",
+      "work_mode": "대기",
+      "anomaly_type": "none",
+      "anomaly_intensity": 0.0,
+      "expected_max_level": "정상",
+      "notes": "야간 → 새벽, IDLE 시작"
+    },
+    {
+      "event_id": "U.2",
+      "time_offset_seconds": 3600,
+      "name": "환기 WEAK (정비)",
+      "ventilation": "약",
+      "work_mode": "대기",
+      "anomaly_type": "ventilation_weak",
+      "anomaly_intensity": 0.5,
+      "expected_max_level": "주의",
+      "notes": "정비 시간 동안 환기 약화 → 가스 농도 점진 상승"
+    },
+    {
+      "event_id": "U.3",
+      "time_offset_seconds": 7200,
+      "name": "WORKING 진입",
+      "ventilation": "보통",
+      "work_mode": "작업중",
+      "anomaly_type": "none",
+      "anomaly_intensity": 0.0,
+      "expected_max_level": "정상",
+      "notes": "WORKING 진입 + 환기 NORMAL 회복"
+    },
+    {
+      "event_id": "U.4",
+      "time_offset_seconds": 9000,
+      "name": "도장 작업 집중",
+      "ventilation": "보통",
+      "work_mode": "작업중",
+      "anomaly_type": "voc_rising",
+      "anomaly_intensity": 0.6,
+      "expected_max_level": "주의",
+      "notes": "VOC 점진 상승 — ARIMA 사전 경고 트리거"
+    },
+    {
+      "event_id": "U.5",
+      "time_offset_seconds": 21600,
+      "name": "점심 IDLE",
+      "ventilation": "약",
+      "work_mode": "대기",
+      "anomaly_type": "none",
+      "anomaly_intensity": 0.0,
+      "expected_max_level": "정상",
+      "notes": "점심 시간 — IDLE + 환기 약화"
+    },
+    {
+      "event_id": "U.6",
+      "time_offset_seconds": 25200,
+      "name": "WORKING 재개",
+      "ventilation": "보통",
+      "work_mode": "작업중",
+      "anomaly_type": "none",
+      "anomaly_intensity": 0.0,
+      "expected_max_level": "정상",
+      "notes": "작업 재개 — 정상 패턴 복귀"
+    },
+    {
+      "event_id": "U.7",
+      "time_offset_seconds": 32400,
+      "name": "환기 STRONG",
+      "ventilation": "강",
+      "work_mode": "작업중",
+      "anomaly_type": "none",
+      "anomaly_intensity": 0.0,
+      "expected_max_level": "정상",
+      "notes": "환기 강제 강화 — 가스 농도 ↓"
+    },
+    {
+      "event_id": "U.8",
+      "time_offset_seconds": 36000,
+      "name": "H2S 누출 사고",
+      "ventilation": "강",
+      "work_mode": "작업중",
+      "anomaly_type": "h2s_leak",
+      "anomaly_intensity": 1.0,
+      "expected_max_level": "위험",
+      "notes": "H2S 위험 임계 초과 — DANGER 발생"
+    },
+    {
+      "event_id": "U.9",
+      "time_offset_seconds": 37800,
+      "name": "환기·차단 대응",
+      "ventilation": "강",
+      "work_mode": "대기",
+      "anomaly_type": "h2s_recovery",
+      "anomaly_intensity": 0.3,
+      "expected_max_level": "주의",
+      "notes": "H2S 회복 중 (강제 환기·작업 중단)"
+    },
+    {
+      "event_id": "U.10",
+      "time_offset_seconds": 43200,
+      "name": "IDLE 전환 (퇴근)",
+      "ventilation": "보통",
+      "work_mode": "대기",
+      "anomaly_type": "none",
+      "anomaly_intensity": 0.0,
+      "expected_max_level": "정상",
+      "notes": "작업 종료 — 일상 패턴 종료"
+    }
+  ],
+  "metadata": {
+    "start_time": "2026-05-19T06:00:00+00:00",
+    "end_time": "2026-05-19T17:59:57+00:00",
+    "duration_hours": 12.0,
+    "n_steps": 14400,
+    "interval_seconds": 3.0,
+    "n_gas_bundles": 28800,
+    "n_power_bundles": 14400,
+    "seed": 42
+  }
+}

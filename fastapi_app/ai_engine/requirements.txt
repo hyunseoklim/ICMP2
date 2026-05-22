@@ -1,0 +1,31 @@
+# 위험 판단 AI 엔진 — Phase 4 의존 패키지
+# Python 3.11+ 권장
+#
+# 주의: 본 requirements.txt는 ai_engine/ 작업 전용.
+# Phase 5 진입 시 fastapi_app/의 전체 requirements.txt와 통합 검토 필요.
+
+# === 핵심 수치 계산 ===
+numpy>=1.24
+scipy>=1.10,<2.0           # 마할라노비스 거리 (결정 H' 검증)
+
+# === 머신러닝 ===
+scikit-learn>=1.3,<2.0     # Isolation Forest (결정 I)
+statsmodels>=0.14,<1.0     # ARIMA (결정 J)
+ruptures>=1.1.7,<2.0       # Change Point Pelt (결정 G-3)
+
+# === 직렬화 ===
+joblib>=1.3,<2.0           # 23개 학습 모델 저장 (.joblib)
+
+# === 설정 파일 ===
+PyYAML>=6.0,<7.0           # config/*.yaml 로드
+
+# === 데이터 처리 ===
+pandas>=2.0
+pyarrow>=14.0,<16.0        # parquet 저장 (data/)
+
+# === 테스트 프레임워크 ===
+pytest>=7.4,<9.0
+pytest-cov>=4.1,<6.0
+
+# === 로깅 ===
+# Python 표준 logging 사용 — 외부 라이브러리 없음

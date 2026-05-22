@@ -387,7 +387,7 @@
 
   <div class="hist-tabs">
     <button class="hist-tab-btn active" data-htab="mine">나의 안전 확인</button>
-    {% if request.user.is_staff %}
+    {% if request.user.user_type == "admin" %}
       <button class="hist-tab-btn" data-htab="all">전체 이력 현황</button>
     {% endif %}
   </div>
@@ -434,13 +434,13 @@
                     {{ cell.day }}
                     {% if cell.date == today %} ●{% endif %}
                   </span>
-                  {% if cell.checklist is not None %}
+                  {% if cell.date and cell.date <= today %}
                   <div class="cal-indicators">
                     <div class="cal-indicator">
                       {% if cell.checklist %}
                         <svg class="ind-ok" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
                       {% else %}
-                        <svg class="ind-fail" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                        <svg class="ind-none" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>
                       {% endif %}
                       <span>안전 체크리스트</span>
                     </div>
@@ -448,7 +448,7 @@
                       {% if cell.vr %}
                         <svg class="ind-ok" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
                       {% else %}
-                        <svg class="ind-fail" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                        <svg class="ind-none" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>
                       {% endif %}
                       <span>VR 교육</span>
                     </div>

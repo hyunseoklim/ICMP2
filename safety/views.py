@@ -143,10 +143,10 @@ def mysafety_vr(request):
 
 @login_required(login_url="login")
 def mysafety_history(request):
+    is_admin = request.user.user_type == "admin"
     worker = _get_worker(request)
-    if worker is None:
+    if worker is None and not is_admin:
         return render(request, "safety/mysafety_history.html", {"no_worker": True})
-
     today = date.today()
 
     # ── 인쇄 전용 모드 ──────────────────────────────
@@ -196,8 +196,11 @@ def mysafety_history(request):
     year = int(request.GET.get("year", today.year))
     month = int(request.GET.get("month", today.month))
 
-    sessions_qs = SafetyCheckSession.objects.filter(worker=worker)
-    weeks = _build_calendar(sessions_qs, year, month)
+    if worker is not None:
+        sessions_qs = SafetyCheckSession.objects.filter(worker=worker)
+        weeks = _build_calendar(sessions_qs, year, month)
+    else:
+        weeks = []
 
     prev_month_date = date(year, month, 1) - timedelta(days=1)
     next_month_date = (date(year, month, 28) + timedelta(days=4)).replace(day=1)
@@ -205,13 +208,13 @@ def mysafety_history(request):
     # 관리자용: 전체 근무자 + 오늘 출근 여부
     admin_workers = []
     departments = []
-    if request.user.is_staff:
+    if is_admin:
         from facilities.models import Worker
         dept_q = request.GET.get("dept", "")
         name_q = request.GET.get("q", "")
-        qs = Worker.objects.filter(current_state="on_duty").select_related("user")
+        qs = Worker.objects.select_related("user")
         if dept_q:
-            qs = qs.filter(department=dept_q)
+            qs = qs.filter(department__name=dept_q)
         if name_q:
             qs = qs.filter(worker_name__icontains=name_q)
         today_sessions = {
@@ -219,12 +222,13 @@ def mysafety_history(request):
             for s in SafetyCheckSession.objects.filter(check_date=today)
         }
         for w in qs:
-            s = today_sessions.get(w.pk)
+            on_duty = w.current_state == "on_duty"
             admin_workers.append({
                 "worker": w,
-                "attendance": "출근" if s and s.checklist_completed else "미출근",
-                "attendance_ok": bool(s and s.checklist_completed),
+                "attendance": "출근" if on_duty else "미출근",
+                "attendance_ok": on_duty,
             })
+
         from accounts.models import Department
         dept_ids = (
             Worker.objects.filter(current_state="on_duty")
@@ -254,7 +258,7 @@ def mysafety_history(request):
 
 @login_required(login_url="login")
 def mysafety_worker_calendar(request, worker_id):
-    if not request.user.is_staff:
+    if request.user.user_type != "admin":
         return JsonResponse({"error": "권한 없음"}, status=403)
     from facilities.models import Worker
     worker = get_object_or_404(Worker, pk=worker_id)
@@ -309,7 +313,7 @@ def mysafety_history_download(request):
 
     # 관리자가 다수 작업자 선택한 경우
     worker_ids_str = request.GET.get("workers", "")
-    if worker_ids_str and request.user.is_staff:
+    if worker_ids_str and request.user.user_type == "admin":
         from facilities.models import Worker as FacWorker
         try:
             worker_ids = [int(i) for i in worker_ids_str.split(",") if i.strip()]
