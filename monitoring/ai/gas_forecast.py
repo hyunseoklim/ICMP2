@@ -26,27 +26,109 @@ logger = logging.getLogger(__name__)
 # 엔진 가스 9채널 — gas_distribution.GAS_SENSOR_TYPES 와 동일
 GAS_CHANNELS = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
 
+# 워커 시작 시 DB에서 재생할 채널당 최근 측정 개수 (ARIMA history_size 150 이상)
+_BACKFILL_POINTS = 200
+
 # forecast worker 단일 프로세스 전역 — 상주 인스턴스 + 처리 이력
 _subsystem = None
+_arima_recorder = None       # _RecordingARIMA — predict_channel 직후 곡선 회수용
 _last_processed: dict = {}   # device_uid → 마지막 처리 measured_at (datetime)
+
+
+class _RecordingARIMA:
+    """ARIMA 예측기 위임 래퍼 — predict() 결과(ARIMAResult)를 기록한다.
+
+    PredictionSubsystem은 predict_channel()마다 주입된 arima의 predict()를
+    정확히 1회 호출한다(prediction_subsystem.py). 따라서 predict_channel()
+    호출 직후 last_result를 읽으면 그 채널의 원시 예측 곡선
+    (forecast_mean·ci_lower·ci_upper)을 얻을 수 있다 — 'AI 예측' 탭의
+    점선 차트용.
+
+    엔진(fastapi_app/ai_engine) 코드는 한 줄도 수정하지 않는다 — 검증된
+    공개 계약인 `arima=` 의존성 주입 seam만 이용한다. predict()를 그대로
+    위임하므로 등급·K-카운터·알람 동작은 바이트 동일하게 유지된다.
+    """
+
+    def __init__(self, inner):
+        self._inner = inner
+        self.last_result = None
+
+    def predict(self, history, cp_anchor):
+        result = self._inner.predict(history, cp_anchor)
+        self.last_result = result
+        return result
 
 
 def _get_subsystem():
     """가스 예측 서브시스템을 1회 생성·캐시하여 반환."""
-    global _subsystem
+    global _subsystem, _arima_recorder
     if _subsystem is None:
         from common.integration import PredictionSubsystem, ForecastPolicy
         from gas.modules import GasARIMAPredictor
         from gas.thresholds import load_gas_thresholds
 
         k = int(getattr(settings, 'FORECAST_K_CONFIRM', 18))
+        _arima_recorder = _RecordingARIMA(GasARIMAPredictor())
         _subsystem = PredictionSubsystem(
             load_gas_thresholds(),
-            arima=GasARIMAPredictor(),
+            arima=_arima_recorder,
             policy=ForecastPolicy(k_confirm=k),
         )
         logger.info("가스 예측 서브시스템 생성 완료 (K_CONFIRM=%d)", k)
+        try:
+            _backfill(_subsystem)
+        except Exception as exc:
+            logger.warning("백필 실패 — 콜드 상태로 시작(자연 워밍업): %s", exc)
     return _subsystem
+
+
+def _backfill(subsystem) -> None:
+    """워커 시작 시 DB의 최근 GasReading을 서브시스템에 재생해 즉시 워밍업.
+
+    forecast 워커는 스트리밍 상태기 — 재시작 시 채널별 메모리 윈도우를
+    잃는다. DB에 이미 쌓인 측정 이력을 push로 재생하면 라이브 reading을
+    기다리지 않고 곧바로 예측 가능 상태가 된다(재시작 후 '예측 준비 중'
+    공백 제거).
+
+    비용 최소화: 측정 이력은 push로만 전량 재생(윈도우 워밍업 — 수 ms)
+    하고, predict_channel은 채널당 1회만 호출해 초기 스냅샷을 저장한다
+    (~수 초). K-카운터는 0에서 시작하므로 CONFIRMED 등급은 이후 라이브
+    reading으로 재누적된다(곡선·차트는 즉시 정상).
+    """
+    from common.data_types import DataPoint
+    from monitoring.models import Device, GasReading
+    from alerts.services import save_forecast_snapshots
+
+    for device in Device.objects.filter(device_type='gas'):
+        uid = device.device_uid
+        readings = list(
+            GasReading.objects.filter(device=device)
+            .order_by('-measured_at')[:_BACKFILL_POINTS]
+        )
+        if not readings:
+            continue
+        readings.reverse()  # 과거 → 현재 순
+
+        # 1) 측정 이력 push — 채널별 윈도우 워밍업
+        for r in readings:
+            for ch in GAS_CHANNELS:
+                v = getattr(r, ch, None)
+                subsystem.push(DataPoint(
+                    timestamp=r.measured_at, device_id=uid, sensor_type=ch,
+                    value=v, is_valid=(v is not None),
+                ))
+
+        # 2) 채널당 predict 1회 → 초기 스냅샷 저장
+        results = []
+        for ch in GAS_CHANNELS:
+            _arima_recorder.last_result = None
+            policy = subsystem.predict_channel(uid, ch)
+            results.append((policy, _arima_recorder.last_result))
+        save_forecast_snapshots(device, results)
+
+        # 3) 마지막 처리 시각 기록 — 라이브 reading 중복처리 방지
+        _last_processed[uid] = readings[-1].measured_at
+        logger.info("백필 완료 — device=%s, %d readings 재생", uid, len(readings))
 
 
 def _parse_ts(raw):
@@ -63,21 +145,24 @@ def run_forecast(device_uid: str, payload: dict):
     """가스 reading 1건을 예측 서브시스템에 투입하고 채널별 예측을 산출한다.
 
     Returns:
-        list[ForecastPolicyResult] — 9채널 예측. 중복·역순 reading이면
-        빈 리스트(idempotency 가드 — 상태 오염 방지).
+        list[tuple[ForecastPolicyResult, ARIMAResult|None]] — 9채널의
+        (2축 등급 결과, 원시 예측 곡선). 곡선은 'AI 예측' 탭의 점선 차트용.
+        중복·역순 reading이면 빈 리스트(idempotency 가드 — 상태 오염 방지).
     """
     measured_at = _parse_ts(payload.get('measured_at'))
 
-    # --- idempotency 가드 — 중복/역순 reading은 통째로 skip ---
+    # 서브시스템 확보 — 최초 호출 시 DB 백필이 실행되어 _last_processed가 채워진다
+    sub = _get_subsystem()
+
+    # --- idempotency 가드 — 중복/역순/백필 포함분 reading은 통째로 skip ---
     last = _last_processed.get(device_uid)
     if last is not None and measured_at <= last:
-        logger.debug("forecast skip (중복/역순) — device=%s ts=%s", device_uid, measured_at)
+        logger.debug("forecast skip (중복/역순/백필포함) — device=%s ts=%s", device_uid, measured_at)
         return []
     _last_processed[device_uid] = measured_at   # 처리 착수 기록 (재처리 차단)
 
     from common.data_types import DataPoint
 
-    sub = _get_subsystem()
     results = []
     for ch in GAS_CHANNELS:
         v = payload.get(ch)
@@ -89,6 +174,8 @@ def run_forecast(device_uid: str, payload: dict):
             is_valid=(v is not None),
         )
         sub.push(point)
-        results.append(sub.predict_channel(device_uid, ch))
+        _arima_recorder.last_result = None             # 직전 채널 곡선 잔존 방지
+        policy_result = sub.predict_channel(device_uid, ch)
+        results.append((policy_result, _arima_recorder.last_result))
 
     return results

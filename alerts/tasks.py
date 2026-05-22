@@ -176,14 +176,17 @@ def forecast_gas_task(device_uid: str, payload: dict):
     try:
         from monitoring.ai.gas_forecast import run_forecast
         from monitoring.models import Device
-        from alerts.services import trigger_forecast_alarms
+        from alerts.services import trigger_forecast_alarms, save_forecast_snapshots
 
         results = run_forecast(device_uid, payload)
         if not results:
             return  # idempotency 가드에 의해 skip됨
+        # results: [(ForecastPolicyResult, ARIMAResult|None), ...]
+        policy_results = [pr for pr, _curve in results]
         device = Device.objects.filter(device_uid=device_uid).first()
         if device:
-            trigger_forecast_alarms(device, results)
+            save_forecast_snapshots(device, results)         # 등급 + 곡선(튜플) → 스냅샷 upsert
+            trigger_forecast_alarms(device, policy_results)  # CONFIRMED 시 predictive_warning 알람
         logger.debug("forecast_gas_task 완료 — device=%s", device_uid)
     except Exception as exc:
         logger.error("forecast_gas_task 실패 — device=%s: %s", device_uid, exc)

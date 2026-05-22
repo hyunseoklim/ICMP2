@@ -82,6 +82,8 @@
                     <button class="tab-btn" data-tab="ai" role="tab">AI 예측</button>
                 </nav>
                 <div class="chart-legend">
+                    <span class="legend-item legend-item--forecast"><i class="legend-line legend-line--solid"></i> 측정 농도</span>
+                    <span class="legend-item legend-item--forecast"><i class="legend-line legend-line--forecast"></i> AI 예측 농도</span>
                     <span class="legend-item"><i class="legend-line legend-line--warn"></i> 주의 임계치</span>
                     <span class="legend-item"><i class="legend-line legend-line--danger"></i> 위험 임계치</span>
                     <span class="legend-item"><i class="legend-swatch legend-swatch--warn"></i> 주의 범위</span>
@@ -96,10 +98,10 @@
                 </div>
             </div>
 
-            <!-- AI 예측 탭 (4차) -->
+            <!-- AI 예측 탭 -->
             <div class="tab-content" id="tab-ai">
-                <div class="coming-soon">
-                    <p>🔧 AI 예측 기능은 4차에서 구현 예정입니다.</p>
+                <div class="gas-chart-grid" id="ai-forecast-grid">
+                    <!-- gas_forecast.js에서 9개 예측 차트 카드 동적 생성 -->
                 </div>
             </div>
 

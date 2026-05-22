@@ -28,8 +28,10 @@ from monitoring.serializers import (
     ThresholdPolicySerializer,
     InspectionLogSerializer,
     ActionLogSerializer,
+    ForecastSnapshotSerializer,
 )
 from monitoring.collector import update_last_seen
+from alerts.models import ForecastSnapshot
 
 
 # ── Template Views (HTML 렌더링) ───────────────────────────
@@ -150,6 +152,24 @@ def ingest_node(request):
 
 # ── API ViewSets (DRF JSON 데이터) ─────────────────────────
 
+# ── 'AI 예측' 탭 조회 상수·헬퍼 ────────────────────────────
+
+FORECAST_PAST_POINTS = 60   # 'AI 예측' 차트에 표시할 과거 실측 개수
+GAS_CHANNEL_CODES = ["co", "h2s", "co2", "o2", "no2", "so2", "o3", "nh3", "voc"]
+
+
+def _median_interval(readings, default=60):
+    """연속 측정 간격(초)의 중앙값 — ETA 스텝→분 환산용. 2개 미만이면 default."""
+    if len(readings) < 2:
+        return default
+    deltas = sorted(
+        (readings[i].measured_at - readings[i - 1].measured_at).total_seconds()
+        for i in range(1, len(readings))
+    )
+    mid = deltas[len(deltas) // 2]
+    return int(mid) if mid > 0 else default
+
+
 class DeviceViewSet(viewsets.ModelViewSet):
     """
     장비 CRUD API
@@ -231,6 +251,52 @@ class DeviceViewSet(viewsets.ModelViewSet):
         logs       = InspectionLog.objects.filter(device=device)
         serializer = InspectionLogSerializer(logs, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["get"])
+    def forecast(self, request, pk=None):
+        """GET /api/devices/{id}/forecast/ - 'AI 예측' 탭용 채널별 예측 데이터.
+
+        가스 9채널별로 (1) 과거 실측 시계열과 (2) ForecastSnapshot의 예측
+        곡선·2축 등급을 결합해 반환한다. 예측 곡선은 STEP G(forecast worker)
+        가 채운다 — 워밍업/예측불가 구간은 forecast_mean이 null.
+        """
+        device   = self.get_object()
+        readings = list(
+            GasReading.objects.filter(device=device)
+            .order_by("-measured_at")[:FORECAST_PAST_POINTS]
+        )
+        readings.reverse()  # 과거 → 현재 순
+
+        snapshots = {
+            snap.sensor_type: snap
+            for snap in ForecastSnapshot.objects.filter(device=device)
+        }
+
+        channels = []
+        for ch in GAS_CHANNEL_CODES:
+            snap = snapshots.get(ch)
+            ch_data = (
+                ForecastSnapshotSerializer(snap).data if snap is not None
+                else {
+                    "sensor_type": ch, "updated_at": None,
+                    "headline_severity": None, "headline_confidence": "UNKNOWN",
+                    "caution_confidence": "UNKNOWN", "danger_confidence": "UNKNOWN",
+                    "caution_eta_step": None, "danger_eta_step": None,
+                    "path": "unknown", "forecast_steps": 0, "reason": "예측 미생성",
+                    "forecast_mean": None, "ci_lower": None, "ci_upper": None,
+                }
+            )
+            ch_data["past"] = [
+                {"t": r.measured_at.isoformat(), "v": getattr(r, ch, None)}
+                for r in readings
+            ]
+            channels.append(ch_data)
+
+        return Response({
+            "device_uid":       device.device_uid,
+            "interval_seconds": _median_interval(readings),
+            "channels":         channels,
+        })
 
 
 class DeviceChannelViewSet(viewsets.ModelViewSet):

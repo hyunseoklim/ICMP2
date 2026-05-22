@@ -257,3 +257,47 @@ class NotificationTemplate(models.Model):
 
     def __str__(self):
         return f"{self.template_name} ({self.channel_type})"
+
+
+class ForecastSnapshot(models.Model):
+    """STEP G — 채널별 최신 AI 예측 결과 (채널당 1행 upsert).
+
+    'AI 예측' 탭/위젯이 조회하는 최신 예측 스냅샷. unique_together로
+    채널당 1행을 갱신하므로 행 수가 36(가스 4장비×9채널)으로 고정된다
+    — 디스크 무증가. 곡선 필드(forecast_mean·ci_*)는 v2(곡선 차트)용.
+    """
+
+    device = models.ForeignKey(
+        "monitoring.Device", on_delete=models.CASCADE, related_name="forecast_snapshots"
+    )
+    sensor_type = models.CharField(max_length=10, help_text="가스 채널 (co, h2s, ...)")
+    updated_at = models.DateTimeField(auto_now=True, help_text="갱신 시각 (예측 신선도 감시용)")
+
+    # 2축 등급 (ForecastPolicyResult — confidence는 enum name 저장)
+    headline_severity = models.CharField(
+        max_length=10, null=True, blank=True, help_text="danger / caution / None"
+    )
+    headline_confidence = models.CharField(
+        max_length=20,
+        help_text="NORMAL/TENTATIVE/CONFIRMED_WARNING/CONFIRMED_STRONG/UNKNOWN",
+    )
+    caution_confidence = models.CharField(max_length=20)
+    danger_confidence = models.CharField(max_length=20)
+    caution_eta_step = models.IntegerField(null=True, blank=True, help_text="주의 임계 도달 예측 스텝")
+    danger_eta_step = models.IntegerField(null=True, blank=True)
+    path = models.CharField(max_length=10, help_text="normal / degraded / unknown")
+    forecast_steps = models.IntegerField(default=0, help_text="예측 수평 H")
+    reason = models.TextField(blank=True)
+
+    # 곡선 (v2 — ARIMAResult 노출 시 채움)
+    forecast_mean = models.JSONField(null=True, blank=True)
+    ci_lower = models.JSONField(null=True, blank=True)
+    ci_upper = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        db_table = "forecast_snapshots"
+        unique_together = [("device", "sensor_type")]
+        ordering = ["device", "sensor_type"]
+
+    def __str__(self):
+        return f"{self.device.device_uid} {self.sensor_type} → {self.headline_confidence}"

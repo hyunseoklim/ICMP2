@@ -54,6 +54,7 @@ const DeviceAPI = {
     delete:         (id)       => API.delete(`/devices/${id}/`),
     getChannels:    (id)       => API.get(`/devices/${id}/channels/`),
     getLatestGas:   (id)       => API.get(`/devices/${id}/latest_gas/`),
+    getForecast:    (id)       => API.get(`/devices/${id}/forecast/`),
     getLatestPower: (id)       => API.get(`/devices/${id}/latest_power/`),
     getStatusLogs:  (id)       => API.get(`/devices/${id}/status_logs/`),
     getInspections: (id)       => API.get(`/devices/${id}/inspections/`),

@@ -1,9 +1,10 @@
+import math
 from datetime import timedelta
 
 from django.db.models import Count
 from django.utils import timezone
 
-from .models import AlarmEvent, AlarmRule, EventHistory
+from .models import AlarmEvent, AlarmRule, EventHistory, ForecastSnapshot
 
 _SEVERITY_LABEL = {AlarmEvent.Severity.DANGER: '위험', AlarmEvent.Severity.WARNING: '주의'}
 
@@ -366,6 +367,53 @@ def trigger_forecast_alarms(device, results) -> None:
                 action_note=f'{ch} 예측 정상 복귀로 자동 종료',
             )
         # TENTATIVE / UNKNOWN → 보류
+
+
+def _json_safe(seq) -> list:
+    """JSONField 저장용 — NaN/Inf를 None으로 변환한 float 리스트."""
+    out = []
+    for x in seq:
+        try:
+            fx = float(x)
+        except (TypeError, ValueError):
+            out.append(None)
+            continue
+        out.append(fx if math.isfinite(fx) else None)
+    return out
+
+
+def save_forecast_snapshots(device, results) -> None:
+    """STEP G — 채널별 최신 예측을 ForecastSnapshot에 upsert (등급 + 곡선).
+
+    채널당 1행(unique device+sensor_type)을 갱신 — 행 수 고정(디스크 무증가).
+    'AI 예측' 탭은 이 최신 행을 조회해 점선 차트를 그린다. 워밍업 구간의
+    UNKNOWN 결과도 그대로 저장돼 UI가 '예측 준비 중'을 표시할 수 있다.
+
+    Args:
+        results: [(ForecastPolicyResult, ARIMAResult|None), ...] — 등급 결과와
+                 원시 예측 곡선. 곡선이 None이거나 path='unknown'이면 곡선
+                 필드(forecast_mean·ci_*)는 None으로 저장된다.
+    """
+    for policy, arima in results:
+        has_curve = arima is not None and getattr(arima, 'path', 'unknown') != 'unknown'
+        ForecastSnapshot.objects.update_or_create(
+            device=device,
+            sensor_type=policy.sensor_type,
+            defaults={
+                'headline_severity':   policy.headline_severity,
+                'headline_confidence': policy.headline_confidence.name,
+                'caution_confidence':  policy.caution_confidence.name,
+                'danger_confidence':   policy.danger_confidence.name,
+                'caution_eta_step':    policy.caution_eta_step,
+                'danger_eta_step':     policy.danger_eta_step,
+                'path':                policy.path,
+                'forecast_steps':      policy.forecast_steps,
+                'reason':              policy.reason,
+                'forecast_mean': _json_safe(arima.forecast_mean) if has_curve else None,
+                'ci_lower':      _json_safe(arima.ci_lower) if has_curve else None,
+                'ci_upper':      _json_safe(arima.ci_upper) if has_curve else None,
+            },
+        )
 
 
 _RULE_TYPE_TO_EVENT_TYPE = {

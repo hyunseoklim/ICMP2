@@ -13,6 +13,7 @@ from monitoring.models import (
     ActionLog,
 )
 from monitoring.services import calc_danger_level, check_threshold_exceeded
+from alerts.models import ForecastSnapshot
 
 # ── Device ────────────────────────────────────────────────
 
@@ -207,3 +208,23 @@ class ActionLogSerializer(serializers.ModelSerializer):
                 "조치 완료일은 오늘 이후일 수 없습니다."
             )
         return value
+
+
+# ── ForecastSnapshot (AI 예측) ─────────────────────────────
+
+class ForecastSnapshotSerializer(serializers.ModelSerializer):
+    """STEP G — 채널별 최신 AI 예측 스냅샷 직렬화 ('AI 예측' 탭용).
+
+    2축 등급(확신도·ETA)과 예측 곡선(forecast_mean·ci_*)을 함께 노출한다.
+    """
+
+    class Meta:
+        model  = ForecastSnapshot
+        fields = [
+            "sensor_type", "updated_at",
+            "headline_severity", "headline_confidence",
+            "caution_confidence", "danger_confidence",
+            "caution_eta_step", "danger_eta_step",
+            "path", "forecast_steps", "reason",
+            "forecast_mean", "ci_lower", "ci_upper",
+        ]
