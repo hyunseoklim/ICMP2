@@ -81,6 +81,22 @@ services:
       django:
         condition: service_started
 
+  celery-forecast:
+    build: .
+    container_name: celery-forecast
+    command: celery -A config worker -Q forecast --concurrency=1 --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      django:
+        condition: service_started
+
 
   prometheus:
     image: prom/prometheus:latest

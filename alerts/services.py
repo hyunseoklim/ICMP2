@@ -304,12 +304,77 @@ def trigger_if_anomaly_alarms(device, if_result) -> None:
         )
 
 
+def trigger_forecast_alarms(device, results) -> None:
+    """STEP G — ARIMA 예측 결과 → predictive_warning AlarmEvent (채널별).
+
+    전용 AlarmRule(RuleType.FORECAST)로 생성 — STEP B/D/E/F와 이벤트 격리.
+    채널별로 '[예측] {GAS}' 타이틀의 open 이벤트를 재사용한다.
+    - CONFIRMED_WARNING / CONFIRMED_STRONG : open 이벤트 갱신 또는 신규 생성
+    - NORMAL                               : open 이벤트 자동 종료
+    - TENTATIVE / UNKNOWN                  : 보류 (잠정·워밍업 — 생성도 종료도 안 함)
+    """
+    if not results or not device.facility_id:
+        return
+
+    rule = AlarmRule.objects.filter(
+        rule_type=AlarmRule.RuleType.FORECAST,
+        is_active=True,
+    ).first()
+    if not rule:
+        return
+
+    now = timezone.now()
+    for r in results:
+        ch = r.sensor_type.upper()
+        conf = r.headline_confidence.name  # NORMAL/TENTATIVE/CONFIRMED_WARNING/CONFIRMED_STRONG/UNKNOWN
+
+        open_event = AlarmEvent.objects.filter(
+            rule=rule,
+            device=device,
+            event_status=AlarmEvent.EventStatus.OPEN,
+            title__contains=f'[예측] {ch}',
+        ).order_by('-occurred_at').first()
+
+        if conf in ('CONFIRMED_WARNING', 'CONFIRMED_STRONG'):
+            eta = r.danger_eta_step if r.headline_severity == 'danger' else r.caution_eta_step
+            message = (
+                f"[예측] {ch} {r.headline_severity or '주의'} 임계 도달 예상 "
+                f"(ETA {eta}스텝) — {r.reason}"
+            )
+            if open_event:
+                open_event.last_seen_at  = now
+                open_event.current_value = eta
+                open_event.message       = message
+                open_event.save(update_fields=['last_seen_at', 'current_value', 'message', 'updated_at'])
+            else:
+                create_alarm_event(
+                    rule=rule,
+                    facility=device.facility,
+                    severity=AlarmEvent.Severity.PREDICTIVE_WARNING,
+                    title=f"[예측] {ch} 사전 경고",
+                    device=device,
+                    message=message,
+                    current_value=eta,
+                )
+        elif conf == 'NORMAL' and open_event:
+            open_event.event_status = AlarmEvent.EventStatus.CLOSED
+            open_event.closed_at = now
+            open_event.save(update_fields=['event_status', 'closed_at', 'updated_at'])
+            EventHistory.objects.create(
+                alarm_event=open_event,
+                action_type='close',
+                action_note=f'{ch} 예측 정상 복귀로 자동 종료',
+            )
+        # TENTATIVE / UNKNOWN → 보류
+
+
 _RULE_TYPE_TO_EVENT_TYPE = {
     AlarmRule.RuleType.THRESHOLD: AlarmEvent.EventType.GAS,
     AlarmRule.RuleType.POWER:     AlarmEvent.EventType.POWER,
     AlarmRule.RuleType.MISSING:   AlarmEvent.EventType.DEVICE,
     AlarmRule.RuleType.OFFLINE:   AlarmEvent.EventType.DEVICE,
     AlarmRule.RuleType.AI:        AlarmEvent.EventType.GAS,
+    AlarmRule.RuleType.FORECAST:  AlarmEvent.EventType.GAS,
 }
 
 

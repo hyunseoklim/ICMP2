@@ -75,6 +75,10 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     if_result = predict_gas_anomaly(reading)
     trigger_if_anomaly_alarms(device, if_result)
 
+    # STEP G — ARIMA 예측 (사전 경고) — forecast 전용 큐로 위임 (아키텍처 D2)
+    from alerts.tasks import forecast_gas_task
+    forecast_gas_task.delay(device_uid, dict(payload))
+
     # WebSocket 브로드캐스트
     try:
         from facilities.models import SensorLocation

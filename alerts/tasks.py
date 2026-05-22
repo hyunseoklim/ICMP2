@@ -155,6 +155,42 @@ def ingest_gas_task(self, payload: dict):
 
 
 # ---------------------------------------------------------------------------
+# B-2. 가스 예측 태스크 (STEP G — forecast 전용 큐 / 단일 동시성 worker)
+# ---------------------------------------------------------------------------
+
+@shared_task
+def forecast_gas_task(device_uid: str, payload: dict):
+    """STEP G — 가스 예측 서브시스템(ARIMA 사전 경고) 실행.
+
+    settings.CELERY_TASK_ROUTES로 'forecast' 큐에 라우팅되며, 단일 동시성
+    (--concurrency=1) worker가 소비한다 → PredictionSubsystem 상태가 한
+    프로세스에 보존된다.
+
+    상태기를 다루므로 Celery 자동 재시도를 쓰지 않는다(재시도 = 같은
+    reading 중복 처리 → 윈도우·K-카운터 오염). run_forecast 내부의
+    idempotency 가드가 중복·역순 reading을 차단하고, 한 reading 처리
+    실패는 다음 reading(다음 케이던스)에 자연 복구된다.
+    """
+    if not device_uid:
+        return
+    try:
+        from monitoring.ai.gas_forecast import run_forecast
+        from monitoring.models import Device
+        from alerts.services import trigger_forecast_alarms
+
+        results = run_forecast(device_uid, payload)
+        if not results:
+            return  # idempotency 가드에 의해 skip됨
+        device = Device.objects.filter(device_uid=device_uid).first()
+        if device:
+            trigger_forecast_alarms(device, results)
+        logger.debug("forecast_gas_task 완료 — device=%s", device_uid)
+    except Exception as exc:
+        logger.error("forecast_gas_task 실패 — device=%s: %s", device_uid, exc)
+        # 재시도하지 않음 — 다음 reading에서 복구
+
+
+# ---------------------------------------------------------------------------
 # C. Redis Pub/Sub 수신 (레거시 — ingest_gas_task로 대체됨)
 # ---------------------------------------------------------------------------
 

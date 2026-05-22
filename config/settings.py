@@ -101,6 +101,15 @@ CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
 
+# STEP G(예측)는 상태기(PredictionSubsystem)라 전용 큐 + 단일 동시성 worker로
+# 처리한다. forecast_gas_task만 forecast 큐로 라우팅 (아키텍처 D2).
+CELERY_TASK_ROUTES = {
+    'alerts.tasks.forecast_gas_task': {'queue': 'forecast'},
+}
+
+# Phase 2 — AI 예측(STEP G) 튜닝 파라미터. 검증·운영 중 무재학습 조정용.
+FORECAST_K_CONFIRM = int(os.environ.get('FORECAST_K_CONFIRM', '18'))
+
 
 CACHES = {
     'default': {

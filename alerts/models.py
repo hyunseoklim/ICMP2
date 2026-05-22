@@ -37,6 +37,7 @@ class AlarmRule(models.Model):
         OFFLINE = "offline", "장비 오프라인"
         POWER = "power", "전력 이상"
         AI = "ai", "AI 이상 탐지"
+        FORECAST = "forecast", "AI 예측 경보"
 
     class ActionType(models.TextChoices):
         NOTIFY = "notify", "알림"
