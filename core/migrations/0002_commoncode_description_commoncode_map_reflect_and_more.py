@@ -9,30 +9,5 @@ class Migration(migrations.Migration):
         ('core', '0001_initial'),
     ]
 
-    operations = [
-        migrations.AddField(
-            model_name='commoncode',
-            name='description',
-            field=models.TextField(blank=True, default=''),
-        ),
-        migrations.AddField(
-            model_name='commoncode',
-            name='map_reflect',
-            field=models.BooleanField(default=False),
-        ),
-        migrations.AddField(
-            model_name='commoncode',
-            name='scope',
-            field=models.CharField(blank=True, default='', max_length=200),
-        ),
-        migrations.AddField(
-            model_name='commoncode',
-            name='updated_at',
-            field=models.DateTimeField(auto_now=True),
-        ),
-        migrations.AddField(
-            model_name='commoncode',
-            name='updated_by',
-            field=models.CharField(blank=True, default='', max_length=100),
-        ),
-    ]
+    # 모든 필드는 0002_commoncode_scope..., 0003_commoncode_description, 0004_add_map_reflect에서 이미 추가됨
+    operations = []

@@ -741,6 +741,28 @@ def seed_monitoring():
             },
         )
 
+    pwr3_channels = [
+        ("slave01", "창고 설비 A",    800),
+        ("slave02", "창고 설비 B",    800),
+        ("slave11", "CCTV 5번",        50),
+        ("slave12", "CCTV 6번",        50),
+        ("slave21", "창고 조명 A",    500),
+        ("slave22", "창고 조명 B",    500),
+        ("slave31", "환기팬",         300),
+        ("slave32", "안전장치 전원",  300),
+    ]
+    for code, name, rated in pwr3_channels:
+        DeviceChannel.objects.get_or_create(
+            device=device_map["PWR-003"],
+            channel_code=code,
+            defaults={
+                "channel_name": name,
+                "is_active": True,
+                "status": "active",
+                "rated_power_w": rated,
+            },
+        )
+
     print("  [monitoring] threshold_policies...")
     threshold_data = [
         # metric_code, normal_min, normal_max, warning_min, warning_max, danger_min, danger_max, action_type

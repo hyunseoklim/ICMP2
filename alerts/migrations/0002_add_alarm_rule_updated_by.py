@@ -9,10 +9,5 @@ class Migration(migrations.Migration):
         ('alerts', '0001_initial'),
     ]
 
-    operations = [
-        migrations.AddField(
-            model_name='alarmrule',
-            name='updated_by',
-            field=models.CharField(blank=True, default='', max_length=100),
-        ),
-    ]
+    # updated_by 컬럼은 0002_riskcriteria_alarmrule_updated_by에서 이미 추가됨
+    operations = []
