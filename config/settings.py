@@ -1,12 +1,18 @@
 import os
+import sys
 from pathlib import Path
-import os
 
 from dotenv import load_dotenv
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# AI 엔진(fastapi_app/ai_engine)은 top-level 패키지(common·gas·power)로 import되므로
+# 해당 디렉토리를 sys.path에 등록한다. (STEP F — Isolation Forest 통합)
+_AI_ENGINE_DIR = BASE_DIR / 'fastapi_app' / 'ai_engine'
+if _AI_ENGINE_DIR.is_dir() and str(_AI_ENGINE_DIR) not in sys.path:
+    sys.path.insert(0, str(_AI_ENGINE_DIR))
 
 
 # Quick-start development settings - unsuitable for production
@@ -105,9 +111,6 @@ CACHES = {
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
 DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
-
-# AI 추론 서버 (팀원1 FastAPI 서버 URL — 미설정 시 AI 단계 건너뜀)
-AI_SERVER_URL = os.getenv('AI_SERVER_URL', '')
 
 # Redis Pub/Sub 채널명 (확정 후 .env에서 교체)
 REDIS_PUBSUB_CHANNEL = os.getenv('REDIS_PUBSUB_CHANNEL', 'sensor_events')

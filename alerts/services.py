@@ -240,11 +240,76 @@ def trigger_changepoint_alarms(device, cp_results: list) -> None:
                 )
 
 
+def trigger_if_anomaly_alarms(device, if_result) -> None:
+    """STEP F — Isolation Forest 9채널 분포 이상 결과 → AlarmEvent.
+
+    전용 AlarmRule(RuleType.AI)로 생성하므로 STEP B/D/E(THRESHOLD rule)와
+    이벤트가 완전히 분리된다.
+    - CAUTION : open '[IF]' 이벤트 갱신 또는 신규 생성
+    - NORMAL  : open '[IF]' 이벤트 자동 종료
+    - UNKNOWN : 결측 — 판정 보류
+    """
+    if if_result is None or not device.facility_id:
+        return
+
+    level = if_result.level.name  # 'NORMAL' / 'CAUTION' / 'UNKNOWN'
+    if level == 'UNKNOWN':
+        return
+
+    rule = AlarmRule.objects.filter(
+        rule_type=AlarmRule.RuleType.AI,
+        is_active=True,
+    ).first()
+    if not rule:
+        return
+
+    now = timezone.now()
+    open_event = AlarmEvent.objects.filter(
+        rule=rule,
+        device=device,
+        event_status=AlarmEvent.EventStatus.OPEN,
+    ).order_by('-occurred_at').first()
+
+    if level == 'NORMAL':
+        # 분포 정상 복귀 → open 이벤트 자동 종료
+        if open_event:
+            open_event.event_status = AlarmEvent.EventStatus.CLOSED
+            open_event.closed_at = now
+            open_event.save(update_fields=['event_status', 'closed_at', 'updated_at'])
+            EventHistory.objects.create(
+                alarm_event=open_event,
+                action_type='close',
+                action_note='IF 분포 정상 복귀로 자동 종료',
+            )
+        return
+
+    # level == 'CAUTION'
+    score   = if_result.mahalanobis_distance
+    message = f"[IF] 가스 9채널 분포 이상 — {if_result.reason}"
+
+    if open_event:
+        open_event.last_seen_at  = now
+        open_event.current_value = score
+        open_event.message       = message
+        open_event.save(update_fields=['last_seen_at', 'current_value', 'message', 'updated_at'])
+    else:
+        create_alarm_event(
+            rule=rule,
+            facility=device.facility,
+            severity=AlarmEvent.Severity.ANOMALY,
+            title="[IF] 가스 9채널 분포 이상 감지",
+            device=device,
+            message=message,
+            current_value=score,
+        )
+
+
 _RULE_TYPE_TO_EVENT_TYPE = {
     AlarmRule.RuleType.THRESHOLD: AlarmEvent.EventType.GAS,
     AlarmRule.RuleType.POWER:     AlarmEvent.EventType.POWER,
     AlarmRule.RuleType.MISSING:   AlarmEvent.EventType.DEVICE,
     AlarmRule.RuleType.OFFLINE:   AlarmEvent.EventType.DEVICE,
+    AlarmRule.RuleType.AI:        AlarmEvent.EventType.GAS,
 }
 
 

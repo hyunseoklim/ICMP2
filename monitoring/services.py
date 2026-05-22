@@ -69,6 +69,12 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     cp_results = cp_detect(device.device_uid, reading)
     trigger_changepoint_alarms(device, cp_results)
 
+    # STEP F — Isolation Forest 9채널 분포 이상 탐지 (AI 엔진)
+    from monitoring.ai.gas_if import predict_gas_anomaly
+    from alerts.services import trigger_if_anomaly_alarms
+    if_result = predict_gas_anomaly(reading)
+    trigger_if_anomaly_alarms(device, if_result)
+
     # WebSocket 브로드캐스트
     try:
         from facilities.models import SensorLocation
