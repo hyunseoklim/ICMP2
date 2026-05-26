@@ -627,26 +627,26 @@ def code_group_create(request):
     """코드 그룹 등록"""
     user = request.user
     current_user_name = getattr(user, 'name', None) or user.get_full_name() or user.username
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     if request.method == 'POST':
         group_code  = request.POST.get('group_code', '').strip().upper()
         group_name  = request.POST.get('group_name', '').strip()
         scope       = request.POST.get('scope', '').strip()
         description = request.POST.get('description', '').strip()
         if group_code and group_name:
-            obj, created = CommonCode.objects.get_or_create(
-                group_code=group_code, code='__meta__',
-                defaults={
-                    'code_name': group_name, 'sort_order': 0, 'is_active': True,
-                    'scope': scope, 'updated_by': current_user_name, 'description': description,
-                },
-            )
-            if not created:
-                obj.code_name   = group_name
-                obj.scope       = scope
-                obj.updated_by  = current_user_name
-                obj.description = description
-                obj.save()
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if CommonCode.objects.filter(group_code=group_code, code='__meta__').exists():
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'field': 'group_code', 'error': '이미 등록된 그룹 코드입니다. 다른 그룹 코드를 입력해 주세요.'})
+            elif CommonCode.objects.filter(code='__meta__', code_name=group_name).exists():
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'field': 'group_name', 'error': '이미 등록된 그룹명입니다. 다른 그룹명을 입력해 주세요.'})
+            else:
+                CommonCode.objects.create(
+                    group_code=group_code, code='__meta__',
+                    code_name=group_name, sort_order=0, is_active=True,
+                    scope=scope, updated_by=current_user_name, description=description,
+                )
+        if is_ajax:
             return JsonResponse({'ok': True})
         return redirect(f'/manager/codes/?group={group_code}')
     return render(request, 'admin/codes/code_group_create.html', {
@@ -701,6 +701,7 @@ def code_value_create(request):
     selected_group = CommonCode.objects.filter(group_code=group_code, code='__meta__').first()
     user = request.user
     current_user_name = getattr(user, 'name', None) or user.get_full_name() or user.username
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     if request.method == 'POST':
         code = request.POST.get('code', '').strip().upper()
         code_name = request.POST.get('code_name', '').strip()
@@ -708,21 +709,20 @@ def code_value_create(request):
         is_active = request.POST.get('is_active', 'true') == 'true'
         description = request.POST.get('description', '').strip()
         if code and code_name and group_code:
-            # 동일 그룹 내 코드명 중복 검사
-            dup = CommonCode.objects.filter(group_code=group_code, code_name=code_name).exclude(code='__meta__').exclude(code=code).exists()
-            if dup:
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if CommonCode.objects.filter(group_code=group_code, code=code).exists():
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'field': 'code', 'error': '이미 해당 코드 그룹에 등록된 코드입니다.'})
+            elif CommonCode.objects.filter(group_code=group_code, code_name=code_name).exclude(code='__meta__').exists():
+                if is_ajax:
                     return JsonResponse({'ok': False, 'field': 'code_name', 'error': '같은 코드 그룹에 동일한 코드명이 이미 등록되어 있습니다.'})
             else:
-                CommonCode.objects.update_or_create(
+                CommonCode.objects.create(
                     group_code=group_code, code=code,
-                    defaults={
-                        'code_name': code_name, 'sort_order': sort_order,
-                        'is_active': is_active, 'description': description,
-                        'updated_by': current_user_name,
-                    },
+                    code_name=code_name, sort_order=sort_order,
+                    is_active=is_active, description=description,
+                    updated_by=current_user_name,
                 )
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if is_ajax:
             return JsonResponse({'ok': True})
         return redirect(f'/manager/codes/?group={group_code}')
     return render(request, 'admin/codes/code_value_create.html', {
@@ -940,21 +940,19 @@ def risk_group_create(request):
         if group_code and group_name:
             if not group_code.startswith('RISK_'):
                 group_code = 'RISK_' + group_code
-            obj, created = CommonCode.objects.get_or_create(
-                group_code=group_code, code='__meta__',
-                defaults={
-                    'code_name': group_name, 'sort_order': 0,
-                    'is_active': is_active, 'scope': scope,
-                    'description': description, 'updated_by': current_user_name,
-                },
-            )
-            if not created:
-                obj.code_name   = group_name
-                obj.is_active   = is_active
-                obj.scope       = scope
-                obj.description = description
-                obj.updated_by  = current_user_name
-                obj.save()
+            if CommonCode.objects.filter(group_code=group_code, code='__meta__').exists():
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'field': 'group_code', 'error': '이미 등록된 분류 코드입니다. 다른 분류 코드를 입력해 주세요.'})
+            elif CommonCode.objects.filter(code='__meta__', code_name=group_name).exists():
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'field': 'group_name', 'error': '이미 등록된 분류명입니다. 다른 분류명을 입력해 주세요.'})
+            else:
+                CommonCode.objects.create(
+                    group_code=group_code, code='__meta__',
+                    code_name=group_name, sort_order=0,
+                    is_active=is_active, scope=scope,
+                    description=description, updated_by=current_user_name,
+                )
         if is_ajax:
             return JsonResponse({'ok': True, 'group_code': group_code})
         return redirect(f'/manager/risks/?group={group_code}')

@@ -1,5 +1,66 @@
 // 공통 코드 관리 페이지
 
+/* ════════ 클라이언트 페이지네이션 ════════ */
+const PAGE_SIZE = 10;
+let _currentPage = 1;
+let _allRows = [];
+
+function _getDataRows() {
+  const tbody = document.getElementById('code-tbody');
+  if (!tbody) return [];
+  return Array.from(tbody.querySelectorAll('tr')).filter(r => r.querySelector('.row-check'));
+}
+
+function _initPagination() {
+  _allRows = _getDataRows();
+  _renderPage(1);
+}
+
+function _renderPage(page) {
+  _currentPage = page;
+  const total = _allRows.length;
+  const numPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  _currentPage = Math.min(Math.max(1, _currentPage), numPages);
+
+  const start = (_currentPage - 1) * PAGE_SIZE;
+  const end   = Math.min(start + PAGE_SIZE, total);
+
+  _allRows.forEach((r, i) => { r.style.display = (i >= start && i < end) ? '' : 'none'; });
+
+  const rangeEl = document.getElementById('page-range');
+  if (rangeEl) rangeEl.textContent = total === 0 ? '0 / 0' : `${start + 1} - ${end} / ${total}`;
+
+  _renderPageButtons(numPages);
+}
+
+function _renderPageButtons(numPages) {
+  const container = document.getElementById('page-number-btns');
+  if (!container) return;
+
+  const slots = Math.max(5, numPages);
+  let startSlot = Math.max(1, _currentPage - 2);
+  let endSlot   = startSlot + 4;
+  if (endSlot > slots) { endSlot = slots; startSlot = Math.max(1, endSlot - 4); }
+
+  container.innerHTML = '';
+  for (let i = startSlot; i <= endSlot; i++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = i;
+    const isEmpty = i > numPages;
+    btn.className = (i === _currentPage)
+      ? 'w-8 h-8 text-sm font-medium rounded bg-slate-900 text-white'
+      : 'w-8 h-8 text-sm text-slate-600 border border-slate-200 rounded hover:bg-slate-50' + (isEmpty ? ' opacity-40 cursor-not-allowed' : '');
+    if (!isEmpty) btn.addEventListener('click', () => _renderPage(i));
+    container.appendChild(btn);
+  }
+
+  const prevBtn = document.getElementById('page-prev');
+  const nextBtn = document.getElementById('page-next');
+  if (prevBtn) { prevBtn.disabled = _currentPage <= 1; prevBtn.onclick = () => { if (_currentPage > 1) _renderPage(_currentPage - 1); }; }
+  if (nextBtn) { nextBtn.disabled = _currentPage >= numPages; nextBtn.onclick = () => { if (_currentPage < numPages) _renderPage(_currentPage + 1); }; }
+}
+
 /* ── 모달 open/close ── */
 function showModal(id) {
   const m = document.getElementById(id);
@@ -66,33 +127,37 @@ function validateCodeCreate() {
   const code     = document.getElementById('cc_code').value.trim();
   const codeName = document.getElementById('cc_code_name').value.trim();
   const desc     = document.getElementById('cc_desc').value.trim();
-  const sort     = document.getElementById('cc_sort').value;
+  const sortEl   = document.getElementById('cc_sort');
+  const sort     = sortEl.value;
   let ok = true;
   const setErr = (id, msg) => {
     const el = document.getElementById(id);
     el.textContent = msg; el.classList.toggle('hidden', !msg);
     if (msg) ok = false;
   };
-  setErr('cc_code_err',  !code     ? '코드를 입력하세요.'
-                        : !/^[A-Z0-9_]+$/.test(code) ? '영문 대문자, 숫자, 언더바(_)만 허용됩니다.'
-                        : code.length > 50 ? '최대 50자까지 입력 가능합니다.' : '');
-  if (!codeName) {
-    setErr('cc_name_err', '코드명을 입력해 주세요.');
-  } else if (!codeName.replace(/\s/g, '')) {
-    setErr('cc_name_err', '코드명은 공백만 입력할 수 없습니다.');
-  } else {
-    setErr('cc_name_err', '');
-  }
-  setErr('cc_desc_err',  !desc     ? '설명을 입력하세요.'
-                        : desc.length > 100 ? '최대 100자까지 입력 가능합니다.' : '');
-  setErr('cc_sort_err',  sort === '' ? '정렬 순서를 입력하세요.'
-                        : isNaN(parseInt(sort)) || parseInt(sort) < 0 ? '0 이상의 정수를 입력하세요.' : '');
+
+  if (!code) setErr('cc_code_err', '사용될 코드를 입력해 주세요.');
+  else if (/\s/.test(code)) setErr('cc_code_err', '코드는 공백 없이 입력해 주세요.');
+  else if (!/^[A-Z0-9_]+$/.test(code)) setErr('cc_code_err', '코드는 영문 대문자, 숫자, 밑줄(_)만 사용할 수 있습니다.');
+  else setErr('cc_code_err', '');
+
+  if (!codeName) setErr('cc_name_err', '코드명을 입력해 주세요.');
+  else if (!codeName.replace(/\s/g, '')) setErr('cc_name_err', '코드명은 공란만 입력할 수 없습니다.');
+  else setErr('cc_name_err', '');
+
+  setErr('cc_desc_err', !desc ? '설명을 입력해 주세요.' : '');
+
+  if (sort === '' && sortEl.validity.badInput) setErr('cc_sort_err', '정렬 순서는 숫자만 입력할 수 있습니다.');
+  else if (sort === '') setErr('cc_sort_err', '정렬 순서를 입력해 주세요.');
+  else if (parseInt(sort) < 0 || !Number.isInteger(parseFloat(sort))) setErr('cc_sort_err', '정렬 순서는 0 이상의 정수로 입력해 주세요.');
+  else setErr('cc_sort_err', '');
+
   return ok;
 }
 
 function submitCodeCreate() {
   if (!validateCodeCreate()) return;
-  showConfirm('등록하시겠습니까?', _doCodeCreate);
+  showConfirm('해당 코드를 등록하시겠습니까?', _doCodeCreate);
 }
 
 function _doCodeCreate() {
@@ -107,7 +172,10 @@ function _doCodeCreate() {
     .then(res => {
       if (res.ok) {
         closeModal('codeCreateModal');
-        showDone('등록이 완료되었습니다.', () => location.reload());
+        showDone('등록되었습니다.', () => location.reload());
+      } else if (res.field === 'code') {
+        const el = document.getElementById('cc_code_err');
+        el.textContent = res.error; el.classList.remove('hidden');
       } else if (res.field === 'code_name') {
         const el = document.getElementById('cc_name_err');
         el.textContent = res.error; el.classList.remove('hidden');
@@ -288,7 +356,14 @@ function _doGroupCreate() {
     .then(res => {
       if (res.ok) {
         closeModal('groupCreateModal');
-        showDone('등록이 완료되었습니다.', () => location.reload());
+        const newCode = document.getElementById('gc_code').value.trim().toUpperCase();
+        showDone('등록되었습니다.', () => { location.href = `/manager/codes/?group=${newCode}`; });
+      } else if (res.field === 'group_code') {
+        const el = document.getElementById('gc_code_err');
+        el.textContent = res.error; el.classList.remove('hidden');
+      } else if (res.field === 'group_name') {
+        const el = document.getElementById('gc_name_err');
+        el.textContent = res.error; el.classList.remove('hidden');
       } else {
         alert(res.error || '등록에 실패했습니다.');
       }
@@ -369,7 +444,7 @@ function validateGroupEdit() {
 
 function submitGroupEdit() {
   if (!validateGroupEdit()) return;
-  showConfirm('수정하시겠습니까?', _doGroupEdit);
+  showConfirm('코드 그룹을 수정하시겠습니까?', _doGroupEdit);
 }
 
 function _doGroupEdit() {
@@ -387,7 +462,7 @@ function _doGroupEdit() {
     .then(res => {
       if (res.ok) {
         closeModal('groupEditModal');
-        showDone('수정이 완료되었습니다.', () => location.reload());
+        showDone('수정되었습니다.', () => location.reload());
       } else {
         alert(res.error || '수정에 실패했습니다.');
       }
@@ -483,10 +558,13 @@ function sortTable(value) {
     }
   });
   rows.forEach(r => tbody.appendChild(r));
+  _allRows = rows;
+  _renderPage(1);
 }
 
 /* ═══════════ DOMContentLoaded ═══════════ */
 document.addEventListener('DOMContentLoaded', () => {
+  _initPagination();
   /* 체크박스 */
   document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateDeleteBtn));
 

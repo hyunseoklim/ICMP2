@@ -1,5 +1,67 @@
 // 위험 유형 관리 페이지
 
+/* ════════ 클라이언트 페이지네이션 ════════ */
+const PAGE_SIZE = 10;
+let _currentPage = 1;
+let _allRows = [];
+
+function _getDataRows() {
+  const tbody = document.getElementById('risk-tbody');
+  if (!tbody) return [];
+  return Array.from(tbody.querySelectorAll('tr')).filter(r => r.querySelector('.row-check'));
+}
+
+function _initPagination() {
+  _allRows = _getDataRows();
+  _renderPage(1);
+}
+
+function _renderPage(page) {
+  _currentPage = page;
+  const total = _allRows.length;
+  const numPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  _currentPage = Math.min(Math.max(1, _currentPage), numPages);
+
+  const start = (_currentPage - 1) * PAGE_SIZE;
+  const end   = Math.min(start + PAGE_SIZE, total);
+
+  _allRows.forEach((r, i) => { r.style.display = (i >= start && i < end) ? '' : 'none'; });
+
+  const rangeEl = document.getElementById('page-range');
+  if (rangeEl) rangeEl.textContent = total === 0 ? '0 / 0' : `${start + 1} - ${end} / ${total}`;
+
+  _renderPageButtons(numPages);
+}
+
+function _renderPageButtons(numPages) {
+  const container = document.getElementById('page-number-btns');
+  if (!container) return;
+
+  const slots = Math.max(5, numPages);
+  let startSlot = Math.max(1, _currentPage - 2);
+  let endSlot   = startSlot + 4;
+  if (endSlot > slots) { endSlot = slots; startSlot = Math.max(1, endSlot - 4); }
+
+  container.innerHTML = '';
+  for (let i = startSlot; i <= endSlot; i++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = i;
+    const isActive  = i === _currentPage;
+    const isEmpty   = i > numPages;
+    btn.className = isActive
+      ? 'w-8 h-8 text-sm font-medium rounded bg-slate-900 text-white'
+      : 'w-8 h-8 text-sm text-slate-600 border border-slate-200 rounded hover:bg-slate-50' + (isEmpty ? ' opacity-40 cursor-not-allowed' : '');
+    if (!isEmpty) btn.addEventListener('click', () => _renderPage(i));
+    container.appendChild(btn);
+  }
+
+  const prevBtn = document.getElementById('page-prev');
+  const nextBtn = document.getElementById('page-next');
+  if (prevBtn) { prevBtn.disabled = _currentPage <= 1; prevBtn.onclick = () => { if (_currentPage > 1) _renderPage(_currentPage - 1); }; }
+  if (nextBtn) { nextBtn.disabled = _currentPage >= numPages; nextBtn.onclick = () => { if (_currentPage < numPages) _renderPage(_currentPage + 1); }; }
+}
+
 /* ── 모달 open/close ── */
 function showModal(id) {
   const m = document.getElementById(id);
@@ -67,7 +129,6 @@ function validateRiskCreate() {
   const code     = document.getElementById('rc_code').value.trim();
   const codeName = document.getElementById('rc_code_name').value.trim();
   const mapVal   = document.getElementById('rc_map_reflect').value;
-  const isActive = document.getElementById('rc_is_active').value;
   let ok = true;
   const setErr = (id, msg) => {
     const el = document.getElementById(id);
@@ -311,10 +372,28 @@ function validateGroupCreate() {
     el.textContent = msg; el.classList.toggle('hidden', !msg);
     if (msg) ok = false;
   };
-  setErr('gc_code_err',   !code   ? '분류 코드를 입력하세요.' : !/^[A-Z0-9_]+$/.test(code) ? '영문 대문자, 숫자, 밑줄(_)만 사용할 수 있습니다.' : '');
-  setErr('gc_name_err',   !name   ? '분류명을 입력하세요.' : '');
-  setErr('gc_scope_err',  !scopes ? '반영 범위를 하나 이상 선택하세요.' : '');
-  setErr('gc_active_err', !_gcActiveSet ? '사용 여부를 선택하세요.' : '');
+  if (!code) {
+    setErr('gc_code_err', '분류 코드를 입력해주세요.');
+  } else if (!/^[A-Z0-9_]+$/.test(code)) {
+    setErr('gc_code_err', '그룹 코드는 영문 대문자, 숫자, 밑줄(_)만 사용할 수 있습니다.');
+  } else if (code.length > 50) {
+    setErr('gc_code_err', '그룹명은 최대 50자까지 입력할 수 있습니다.');
+  } else {
+    setErr('gc_code_err', '');
+  }
+
+  if (!name) {
+    setErr('gc_name_err', '분류명을 입력해 주세요.');
+  } else if (!/^[가-힣\s]+$/.test(name)) {
+    setErr('gc_name_err', '분류명은 한글만 입력할 수 있습니다.');
+  } else if (name.length > 50) {
+    setErr('gc_name_err', '분류명은 최대 50자까지 입력할 수 있습니다.');
+  } else {
+    setErr('gc_name_err', '');
+  }
+
+  setErr('gc_scope_err',  !scopes ? '반영 범위를 선택해 주세요.' : '');
+  setErr('gc_active_err', !_gcActiveSet ? '사용 여부를 선택해 주세요.' : '');
   return ok;
 }
 
@@ -337,6 +416,12 @@ function _doGroupCreate() {
         showDone('등록이 완료되었습니다.', () => {
           location.href = `/manager/risks/?group=${res.group_code}`;
         });
+      } else if (res.field === 'group_code') {
+        const el = document.getElementById('gc_code_err');
+        el.textContent = res.error; el.classList.remove('hidden');
+      } else if (res.field === 'group_name') {
+        const el = document.getElementById('gc_name_err');
+        el.textContent = res.error; el.classList.remove('hidden');
       } else {
         alert(res.error || '등록에 실패했습니다.');
       }
@@ -568,10 +653,13 @@ function sortTable(value) {
     }
   });
   rows.forEach(r => tbody.appendChild(r));
+  _allRows = rows;
+  _renderPage(1);
 }
 
 /* ════════ DOMContentLoaded ════════ */
 document.addEventListener('DOMContentLoaded', () => {
+  _initPagination();
   document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateDeleteBtn));
 
   /* 수정 모달 dirty tracking */
