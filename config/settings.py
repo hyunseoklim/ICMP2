@@ -102,9 +102,11 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
 
 # STEP G(예측)는 상태기(PredictionSubsystem)라 전용 큐 + 단일 동시성 worker로
-# 처리한다. forecast_gas_task만 forecast 큐로 라우팅 (아키텍처 D2).
+# 처리한다. forecast_gas_task + forecast_power_task가 forecast 큐로 라우팅
+# (아키텍처 D2). Phase D 결정 (i): 기존 celery-forecast 컨테이너 공유.
 CELERY_TASK_ROUTES = {
-    'alerts.tasks.forecast_gas_task': {'queue': 'forecast'},
+    'alerts.tasks.forecast_gas_task':   {'queue': 'forecast'},
+    'alerts.tasks.forecast_power_task': {'queue': 'forecast'},   # Phase D M1-8
 }
 
 # Phase 2 — AI 예측(STEP G) 튜닝 파라미터. 검증·운영 중 무재학습 조정용.

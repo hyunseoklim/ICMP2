@@ -10,6 +10,7 @@ from power.premises import (
     correlation_matrix, covariance_matrix,
     mean_vector, get_distribution_params,
     POWER_MEANS_WORKING, POWER_MEANS_IDLE,
+    working_means, working_stds,
     expected_power, verify_ohm_law,
 )
 from power.thresholds import load_power_thresholds
@@ -21,10 +22,50 @@ class TestPowerDistribution:
         assert POWER_DIMENSION == 3
         assert POWER_SENSOR_TYPES == ['voltage', 'current', 'power']
 
-    def test_working_means(self):
+    def test_legacy_working_means_dict_preserved(self):
+        """Deprecated POWER_MEANS_WORKING dict — 외부 호환성 위해 유지.
+
+        Phase B-2에서 working_means(rated_w) 함수로 대체됐으나 dict 자체는
+        병행 export (reports/MIGRATION.md). 6개월 후 제거 예정.
+        """
         assert POWER_MEANS_WORKING['voltage'] == 220.0
         assert POWER_MEANS_WORKING['current'] == 11.0
         assert POWER_MEANS_WORKING['power'] == 2420.0
+
+    def test_working_means_low_power_group(self):
+        """Phase B-2 (가) 통일 공식 — rated × 0.4 fallback (정상 데이터 부족 그룹)."""
+        m_50 = working_means(50)
+        assert m_50['voltage'] == 220.0
+        assert m_50['power'] == pytest.approx(20.0, abs=0.01)   # 50 × 0.4
+        assert m_50['current'] == pytest.approx(0.091, abs=0.001)  # 20 / 220
+
+        m_400 = working_means(400)
+        assert m_400['power'] == pytest.approx(160.0, abs=0.01)  # 400 × 0.4
+
+    def test_working_means_high_power_group(self):
+        """Phase B-2 (다) 하이브리드 — DB 실측 평균 (부하율<50% 필터 후)."""
+        # 1000W: 시나리오 ① 채택 후 (P) 그룹 평균
+        m_1000 = working_means(1000)
+        assert m_1000['power'] == pytest.approx(365.9, abs=0.01)
+        # mean/rated ≈ 0.366 — 결정 ① "rated × 0.4 정상 평균" 정합
+        assert 0.35 < m_1000['power'] / 1000 < 0.40
+
+        # 800W
+        m_800 = working_means(800)
+        assert m_800['power'] == pytest.approx(290.3, abs=0.01)
+
+    def test_working_means_fallback(self):
+        """미정의 rated_w → (가) 통일 공식 fallback."""
+        m = working_means(150)   # _GROUP_MEANS_WORKING에 없음
+        assert m['power'] == pytest.approx(60.0, abs=0.01)   # 150 × 0.4
+
+    def test_working_stds_ratio(self):
+        """working_stds — voltage 절대값, current/power는 평균 × 0.25."""
+        s = working_stds(1000)
+        assert s['voltage'] == 5.0
+        m = working_means(1000)
+        assert s['current'] == pytest.approx(m['current'] * 0.25, rel=1e-6)
+        assert s['power'] == pytest.approx(m['power'] * 0.25, rel=1e-6)
 
     def test_idle_means(self):
         assert POWER_MEANS_IDLE['current'] == 1.0

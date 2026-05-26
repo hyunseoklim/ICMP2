@@ -194,6 +194,58 @@ def forecast_gas_task(device_uid: str, payload: dict):
 
 
 # ---------------------------------------------------------------------------
+# B-3. 전력 예측 태스크 (STEP G — forecast 전용 큐 / Phase D M1)
+# ---------------------------------------------------------------------------
+
+@shared_task
+def forecast_power_task(device_uid: str, channel_code: str, payload: dict):
+    """STEP G — 전력 예측 서브시스템(ARIMA 사전 경고) 실행.
+
+    settings.CELERY_TASK_ROUTES로 'forecast' 큐에 라우팅. 단일 동시성
+    (--concurrency=1) worker가 소비 → PredictionSubsystem 상태가 한
+    프로세스에 보존된다 (gas D2 아키텍처 미러).
+
+    상태기를 다루므로 Celery 자동 재시도를 쓰지 않는다 — 재시도 = 같은
+    reading 중복 처리 → 윈도우·K-카운터 오염. run_forecast 내부의
+    idempotency 가드가 중복·역순 reading을 차단하고, 한 reading 처리
+    실패는 다음 reading(다음 케이던스)에 자연 복구된다.
+    """
+    if not device_uid or not channel_code:
+        return
+    try:
+        from monitoring.ai.power_forecast import run_forecast
+        from monitoring.models import Device, DeviceChannel
+        from alerts.services import trigger_forecast_alarms, save_forecast_snapshots
+
+        results = run_forecast(device_uid, channel_code, payload)
+        if not results:
+            return  # idempotency 가드에 의해 skip됨
+
+        device = Device.objects.filter(device_uid=device_uid).first()
+        if not device:
+            return
+        channel = DeviceChannel.objects.filter(
+            device=device, channel_code=channel_code,
+        ).first()
+        if not channel:
+            return
+
+        # results: [(ForecastPolicyResult, ARIMAResult|None), ...]
+        policy_results = [pr for pr, _curve in results]
+        save_forecast_snapshots(device, results, channel=channel)
+        trigger_forecast_alarms(device, policy_results, channel=channel)
+        logger.debug(
+            "forecast_power_task 완료 — device=%s ch=%s", device_uid, channel_code,
+        )
+    except Exception as exc:
+        logger.error(
+            "forecast_power_task 실패 — device=%s ch=%s: %s",
+            device_uid, channel_code, exc,
+        )
+        # 재시도하지 않음 — 다음 reading에서 복구
+
+
+# ---------------------------------------------------------------------------
 # C. Redis Pub/Sub 수신 (레거시 — ingest_gas_task로 대체됨)
 # ---------------------------------------------------------------------------
 

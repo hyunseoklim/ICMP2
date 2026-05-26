@@ -62,9 +62,11 @@ const DeviceAPI = {
 
 /* ── monitoring: 채널 (DeviceChannel) ──────────── */
 const ChannelAPI = {
-    getList: (params)    => API.get('/channels/', { params }),
-    update:  (id, data)  => API.put(`/channels/${id}/`, data),
-    patch:   (id, data)  => API.patch(`/channels/${id}/`, data),
+    getList:     (params)    => API.get('/channels/', { params }),
+    update:      (id, data)  => API.put(`/channels/${id}/`, data),
+    patch:       (id, data)  => API.patch(`/channels/${id}/`, data),
+    // Phase D M2-3 — power 'AI 예측' 데이터 (DeviceChannelViewSet.forecast)
+    getForecast: (id)        => API.get(`/channels/${id}/forecast/`),
 };
 
 /* ── monitoring: 유해가스 측정값 (GasReading) ───── */

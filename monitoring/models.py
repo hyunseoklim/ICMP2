@@ -179,9 +179,13 @@ class PowerReading(models.Model):
     channel     = models.ForeignKey(DeviceChannel, on_delete=models.PROTECT, related_name="power_readings")
     
     # 3개의 모델을 하나로 합침
-    current_a   = models.IntegerField(default=-1, help_text="전류 A, -1=통신불능")
-    voltage_v   = models.IntegerField(default=-1, help_text="전압 V, -1=통신불능")
-    power_w     = models.IntegerField(default=-1, help_text="전력 W, -1=통신불능")
+    # Phase C-5: IntegerField → FloatField (Finding-3 부분 마이그레이션).
+    # 사유: 시뮬레이션·송수신은 float 0.1 정밀도 보존하나 IntegerField가
+    # truncation 발생 (저전력 그룹 current_a 0.0~0.1A → 0 손실).
+    # 마이그레이션 시 raw_payload(jsonb)에서 float 원본 복원.
+    current_a   = models.FloatField(default=-1.0, help_text="전류 A, -1=통신불능")
+    voltage_v   = models.FloatField(default=-1.0, help_text="전압 V, -1=통신불능")
+    power_w     = models.FloatField(default=-1.0, help_text="전력 W, -1=통신불능")
     
     temperature_c = models.FloatField(null=True, blank=True, help_text="온도 ℃")
 

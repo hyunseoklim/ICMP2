@@ -3,6 +3,75 @@ from django.utils import timezone
 
 
 # ══════════════════════════════════════════════════════════
+# 전력 수신 처리 파이프라인 (HTTP 뷰 & Celery 공용) — Phase D M1-6
+# ══════════════════════════════════════════════════════════
+
+def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> None:
+    """전력 센서 데이터 1건 처리. HTTP·Celery 공용.
+
+    gas의 process_gas_ingest 대칭. 단 STEP F (IF)는 Phase D 결정 (a)
+    비활성 — STEP G (ARIMA 예측)만 진입. STEP F 활성화 결정 시
+    monitoring/ai/power_if.py docstring 참조.
+
+    Args:
+        device_uid: 'PWR-001' 등.
+        channel_code: 'slave01' 등.
+        payload: {'current_a', 'voltage_v', 'power_w', 'measured_at'?}
+
+    Flow:
+        1. PowerReading INSERT (FloatField — Phase C-5 마이그레이션)
+        2. STEP B — check_power_thresholds (Django load_rate 즉시 알람)
+        3. STEP G — forecast_power_task.delay (forecast 큐 위임)
+    """
+    from monitoring.models import Device, DeviceChannel, PowerReading
+    from monitoring.collector import update_last_seen
+
+    device = Device.objects.filter(device_uid=device_uid).first()
+    if not device:
+        return
+    channel = DeviceChannel.objects.filter(
+        device=device, channel_code=channel_code,
+    ).first()
+    if not channel:
+        return
+
+    current_a = payload.get('current_a', -1.0)
+    voltage_v = payload.get('voltage_v', -1.0)
+    power_w   = payload.get('power_w',   -1.0)
+
+    fields = [current_a, voltage_v, power_w]
+    if all(v in (-1, -1.0) for v in fields):
+        quality_flag = 'comm_err'
+    elif any(v in (-1, -1.0) for v in fields):
+        quality_flag = 'partial'
+    else:
+        quality_flag = 'ok'
+
+    measured_at_raw = payload.get('measured_at')
+    if measured_at_raw:
+        from django.utils.dateparse import parse_datetime
+        measured_at = parse_datetime(str(measured_at_raw)) or timezone.now()
+    else:
+        measured_at = timezone.now()
+
+    PowerReading.objects.create(
+        device=device, channel=channel,
+        current_a=current_a, voltage_v=voltage_v, power_w=power_w,
+        measured_at=measured_at, quality_flag=quality_flag,
+        raw_payload=dict(payload),
+    )
+    update_last_seen(device)
+
+    # STEP B — 즉시 임계 알람 (Django load_rate 정책)
+    from alerts.services import check_power_thresholds
+    check_power_thresholds(device, channel, float(power_w))
+
+    # STEP G — ARIMA 사전 경고 (forecast 전용 큐 위임 — gas D2 아키텍처)
+    from alerts.tasks import forecast_power_task
+    forecast_power_task.delay(device_uid, channel_code, dict(payload))
+
+
+# ══════════════════════════════════════════════════════════
 # 가스 수신 처리 파이프라인 (HTTP 뷰 & Celery 공용)
 # ══════════════════════════════════════════════════════════
 
