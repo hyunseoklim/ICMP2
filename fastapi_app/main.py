@@ -116,3 +116,33 @@ async def trigger():
 @app.get("/health")
 async def health():
     return {"status": "ok", "clients": len(_clients), "devices": len(_devices)}
+
+
+"""
+FastAPI 진입점 (Phase 5에서 작성).
+
+본 파일은 위치 예약용 자리표시자 — 기존 main.py와 충돌하지 않도록 .new 확장자 사용.
+Phase 5 진입 시 기존 main.py와 병합하여 결정.
+
+Phase 5에서 작성 예시:
+    from fastapi import FastAPI
+    from fastapi_app.routers import gas, power
+    from fastapi_app.ai_engine.gas.modules.isolation_forest import GasIsolationForestDetector
+    from fastapi_app.ai_engine.power.modules.isolation_forest import PowerIsolationForestDetector
+    
+    app = FastAPI(title="ICMP2 위험 판단 AI 엔진")
+    
+    # 시작 시 모델 로드 (결정 B 단일 학습 정책)
+    @app.on_event("startup")
+    def load_models():
+        global gas_if_detector, power_if_detector
+        gas_if_detector = GasIsolationForestDetector(...)
+        gas_if_detector.load("fastapi_app/ai_engine/models/gas/iforest.joblib")
+        power_if_detector = PowerIsolationForestDetector(...)
+        power_if_detector.load("fastapi_app/ai_engine/models/power/iforest.joblib")
+        # ARIMA 21개 로드 ...
+    
+    # 라우터 등록
+    app.include_router(gas.router)
+    app.include_router(power.router)
+"""

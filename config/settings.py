@@ -1,12 +1,18 @@
 import os
+import sys
 from pathlib import Path
-import os
 
 from dotenv import load_dotenv
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# AI 엔진(fastapi_app/ai_engine)은 top-level 패키지(common·gas·power)로 import되므로
+# 해당 디렉토리를 sys.path에 등록한다. (STEP F — Isolation Forest 통합)
+_AI_ENGINE_DIR = BASE_DIR / 'fastapi_app' / 'ai_engine'
+if _AI_ENGINE_DIR.is_dir() and str(_AI_ENGINE_DIR) not in sys.path:
+    sys.path.insert(0, str(_AI_ENGINE_DIR))
 
 
 # Quick-start development settings - unsuitable for production
@@ -95,19 +101,27 @@ CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
 
+# STEP G(예측)는 상태기(PredictionSubsystem)라 전용 큐 + 단일 동시성 worker로
+# 처리한다. forecast_gas_task + forecast_power_task가 forecast 큐로 라우팅
+# (아키텍처 D2). Phase D 결정 (i): 기존 celery-forecast 컨테이너 공유.
+CELERY_TASK_ROUTES = {
+    'alerts.tasks.forecast_gas_task':   {'queue': 'forecast'},
+    'alerts.tasks.forecast_power_task': {'queue': 'forecast'},   # Phase D M1-8
+}
+
+# Phase 2 — AI 예측(STEP G) 튜닝 파라미터. 검증·운영 중 무재학습 조정용.
+FORECAST_K_CONFIRM = int(os.environ.get('FORECAST_K_CONFIRM', '18'))
+
 
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/2',
+        'LOCATION': f"redis://{os.environ.get('REDIS_HOST', '127.0.0.1')}:6379/2",
     }
 }
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
 DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
-
-# AI 추론 서버 (팀원1 FastAPI 서버 URL — 미설정 시 AI 단계 건너뜀)
-AI_SERVER_URL = os.getenv('AI_SERVER_URL', '')
 
 # Redis Pub/Sub 채널명 (확정 후 .env에서 교체)
 REDIS_PUBSUB_CHANNEL = os.getenv('REDIS_PUBSUB_CHANNEL', 'sensor_events')

@@ -15,6 +15,13 @@ window.GAS_META = {
     voc: { name: "VOC",        formula: "VOC", unit: "ppm" },
 };
 
+// Phase D M2-8 — 전력 3 sensor 메타 (ai_power_predict.js / power_forecast.js 공유)
+window.POWER_META = {
+    voltage: { name: "전압", formula: "V", unit: "V" },
+    current: { name: "전류", formula: "A", unit: "A" },
+    power:   { name: "전력", formula: "W", unit: "W" },
+};
+
 // 위험도 → CSS 클래스명
 window.LEVEL_CLASS = {
     "위험": "danger",

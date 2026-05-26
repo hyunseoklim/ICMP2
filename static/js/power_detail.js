@@ -372,6 +372,9 @@ async function loadLatestPower(deviceId) {
         const readings = res.data;
 
         const channels = readings.map(r => ({
+            // power_forecast.js가 ChannelAPI.getForecast(ch.id)를 호출하므로
+            // DeviceChannel PK(serializer의 r.channel)를 그대로 전달해야 한다.
+            id:              r.channel,
             channel_code:    r.channel_code || r.channel,
             channel_name:    r.channel_name || r.channel_code || r.channel,
             rated_power_w:   r.channel_rated_power || DEFAULT_RATED_W,
@@ -464,6 +467,11 @@ window.initPowerWidget = async function () {
     try {
         const res = await DeviceAPI.getList({ device_type: 'power', is_active: true });
         powerDevices = res.data.results || res.data;
+
+        // API 응답 순서는 측정 활성도와 무관 — last_seen_at=null인 디바이스가 앞에 오면
+        // index 0 기본 선택으로 latest_power가 [] → 탭 양쪽 모두 빈 상태로 렌더된다.
+        // 측정 이력이 있는 디바이스를 우선 배치 (안정 정렬).
+        powerDevices.sort((a, b) => (b.last_seen_at ? 1 : 0) - (a.last_seen_at ? 1 : 0));
 
         if (powerDevices.length === 0) {
             const tbody = document.getElementById('power-equip-list')

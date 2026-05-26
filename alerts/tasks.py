@@ -129,112 +129,6 @@ def send_all_notifications(event_id: int):
 
 
 # ---------------------------------------------------------------------------
-# A. AI 추론 요청 + 알림 발송 오케스트레이터
-# ---------------------------------------------------------------------------
-
-@shared_task(bind=True, max_retries=2, default_retry_delay=10)
-def process_alarm_event(self, event_id: int):
-    """
-    AlarmEvent 생성 후 AI 서버에 추론을 요청하고, 결과를 이벤트에 반영한 뒤 알림을 발송한다.
-    AI_SERVER_URL 미설정 시 AI 단계를 건너뛰고 알림만 발송한다.
-    """
-    from django.conf import settings
-    from django.core.cache import cache
-
-    from .models import AlarmEvent
-
-    try:
-        event = AlarmEvent.objects.select_related('rule', 'facility', 'device').get(pk=event_id)
-    except AlarmEvent.DoesNotExist:
-        logger.warning("process_alarm_event: AlarmEvent %s 없음", event_id)
-        return
-
-    ai_server_url = getattr(settings, 'AI_SERVER_URL', '')
-
-    if ai_server_url:
-        # --- AI 추론 요청 (엔드포인트 확정 후 payload/URL 교체) ---
-        ai_endpoint = f"{ai_server_url.rstrip('/')}/predict"
-        payload = {
-            'event_id':   event_id,
-            'event_type': event.event_type,
-            'severity':   event.severity,
-            'device_id':  event.device_id,
-            'facility_id': event.facility_id,
-            'message':    event.message,
-        }
-        try:
-            resp = requests.post(ai_endpoint, json=payload, timeout=10)
-            resp.raise_for_status()
-            ai_result = resp.json()
-
-            # AI 결과로 severity/message 보강 (팀원1 응답 스펙 확정 후 키 수정)
-            new_severity = ai_result.get('severity')
-            ai_note      = ai_result.get('message', '')
-            update_fields = []
-            if new_severity and new_severity != event.severity:
-                event.severity = new_severity
-                update_fields.append('severity')
-            if ai_note:
-                event.message = f"[AI] {ai_note}\n{event.message}"
-                update_fields.append('message')
-            if update_fields:
-                update_fields.append('updated_at')
-                event.save(update_fields=update_fields)
-
-        except Exception as exc:
-            logger.error("AI 추론 요청 실패 (event=%s): %s", event_id, exc)
-            # AI 서버 장애 알림 (중복 방지 5분)
-            ai_down_key = 'ai_server:down_notified'
-            if not cache.get(ai_down_key):
-                cache.set(ai_down_key, 1, timeout=300)
-                notify_ai_server_down.delay(str(exc))
-            # AI 실패해도 알림 발송은 계속 진행
-    else:
-        logger.debug("AI_SERVER_URL 미설정 — AI 추론 단계 건너뜀 (event=%s)", event_id)
-
-    send_all_notifications.delay(event_id)
-
-
-# ---------------------------------------------------------------------------
-# C. AI 서버 장애 알림
-# ---------------------------------------------------------------------------
-
-@shared_task
-def notify_ai_server_down(error_msg: str = ''):
-    """AI 서버 응답 실패 시 Slack/Discord로 담당자에게 알림."""
-    from django.conf import settings
-    from django.utils import timezone
-
-    text = (
-        f"🚨 *[ICMP2 시스템 경고]* AI 서버 응답 실패\n"
-        f"> {error_msg or '알 수 없는 오류'}\n"
-        f"> 발생 시각: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    )
-
-    slack_url = getattr(settings, 'SLACK_WEBHOOK_URL', '')
-    if slack_url:
-        try:
-            requests.post(slack_url, json={'text': text}, timeout=5)
-        except Exception as exc:
-            logger.warning("AI 장애 Slack 알림 실패: %s", exc)
-
-    discord_url = getattr(settings, 'DISCORD_WEBHOOK_URL', '')
-    if discord_url:
-        payload = {
-            'embeds': [{
-                'title': 'AI 서버 응답 실패',
-                'description': error_msg or '알 수 없는 오류',
-                'color': 0xFF0000,
-                'fields': [{'name': '발생 시각', 'value': timezone.now().strftime('%Y-%m-%d %H:%M:%S')}],
-            }]
-        }
-        try:
-            requests.post(discord_url, json=payload, timeout=5)
-        except Exception as exc:
-            logger.warning("AI 장애 Discord 알림 실패: %s", exc)
-
-
-# ---------------------------------------------------------------------------
 # B. 가스 센서 인제스트 태스크 (FastAPI → Celery 큐 → 파이프라인)
 # ---------------------------------------------------------------------------
 
@@ -258,6 +152,97 @@ def ingest_gas_task(self, payload: dict):
     except Exception as exc:
         logger.error("ingest_gas_task 실패 — device=%s: %s", device_uid, exc)
         raise self.retry(exc=exc)
+
+
+# ---------------------------------------------------------------------------
+# B-2. 가스 예측 태스크 (STEP G — forecast 전용 큐 / 단일 동시성 worker)
+# ---------------------------------------------------------------------------
+
+@shared_task
+def forecast_gas_task(device_uid: str, payload: dict):
+    """STEP G — 가스 예측 서브시스템(ARIMA 사전 경고) 실행.
+
+    settings.CELERY_TASK_ROUTES로 'forecast' 큐에 라우팅되며, 단일 동시성
+    (--concurrency=1) worker가 소비한다 → PredictionSubsystem 상태가 한
+    프로세스에 보존된다.
+
+    상태기를 다루므로 Celery 자동 재시도를 쓰지 않는다(재시도 = 같은
+    reading 중복 처리 → 윈도우·K-카운터 오염). run_forecast 내부의
+    idempotency 가드가 중복·역순 reading을 차단하고, 한 reading 처리
+    실패는 다음 reading(다음 케이던스)에 자연 복구된다.
+    """
+    if not device_uid:
+        return
+    try:
+        from monitoring.ai.gas_forecast import run_forecast
+        from monitoring.models import Device
+        from alerts.services import trigger_forecast_alarms, save_forecast_snapshots
+
+        results = run_forecast(device_uid, payload)
+        if not results:
+            return  # idempotency 가드에 의해 skip됨
+        # results: [(ForecastPolicyResult, ARIMAResult|None), ...]
+        policy_results = [pr for pr, _curve in results]
+        device = Device.objects.filter(device_uid=device_uid).first()
+        if device:
+            save_forecast_snapshots(device, results)         # 등급 + 곡선(튜플) → 스냅샷 upsert
+            trigger_forecast_alarms(device, policy_results)  # CONFIRMED 시 predictive_warning 알람
+        logger.debug("forecast_gas_task 완료 — device=%s", device_uid)
+    except Exception as exc:
+        logger.error("forecast_gas_task 실패 — device=%s: %s", device_uid, exc)
+        # 재시도하지 않음 — 다음 reading에서 복구
+
+
+# ---------------------------------------------------------------------------
+# B-3. 전력 예측 태스크 (STEP G — forecast 전용 큐 / Phase D M1)
+# ---------------------------------------------------------------------------
+
+@shared_task
+def forecast_power_task(device_uid: str, channel_code: str, payload: dict):
+    """STEP G — 전력 예측 서브시스템(ARIMA 사전 경고) 실행.
+
+    settings.CELERY_TASK_ROUTES로 'forecast' 큐에 라우팅. 단일 동시성
+    (--concurrency=1) worker가 소비 → PredictionSubsystem 상태가 한
+    프로세스에 보존된다 (gas D2 아키텍처 미러).
+
+    상태기를 다루므로 Celery 자동 재시도를 쓰지 않는다 — 재시도 = 같은
+    reading 중복 처리 → 윈도우·K-카운터 오염. run_forecast 내부의
+    idempotency 가드가 중복·역순 reading을 차단하고, 한 reading 처리
+    실패는 다음 reading(다음 케이던스)에 자연 복구된다.
+    """
+    if not device_uid or not channel_code:
+        return
+    try:
+        from monitoring.ai.power_forecast import run_forecast
+        from monitoring.models import Device, DeviceChannel
+        from alerts.services import trigger_forecast_alarms, save_forecast_snapshots
+
+        results = run_forecast(device_uid, channel_code, payload)
+        if not results:
+            return  # idempotency 가드에 의해 skip됨
+
+        device = Device.objects.filter(device_uid=device_uid).first()
+        if not device:
+            return
+        channel = DeviceChannel.objects.filter(
+            device=device, channel_code=channel_code,
+        ).first()
+        if not channel:
+            return
+
+        # results: [(ForecastPolicyResult, ARIMAResult|None), ...]
+        policy_results = [pr for pr, _curve in results]
+        save_forecast_snapshots(device, results, channel=channel)
+        trigger_forecast_alarms(device, policy_results, channel=channel)
+        logger.debug(
+            "forecast_power_task 완료 — device=%s ch=%s", device_uid, channel_code,
+        )
+    except Exception as exc:
+        logger.error(
+            "forecast_power_task 실패 — device=%s ch=%s: %s",
+            device_uid, channel_code, exc,
+        )
+        # 재시도하지 않음 — 다음 reading에서 복구
 
 
 # ---------------------------------------------------------------------------

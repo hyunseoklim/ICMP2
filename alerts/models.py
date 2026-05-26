@@ -36,6 +36,8 @@ class AlarmRule(models.Model):
         MISSING = "missing", "데이터 누락"
         OFFLINE = "offline", "장비 오프라인"
         POWER = "power", "전력 이상"
+        AI = "ai", "AI 이상 탐지"
+        FORECAST = "forecast", "AI 예측 경보"
 
     class ActionType(models.TextChoices):
         NOTIFY = "notify", "알림"
@@ -255,3 +257,61 @@ class NotificationTemplate(models.Model):
 
     def __str__(self):
         return f"{self.template_name} ({self.channel_type})"
+
+
+class ForecastSnapshot(models.Model):
+    """STEP G — 채널별 최신 AI 예측 결과 (채널당 1행 upsert).
+
+    'AI 예측' 탭/위젯이 조회하는 최신 예측 스냅샷. unique_together로
+    채널당 1행을 갱신하므로 행 수가 고정된다 — 디스크 무증가.
+    곡선 필드(forecast_mean·ci_*)는 v2(곡선 차트)용.
+
+    Phase D M1-1 (2026-05-23) — power 채널 지원 확장:
+        - channel FK 추가 (gas는 null=True로 호환성 유지)
+        - sensor_type max_length 10 → 20 (power 합성키 대비)
+        - unique_together (device, channel, sensor_type) — channel=NULL 그룹은
+          기존 gas 동작과 동일 (PostgreSQL NULL은 unique 비교에서 다르게 처리됨)
+    """
+
+    device = models.ForeignKey(
+        "monitoring.Device", on_delete=models.CASCADE, related_name="forecast_snapshots"
+    )
+    channel = models.ForeignKey(
+        "monitoring.DeviceChannel",
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name="forecast_snapshots",
+        help_text="전력 채널 (gas는 NULL)",
+    )
+    sensor_type = models.CharField(max_length=20, help_text="채널 종류 (gas: co/h2s/..., power: voltage/current/power)")
+    updated_at = models.DateTimeField(auto_now=True, help_text="갱신 시각 (예측 신선도 감시용)")
+
+    # 2축 등급 (ForecastPolicyResult — confidence는 enum name 저장)
+    headline_severity = models.CharField(
+        max_length=10, null=True, blank=True, help_text="danger / caution / None"
+    )
+    headline_confidence = models.CharField(
+        max_length=20,
+        help_text="NORMAL/TENTATIVE/CONFIRMED_WARNING/CONFIRMED_STRONG/UNKNOWN",
+    )
+    caution_confidence = models.CharField(max_length=20)
+    danger_confidence = models.CharField(max_length=20)
+    caution_eta_step = models.IntegerField(null=True, blank=True, help_text="주의 임계 도달 예측 스텝")
+    danger_eta_step = models.IntegerField(null=True, blank=True)
+    path = models.CharField(max_length=10, help_text="normal / degraded / unknown")
+    forecast_steps = models.IntegerField(default=0, help_text="예측 수평 H")
+    reason = models.TextField(blank=True)
+
+    # 곡선 (v2 — ARIMAResult 노출 시 채움)
+    forecast_mean = models.JSONField(null=True, blank=True)
+    ci_lower = models.JSONField(null=True, blank=True)
+    ci_upper = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        db_table = "forecast_snapshots"
+        unique_together = [("device", "channel", "sensor_type")]
+        ordering = ["device", "channel", "sensor_type"]
+
+    def __str__(self):
+        ch = f"/{self.channel.channel_code}" if self.channel_id else ""
+        return f"{self.device.device_uid}{ch} {self.sensor_type} → {self.headline_confidence}"

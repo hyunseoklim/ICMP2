@@ -54,6 +54,7 @@ const DeviceAPI = {
     delete:         (id)       => API.delete(`/devices/${id}/`),
     getChannels:    (id)       => API.get(`/devices/${id}/channels/`),
     getLatestGas:   (id)       => API.get(`/devices/${id}/latest_gas/`),
+    getForecast:    (id)       => API.get(`/devices/${id}/forecast/`),
     getLatestPower: (id)       => API.get(`/devices/${id}/latest_power/`),
     getStatusLogs:  (id)       => API.get(`/devices/${id}/status_logs/`),
     getInspections: (id)       => API.get(`/devices/${id}/inspections/`),
@@ -61,9 +62,11 @@ const DeviceAPI = {
 
 /* ── monitoring: 채널 (DeviceChannel) ──────────── */
 const ChannelAPI = {
-    getList: (params)    => API.get('/channels/', { params }),
-    update:  (id, data)  => API.put(`/channels/${id}/`, data),
-    patch:   (id, data)  => API.patch(`/channels/${id}/`, data),
+    getList:     (params)    => API.get('/channels/', { params }),
+    update:      (id, data)  => API.put(`/channels/${id}/`, data),
+    patch:       (id, data)  => API.patch(`/channels/${id}/`, data),
+    // Phase D M2-3 — power 'AI 예측' 데이터 (DeviceChannelViewSet.forecast)
+    getForecast: (id)        => API.get(`/channels/${id}/forecast/`),
 };
 
 /* ── monitoring: 유해가스 측정값 (GasReading) ───── */
