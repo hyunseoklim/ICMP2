@@ -145,6 +145,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 <script>
 const SAMPLE_DATA = [
   { id:1,  time:'2026-04-12 10:18:42', user:'홍길동 관리자', action:'수정', menu:'권한 관리', content:'관리자 권한 템플릿 수정' },

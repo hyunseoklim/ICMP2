@@ -94,6 +94,7 @@
 </div>
 
 {% block extra_script %}
+{{ block.super }}
 <script>
   function setActive(isActive) {
     document.getElementById('is_active_val').value = isActive ? 'true' : 'false';

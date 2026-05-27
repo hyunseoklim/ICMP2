@@ -127,6 +127,7 @@
 {% endblock %}
 
 {% block modal %}
+{{ block.super }}
 <!-- 발송 상세 팝업 -->
 <div id="modal-send-detail" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl">
@@ -202,6 +203,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 {{ sends_data|json_script:"sends-data" }}
 <script>
 const TODAY    = '{{ today }}';

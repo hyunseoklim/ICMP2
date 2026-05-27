@@ -110,6 +110,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 <script>
   const el = document.getElementById('now_datetime');
   if (el) {

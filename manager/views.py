@@ -3323,14 +3323,21 @@ def notice_attachment_download(request, pk):
 @login_required
 def dashboard_notice_list(request):
     """대시보드 사이드바 공지사항 목록 페이지."""
-    notices = (
+    qs = (
         Notice.objects
         .filter(is_exposed=True)
         .select_related('author')
         .order_by('-created_at')
     )
+    paginator = Paginator(qs, 15)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    start = page_obj.start_index()
+    numbered = [(start + i, notice) for i, notice in enumerate(page_obj)]
     return render(request, 'dashboard/notice_list.html', {
-        'notices': notices,
+        'notices':    page_obj,
+        'page_obj':   page_obj,
+        'numbered':   numbered,
+        'total_count': paginator.count,
     })
 
 
