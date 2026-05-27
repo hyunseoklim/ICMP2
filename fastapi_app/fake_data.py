@@ -112,8 +112,9 @@ def _generate_o2() -> float:
 
 
 # ── 전력 채널 데이터 생성 ─────────────────────────────────────
-def generate_power_data() -> dict:
-    ch = random.choice(_POWER_CHANNELS)
+def generate_power_data(ch: dict | None = None) -> dict:
+    # ch를 외부에서 지정하면 해당 채널을, 없으면 랜덤 선택 (하위 호환)
+    ch = ch or random.choice(_POWER_CHANNELS)
     rated_w = ch["rated_w"]
 
     rand = random.random()

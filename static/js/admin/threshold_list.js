@@ -168,7 +168,18 @@ function _validateCreate() {
   const scope   = document.getElementById('cc_scope_hidden').value;
   let hasErr = false;
 
-  hasErr |= _setErr('cc_metric_err', !metric ? '측정 항목을 입력해 주세요.' : '');
+  // 중복 체크: 현재 테이블에 이미 등록된 측정 항목인지 확인
+  const existingMetrics = Array.from(
+    document.querySelectorAll('tbody .row-check')
+  ).map(cb => {
+    const row = cb.closest('tr');
+    return row ? row.querySelector('td:nth-child(2)')?.textContent.trim().toLowerCase() : '';
+  }).filter(Boolean);
+
+  const isDuplicate = metric && existingMetrics.includes(metric);
+  hasErr |= _setErr('cc_metric_err',
+    !metric ? '측정 항목을 입력해 주세요.' :
+    isDuplicate ? '동일한 기준 분류에 같은 측정 항목이 이미 등록되어 있습니다.' : '');
   hasErr |= _setErr('cc_unit_err',   !unit   ? '단위를 입력해 주세요.'     : '');
   hasErr |= _setErr('cc_cond_err',   !cond   ? '판단 조건을 선택해 주세요.' : '');
 
@@ -248,7 +259,7 @@ function openEditModal(pk) {
     .then(r => r.json())
     .then(data => {
       document.getElementById('e_category_name').value = CATEGORY_NAME;
-      document.getElementById('e_item').value       = data.metric_code.toUpperCase();
+      document.getElementById('e_item').value       = data.metric_code.toLowerCase();
       document.getElementById('e_unit').value       = data.unit || '';
       document.getElementById('e_warning').value    = data.warning_val ?? '';
       document.getElementById('e_danger').value     = data.danger_val  ?? '';
@@ -262,6 +273,7 @@ function openEditModal(pk) {
       document.getElementById('e_scope_hidden').value = [..._eScopes].join(',');
 
       _editOriginal = {
+        metric: data.metric_code.toLowerCase(),
         unit:    data.unit || '',
         cond:    data.condition || '이상',
         warning: String(data.warning_val ?? ''),
@@ -297,6 +309,7 @@ function toggleEScope(val) {
 
 function _checkEditDirty() {
   const cur = {
+    metric:  document.getElementById('e_item').value.trim().toLowerCase(),
     unit:    document.getElementById('e_unit').value.trim(),
     cond:    document.getElementById('e_condition').value,
     warning: document.getElementById('e_warning').value,
@@ -305,7 +318,8 @@ function _checkEditDirty() {
     scope:   document.getElementById('e_scope_hidden').value,
     desc:    document.getElementById('e_desc').value.trim(),
   };
-  const dirty = cur.unit    !== _editOriginal.unit    ||
+  const dirty = cur.metric  !== _editOriginal.metric  ||
+                cur.unit    !== _editOriginal.unit    ||
                 cur.cond    !== _editOriginal.cond    ||
                 cur.warning !== _editOriginal.warning ||
                 cur.danger  !== _editOriginal.danger  ||
@@ -319,6 +333,7 @@ function _checkEditDirty() {
 }
 
 function _validateEdit() {
+  const metric  = document.getElementById('e_item').value.trim().toLowerCase();
   const unit    = document.getElementById('e_unit').value.trim();
   const warning = document.getElementById('e_warning').value.trim();
   const danger  = document.getElementById('e_danger').value.trim();
@@ -326,6 +341,16 @@ function _validateEdit() {
   const active  = document.getElementById('e_is_active').value;
   const scope   = document.getElementById('e_scope_hidden').value;
   let hasErr = false;
+
+  // 중복 체크 (원래 값과 다를 때만)
+  const isDuplicate = metric && metric !== _editOriginal.metric &&
+    Array.from(document.querySelectorAll('tbody .row-check')).some(cb => {
+      const row = cb.closest('tr');
+      return row && row.querySelector('td:nth-child(2)')?.textContent.trim().toLowerCase() === metric;
+    });
+  hasErr |= _setErr('e_item_err',
+    !metric ? '측정 항목을 입력해 주세요.' :
+    isDuplicate ? '동일한 기준 분류에 같은 측정 항목이 이미 등록되어 있습니다.' : '');
 
   hasErr |= _setErr('e_unit_err', !unit ? '단위를 입력해 주세요.' : '');
   hasErr |= _setErr('e_cond_err', !cond ? '판단 조건을 선택해 주세요.' : '');
@@ -360,6 +385,7 @@ function submitEdit() {
 
 function _doEdit() {
   const data = new FormData();
+  data.append('metric_code', document.getElementById('e_item').value.trim().toLowerCase());
   data.append('unit',        document.getElementById('e_unit').value.trim());
   data.append('condition',   document.getElementById('e_condition').value);
   data.append('warning_val', document.getElementById('e_warning').value.trim());
@@ -379,7 +405,11 @@ function _doEdit() {
       showDone('수정되었습니다.', () => location.reload());
     } else {
       showModal('editModal');
-      alert(res.error || '수정에 실패했습니다.');
+      if (res.field === 'metric_code') {
+        _setErr('e_item_err', res.error || '동일한 기준 분류에 같은 측정 항목이 이미 등록되어 있습니다.');
+      } else {
+        alert(res.error || '수정에 실패했습니다.');
+      }
     }
   })
   .catch(err => {
@@ -429,18 +459,55 @@ function setGCActive(isActive) {
   document.getElementById('gc_btn_active').className   = 'px-6 py-1.5 text-sm rounded ' + (isActive ? 'font-medium bg-blue-600 text-white' : 'text-slate-600 hover:bg-white');
   document.getElementById('gc_btn_inactive').className = 'px-6 py-1.5 text-sm rounded ' + (isActive ? 'text-slate-600 hover:bg-white' : 'font-medium bg-blue-600 text-white');
 }
+// 왼쪽 패널에서 기존 분류 코드·분류명 목록 읽기
+function _getExistingCategories() {
+  const codes = [], names = [];
+  document.querySelectorAll('a[href^="?category="]').forEach(a => {
+    const spans = a.querySelectorAll('span');
+    if (spans.length >= 2) {
+      names.push(spans[0].textContent.trim());
+      codes.push(spans[1].textContent.trim().toUpperCase());
+    }
+  });
+  return { codes, names };
+}
+
+function _validateGroupFields(code, name, codeErrId, nameErrId, excludeCode, excludeName) {
+  const codePattern = /^[A-Z0-9_]+$/;
+  const namePattern = /^[가-힣\s]+$/;
+  const { codes, names } = _getExistingCategories();
+  let hasErr = false;
+
+  let codeErr = '';
+  if (!code)                         codeErr = '분류 코드를 입력해주세요.';
+  else if (code.length > 50)         codeErr = '그룹명은 최대 50자까지 입력할 수 있습니다.';
+  else if (!codePattern.test(code))  codeErr = '그룹 코드는 영문 대문자, 숫자, 밑줄(_)만 사용할 수 있습니다.';
+  else if (code !== excludeCode && codes.includes(code))
+                                     codeErr = '이미 등록된 분류 코드입니다. 다른 분류 코드를 입력해 주세요.';
+  hasErr |= _setErr(codeErrId, codeErr);
+
+  let nameErr = '';
+  if (!name)                         nameErr = '분류명 입력해 주세요.';
+  else if (name.length > 50)         nameErr = '분류명은 최대 50자까지 입력할 수 있습니다.';
+  else if (!namePattern.test(name))  nameErr = '분류명은 한글만 입력할 수 있습니다.';
+  else if (name !== excludeName && names.includes(name))
+                                     nameErr = '이미 등록된 분류명입니다. 다른 분류명을 입력해 주세요.';
+  hasErr |= _setErr(nameErrId, nameErr);
+
+  return hasErr;
+}
+
 function submitGroupCreate() {
   const code   = document.getElementById('gc_code').value.trim().toUpperCase();
   const name   = document.getElementById('gc_name').value.trim();
   const scope  = document.getElementById('gc_scope_hidden').value;
   const active = document.getElementById('gc_is_active').value;
   let hasErr = false;
-  hasErr |= _setErr('gc_code_err',  !code   ? '분류코드는 필수입니다.' : '');
-  hasErr |= _setErr('gc_name_err',  !name   ? '분류명은 필수입니다.'   : '');
-  if (!scope)  { document.getElementById('gc_scope_err').classList.remove('hidden');  hasErr = true; }
-  else           document.getElementById('gc_scope_err').classList.add('hidden');
-  if (!active) { document.getElementById('gc_active_err').classList.remove('hidden'); hasErr = true; }
-  else           document.getElementById('gc_active_err').classList.add('hidden');
+
+  hasErr |= _validateGroupFields(code, name, 'gc_code_err', 'gc_name_err', '', '');
+  hasErr |= _setErr('gc_scope_err',  !scope  ? '반영 범위를 선택해 주세요.' : '');
+  hasErr |= _setErr('gc_active_err', !active ? '사용 여부를 선택해 주세요.' : '');
+
   if (hasErr) return;
   hideModal('groupCreateModal');
   showConfirm('해당 그룹을 등록하시겠습니까?', _doGroupCreate, () => showModal('groupCreateModal'));
@@ -461,8 +528,13 @@ function _doGroupCreate() {
     body: data,
   }).then(r => r.json()).then(res => {
     if (res.ok) { showDone('등록되었습니다.', () => location.reload()); }
-    else if (res.field === 'code') { showModal('groupCreateModal'); _setErr('gc_code_err', res.error); }
-  });
+    else {
+      showModal('groupCreateModal');
+      if (res.field === 'code')      _setErr('gc_code_err', res.error);
+      else if (res.field === 'name') _setErr('gc_name_err', res.error);
+      else alert(res.error || '등록에 실패했습니다.');
+    }
+  }).catch(() => { showModal('groupCreateModal'); alert('서버 오류가 발생했습니다. 다시 시도해 주세요.'); });
 }
 
 // ── 기준 분류 수정 모달 ───────────────────────────────────────
@@ -528,14 +600,13 @@ function submitGroupEdit() {
   const scope = document.getElementById('ge_scope_hidden').value;
   const active = document.getElementById('ge_is_active').value;
   let hasErr = false;
-  hasErr |= _setErr('ge_code_err', !code ? '분류 코드는 필수입니다.' : '');
-  hasErr |= _setErr('ge_name_err', !name ? '분류명은 필수입니다.' : '');
-  if (!scope)  { document.getElementById('ge_scope_err').classList.remove('hidden');  hasErr = true; }
-  else           document.getElementById('ge_scope_err').classList.add('hidden');
-  if (!active) { document.getElementById('ge_active_err').classList.remove('hidden'); hasErr = true; }
-  else           document.getElementById('ge_active_err').classList.add('hidden');
-  if (hasErr) return;
 
+  // 현재 수정 중인 항목 자신은 중복 대상에서 제외
+  hasErr |= _validateGroupFields(code, name, 'ge_code_err', 'ge_name_err', _geOriginal.code, _geOriginal.name);
+  hasErr |= _setErr('ge_scope_err',  !scope  ? '반영 범위를 선택해 주세요.' : '');
+  hasErr |= _setErr('ge_active_err', !active ? '사용 여부를 선택해 주세요.' : '');
+
+  if (hasErr) return;
   hideModal('groupEditModal');
   showConfirm('해당 그룹을 수정하시겠습니까?', _doGroupEdit, () => showModal('groupEditModal'));
 }
@@ -553,8 +624,13 @@ function _doGroupEdit() {
     body: data,
   }).then(r => r.json()).then(res => {
     if (res.ok) { showDone('수정되었습니다.', () => location.reload()); }
-    else if (res.error) { showModal('groupEditModal'); _setErr('ge_code_err', res.error); }
-  });
+    else {
+      showModal('groupEditModal');
+      if (res.field === 'code')      _setErr('ge_code_err', res.error);
+      else if (res.field === 'name') _setErr('ge_name_err', res.error);
+      else alert(res.error || '수정에 실패했습니다.');
+    }
+  }).catch(() => { showModal('groupEditModal'); alert('서버 오류가 발생했습니다. 다시 시도해 주세요.'); });
 }
 
 // ── DOMContentLoaded ──────────────────────────────────────────
@@ -575,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 수정 모달 dirty tracking
-  ['e_unit','e_warning','e_danger','e_desc'].forEach(id => {
+  ['e_item','e_unit','e_warning','e_danger','e_desc'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', _checkEditDirty);
   });

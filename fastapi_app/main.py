@@ -52,6 +52,16 @@ async def _emit_once() -> None:
 
 async def _data_loop() -> None:
     while True:
+        if not _devices:
+            devices = await fetch_gas_devices()
+            if devices:
+                _devices.extend(devices)
+                print(f"[FastAPI] 가스 장비 재로드 완료: {[d['device_uid'] for d in _devices]}")
+        if not _nodes:
+            nodes = await fetch_location_nodes()
+            if nodes:
+                _nodes.extend(nodes)
+                print(f"[FastAPI] 위치 노드 재로드 완료: {[n['node_code'] for n in _nodes]}")
         await _emit_once()
         await asyncio.sleep(60)
 
