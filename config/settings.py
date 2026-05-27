@@ -109,6 +109,14 @@ CELERY_TASK_ROUTES = {
     'alerts.tasks.forecast_power_task': {'queue': 'forecast'},   # Phase D M1-8
 }
 
+# 7. MISSING 장비 감지 — 매 60초 주기 실행
+CELERY_BEAT_SCHEDULE = {
+    'check-missing-devices': {
+        'task': 'alerts.tasks.check_missing_devices',
+        'schedule': 60.0,
+    },
+}
+
 # Phase 2 — AI 예측(STEP G) 튜닝 파라미터. 검증·운영 중 무재학습 조정용.
 FORECAST_K_CONFIRM = int(os.environ.get('FORECAST_K_CONFIRM', '18'))
 

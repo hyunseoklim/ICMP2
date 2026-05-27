@@ -8,6 +8,34 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+# 3. RiskCriteria.color_type → Slack emoji / Discord embed color 매핑
+_COLOR_EMOJI = {
+    'red':    '🔴',
+    'orange': '🟠',
+    'yellow': '🟡',
+    'green':  '🟢',
+    'gray':   '⚪',
+}
+_COLOR_DISCORD = {
+    'red':    0xFF0000,
+    'orange': 0xFF8800,
+    'yellow': 0xFFCC00,
+    'green':  0x00CC00,
+    'gray':   0xAAAAAA,
+}
+_SEVERITY_EMOJI_FALLBACK = {
+    'danger': '🔴', 'warning': '🟡', 'anomaly': '🟠', 'predictive_warning': '🔵',
+}
+_SEVERITY_COLOR_FALLBACK = {
+    'danger': 0xFF0000, 'warning': 0xFFCC00, 'anomaly': 0xFF8800, 'predictive_warning': 0x0088FF,
+}
+
+# 12. AlarmEvent.event_type → AlarmPolicy.event_type 매핑
+_POLICY_EVENT_TYPE = {
+    'gas':   '가스 경보',
+    'power': '전력 이상',
+}
+
 
 def _build_alert_payload(event) -> dict:
     return {
@@ -19,6 +47,60 @@ def _build_alert_payload(event) -> dict:
         'facility': str(event.facility) if event.facility else '',
         'occurred_at': event.occurred_at.isoformat(),
     }
+
+
+def _get_risk_criteria(severity: str):
+    """3. RiskCriteria — stage_code=severity로 조회. 없으면 None.
+
+    관리자가 stage_code를 AlarmEvent.Severity 값('danger','warning' 등)과
+    일치하도록 등록해야 연동된다.
+    """
+    try:
+        from .models import RiskCriteria
+        return RiskCriteria.objects.filter(stage_code=severity, is_active=True).first()
+    except Exception:
+        return None
+
+
+def _get_alarm_policy(event_type: str):
+    """12. AlarmPolicy — event_type으로 조회. 없으면 None."""
+    try:
+        from manager.models import AlarmPolicy
+        policy_event_name = _POLICY_EVENT_TYPE.get(event_type, '')
+        if not policy_event_name:
+            return None
+        return AlarmPolicy.objects.filter(event_type=policy_event_name, is_active=True).first()
+    except Exception:
+        return None
+
+
+def _render_policy_message(event, alarm_policy) -> tuple:
+    """12. AlarmPolicy의 alarm_title/alarm_content 템플릿을 이벤트 데이터로 렌더링.
+
+    반환: (title, content, targets)
+    alarm_policy가 없거나 필드가 비어 있으면 event 기본값 사용.
+    """
+    replacements = {
+        '{이벤트상세}': event.get_event_type_display(),
+        '{발생대상}':   str(event.device or event.facility or '-'),
+        '{상태}':       event.get_severity_display(),
+        '{발생시각}':   event.occurred_at.strftime('%Y-%m-%d %H:%M:%S'),
+    }
+
+    if alarm_policy:
+        title   = alarm_policy.alarm_title   or event.title
+        content = alarm_policy.alarm_content or event.message
+        targets = alarm_policy.targets       or ''
+    else:
+        title   = event.title
+        content = event.message
+        targets = ''
+
+    for placeholder, value in replacements.items():
+        title   = title.replace(placeholder, value)
+        content = content.replace(placeholder, value)
+
+    return title, content, targets
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)
@@ -33,13 +115,24 @@ def send_slack_notification(self, event_id: int):
     except AlarmEvent.DoesNotExist:
         return
 
-    severity_emoji = {'danger': '🔴', 'warning': '🟡', 'anomaly': '🟠', 'predictive_warning': '🔵'}.get(
-        event.severity, '⚪'
-    )
+    # 3 & 4: RiskCriteria → emoji(color_type) + 알림 강조(alert_emphasis)
+    risk = _get_risk_criteria(event.severity)
+    if risk:
+        severity_emoji = _COLOR_EMOJI.get(risk.color_type, '⚪')
+        emphasis = f"[{risk.alert_emphasis}] " if risk.alert_emphasis else ''
+    else:
+        severity_emoji = _SEVERITY_EMOJI_FALLBACK.get(event.severity, '⚪')
+        emphasis = ''
+
+    # 12: AlarmPolicy → alarm_title/alarm_content 템플릿 + targets
+    alarm_policy = _get_alarm_policy(event.event_type)
+    title, content, targets = _render_policy_message(event, alarm_policy)
+
+    target_str = f"  |  수신 대상: {targets}" if targets else ''
     text = (
-        f"{severity_emoji} *[ICMP2 알림]* {event.title}\n"
-        f"> {event.message}\n"
-        f"> 시설: {event.facility or '-'}  |  발생: {event.occurred_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        f"{severity_emoji} *[ICMP2 알림]* {emphasis}{title}\n"
+        f"> {content}\n"
+        f"> 시설: {event.facility or '-'}  |  발생: {event.occurred_at.strftime('%Y-%m-%d %H:%M:%S')}{target_str}"
     )
 
     try:
@@ -62,16 +155,34 @@ def send_discord_notification(self, event_id: int):
     except AlarmEvent.DoesNotExist:
         return
 
-    color_map = {'danger': 0xFF0000, 'warning': 0xFFCC00, 'anomaly': 0xFF8800, 'predictive_warning': 0x0088FF}
+    # 3 & 4: RiskCriteria → embed 색상(color_type) + 알림 강조(alert_emphasis)
+    risk = _get_risk_criteria(event.severity)
+    if risk:
+        color = _COLOR_DISCORD.get(risk.color_type, 0xAAAAAA)
+        emphasis = risk.alert_emphasis or ''
+    else:
+        color = _SEVERITY_COLOR_FALLBACK.get(event.severity, 0xAAAAAA)
+        emphasis = ''
+
+    # 12: AlarmPolicy → alarm_title/alarm_content 템플릿 + targets
+    alarm_policy = _get_alarm_policy(event.event_type)
+    title, content, targets = _render_policy_message(event, alarm_policy)
+
+    fields = [
+        {'name': '시설',      'value': str(event.facility or '-'),                      'inline': True},
+        {'name': '발생 시각', 'value': event.occurred_at.strftime('%Y-%m-%d %H:%M:%S'), 'inline': True},
+    ]
+    if targets:
+        fields.append({'name': '수신 대상', 'value': targets, 'inline': True})
+    if emphasis:
+        fields.append({'name': '알림 강조', 'value': emphasis, 'inline': True})
+
     payload = {
         'embeds': [{
-            'title': event.title,
-            'description': event.message,
-            'color': color_map.get(event.severity, 0xAAAAAA),
-            'fields': [
-                {'name': '시설', 'value': str(event.facility or '-'), 'inline': True},
-                {'name': '발생 시각', 'value': event.occurred_at.strftime('%Y-%m-%d %H:%M:%S'), 'inline': True},
-            ],
+            'title':       title,
+            'description': content,
+            'color':       color,
+            'fields':      fields,
         }]
     }
 
@@ -104,28 +215,154 @@ def push_websocket_alert(event_id: int):
 
 @shared_task
 def send_all_notifications(event_id: int):
-    """AlarmEvent 발생 시 모든 채널 알림 발송 (중복 방지 포함)."""
+    """AlarmEvent 발생 시 AlarmPolicy에 따라 채널별 알림 발송 (중복 방지 포함)."""
     from django.core.cache import cache
-
     from .models import AlarmEvent
+    from manager.models import AlarmPolicy
+
     try:
-        event = AlarmEvent.objects.select_related('rule', 'facility').get(pk=event_id)
+        event = AlarmEvent.objects.select_related(
+            'rule', 'rule__threshold_policy', 'facility'
+        ).get(pk=event_id)
     except AlarmEvent.DoesNotExist:
         return
 
+    # 6. ThresholdPolicy.action_type 참조
+    # shutdown: 하드웨어 미구현 단계 — 알림은 유지하되 로그 기록
+    # NOTE: ThresholdPolicy.action_type = "notify" (기본값), "shutdown" 감지 시 로그 기록
+    rule = event.rule
+    if rule and getattr(rule, 'threshold_policy_id', None):
+        tp = rule.threshold_policy
+        if tp and tp.action_type == 'shutdown':
+            logger.info(
+                "ThresholdPolicy shutdown action 감지 — event=%s metric=%s (알림 발송 유지, 하드웨어 차단 미구현)",
+                event_id, tp.metric_code,
+            )
+
+    # 중복 방지 (5분 쿨다운)
     rule_id = event.rule_id or 0
     facility_id = event.facility_id or 0
     dedup_key = f"alarm:dedup:{rule_id}:{facility_id}"
-
     if cache.get(dedup_key):
         logger.info("중복 알람 방지 — event=%s key=%s", event_id, dedup_key)
         return
+    cache.set(dedup_key, 1, timeout=300)
 
-    cache.set(dedup_key, 1, timeout=300)  # 5분 쿨다운
+    # 12. AlarmPolicy 조회 → 채널 파싱
+    policy_event_name = _POLICY_EVENT_TYPE.get(event.event_type, '')
+    alarm_policy = None
+    if policy_event_name:
+        alarm_policy = AlarmPolicy.objects.filter(
+            event_type=policy_event_name, is_active=True
+        ).first()
 
-    push_websocket_alert.delay(event_id)
-    send_slack_notification.delay(event_id)
-    send_discord_notification.delay(event_id)
+    # 채널 파싱 — 정책 없으면 전체 발송 (폴백)
+    if alarm_policy:
+        ch_list = [c.strip() for c in alarm_policy.channels.split(',')]
+        send_websocket = any('관제' in c or '실시간' in c for c in ch_list)
+        send_slack    = 'Slack'   in ch_list
+        send_discord  = 'Discord' in ch_list
+    else:
+        send_websocket = True
+        send_slack     = True
+        send_discord   = True
+
+    if send_websocket:
+        push_websocket_alert.delay(event_id)
+    if send_slack:
+        send_slack_notification.delay(event_id)
+    if send_discord:
+        send_discord_notification.delay(event_id)
+
+
+# ---------------------------------------------------------------------------
+# 7. MISSING 장비 감지 — AlarmRule.missing_timeout_seconds 기반 주기 체크
+# ---------------------------------------------------------------------------
+
+@shared_task
+def check_missing_devices():
+    """MISSING 규칙 — Device.last_seen_at 기준 미수신 타임아웃 감지.
+
+    Celery Beat으로 매 60초마다 실행 (settings.CELERY_BEAT_SCHEDULE).
+    AlarmRule(rule_type='missing').missing_timeout_seconds를 기준으로
+    데이터 미수신 장비를 탐지해 AlarmEvent를 생성한다.
+    - 이미 OPEN 이벤트가 있으면 last_seen_at·message만 갱신 (중복 생성 방지)
+    - 수신 재개(last_seen_at >= cutoff)된 장비는 OPEN 이벤트 자동 종료
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from monitoring.models import Device
+
+    from .models import AlarmEvent, AlarmRule, EventHistory
+    from .services import create_alarm_event
+
+    rules = AlarmRule.objects.filter(
+        rule_type=AlarmRule.RuleType.MISSING,
+        is_active=True,
+        missing_timeout_seconds__isnull=False,
+    )
+    if not rules.exists():
+        return
+
+    now = timezone.now()
+    for rule in rules:
+        timeout = timedelta(seconds=rule.missing_timeout_seconds)
+        cutoff = now - timeout
+
+        # 미수신 장비 탐지
+        missing_devices = Device.objects.filter(
+            facility__isnull=False,
+            last_seen_at__isnull=False,
+            last_seen_at__lt=cutoff,
+        ).select_related('facility')
+
+        for device in missing_devices:
+            elapsed = int((now - device.last_seen_at).total_seconds())
+            msg = f"마지막 수신 {elapsed}초 전 (기준: {rule.missing_timeout_seconds}초)"
+
+            open_event = AlarmEvent.objects.filter(
+                rule=rule,
+                device=device,
+                event_status=AlarmEvent.EventStatus.OPEN,
+            ).first()
+
+            if open_event:
+                open_event.last_seen_at = now
+                open_event.message = msg
+                open_event.save(update_fields=['last_seen_at', 'message', 'updated_at'])
+            else:
+                create_alarm_event(
+                    rule=rule,
+                    facility=device.facility,
+                    severity=AlarmEvent.Severity.WARNING,
+                    title=f"[MISSING] {device.device_uid} 데이터 미수신",
+                    device=device,
+                    message=msg,
+                )
+
+        # 수신 재개 장비 → OPEN 이벤트 자동 종료
+        recovered_devices = Device.objects.filter(
+            facility__isnull=False,
+            last_seen_at__isnull=False,
+            last_seen_at__gte=cutoff,
+        )
+        for device in recovered_devices:
+            open_event = AlarmEvent.objects.filter(
+                rule=rule,
+                device=device,
+                event_status=AlarmEvent.EventStatus.OPEN,
+            ).first()
+            if open_event:
+                open_event.event_status = AlarmEvent.EventStatus.CLOSED
+                open_event.closed_at = now
+                open_event.save(update_fields=['event_status', 'closed_at', 'updated_at'])
+                EventHistory.objects.create(
+                    alarm_event=open_event,
+                    action_type='close',
+                    action_note='데이터 수신 재개로 자동 종료',
+                )
 
 
 # ---------------------------------------------------------------------------

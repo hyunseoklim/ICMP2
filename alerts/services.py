@@ -439,7 +439,6 @@ _RULE_TYPE_TO_EVENT_TYPE = {
     AlarmRule.RuleType.THRESHOLD: AlarmEvent.EventType.GAS,
     AlarmRule.RuleType.POWER:     AlarmEvent.EventType.POWER,
     AlarmRule.RuleType.MISSING:   AlarmEvent.EventType.DEVICE,
-    AlarmRule.RuleType.OFFLINE:   AlarmEvent.EventType.DEVICE,
     AlarmRule.RuleType.AI:        AlarmEvent.EventType.GAS,
     AlarmRule.RuleType.FORECAST:  AlarmEvent.EventType.GAS,
 }

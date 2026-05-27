@@ -44,13 +44,12 @@ _METRIC_UNIT = {
 }
 _RULE_TYPE_LABEL = {
     'threshold': '임계치 초과', 'missing': '데이터 누락',
-    'offline': '장비 오프라인', 'power': '전력 이상',
+    'power': '전력 이상',
 }
 _RULE_COLOR = {
     'threshold': ('green', '녹색'),
     'power':     ('orange', '주황'),
     'missing':   ('gray', '회색'),
-    'offline':   ('gray', '회색'),
 }
 
 
