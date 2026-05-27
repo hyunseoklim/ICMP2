@@ -107,13 +107,23 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_ROUTES = {
     'alerts.tasks.forecast_gas_task':   {'queue': 'forecast'},
     'alerts.tasks.forecast_power_task': {'queue': 'forecast'},   # Phase D M1-8
+    # facilities 이벤트 subscriber는 전용 큐 + 단일 worker로 격리해
+    # 다중 subscriber 중복 dispatch를 인프라 레벨에서 차단한다.
+    'facilities.tasks.consume_facilities_events': {'queue': 'events'},
 }
 
 # 7. MISSING 장비 감지 — 매 60초 주기 실행
+# 8. facilities 이벤트 구독 — 매 25초 주기 (listen 30초로 오버랩, 메시지 유실 없음)
 CELERY_BEAT_SCHEDULE = {
     'check-missing-devices': {
         'task': 'alerts.tasks.check_missing_devices',
         'schedule': 60.0,
+    },
+    # listen 시간(LISTEN_SEC=30)과 동일 주기로 발사.
+    # 단일 worker(concurrency=1)가 task를 연속 picking — 큐 적체 없이 연속 listen.
+    'consume-facilities-events': {
+        'task': 'facilities.tasks.consume_facilities_events',
+        'schedule': 30.0,
     },
 }
 

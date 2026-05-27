@@ -129,3 +129,37 @@ class FloorGridService:
             "x_ratio" : x_ratio,
             "y_ratio" : y_ratio,
         }
+
+
+def setup_index_grid_for_floor(floor) -> int:
+    """Floor의 IndexGrid를 초기 생성 (멱등).
+
+    이미 cell이 있으면 ignore_conflicts로 skip. 기존 cell은 보존.
+    FloorGridSetupView, seed 커맨드에서 호출.
+    """
+    from ..models import FloorGrid
+    from ..repositories import IndexGridWriter
+
+    FloorGrid.objects.get_or_create(floor=floor, defaults={"cell_size": 1.0})
+    service = FloorGridService(floor)
+    cells = service.generate_all_cells()
+    IndexGridWriter().bulk_create(floor, cells)
+    return len(cells)
+
+
+def regenerate_index_grid_for_floor(floor) -> int:
+    """Floor의 IndexGrid를 완전 재생성 (delete → bulk_create).
+
+    Floor.width/length 또는 FloorGrid.cell_size 변경 시 호출.
+    Writer의 delete_by_floor와 bulk_create 각각이 FloorGridChanged 이벤트를 발행한다.
+    """
+    from ..models import FloorGrid
+    from ..repositories import IndexGridWriter
+
+    FloorGrid.objects.get_or_create(floor=floor, defaults={"cell_size": 1.0})
+    writer = IndexGridWriter()
+    writer.delete_by_floor(floor)
+    service = FloorGridService(floor)
+    cells = service.generate_all_cells()
+    writer.bulk_create(floor, cells)
+    return len(cells)
