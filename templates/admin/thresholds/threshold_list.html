@@ -165,8 +165,8 @@
                 <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">판단 조건</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">주의값</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">위험값</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">반영 위치</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">사용 여부</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">반영 위치</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">최근 수정일</th>
               </tr>
             </thead>
@@ -181,7 +181,6 @@
                 <td class="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{{ p.condition }}</td>
                 <td class="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{{ p.warning_val|default:'-' }}</td>
                 <td class="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{{ p.danger_val|default:'-' }}</td>
-                <td class="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{{ p.scope_display }}</td>
                 <td class="px-4 py-3 whitespace-nowrap">
                   {% if p.is_active %}
                     <span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">사용</span>
@@ -189,6 +188,7 @@
                     <span class="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded">미사용</span>
                   {% endif %}
                 </td>
+                <td class="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{{ p.scope_display }}</td>
                 <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{{ p.updated_at|date:"Y-m-d" }}</td>
               </tr>
               {% empty %}
@@ -315,9 +315,10 @@
                  class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1.5">측정 항목</label>
-          <input id="e_item" type="text" disabled
-                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed font-mono" />
+          <label class="block text-sm font-medium text-slate-700 mb-1.5">측정 항목 <span class="text-rose-500">*</span></label>
+          <input id="e_item" type="text" placeholder="예: co"
+                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 font-mono" />
+          <p id="e_item_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1.5">단위 <span class="text-rose-500">*</span></label>
@@ -395,20 +396,20 @@
 <div id="groupCreateModal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
     <div class="px-8 pt-7 pb-4 border-b border-slate-100">
-      <h3 class="text-xl font-bold text-slate-900 mb-1">기준 분류 등록</h3>
+      <h3 class="text-xl font-bold text-slate-900 mb-1">분류 그룹 등록</h3>
       <p class="text-sm text-slate-500">임계치 기준 분류 그룹 기준을 등록합니다.</p>
     </div>
     <div class="px-8 py-6 flex flex-col gap-4">
       <div class="grid grid-cols-2 gap-x-5 gap-y-4">
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1.5">분류 코드 <span class="text-rose-500">*</span></label>
-          <input id="gc_code" type="text" placeholder="TH_CUSTOM" maxlength="50"
+          <input id="gc_code" type="text" placeholder="TH_CUSTOM"
                  class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 font-mono uppercase" />
           <p id="gc_code_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1.5">분류명 <span class="text-rose-500">*</span></label>
-          <input id="gc_name" type="text" placeholder="분류명" maxlength="100"
+          <input id="gc_name" type="text" placeholder="분류명"
                  class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
           <p id="gc_name_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
@@ -473,20 +474,20 @@
 <div id="groupEditModal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl">
     <div class="px-8 pt-7 pb-4 border-b border-slate-100">
-      <h3 class="text-xl font-bold text-slate-900 mb-1">기준 분류 수정</h3>
-      <p class="text-sm text-slate-500">분류 정보를 수정합니다.</p>
+      <h3 class="text-xl font-bold text-slate-900 mb-1">분류 그룹 수정</h3>
+      <p class="text-sm text-slate-500">임계치 기준 분류 그룹 기준을 수정합니다.</p>
     </div>
     <div class="px-8 py-6 flex flex-col gap-4">
       <div class="grid grid-cols-2 gap-x-5 gap-y-4">
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1.5">분류 코드 <span class="text-rose-500">*</span></label>
-          <input id="ge_code" type="text" maxlength="50"
+          <input id="ge_code" type="text"
                  class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 font-mono uppercase" />
           <p id="ge_code_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1.5">분류명 <span class="text-rose-500">*</span></label>
-          <input id="ge_name" type="text" maxlength="100"
+          <input id="ge_name" type="text"
                  class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
           <p id="ge_name_err" class="mt-1 text-xs text-rose-500 hidden"></p>
         </div>

@@ -148,13 +148,14 @@
         <tr class="bg-slate-50 border-b border-slate-100">
           <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">수집 시각</th>
           <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 whitespace-nowrap">장비명</th>
-          <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">CH4</th>
+          <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">CO2</th>
           <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">O2</th>
           <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">CO</th>
-          <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">CO2</th>
           <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">H2S</th>
           <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">NH3</th>
           <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">VOC</th>
+          <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">NO2</th>
+          <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">O3</th>
           <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 whitespace-nowrap">SO2</th>
         </tr>
       </thead>
@@ -170,6 +171,7 @@
           <td class="px-4 py-3 text-xs text-right {% if r.nh3 is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.nh3 is not None %}{{ r.nh3|floatformat:1 }} ppm{% else %}-{% endif %}</td>
           <td class="px-4 py-3 text-xs text-right {% if r.voc is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.voc is not None %}{{ r.voc|floatformat:1 }} ppm{% else %}-{% endif %}</td>
           <td class="px-4 py-3 text-xs text-right {% if r.no2 is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.no2 is not None %}{{ r.no2|floatformat:1 }} ppm{% else %}-{% endif %}</td>
+          <td class="px-4 py-3 text-xs text-right {% if r.o3 is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.o3 is not None %}{{ r.o3|floatformat:1 }} ppm{% else %}-{% endif %}</td>
           <td class="px-4 py-3 text-xs text-right {% if r.so2 is not None %}text-slate-600{% else %}text-slate-400{% endif %}">{% if r.so2 is not None %}{{ r.so2|floatformat:1 }} ppm{% else %}-{% endif %}</td>
         </tr>
         {% empty %}
