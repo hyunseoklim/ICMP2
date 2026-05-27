@@ -119,6 +119,10 @@ urlpatterns = [
     path('notice/<int:pk>/edit/', views.notice_edit, name='notice_edit'),
     path('notice/<int:pk>/delete/', views.notice_delete, name='notice_delete'),
 
+    # 대시보드용 공지사항 (일반 사용자 열람)
+    path('notices/', views.dashboard_notice_list, name='dashboard_notice_list'),
+    path('notices/<int:pk>/', views.dashboard_notice_detail, name='dashboard_notice_detail'),
+
     # 메뉴 관리
     path('menu-manage/', views.menu_manage, name='menu_manage'),
 

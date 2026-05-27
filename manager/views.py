@@ -3317,6 +3317,42 @@ def notice_attachment_download(request, pk):
     att = get_object_or_404(NoticeAttachment, pk=pk)
     return FileResponse(att.file.open('rb'), as_attachment=True, filename=att.original_name)
 
+
+# ── 대시보드용 공지사항 (일반 사용자 열람) ────────────────────────────────
+
+@login_required
+def dashboard_notice_list(request):
+    """대시보드 사이드바 공지사항 목록 페이지."""
+    notices = (
+        Notice.objects
+        .filter(is_exposed=True)
+        .select_related('author')
+        .order_by('-created_at')
+    )
+    return render(request, 'dashboard/notice_list.html', {
+        'notices': notices,
+    })
+
+
+@login_required
+def dashboard_notice_detail(request, pk):
+    """대시보드 공지사항 상세 페이지."""
+    notice = get_object_or_404(
+        Notice.objects.select_related('author').prefetch_related('attachments'),
+        pk=pk, is_exposed=True,
+    )
+    Notice.objects.filter(pk=pk).update(view_count=db_models.F('view_count') + 1)
+    notice.refresh_from_db(fields=['view_count'])
+
+    prev_notice = Notice.objects.filter(pk__lt=pk, is_exposed=True).order_by('-pk').first()
+    next_notice = Notice.objects.filter(pk__gt=pk, is_exposed=True).order_by('pk').first()
+
+    return render(request, 'dashboard/notice_detail.html', {
+        'notice':      notice,
+        'prev_notice': prev_notice,
+        'next_notice': next_notice,
+    })
+
 # ===== 메뉴 관리 =====
 def menu_manage(request):
     """메뉴 관리 (슈퍼관리자 전용)"""

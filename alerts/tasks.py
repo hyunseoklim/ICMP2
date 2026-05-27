@@ -419,7 +419,7 @@ def forecast_gas_task(device_uid: str, payload: dict):
         if not results:
             return  # idempotency 가드에 의해 skip됨
         # results: [(ForecastPolicyResult, ARIMAResult|None), ...]
-        policy_results = [pr for pr, _curve in results]
+        policy_results = [pr for pr, _ in results]
         device = Device.objects.filter(device_uid=device_uid).first()
         if device:
             save_forecast_snapshots(device, results)         # 등급 + 곡선(튜플) → 스냅샷 upsert
@@ -468,7 +468,7 @@ def forecast_power_task(device_uid: str, channel_code: str, payload: dict):
             return
 
         # results: [(ForecastPolicyResult, ARIMAResult|None), ...]
-        policy_results = [pr for pr, _curve in results]
+        policy_results = [pr for pr, _ in results]
         save_forecast_snapshots(device, results, channel=channel)
         trigger_forecast_alarms(device, policy_results, channel=channel)
         logger.debug(
@@ -551,5 +551,179 @@ def _handle_pubsub_message(data: dict):
         from monitoring.services import process_gas_ingest
         process_gas_ingest(device_uid, data)
         logger.debug("Pub/Sub 처리 완료 — device=%s", device_uid)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.error("Pub/Sub 처리 실패 — device=%s: %s", device_uid, exc)
+
+
+# ---------------------------------------------------------------------------
+# D. 데이터 보관 주기 자동 삭제 (DataRetentionPolicy)
+# ---------------------------------------------------------------------------
+
+@shared_task
+def run_data_retention():
+    """
+    DataRetentionPolicy 설정에 따라 만료 데이터를 삭제한다.
+    - 만료 7일 전: Slack/Discord + WebSocket(관리자 전용)으로 사전 알림
+    - 만료 당일:   정책의 delete_schedule이 오늘에 해당하면 삭제 후 알림
+
+    Celery Beat으로 매일 새벽 3시 실행 (settings.CELERY_BEAT_SCHEDULE).
+    각 정책의 delete_schedule을 확인해 오늘이 삭제 일정에 해당하는지 판단한다.
+    """
+    import calendar
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from alerts.models import AlarmEvent
+    from manager.models import DataRetentionPolicy
+    from monitoring.models import GasReading, NodeReading, PowerReading
+    from facilities.models import WorkerLocation
+
+    # raw/location: (device_type, data_category) → (모델, 타임스탬프 필드, 보관기간 필드)
+    # 보관기간 필드: 'origin_days'(원천 raw) or 'history_days'(이력 event/location)
+    RAW_MAP = {
+        ('gas',   'raw'):      (GasReading,    'measured_at'),
+        ('power', 'raw'):      (PowerReading,  'measured_at'),
+        ('node',  'raw'):      (NodeReading,   'received_at'),
+        ('node',  'location'): (WorkerLocation,'measured_at'),
+    }
+
+    now = timezone.localtime()  # KST 기준
+    today = now.date()
+
+    def _is_schedule_today(schedule: str) -> bool:
+        if schedule == 'daily':
+            return True
+        if schedule == 'monthly_1':
+            return today.day == 1
+        if schedule == 'monthly_15':
+            return today.day == 15
+        if schedule == 'monthly_last':
+            last_day = calendar.monthrange(today.year, today.month)[1]
+            return today.day == last_day
+        if schedule == 'quarterly':
+            quarter_ends = {3: 31, 6: 30, 9: 30, 12: 31}
+            return today.month in quarter_ends and today.day == quarter_ends[today.month]
+        return False
+
+    # AlarmEvent는 device_type 구분 없이 하나의 테이블 — 중복 삭제 방지용
+    event_processed = False
+
+    for policy in DataRetentionPolicy.objects.filter(is_active=True):
+        key = (policy.device_type, policy.data_category)
+        label = f"{policy.get_device_type_display()} / {policy.get_data_category_display()}"
+
+        # ── aggregate: 집계 모델 미구현 → skip ───────────────────
+        if policy.data_category == 'aggregate':
+            logger.warning("run_data_retention: aggregate 모델 미구현 — %s", label)
+            continue
+
+        # ── event: AlarmEvent (device_type 무관, history_days 기준) ──
+        if policy.data_category == 'event':
+            if event_processed:
+                continue
+            retention_days = policy.history_days
+            cutoff = now - timedelta(days=retention_days)
+            warn_cutoff = now - timedelta(days=max(retention_days - 7, 0))
+
+            soon_count = AlarmEvent.objects.filter(occurred_at__lt=warn_cutoff).count()
+            if soon_count > 0:
+                _notify_retention_warning("이벤트 이력 (전체)", retention_days, soon_count)
+
+            if _is_schedule_today(policy.delete_schedule):
+                deleted_count, _ = AlarmEvent.objects.filter(occurred_at__lt=cutoff).delete()
+                if deleted_count > 0:
+                    logger.info("데이터 삭제 완료 — 이벤트 이력: %d건", deleted_count)
+                    _notify_retention_deleted("이벤트 이력 (전체)", deleted_count)
+
+            event_processed = True
+            continue
+
+        # ── raw / location: 개별 모델 매핑 ───────────────────────
+        mapping = RAW_MAP.get(key)
+        if not mapping:
+            logger.warning("run_data_retention: 매핑 없음 — %s/%s", policy.device_type, policy.data_category)
+            continue
+
+        model, ts_field = mapping
+        # location은 이력 성격 → history_days, raw는 원천 → origin_days
+        retention_days = policy.history_days if policy.data_category == 'location' else policy.origin_days
+        cutoff = now - timedelta(days=retention_days)
+        warn_cutoff = now - timedelta(days=max(retention_days - 7, 0))
+
+        soon_count = model.objects.filter(**{f"{ts_field}__lt": warn_cutoff}).count()
+        if soon_count > 0:
+            _notify_retention_warning(label, retention_days, soon_count)
+
+        if not _is_schedule_today(policy.delete_schedule):
+            continue
+
+        deleted_count, _ = model.objects.filter(**{f"{ts_field}__lt": cutoff}).delete()
+        if deleted_count > 0:
+            logger.info("데이터 삭제 완료 — %s: %d건", label, deleted_count)
+            _notify_retention_deleted(label, deleted_count)
+
+
+def _notify_retention_warning(label: str, retention_days: int, count: int) -> None:
+    """만료 7일 전 — Slack/Discord/WebSocket 사전 알림."""
+    message = (
+        f"⚠️ [데이터 보관 주기 만료 예정]\n"
+        f"대상: {label}\n"
+        f"보관 기간: {retention_days}일\n"
+        f"7일 이내 삭제 예정 데이터: {count:,}건\n"
+        f"관리자 페이지에서 내보내기 후 확인하세요."
+    )
+    _send_slack(message)
+    _send_discord(message)
+    _push_websocket_system(message, level='warning')
+
+
+def _notify_retention_deleted(label: str, count: int) -> None:
+    """삭제 완료 — Slack/Discord 알림."""
+    message = (
+        f"🗑️ [데이터 자동 삭제 완료]\n"
+        f"대상: {label}\n"
+        f"삭제 건수: {count:,}건"
+    )
+    _send_slack(message)
+    _send_discord(message)
+    _push_websocket_system(message, level='info')
+
+
+def _send_slack(text: str) -> None:
+    slack_url = settings.SLACK_WEBHOOK_URL
+    if not slack_url:
+        return
+    try:
+        requests.post(slack_url, json={'text': text}, timeout=5)
+    except Exception as exc:
+        logger.warning("Slack 발송 실패 (retention): %s", exc)
+
+
+def _send_discord(text: str) -> None:
+    discord_url = settings.DISCORD_WEBHOOK_URL
+    if not discord_url:
+        return
+    try:
+        requests.post(discord_url, json={'content': text}, timeout=5)
+    except Exception as exc:
+        logger.warning("Discord 발송 실패 (retention): %s", exc)
+
+
+def _push_websocket_system(message: str, level: str = 'info') -> None:
+    """슈퍼관리자/관리자 전용 WebSocket 시스템 알림 (system_alerts 그룹)."""
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            'system_alerts',
+            {
+                'type': 'system_message',
+                'data': {
+                    'message': message,
+                    'level': level,
+                },
+            },
+        )
+        logger.debug("WebSocket 시스템 알림 발송 완료")
+    except Exception as exc:
+        logger.warning("WebSocket 시스템 알림 실패 (retention): %s", exc)

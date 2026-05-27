@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ notice.title }} — 공지사항{% endblock %}
+
+{% block extra_css %}
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  html, body { overflow: auto !important; }
+
+  .notice-page { background: var(--bg-base); min-height: calc(100vh - var(--header-h)); padding: 2rem 1rem; }
+  @media (min-width: 640px)  { .notice-page { padding: 2rem 1.5rem; } }
+  @media (min-width: 1024px) { .notice-page { padding: 2rem 2.5rem; } }
+
+  .notice-card {
+    background: var(--bg-panel);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .badge-safe { display:inline-flex;align-items:center;padding:2px 10px;border-radius:99px;font-size:0.75rem;font-weight:500;background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.25);white-space:nowrap; }
+  .badge-sys  { display:inline-flex;align-items:center;padding:2px 10px;border-radius:99px;font-size:0.75rem;font-weight:500;background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25);white-space:nowrap; }
+  .badge-ops  { display:inline-flex;align-items:center;padding:2px 10px;border-radius:99px;font-size:0.75rem;font-weight:500;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.25);white-space:nowrap; }
+  .badge-att  { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:99px;font-size:0.75rem;font-weight:500;background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid rgba(255,255,255,0.1);white-space:nowrap; }
+
+  .meta-row { display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap; }
+  .meta-item { display:inline-flex;align-items:center;gap:0.3rem;font-size:0.8125rem;color:var(--text-secondary); }
+
+  .body-panel {
+    display: flex;
+    flex-direction: column;
+  }
+  @media (min-width: 768px) {
+    .body-panel { flex-direction: row; }
+    .body-panel .att-sidebar { border-top: none; border-left: 1px solid rgba(255,255,255,0.06); width: 280px; flex-shrink: 0; }
+  }
+  .body-content { flex: 1; padding: 1.75rem 2rem; }
+  .att-sidebar { padding: 1.75rem 1.5rem; border-top: 1px solid rgba(255,255,255,0.06); }
+
+  .att-image-wrap { border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; margin-bottom: 0.5rem; }
+  .att-image-wrap img { width: 100%; object-fit: cover; max-height: 180px; background: var(--bg-panel-2); display: block; }
+  .att-image-footer { display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem;background:var(--bg-panel-2);border-top:1px solid rgba(255,255,255,0.06); }
+  .att-file-link {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.625rem 0.75rem; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--bg-panel-2);
+    text-decoration: none;
+    transition: background 0.15s;
+    margin-bottom: 0.5rem;
+  }
+  .att-file-link:hover { background: var(--bg-hover); }
+  .att-icon { width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+
+  .nav-card { background: var(--bg-panel); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; overflow: hidden; margin-bottom: 1rem; }
+  .nav-row {
+    display: flex; align-items: center;
+    padding: 0.875rem 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.15s;
+  }
+  .nav-row:last-child { border-bottom: none; }
+  .nav-row.clickable { cursor: pointer; }
+  .nav-row.clickable:hover { background: var(--bg-hover); }
+  .nav-row.disabled { opacity: 0.35; }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="notice-page">
+  <div style="max-width: 1280px; margin: 0 auto;">
+
+    <!-- 브레드크럼 -->
+    <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8125rem;color:var(--text-secondary);margin-bottom:1.5rem;">
+      <a href="{% url 'dashboard_notice_list' %}" style="color:var(--text-secondary);text-decoration:none;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-secondary)'">공지사항</a>
+      <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+      <span style="color:var(--text-primary);">상세보기</span>
+    </div>
+
+    <!-- 공지 상세 카드 -->
+    <div class="notice-card">
+
+      <!-- 제목 영역 -->
+      <div style="padding: 1.5rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.875rem;">
+          {% if notice.category == '안전 공지' %}
+            <span class="badge-safe">{{ notice.category }}</span>
+          {% elif notice.category == '시스템 공지' %}
+            <span class="badge-sys">{{ notice.category }}</span>
+          {% else %}
+            <span class="badge-ops">{{ notice.category }}</span>
+          {% endif %}
+          {% if notice.attachments.exists %}
+            <span class="badge-att">
+              <i data-lucide="paperclip" style="width:12px;height:12px;"></i>첨부 {{ notice.attachments.count }}개
+            </span>
+          {% endif %}
+        </div>
+        <h1 style="font-size:1.375rem;font-weight:700;color:var(--text-primary);line-height:1.4;margin-bottom:0.875rem;">{{ notice.title }}</h1>
+        <div class="meta-row">
+          <span class="meta-item"><i data-lucide="user" style="width:14px;height:14px;"></i>{{ notice.author.name|default:'(알 수 없음)' }}</span>
+          <span class="meta-item"><i data-lucide="calendar" style="width:14px;height:14px;"></i>{{ notice.created_at|date:"Y년 m월 d일 H:i" }}</span>
+          <span class="meta-item"><i data-lucide="eye" style="width:14px;height:14px;"></i>조회 {{ notice.view_count }}</span>
+        </div>
+      </div>
+
+      <!-- 본문 + 첨부파일 -->
+      <div class="body-panel">
+
+        <!-- 본문 -->
+        <div class="body-content">
+          <p style="font-size:1rem;color:var(--text-primary);line-height:1.85;white-space:pre-wrap;">{{ notice.content }}</p>
+        </div>
+
+        <!-- 첨부파일 사이드 -->
+        {% if notice.attachments.exists %}
+        <div class="att-sidebar">
+          <p style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.875rem;letter-spacing:0.05em;text-transform:uppercase;">첨부파일</p>
+          <div>
+            {% for att in notice.attachments.all %}
+            {% with ext=att.get_ext %}
+
+            {% if ext == 'jpg' or ext == 'jpeg' or ext == 'png' or ext == 'gif' or ext == 'webp' %}
+            <div class="att-image-wrap">
+              <img src="{{ att.file.url }}" alt="{{ att.original_name }}">
+              <div class="att-image-footer">
+                <div style="width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i data-lucide="image" style="width:12px;height:12px;color:var(--text-secondary);"></i>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <p style="font-size:0.75rem;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ att.original_name }}</p>
+                  <p style="font-size:0.6875rem;color:var(--text-secondary);">{{ ext|upper }} · {{ att.get_size_display }}</p>
+                </div>
+                <a href="{% url 'notice_attachment_download' att.pk %}"
+                   style="flex-shrink:0;padding:0.375rem;color:var(--text-secondary);border-radius:6px;transition:background 0.15s;"
+                   onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='transparent'"
+                   title="다운로드">
+                  <i data-lucide="download" style="width:14px;height:14px;"></i>
+                </a>
+              </div>
+            </div>
+
+            {% else %}
+            <a href="{% url 'notice_attachment_download' att.pk %}" class="att-file-link">
+              <div class="att-icon
+                {% if ext == 'pdf' %}bg-red{% elif ext == 'xlsx' or ext == 'xls' or ext == 'csv' %}bg-green{% elif ext == 'docx' or ext == 'doc' or ext == 'hwp' %}bg-blue{% elif ext == 'pptx' or ext == 'ppt' %}bg-orange{% else %}bg-gray{% endif %}">
+                {% if ext == 'pdf' %}
+                  <i data-lucide="file-text" style="width:16px;height:16px;color:#f87171;"></i>
+                {% elif ext == 'xlsx' or ext == 'xls' or ext == 'csv' %}
+                  <i data-lucide="table-2" style="width:16px;height:16px;color:#4ade80;"></i>
+                {% elif ext == 'docx' or ext == 'doc' or ext == 'hwp' %}
+                  <i data-lucide="file" style="width:16px;height:16px;color:#60a5fa;"></i>
+                {% elif ext == 'pptx' or ext == 'ppt' %}
+                  <i data-lucide="presentation" style="width:16px;height:16px;color:#fb923c;"></i>
+                {% else %}
+                  <i data-lucide="file" style="width:16px;height:16px;color:var(--text-secondary);"></i>
+                {% endif %}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <p style="font-size:0.8125rem;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ att.original_name }}</p>
+                <p style="font-size:0.6875rem;color:var(--text-secondary);margin-top:2px;">{{ ext|upper }} · {{ att.get_size_display }}</p>
+              </div>
+              <i data-lucide="download" style="width:14px;height:14px;color:var(--text-secondary);flex-shrink:0;"></i>
+            </a>
+            {% endif %}
+
+            {% endwith %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <!-- 이전/다음 -->
+    <div class="nav-card">
+      <div class="nav-row {% if prev_notice %}clickable{% else %}disabled{% endif %}"
+           {% if prev_notice %}onclick="location.href='{% url 'dashboard_notice_detail' prev_notice.pk %}'"{% endif %}>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.8125rem;color:var(--text-secondary);width:70px;flex-shrink:0;">
+          <i data-lucide="chevron-up" style="width:14px;height:14px;"></i>이전글
+        </span>
+        <span style="font-size:0.875rem;color:var(--text-primary);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          {% if prev_notice %}{{ prev_notice.title }}{% else %}이전 글이 없습니다.{% endif %}
+        </span>
+        {% if prev_notice %}<span style="font-size:0.8125rem;color:var(--text-secondary);margin-left:1rem;flex-shrink:0;">{{ prev_notice.created_at|date:"Y-m-d" }}</span>{% endif %}
+      </div>
+      <div class="nav-row {% if next_notice %}clickable{% else %}disabled{% endif %}"
+           {% if next_notice %}onclick="location.href='{% url 'dashboard_notice_detail' next_notice.pk %}'"{% endif %}>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.8125rem;color:var(--text-secondary);width:70px;flex-shrink:0;">
+          <i data-lucide="chevron-down" style="width:14px;height:14px;"></i>다음글
+        </span>
+        <span style="font-size:0.875rem;color:var(--text-primary);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          {% if next_notice %}{{ next_notice.title }}{% else %}다음 글이 없습니다.{% endif %}
+        </span>
+        {% if next_notice %}<span style="font-size:0.8125rem;color:var(--text-secondary);margin-left:1rem;flex-shrink:0;">{{ next_notice.created_at|date:"Y-m-d" }}</span>{% endif %}
+      </div>
+    </div>
+
+    <!-- 목록 버튼 -->
+    <div style="display:flex;justify-content:flex-end;">
+      <a href="{% url 'dashboard_notice_list' %}"
+         style="padding:0.625rem 1.25rem;border:1px solid rgba(255,255,255,0.1);background:var(--bg-panel);border-radius:8px;font-size:0.875rem;color:var(--text-primary);text-decoration:none;transition:background 0.15s;"
+         onmouseover="this.style.background='var(--bg-hover)'" onmouseout="this.style.background='var(--bg-panel)'">
+        목록으로
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .bg-red    { background: rgba(239,68,68,0.15); }
+  .bg-green  { background: rgba(74,222,128,0.15); }
+  .bg-blue   { background: rgba(96,165,250,0.15); }
+  .bg-orange { background: rgba(251,146,60,0.15); }
+  .bg-gray   { background: rgba(255,255,255,0.08); }
+</style>
+<script>lucide.createIcons();</script>
+{% endblock %}

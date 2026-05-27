@@ -106,7 +106,16 @@ CELERY_ACCEPT_CONTENT = ['json']
 # (아키텍처 D2). Phase D 결정 (i): 기존 celery-forecast 컨테이너 공유.
 CELERY_TASK_ROUTES = {
     'alerts.tasks.forecast_gas_task':   {'queue': 'forecast'},
-    'alerts.tasks.forecast_power_task': {'queue': 'forecast'},   # Phase D M1-8
+    'alerts.tasks.forecast_power_task': {'queue': 'forecast'},
+}
+
+from celery.schedules import crontab  # noqa: E402
+CELERY_BEAT_SCHEDULE = {
+    # 매일 새벽 3시 — 만료 데이터 삭제 및 사전 알림
+    'data-retention-daily': {
+        'task': 'alerts.tasks.run_data_retention',
+        'schedule': crontab(hour=3, minute=0),
+    },
 }
 
 # 7. MISSING 장비 감지 — 매 60초 주기 실행

@@ -50,7 +50,14 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
     measured_at_raw = payload.get('measured_at')
     if measured_at_raw:
         from django.utils.dateparse import parse_datetime
-        measured_at = parse_datetime(str(measured_at_raw)) or timezone.now()
+        from django.utils.timezone import make_aware, is_aware
+        parsed = parse_datetime(str(measured_at_raw))
+        if parsed is None:
+            measured_at = timezone.now()
+        elif not is_aware(parsed):
+            measured_at = make_aware(parsed)
+        else:
+            measured_at = parsed
     else:
         measured_at = timezone.now()
 
@@ -105,7 +112,14 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     measured_at_raw = payload.get('measured_at')
     if measured_at_raw:
         from django.utils.dateparse import parse_datetime
-        measured_at = parse_datetime(str(measured_at_raw)) or timezone.now()
+        from django.utils.timezone import make_aware, is_aware
+        parsed = parse_datetime(str(measured_at_raw))
+        if parsed is None:
+            measured_at = timezone.now()
+        elif not is_aware(parsed):
+            measured_at = make_aware(parsed)
+        else:
+            measured_at = parsed
     else:
         measured_at = timezone.now()
 
