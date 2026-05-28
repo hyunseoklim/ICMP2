@@ -227,16 +227,24 @@ STALE_THRESHOLD = timedelta(minutes=2)
 # 가스 위험도 로직
 # ══════════════════════════════════════════════════════════
 
-def get_thresholds() -> dict:
+def get_thresholds(scope: str = '실시간 관제') -> dict:
     """
     임계치 정책 조회
-    - DB의 ThresholdPolicy 우선 사용
-    - DB에 데이터 없으면 PDF 기본값(DEFAULT_THRESHOLDS) 사용
+    - scope 파라미터로 반영 범위 필터링
+      · '실시간 관제' (기본값): 실시간 위험도 계산·차트 표시용
+      · '알림'               : AlarmEvent 생성 판단용
+      · scope='' 인 정책은 범위 미지정으로 간주 → 전체 적용 (폴백)
+    - DB에 해당 scope 데이터 없으면 PDF 기본값(DEFAULT_THRESHOLDS) 사용
     - O2는 역방향 처리이므로 반환값에서 제외
     """
     from monitoring.models import ThresholdPolicy
+    from django.db.models import Q
 
-    policies = ThresholdPolicy.objects.filter(is_active=True)
+    policies = ThresholdPolicy.objects.filter(
+        is_active=True,
+    ).filter(
+        Q(scope__contains=scope) | Q(scope='')  # scope 미지정 정책은 전체 적용
+    )
     if not policies.exists():
         return DEFAULT_THRESHOLDS
 
@@ -289,10 +297,14 @@ def calc_danger_level(reading) -> str:
     return level
 
 
-def check_threshold_exceeded(reading) -> list:
+def check_threshold_exceeded(reading, scope: str = '실시간 관제') -> list:
     """
     임계치 초과한 가스 목록 반환
     alerts 앱에서 AlarmEvent 생성할 때 어떤 가스가 초과했는지 확인용
+
+    scope 파라미터:
+      - '실시간 관제' (기본값): 실시간 위험도 계산용
+      - '알림'               : 알람 이벤트 생성 판단용 (alerts/services.py에서 호출)
 
     반환 예시:
     [
@@ -312,7 +324,7 @@ def check_threshold_exceeded(reading) -> list:
             # 23.5% 초과: 기준 미정, 임시 주의 처리 (디코나이 확인 후 수정 예정)
             exceeded.append({"gas": "o2", "value": reading.o2, "level": "주의"})
 
-    thresholds = get_thresholds()
+    thresholds = get_thresholds(scope)
 
     for gas, (warn, danger) in thresholds.items():
         if gas == "o2":

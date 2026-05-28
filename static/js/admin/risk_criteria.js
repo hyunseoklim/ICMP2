@@ -354,7 +354,13 @@ function sortTable(value) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateDeleteBtn));
+  function updateRowHighlight(cb) {
+    const row = cb.closest('tr');
+    if (!row) return;
+    if (cb.checked) { row.classList.add('row-selected'); }
+    else { row.classList.remove('row-selected'); }
+  }
+  document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', () => { updateRowHighlight(cb); updateDeleteBtn(); }));
 
   /* 설명 글자수 */
   document.getElementById('c_description')?.addEventListener('input', function() {

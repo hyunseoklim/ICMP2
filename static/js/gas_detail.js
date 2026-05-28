@@ -1,19 +1,9 @@
 /**
  * gas_detail.js — 유해가스 위젯 및 세부 페이지
- * GAS_META, LEVEL_CLASS는 monitoring.js에서 전역 정의
+ * GAS_META, LEVEL_CLASS, GAS_THRESHOLDS는 monitoring.js에서 전역 정의
+ * GAS_THRESHOLDS: 페이지 로드 시 기본값(monitoring.js)으로 초기화되고,
+ *                 initGasWidget() 진입 시 DB에서 갱신됨 (loadThresholdsFromDB)
  */
-
-const GAS_THRESHOLDS = {
-    co: { warn: 25, danger: 200, max: 300, reverse: false },
-    h2s: { warn: 10, danger: 15, max: 25, reverse: false },
-    co2: { warn: 1000, danger: 5000, max: 6000, reverse: false },
-    o2: { warn: 18, danger: 16, max: 25, reverse: true, high: 23.5 }, // 23.5 초과 주의
-    no2: { warn: 3, danger: 5, max: 10, reverse: false },
-    so2: { warn: 2, danger: 5, max: 10, reverse: false },
-    o3: { warn: 0.06, danger: 0.12, max: 0.2, reverse: false },
-    nh3: { warn: 25, danger: 35, max: 50, reverse: false },
-    voc: { warn: 0.5, danger: 1.0, max: 1.5, reverse: false },
-};
 
 const LEVEL_COLOR = {
     danger: 'rgba(239,68,68,0.85)',
@@ -455,6 +445,8 @@ function updateGasNav() {
 // 초기화
 // ══════════════════════════════════════════════════════════
 window.initGasWidget = async function () {
+    // DB 임계치 먼저 로드 → 차트 렌더링에 반영
+    await window.loadThresholdsFromDB?.();
     initGasChartGrid();
 
     try {

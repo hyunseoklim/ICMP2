@@ -541,8 +541,11 @@
   cbInactive?.addEventListener('change', function() { if (cbInactive.checked) cbActive.checked   = false; });
 
   document.getElementById('pwr-detail-conn-check')?.addEventListener('click', function() {
+    var btn  = this;
     var ip   = document.getElementById('pwr-detail-ip').value.trim();
     var port = document.getElementById('pwr-detail-port').value.trim();
+    var mac  = document.getElementById('pwr-detail-mac').value.trim();
+
     if (!ip) { showError('pwr-detail-comm-error', 'IP 주소를 입력해 주세요.', 'pwr-detail-ip'); return; }
     var ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!ipRegex.test(ip) || ip.split('.').some(function(n) { return parseInt(n) > 255; })) {
@@ -554,15 +557,45 @@
     var pn = parseInt(port);
     if (pn < 1 || pn > 65535) { showError('pwr-detail-comm-error', '포트 번호는 1~65535 범위로 입력해 주세요.', 'pwr-detail-port'); return; }
     hideError('pwr-detail-comm-error', 'pwr-detail-port');
-    commChecked = true;
-    document.getElementById('pwr-detail-conn-verified').checked = true;
-    document.getElementById('pwr-detail-conn-label').textContent = '정상';
-    var now = new Date();
-    var pad = function(n) { return String(n).padStart(2,'0'); };
-    document.getElementById('pwr-detail-conn-date').value =
-      now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) + ' ' +
-      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-    setDirty();
+
+    btn.disabled = true;
+    btn.textContent = '확인 중...';
+
+    var fd = new FormData();
+    fd.append('ip', ip);
+    fd.append('port', port);
+    fd.append('mac', mac);
+
+    fetch('{% url "power_comm_check" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': PWR.getCsrfToken() },
+      body: fd,
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.textContent = '연결 확인';
+      if (data.ok) {
+        commChecked = true;
+        document.getElementById('pwr-detail-conn-verified').checked = true;
+        document.getElementById('pwr-detail-conn-label').textContent = '정상';
+        document.getElementById('pwr-detail-conn-date').value = data.checked_at || '';
+        hideError('pwr-detail-comm-error');
+        setDirty();
+      } else if (data.mac_mismatch) {
+        commChecked = false;
+        showError('pwr-detail-comm-error', '입력한 장비 ID와 실제 응답 장비 정보가 일치하지 않습니다.');
+      } else {
+        commChecked = false;
+        showError('pwr-detail-comm-error', data.error || '장비와 연결할 수 없습니다. 통신 정보를 확인해 주세요.');
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = '연결 확인';
+      commChecked = false;
+      showError('pwr-detail-comm-error', '장비 응답이 없습니다. 전원 및 상태를 확인해 주세요.');
+    });
   });
 
   ['pwr-detail-ip','pwr-detail-port'].forEach(function(id) {
@@ -570,6 +603,11 @@
       var curIp   = document.getElementById('pwr-detail-ip').value.trim();
       var curPort = document.getElementById('pwr-detail-port').value.trim();
       commChecked = (curIp === ipAtOpen && curPort === portAtOpen);
+      if (!commChecked) {
+        document.getElementById('pwr-detail-conn-verified').checked = false;
+        document.getElementById('pwr-detail-conn-label').textContent = '미확인';
+        document.getElementById('pwr-detail-conn-date').value = '';
+      }
     });
   });
 

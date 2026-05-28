@@ -1,8 +1,9 @@
 /**
  * power_detail.js — 전력 위젯 및 세부 페이지
  * 부하율 = 현재 전력 / rated_power_w × 100
- * 위험 판단 임시 기준: 부하율 50% 초과 → 주의, 75% 초과 → 위험
- * 시간대별 평균 기반 위험도는 4차에서 구현 예정
+ * 위험 판단 기준: window.POWER_LOAD_WARN / POWER_LOAD_DANGER (monitoring.js)
+ *   → 관리자 임계치 등록(TH_POWER / load_rate)으로 동적 변경 가능
+ *   → DB 미등록 시 기본값 50% / 75% 사용
  */
 
 // ── 상수 ─────────────────────────────────────────────────────
@@ -15,8 +16,8 @@ const POWER_LEVEL_COLOR = {
 };
 
 const DEFAULT_RATED_W = 1000; // 카탈로그 기준 채널 최대 전력 (W)
-const WARN_LOAD       = 50;   // 주의 임계 부하율 % (화면설계 추정)
-const DANGER_LOAD     = 75;   // 위험 임계 부하율 % (화면설계 추정)
+// WARN_LOAD / DANGER_LOAD → window.POWER_LOAD_WARN / window.POWER_LOAD_DANGER 로 대체
+// (monitoring.js 에서 기본값 50/75 초기화, DB 로드 후 갱신됨)
 
 // ── 상태 ─────────────────────────────────────────────────────
 let powerDevices      = [];
@@ -37,8 +38,8 @@ const powerZonePlugin = {
 
         const clamp = v => Math.max(area.top, Math.min(area.bottom, y.getPixelForValue(v)));
 
-        const dangerY = clamp(DANGER_LOAD);
-        const warnY   = clamp(WARN_LOAD);
+        const dangerY = clamp(window.POWER_LOAD_DANGER);
+        const warnY   = clamp(window.POWER_LOAD_WARN);
 
         ctx.fillStyle = 'rgba(239,68,68,0.2)';
         ctx.fillRect(area.left, area.top, area.right - area.left, dangerY - area.top);
@@ -61,8 +62,8 @@ function calcChannelLevel(r) {
     if (r.current_a === -1 || r.voltage_v === -1 || r.power_w === -1) return 'warning';
     if (r.current_a === 0  && r.voltage_v === 0  && r.power_w === 0)  return 'off';
     const load = calcLoadRate(r.power_w, r.channel_rated_power);
-    if (load > DANGER_LOAD) return 'danger';
-    if (load > WARN_LOAD)   return 'warning';
+    if (load > window.POWER_LOAD_DANGER) return 'danger';
+    if (load > window.POWER_LOAD_WARN)   return 'warning';
     return 'normal';
 }
 
@@ -464,6 +465,9 @@ function updatePowerNav() {
 // 초기화
 // ══════════════════════════════════════════════════════════
 window.initPowerWidget = async function () {
+    // DB 임계치 먼저 로드 → 차트·위험도 판단에 반영
+    await window.loadThresholdsFromDB?.();
+
     try {
         const res = await DeviceAPI.getList({ device_type: 'power', is_active: true });
         powerDevices = res.data.results || res.data;

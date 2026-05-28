@@ -26,7 +26,7 @@ def check_gas_thresholds(device, reading) -> None:
     if not rule:
         return
 
-    exceeded = check_threshold_exceeded(reading)
+    exceeded = check_threshold_exceeded(reading, scope='알림')
     now = timezone.now()
 
     open_event = AlarmEvent.objects.filter(

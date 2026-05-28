@@ -479,12 +479,29 @@
     }
   }
 
+  function updateRowHighlight(cb) {
+    var row = cb.closest('tr');
+    if (!row) return;
+    if (cb.checked) {
+      row.classList.add('bg-blue-50');
+      row.classList.remove('hover:bg-slate-50');
+    } else {
+      row.classList.remove('bg-blue-50');
+      row.classList.add('hover:bg-slate-50');
+    }
+  }
   checkAll?.addEventListener('change', function (e) {
-    document.querySelectorAll('.row-check').forEach(function (cb) { cb.checked = e.target.checked; });
+    document.querySelectorAll('.row-check').forEach(function (cb) {
+      cb.checked = e.target.checked;
+      updateRowHighlight(cb);
+    });
     updateDeleteBtn();
   });
   document.addEventListener('change', function (e) {
-    if (e.target.classList.contains('row-check')) updateDeleteBtn();
+    if (e.target.classList.contains('row-check')) {
+      updateRowHighlight(e.target);
+      updateDeleteBtn();
+    }
   });
 
   document.getElementById('filter-reset-btn')?.addEventListener('click', function () {

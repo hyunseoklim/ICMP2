@@ -429,11 +429,13 @@ def seed_workers():
     ]
     for worker_no, name, dept_id, phone, uname in w_on:
         user = User.objects.filter(username=uname).first()
-        Worker.objects.get_or_create(
+        if user:
+            Worker.objects.filter(user=user).exclude(worker_no=worker_no).update(user=None)
+        Worker.objects.update_or_create(
             worker_no=worker_no,
             defaults={
                 "worker_name": name,
-                "department": dept_by_id[dept_id],   # ✅ [수정 6] FK 객체
+                "department": dept_by_id[dept_id],
                 "phone": phone,
                 "current_state": "on_duty",
                 "safety_status": "safe",
@@ -547,11 +549,13 @@ def seed_workers():
     for row in BULK:
         worker_no, name, dept_id, phone, safety, uname = row
         user = User.objects.filter(username=uname).first()
-        Worker.objects.get_or_create(
+        if user:
+            Worker.objects.filter(user=user).exclude(worker_no=worker_no).update(user=None)
+        Worker.objects.update_or_create(
             worker_no=worker_no,
             defaults={
                 "worker_name": name,
-                "department": dept_by_id[dept_id],   # ✅ [수정 6] FK 객체
+                "department": dept_by_id[dept_id],
                 "phone": phone,
                 "current_state": "off_duty",
                 "safety_status": safety,

@@ -1109,3 +1109,8 @@ body {
     color: #ef4444;
     font-family: var(--font-mono);
 }
+
+/* ── 테이블 행 선택 하이라이트 ── */
+tr.row-selected {
+    background-color: #eff6ff !important;
+}
