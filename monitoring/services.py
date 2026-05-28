@@ -29,10 +29,14 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
     device = Device.objects.filter(device_uid=device_uid).first()
     if not device:
         return
+    if not device.is_active or device.status != 'active':
+        return
     channel = DeviceChannel.objects.filter(
         device=device, channel_code=channel_code,
     ).first()
     if not channel:
+        return
+    if not channel.is_active or channel.status != 'active':
         return
 
     current_a = payload.get('current_a', -1.0)
@@ -91,6 +95,8 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
 
     device = Device.objects.filter(device_uid=device_uid).first()
     if not device:
+        return
+    if not device.is_active or device.status != 'active':
         return
 
     values = {f: payload.get(f) for f in GAS_FIELDS}
