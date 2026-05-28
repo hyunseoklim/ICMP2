@@ -130,7 +130,8 @@
 
     </div>
 
-    <div class="px-8 py-4 border-t border-slate-100 flex justify-end gap-2 sticky bottom-0 bg-white">
+    <div class="px-8 py-4 border-t border-slate-100 flex items-center gap-2 sticky bottom-0 bg-white">
+      <p class="hidden text-xs text-red-500 flex-1" id="pir-server-error"></p>
       <button type="button" id="pir-cancel"
         class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
         취소
@@ -230,7 +231,8 @@
 
     </div>
 
-    <div class="px-8 py-4 border-t border-slate-100 flex justify-end gap-2 sticky bottom-0 bg-white">
+    <div class="px-8 py-4 border-t border-slate-100 flex items-center gap-2 sticky bottom-0 bg-white">
+      <p class="hidden text-xs text-red-500 flex-1" id="par-server-error"></p>
       <button type="button" id="par-cancel"
         class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
         취소
@@ -250,15 +252,17 @@
   var inspectConfirm = document.getElementById('pir-save-confirm-modal');
 
   var SUBTITLES = {
-    regular_normal: '스마트 전력 시스템의 정기 점검 결과를 등록합니다.',
-    regular_action: '정기 점검 중 발견된 조치 필요 사항을 함께 등록합니다.',
-    abnormal:       '이상 점검 결과와 후속 조치 정보를 등록합니다.'
+    regular_normal:   '스마트 전력 시스템의 정기 점검 결과를 등록합니다.',
+    regular_action:   '정기 점검 중 발견된 조치 필요 사항을 함께 등록합니다.',
+    abnormal_pending: '이상 점검 결과를 등록합니다. 조치는 추후 이력에서 별도 등록할 수 있습니다.',
+    abnormal_done:    '이상 점검 결과와 후속 조치 정보를 등록합니다.'
   };
 
   var CONFIRM_TEXTS = {
-    regular_normal: '점검 결과를 저장하시겠습니까?',
-    regular_action: '점검 결과 및 조치 예정 정보를 저장하시겠습니까?',
-    abnormal:       '이상 점검 결과 및 조치 정보를 저장하시겠습니까?'
+    regular_normal:   '점검 결과를 저장하시겠습니까?',
+    regular_action:   '점검 결과 및 조치 예정 정보를 저장하시겠습니까?',
+    abnormal_pending: '이상 점검 결과를 저장하시겠습니까?',
+    abnormal_done:    '이상 점검 결과 및 조치 정보를 저장하시겠습니까?'
   };
 
   var NOTE_PLACEHOLDERS = {
@@ -280,7 +284,8 @@
   function getModeKey() {
     var typeVal   = document.getElementById('pir-type').value;
     var statusVal = document.getElementById('pir-status').value;
-    if (typeVal === 'abnormal') return 'abnormal';
+    if (typeVal === 'abnormal' && statusVal === 'done') return 'abnormal_done';
+    if (typeVal === 'abnormal') return 'abnormal_pending';
     if (statusVal === 'action_required') return 'regular_action';
     return 'regular_normal';
   }
@@ -317,18 +322,15 @@
     var statusVal = document.getElementById('pir-status').value;
     var isAbnormal     = (typeVal === 'abnormal');
     var isActionNeeded = (statusVal === 'action_required');
+    var isDone         = (statusVal === 'done');
 
     var ok = !!typeVal && !!statusVal;
 
-    if (ok && !isAbnormal && isActionNeeded) {
+    if (ok && isActionNeeded) {
       ok = !!document.getElementById('pir-expected-date').value.trim();
     }
     if (ok && (isActionNeeded || isAbnormal)) {
       ok = !!document.getElementById('pir-note').value.trim();
-    }
-    if (ok && isAbnormal) {
-      ok = !!document.getElementById('pir-action-complete-date').value.trim() &&
-           !!document.getElementById('pir-action-opinion').value.trim();
     }
 
     var btn = document.getElementById('pir-submit');
@@ -345,10 +347,11 @@
     var isActionNeeded = (statusVal === 'action_required');
 
     document.getElementById('pir-subtitle').textContent = SUBTITLES[getModeKey()] || '해당 장비의 점검 결과를 등록합니다.';
+    var isDone = (statusVal === 'done');
     document.getElementById('pir-note').placeholder     = NOTE_PLACEHOLDERS[isAbnormal ? 'abnormal' : 'regular'];
     document.getElementById('pir-note-asterisk').classList.toggle('hidden', !isActionNeeded && !isAbnormal);
-    document.getElementById('pir-expected-date-wrap').classList.toggle('hidden', isAbnormal || !isActionNeeded);
-    document.getElementById('pir-action-section').classList.toggle('hidden', !isAbnormal);
+    document.getElementById('pir-expected-date-wrap').classList.toggle('hidden', !isActionNeeded);
+    document.getElementById('pir-action-section').classList.add('hidden');
 
     updateStatusBadge(statusVal);
     checkSaveBtn();
@@ -377,6 +380,15 @@
     if (e) { e.textContent = msg; e.classList.remove('hidden'); }
   }
 
+  function parsePirDate(str) {
+    var p = str.split('.');
+    if (p.length !== 3) return null;
+    var y = parseInt(p[0]), m = parseInt(p[1]), d = parseInt(p[2]);
+    var dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() + 1 !== m || dt.getDate() !== d) return null;
+    return dt;
+  }
+
   function validatePir() {
     clearPirErrors();
     var valid      = true;
@@ -391,22 +403,19 @@
     if (!statusVal) {
       showPirError('pir-status-error', '점검 상태를 선택해주세요.'); valid = false;
     }
-    if (!isAbnormal && isActionNeeded) {
-      if (!document.getElementById('pir-expected-date').value.trim()) {
+    if (isActionNeeded) {
+      var expectedStr = document.getElementById('pir-expected-date').value.trim();
+      if (!expectedStr) {
         showPirError('pir-expected-date-error', '예상 조치일을 입력해주세요.'); valid = false;
+      } else if (!/^\d{4}\.\d{2}\.\d{2}$/.test(expectedStr)) {
+        showPirError('pir-expected-date-error', '예상 조치일은 YYYY.MM.DD 형식으로 입력해 주세요.'); valid = false;
+      } else if (!parsePirDate(expectedStr)) {
+        showPirError('pir-expected-date-error', '올바른 날짜를 입력해 주세요.'); valid = false;
       }
     }
     if (isActionNeeded || isAbnormal) {
       if (!document.getElementById('pir-note').value.trim()) {
         showPirError('pir-note-error', '점검 메모를 입력해주세요.'); valid = false;
-      }
-    }
-    if (isAbnormal) {
-      if (!document.getElementById('pir-action-complete-date').value.trim()) {
-        showPirError('pir-action-complete-date-error', '조치 완료일을 입력해주세요.'); valid = false;
-      }
-      if (!document.getElementById('pir-action-opinion').value.trim()) {
-        showPirError('pir-action-opinion-error', '조치 의견을 입력해주세요.'); valid = false;
       }
     }
     return valid;
@@ -433,6 +442,7 @@
     document.getElementById('pir-status').value = '';
     document.getElementById('pir-status-badge').textContent = '';
     clearPirErrors();
+    document.getElementById('pir-server-error').classList.add('hidden');
     refreshUI();
     inspectModal.classList.remove('hidden');
     inspectModal.classList.add('flex');
@@ -479,14 +489,14 @@
     })
     .then(function(r) { return r.json(); })
     .then(function(resp) {
-      if (!resp.ok) { alert(resp.error || '저장에 실패했습니다.'); return; }
+      if (!resp.ok) { showPirError('pir-server-error', resp.error || '저장에 실패했습니다.'); return; }
       closePwrInspectRegister();
       PWR.showSuccess('저장되었습니다.', '점검 결과가 등록되었습니다.');
       if (typeof window.loadPwrInspectionHistory === 'function') {
         window.loadPwrInspectionHistory();
       }
     })
-    .catch(function() { alert('서버 오류가 발생했습니다.'); });
+    .catch(function() { showPirError('pir-server-error', '서버 오류가 발생했습니다.'); });
   });
 
   // ── 조치 등록 ──────────────────────────────────────────────────
@@ -512,6 +522,7 @@
     document.getElementById('par-action-person').value = '{{ request.user.name }}';
     document.getElementById('par-action-note').value   = '';
     document.getElementById('par-note-error').classList.add('hidden');
+    document.getElementById('par-server-error').classList.add('hidden');
 
     actionModal.classList.remove('hidden');
     actionModal.classList.add('flex');
@@ -549,14 +560,14 @@
     })
     .then(function(r) { return r.json(); })
     .then(function(resp) {
-      if (!resp.ok) { alert(resp.error || '저장에 실패했습니다.'); return; }
+      if (!resp.ok) { showPirError('par-server-error', resp.error || '저장에 실패했습니다.'); return; }
       closePwrActionRegister();
       PWR.showSuccess('저장되었습니다.', '조치 결과가 등록되었습니다.');
       if (typeof window.loadPwrInspectionHistory === 'function') {
         window.loadPwrInspectionHistory();
       }
     })
-    .catch(function() { alert('서버 오류가 발생했습니다.'); });
+    .catch(function() { showPirError('par-server-error', '서버 오류가 발생했습니다.'); });
   });
 })();
 </script>

@@ -566,7 +566,13 @@ function sortTable(value) {
 document.addEventListener('DOMContentLoaded', () => {
   _initPagination();
   /* 체크박스 */
-  document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateDeleteBtn));
+  function updateRowHighlight(cb) {
+    const row = cb.closest('tr');
+    if (!row) return;
+    if (cb.checked) { row.classList.add('row-selected'); }
+    else { row.classList.remove('row-selected'); }
+  }
+  document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', () => { updateRowHighlight(cb); updateDeleteBtn(); }));
 
   /* 글자 수 카운터 */
   [

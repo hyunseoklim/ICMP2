@@ -30,6 +30,13 @@
                     <li><a href="{% url 'event_list' %}">이벤트 현황</a></li>
                 </ul>
             </div>
+            <!-- 공지사항 단독 버튼 -->
+            <div class="snb-group snb-group--single">
+                <a href="{% url 'dashboard_notice_list' %}" class="snb-single-link {% if request.resolver_match.url_name == 'dashboard_notice_list' or request.resolver_match.url_name == 'dashboard_notice_detail' %}active{% endif %}">
+                    <span class="icon">▣</span>
+                    <span class="text">공지사항</span>
+                </a>
+            </div>
         </div>
     </aside>
     <!-- 좌측: 메뉴 + 로고 -->

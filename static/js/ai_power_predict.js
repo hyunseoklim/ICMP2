@@ -29,7 +29,10 @@
     let chart = null;
 
     // ── POWER_THRESHOLDS 동적 계산 (rated_w 기반) — power_forecast.js와 공유 ──
+    // 부하율 임계치는 window.POWER_LOAD_WARN / POWER_LOAD_DANGER 사용 (관리자 설정 반영)
     function computePowerThresholds(rated_w) {
+        const warnPct   = (window.POWER_LOAD_WARN   ?? 50)  / 100;
+        const dangerPct = (window.POWER_LOAD_DANGER ?? 75) / 100;
         return {
             voltage: {
                 warn_high: 240, danger_high: 260,
@@ -37,15 +40,15 @@
                 max: 270, min: 170, reverse: false, both: true,
             },
             current: {
-                warn: rated_w / 220 * 0.5,
-                danger: rated_w / 220 * 0.75,
-                max: rated_w / 220 * 1.2,
+                warn:    rated_w / 220 * warnPct,
+                danger:  rated_w / 220 * dangerPct,
+                max:     rated_w / 220 * 1.2,
                 reverse: false,
             },
             power: {
-                warn: rated_w * 0.5,
-                danger: rated_w * 0.75,
-                max: rated_w * 1.2,
+                warn:    rated_w * warnPct,
+                danger:  rated_w * dangerPct,
+                max:     rated_w * 1.2,
                 reverse: false,
             },
         };

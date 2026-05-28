@@ -635,11 +635,17 @@ function _doGroupEdit() {
 
 // ── DOMContentLoaded ──────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', updateDeleteBtn));
+  function updateRowHighlight(cb) {
+    const row = cb.closest('tr');
+    if (!row) return;
+    if (cb.checked) { row.classList.add('row-selected'); }
+    else { row.classList.remove('row-selected'); }
+  }
+  document.querySelectorAll('.row-check').forEach(cb => cb.addEventListener('change', () => { updateRowHighlight(cb); updateDeleteBtn(); }));
   const checkAll = document.getElementById('checkAll');
   if (checkAll) {
     checkAll.addEventListener('change', e => {
-      document.querySelectorAll('.row-check').forEach(cb => { cb.checked = e.target.checked; });
+      document.querySelectorAll('.row-check').forEach(cb => { cb.checked = e.target.checked; updateRowHighlight(cb); });
       updateDeleteBtn();
     });
   }

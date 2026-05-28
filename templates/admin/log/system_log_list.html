@@ -167,6 +167,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 <script>
 const ALL_LOGS = [
   { id:1,  time:'2026-04-12 10:58:18', type:'오류',   module:'수집 서버',      level:'ERROR', content:'MQTT Broker 연결 실패 감지' },

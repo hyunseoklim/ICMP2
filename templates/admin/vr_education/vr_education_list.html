@@ -157,6 +157,7 @@
 {% endblock %}
 
 {% block modal %}
+{{ block.super }}
 
 <!-- ===== VR 교육 수정 모달 ===== -->
 <div id="editModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center">
@@ -276,6 +277,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 <script>
 const SAVE_URL = '{% url "vr_education_save" %}';
 const CSRF     = '{{ csrf_token }}';

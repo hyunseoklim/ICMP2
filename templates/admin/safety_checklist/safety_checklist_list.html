@@ -119,6 +119,7 @@
 {% endblock %}
 
 {% block modal %}
+{{ block.super }}
 
 <!-- 반영 이력 모달 -->
 <div id="historyModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center">
@@ -188,6 +189,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 {{ sections|json_script:"sections-data" }}
 {{ snapshots|json_script:"snapshots-data" }}
 <script>
