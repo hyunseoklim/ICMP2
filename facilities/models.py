@@ -261,6 +261,13 @@ class LocationNode(models.Model):
         default='active',
     )
     is_placed = models.BooleanField(default=False, help_text='지도 배치 완료 여부')   # T1-α X3: 단일 진실 원천
+    device = models.OneToOneField(
+        'monitoring.Device',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='location_node',
+        help_text='운영 메타데이터(담당자/점검/last_seen)와의 1:1 연결',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

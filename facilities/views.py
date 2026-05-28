@@ -1,5 +1,8 @@
+import json
+
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.core.cache import cache
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -28,7 +31,8 @@ from .serializers import (
     WorkerLocationLatestSerializer, EquipmentSerializer,
     SensorLocationSerializer
 )
-from .services.floor_grid_maker    import FloorGridService
+from .cache import INDEX_GRID_TTL, floor_grid_response_cache_key
+from .services.floor_grid_maker    import FloorGridService, setup_index_grid_for_floor
 from .repositories import IndexGridWriter, IndexGridReader
 
 
@@ -121,28 +125,9 @@ class FloorGridSetupView(View):
     """
 
     def post(self, request, floor_id):
-
-        # 1. Floor 조회
         floor = get_object_or_404(Floor, id=floor_id)
-
-        # 2. FloorGrid 조회 또는 생성
-        #    floor.grid 없으면 RelatedObjectDoesNotExist 발생
-        #    → get_or_create로 방어
-        FloorGrid.objects.get_or_create(
-            floor=floor,
-            defaults={"cell_size": 1.0}
-        )
-
-        # 3. 셀 목록 계산
-        service = FloorGridService(floor)
-        cells   = service.generate_all_cells()
-
-        # 4. DB 저장
-        writer  = IndexGridWriter()
-        writer.bulk_create(floor, cells)
-
-        # 5. 응답
-        return JsonResponse({"created": len(cells)})
+        count = setup_index_grid_for_floor(floor)
+        return JsonResponse({"created": count})
     
 class FloorGridViewSet(viewsets.ModelViewSet):
     """
@@ -197,17 +182,20 @@ def floor_grid_data(request, floor_id):
         }
     }
     """
+    response_key = floor_grid_response_cache_key(floor_id)
+    cached_body = cache.get(response_key)
+    if cached_body is not None:
+        return HttpResponse(cached_body, content_type="application/json")
+
     floor = get_object_or_404(Floor, pk=floor_id)
 
-    # IndexGrid DB 조회 — Single Source of Truth
-    cells = IndexGridReader().get_full_grid(floor)
-    if not cells:
+    grid = IndexGridReader().get_full_grid(floor)
+    if grid["total"] == 0:
         return JsonResponse(
-            {"error": "IndexGrid 없음. /floors/{floor_id}/setup/ 먼저 호출 필요"},
-            status=400
+            {"error": f"IndexGrid 없음. /floors/{floor_id}/setup/ 먼저 호출 필요"},
+            status=400,
         )
 
-    # cell_size 조회
     try:
         cell_size = float(floor.grid.cell_size)
     except Exception:
@@ -215,19 +203,17 @@ def floor_grid_data(request, floor_id):
 
     width  = float(floor.width)
     length = float(floor.length)
+    cols   = grid["cols"]
+    rows   = grid["rows"]
 
-    # cols, rows: Floor 모델이 아닌 DB 실제값 기준
-    cols = max(cell.col for cell in cells) + 1
-    rows = max(cell.row for cell in cells) + 1
-
-    return JsonResponse({
+    payload = {
         "floor_id":  floor.id,
         "width":     width,
         "length":    length,
         "cell_size": cell_size,
         "cols":      cols,
         "rows":      rows,
-        "floor_image": request.build_absolute_uri(floor.plan_image.url) if floor.plan_image else None,  # ← 추가
+        "floor_image": request.build_absolute_uri(floor.plan_image.url) if floor.plan_image else None,
         "lines": {
             "vertical": [
                 {"x": round(c * cell_size, 6), "y1": 0, "y2": length}
@@ -237,8 +223,12 @@ def floor_grid_data(request, floor_id):
                 {"y": round(r * cell_size, 6), "x1": 0, "x2": width}
                 for r in range(rows + 1)
             ],
-        }
-    })
+        },
+    }
+
+    body = json.dumps(payload)
+    cache.set(response_key, body, INDEX_GRID_TTL)
+    return HttpResponse(body, content_type="application/json")
 class ZoneViewSet(viewsets.ModelViewSet):
     """
     Zone CRUD.

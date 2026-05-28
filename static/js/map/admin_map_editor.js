@@ -1136,7 +1136,7 @@
 
     /**
      * resolveMarkerByPanelCode
-     * 좌측 패널의 코드 (EQ-001, GAS-001, LN-001, DG-001 등) 를
+     * 좌측 패널의 코드 (EQ-001, GAS-001, LOC-001, DG-001 등) 를
      * 지도의 실제 마커로 변환.
      *
      * 매핑 규칙 (정합성 R9~R11 가 해결되기 전 임시 매핑):
@@ -4286,7 +4286,7 @@ function _updateZoneCreateState() {
      * - equipment_code 있으면 그대로 (예: 'EQ-001')
      * - device_code 있으면 그대로
      * - node_code 있으면 그대로
-     * - 없으면 형식화 (예: 'GAS-001', 'PWR-001', 'LN-001')
+     * - 없으면 형식화 (예: 'GAS-001', 'PWR-001', 'LOC-001')
      */
     function formatCode(obj, type) {
         if (type === 'facility') {
@@ -4299,7 +4299,7 @@ function _updateZoneCreateState() {
             return obj.device_code || `PWR-${String(obj.device_id || obj.id).padStart(3, '0')}`;
         }
         if (type === 'node') {
-            return obj.node_code || `LN-${String(obj.id).padStart(3, '0')}`;
+            return obj.node_code || `LOC-${String(obj.id).padStart(3, '0')}`;
         }
         return String(obj.id);
     }

@@ -14,7 +14,7 @@ def admin_required(view_func):
 
 
 from django.db import models as db_models
-from django.db.models import Count, Q, Max, Case, When, IntegerField, Value, Subquery, OuterRef, DateField, Exists
+from django.db.models import Count, Q, Max, Case, When, IntegerField, Value, Subquery, OuterRef, DateField, Exists, F
 from django.http import JsonResponse, FileResponse, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -1981,7 +1981,7 @@ def gas_create(request):
             facility=facility,
             device_type=db_type,
             device_uid=device_uid,
-            device_code=f'{next_num:03d}',
+            device_code=device_uid,
             device_name=device_name,
             ip_address=ip,
             port=port,
@@ -2498,17 +2498,17 @@ def power_inspect_create(request):
 def node_list(request):
     """위치 노드 관리 메인 페이지"""
     sort_map = {
-        'node_id_asc':  'device_code',
-        'node_id_desc': '-device_code',
-        'recv_new':     '-last_seen_at',
-        'recv_old':     'last_seen_at',
-        'inspect_new':  '-last_inspected_at',
-        'inspect_old':  'last_inspected_at',
-        'manager_asc':  'manager__name',
-        'manager_desc': '-manager__name',
+        'node_id_asc':  F('device_code').asc(),
+        'node_id_desc': F('device_code').desc(),
+        'recv_new':     F('last_seen_at').desc(nulls_last=True),
+        'recv_old':     F('last_seen_at').asc(nulls_last=True),
+        'inspect_new':  F('last_inspected_at').desc(nulls_last=True),
+        'inspect_old':  F('last_inspected_at').asc(nulls_last=True),
+        'manager_asc':  F('manager__name').asc(nulls_last=True),
+        'manager_desc': F('manager__name').desc(nulls_last=True),
     }
     sort_key = request.GET.get('sort', 'node_id_asc')
-    order_by = sort_map.get(sort_key, 'device_code')
+    order_by = sort_map.get(sort_key, F('device_code').asc())
 
     latest_insp_sq = InspectionLog.objects.filter(
         device=OuterRef('pk')
@@ -2600,11 +2600,34 @@ def node_list(request):
 
 @require_POST
 def node_bulk_delete(request):
-    """위치 노드 일괄 삭제"""
+    """위치 노드 일괄 삭제.
+
+    Device(loc) 삭제 → facilities.signals 가 연결된 LocationNode 도 자동 삭제.
+    점검 이력이 있는 노드는 PROTECT 로 막혀 개별 실패로 분류된다.
+    """
+    from django.db.models import ProtectedError
+
     ids_raw = request.POST.get('ids', '')
     ids = [i for i in ids_raw.split(',') if i.strip().isdigit()]
-    count, _ = Device.objects.filter(pk__in=ids, device_type='loc').delete()
-    return JsonResponse({'ok': True, 'deleted': count})
+
+    deleted = 0
+    protected = []
+    for dev in Device.objects.filter(pk__in=ids, device_type='loc'):
+        try:
+            label = dev.device_code
+            dev.delete()
+            deleted += 1
+        except ProtectedError:
+            protected.append(label)
+
+    if protected:
+        return JsonResponse({
+            'ok': deleted > 0,
+            'deleted': deleted,
+            'protected': protected,
+            'message': f'점검 이력이 있어 삭제할 수 없는 노드: {", ".join(protected)}',
+        })
+    return JsonResponse({'ok': True, 'deleted': deleted})
 
 
 def node_edit(request, pk):
@@ -2931,9 +2954,11 @@ def node_data_list(request):
     page_num  = request.GET.get('page', 1)
 
     ordering = 'received_at' if sort == 'old' else '-received_at'
+    # x__isnull=False: heartbeat 페이로드(좌표 null)는 제외하고 실제 측위 이벤트만 노출
     qs = NodeReading.objects.select_related('node').filter(
         received_at__gte=dt_from,
         received_at__lte=dt_to,
+        x__isnull=False,
     ).order_by(ordering)
     if node_name:
         qs = qs.filter(node__node_name__icontains=node_name)
@@ -2964,6 +2989,7 @@ def node_data_export(request):
     qs = NodeReading.objects.select_related('node').filter(
         received_at__gte=dt_from,
         received_at__lte=dt_to,
+        x__isnull=False,
     ).order_by(ordering)
     if node_name:
         qs = qs.filter(node__node_name__icontains=node_name)

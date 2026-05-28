@@ -172,14 +172,33 @@ _DETECTION_RANGE = 15.0  # 노드가 작업자 신호를 수신하는 최대 거
 
 
 def generate_node_readings(nodes: list[dict]) -> list[dict]:
-    """
-    각 노드에 대해 현재 작업자 위치와의 거리를 계산하고,
-    감지 범위(15 units) 안에 작업자가 있으면 NodeReading 페이로드를 생성한다.
-    nodes: [{"node_code": "LN-001", "x": 5.0, "y": 5.0}, ...]
+    """노드 페이로드를 두 종류로 생성한다.
+
+    1) Heartbeat — 모든 노드 매 tick (x/y null). 장비가 켜져 있고 통신
+       가능함을 알리는 신호. ingest_node 가 update_last_seen 을 호출해
+       Device.last_seen_at 을 갱신 → "마지막 데이터 수신"·MISSING 알람의 기반.
+
+    2) Event — 노드 반경 15 units 안에 작업자가 있을 때만, 노이즈 좌표를
+       포함해 생성. 실제 측위 데이터.
+
+    nodes: [{"node_code": "LOC-001", "x": 5.0, "y": 5.0}, ...]
     """
     results = []
+
+    # 1) Heartbeat — 모든 노드 1회씩
     for node in nodes:
-        nx, ny = node["x"], node["y"]
+        results.append({
+            "node_code": node["node_code"],
+            "x": None,
+            "y": None,
+        })
+
+    # 2) Event — 작업자 근접 시 좌표 데이터 추가
+    for node in nodes:
+        nx, ny = node.get("x"), node.get("y")
+        if nx is None or ny is None:
+            # 미배치 노드는 좌표 미정 — event(측위) 단계 스킵, heartbeat만 유지
+            continue
         for pos in _worker_positions.values():
             dist = ((pos["x"] - nx) ** 2 + (pos["y"] - ny) ** 2) ** 0.5
             if dist <= _DETECTION_RANGE:
@@ -190,7 +209,7 @@ def generate_node_readings(nodes: list[dict]) -> list[dict]:
                     "x": noise_x,
                     "y": noise_y,
                 })
-                break  # 노드당 1회만 기록
+                break  # 노드당 이벤트 1회만 기록
     return results
 
 

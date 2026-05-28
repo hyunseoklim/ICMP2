@@ -9,7 +9,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_power_data, generate_node_readings
 from fastapi_app.sender import fetch_gas_devices, queue_gas_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading
 
-# 연결된 클라이언트 목록
+# 웹소켓에 연결된 클라이언트 목록
 _clients: list[WebSocket] = []
 
 # Django에서 가져온 가스 장비 목록 [{id, device_uid}, ...]
@@ -49,7 +49,7 @@ async def _emit_once() -> None:
         for node_reading in generate_node_readings(_nodes):
             await post_node_reading(node_reading)
 
-
+#data_loop는 none이 default이며 데이터 loop가 변경되면 _emit_once하고 60초 주기로 한다.
 async def _data_loop() -> None:
     while True:
         if not _devices:
@@ -127,32 +127,3 @@ async def trigger():
 async def health():
     return {"status": "ok", "clients": len(_clients), "devices": len(_devices)}
 
-
-"""
-FastAPI 진입점 (Phase 5에서 작성).
-
-본 파일은 위치 예약용 자리표시자 — 기존 main.py와 충돌하지 않도록 .new 확장자 사용.
-Phase 5 진입 시 기존 main.py와 병합하여 결정.
-
-Phase 5에서 작성 예시:
-    from fastapi import FastAPI
-    from fastapi_app.routers import gas, power
-    from fastapi_app.ai_engine.gas.modules.isolation_forest import GasIsolationForestDetector
-    from fastapi_app.ai_engine.power.modules.isolation_forest import PowerIsolationForestDetector
-    
-    app = FastAPI(title="ICMP2 위험 판단 AI 엔진")
-    
-    # 시작 시 모델 로드 (결정 B 단일 학습 정책)
-    @app.on_event("startup")
-    def load_models():
-        global gas_if_detector, power_if_detector
-        gas_if_detector = GasIsolationForestDetector(...)
-        gas_if_detector.load("fastapi_app/ai_engine/models/gas/iforest.joblib")
-        power_if_detector = PowerIsolationForestDetector(...)
-        power_if_detector.load("fastapi_app/ai_engine/models/power/iforest.joblib")
-        # ARIMA 21개 로드 ...
-    
-    # 라우터 등록
-    app.include_router(gas.router)
-    app.include_router(power.router)
-"""
