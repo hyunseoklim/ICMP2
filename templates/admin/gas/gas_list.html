@@ -303,19 +303,7 @@
     <div class="w-16"></div>
   </div>
 </div>
-{% endblock %}
 
-{% block modal %}
-{% include "admin/users/logout_complete.html" %}
-{% include "admin/gas/gas_utils.html" %}
-{% include "admin/gas/gas_success.html" %}
-{% include "admin/gas/gas_error.html" %}
-{% include "admin/gas/gas_register.html" %}
-{% include "admin/gas/gas_detail.html" %}
-{% include "admin/gas/gas_inspect_register.html" %}
-{% include "admin/gas/gas_action_register.html" %}
-
-{# 삭제 확인 모달 #}
 <div id="gas-delete-confirm-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-sm px-8 py-7">
     <div class="flex items-center gap-3 mb-4">
@@ -343,10 +331,7 @@
     </div>
   </div>
 </div>
-{% endblock %}
 
-{% block extra_script %}
-{{ block.super }}
 <script>
   document.getElementById('gas-tbody')?.addEventListener('click', function(e) {
     var row = e.target.closest('.sensor-row');
@@ -355,26 +340,29 @@
     data.id = row.dataset.id || '';
     window.openDetailModal(data);
   });
+
+  function closeAllMenus() {
+    ['sid-menu', 'st-menu', 'cn-menu', 'sort-menu'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
+    ['sid-chevron', 'st-chevron', 'cn-chevron'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.classList.remove('rotate-180');
+    });
+  }
+
   function makeDropdown({ wrapId, toggleId, menuId, chevronId, optionClass, hiddenInputId, labelId }) {
     var wrap = document.getElementById(wrapId);
     var toggle = document.getElementById(toggleId);
     var menu = document.getElementById(menuId);
     var chevron = document.getElementById(chevronId);
-
-    function open() {
-      menu.classList.remove('hidden');
-      chevron?.classList.add('rotate-180');
-    }
-    function close() {
-      menu.classList.add('hidden');
-      chevron?.classList.remove('rotate-180');
-    }
-
+    function open() { menu.classList.remove('hidden'); chevron?.classList.add('rotate-180'); }
+    function close() { menu.classList.add('hidden'); chevron?.classList.remove('rotate-180'); }
     toggle?.addEventListener('click', function (e) {
       e.stopPropagation();
-      menu.classList.contains('hidden') ? open() : close();
+      var isOpen = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!isOpen) open();
     });
-
     menu?.querySelectorAll('.' + optionClass).forEach(function (btn) {
       btn.addEventListener('click', function () {
         var val = btn.dataset.value;
@@ -408,17 +396,13 @@
         close();
       });
     });
-
-    document.addEventListener('click', function (e) {
-      if (!wrap?.contains(e.target)) close();
-    });
   }
 
   makeDropdown({ wrapId: 'sid-dropdown-wrap', toggleId: 'sid-toggle', menuId: 'sid-menu', chevronId: 'sid-chevron', optionClass: 'sid-option', hiddenInputId: 'hidden-sensor-id', labelId: 'sid-label' });
   makeDropdown({ wrapId: 'st-dropdown-wrap', toggleId: 'st-toggle', menuId: 'st-menu', chevronId: 'st-chevron', optionClass: 'st-option', hiddenInputId: 'hidden-status', labelId: 'st-label' });
   makeDropdown({ wrapId: 'cn-dropdown-wrap', toggleId: 'cn-toggle', menuId: 'cn-menu', chevronId: 'cn-chevron', optionClass: 'cn-option', hiddenInputId: 'hidden-connection', labelId: 'cn-label' });
 
-  (function restoreFilterLabels() {
+  (function() {
     var params = new URLSearchParams(window.location.search);
     var sidVal = params.get('sensor_id');
     if (sidVal) { var b = document.querySelector('.sid-option[data-value="' + sidVal + '"]'); if (b) b.click(); }
@@ -428,16 +412,16 @@
     if (cnVal) { var b = document.querySelector('.cn-option[data-value="' + cnVal + '"]'); if (b) b.click(); }
   })();
 
-  (function initSortDropdown() {
+  (function() {
     var wrap = document.getElementById('sort-dropdown-wrap');
     var toggle = document.getElementById('sort-toggle');
     var menu = document.getElementById('sort-menu');
-
     toggle?.addEventListener('click', function (e) {
       e.stopPropagation();
-      menu.classList.toggle('hidden');
+      var isOpen = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!isOpen) menu.classList.remove('hidden');
     });
-
     document.querySelectorAll('.sort-option').forEach(function (btn) {
       btn.addEventListener('click', function () {
         document.getElementById('sort-label').textContent = btn.textContent.trim();
@@ -454,15 +438,12 @@
         window.location.href = window.location.pathname + '?' + params.toString();
       });
     });
-
-    document.addEventListener('click', function (e) {
-      if (!wrap?.contains(e.target)) menu?.classList.add('hidden');
-    });
   })();
+
+  document.addEventListener('click', closeAllMenus);
 
   var checkAll = document.getElementById('check-all');
   var deleteBtn = document.getElementById('gas-delete-btn');
-
   function updateDeleteBtn() {
     var anyChecked = [...document.querySelectorAll('.row-check')].some(function (cb) { return cb.checked; });
     deleteBtn.disabled = !anyChecked;
@@ -478,7 +459,6 @@
       deleteBtn.classList.add('cursor-not-allowed');
     }
   }
-
   checkAll?.addEventListener('change', function (e) {
     document.querySelectorAll('.row-check').forEach(function (cb) { cb.checked = e.target.checked; });
     updateDeleteBtn();
@@ -486,37 +466,32 @@
   document.addEventListener('change', function (e) {
     if (e.target.classList.contains('row-check')) updateDeleteBtn();
   });
-
   document.getElementById('filter-reset-btn')?.addEventListener('click', function () {
     window.location.href = window.location.pathname;
   });
-
   updateDeleteBtn();
-
-  // ── 삭제 확인 모달 ──
-  var deleteConfirmModal = document.getElementById('gas-delete-confirm-modal');
-  var deleteCountEl = document.getElementById('delete-confirm-count');
 
   document.getElementById('gas-delete-btn')?.addEventListener('click', function () {
     if (this.disabled) return;
     var checked = [...document.querySelectorAll('.row-check:checked')];
     if (!checked.length) return;
-    deleteCountEl.textContent = checked.length;
-    deleteConfirmModal.classList.remove('hidden');
-    deleteConfirmModal.classList.add('flex');
+    var modal = document.getElementById('gas-delete-confirm-modal');
+    var countEl = document.getElementById('delete-confirm-count');
+    if (!modal || !countEl) return;
+    countEl.textContent = checked.length;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
     lucide.createIcons();
   });
-
   document.getElementById('delete-confirm-cancel')?.addEventListener('click', function () {
-    deleteConfirmModal.classList.add('hidden');
-    deleteConfirmModal.classList.remove('flex');
+    var modal = document.getElementById('gas-delete-confirm-modal');
+    modal?.classList.add('hidden');
+    modal?.classList.remove('flex');
   });
-
   document.getElementById('delete-confirm-ok')?.addEventListener('click', function () {
     var ids = [...document.querySelectorAll('.row-check:checked')].map(function (cb) { return cb.value; });
     var fd = new FormData();
     ids.forEach(function (id) { fd.append('ids', id); });
-
     fetch('{% url "gas_bulk_delete" %}', {
       method: 'POST',
       headers: { 'X-CSRFToken': GAS.getCsrfToken() },
@@ -524,14 +499,28 @@
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      deleteConfirmModal.classList.add('hidden');
-      deleteConfirmModal.classList.remove('flex');
-      if (data.ok) {
-        window.location.reload();
-      } else {
-        alert(data.error || '삭제에 실패했습니다.');
-      }
+      var modal = document.getElementById('gas-delete-confirm-modal');
+      modal?.classList.add('hidden');
+      modal?.classList.remove('flex');
+      if (data.ok) { window.location.reload(); }
+      else { alert(data.error || '삭제에 실패했습니다.'); }
     });
   });
 </script>
+{% endblock %}
+
+{% block modal %}
+{% include "admin/users/logout_complete.html" %}
+{% include "admin/gas/gas_utils.html" %}
+{% include "admin/gas/gas_success.html" %}
+{% include "admin/gas/gas_error.html" %}
+{% include "admin/gas/gas_register.html" %}
+{% include "admin/gas/gas_detail.html" %}
+{% include "admin/gas/gas_inspect_register.html" %}
+{% include "admin/gas/gas_action_register.html" %}
+
+{% endblock %}
+
+{% block extra_script %}
+{{ block.super }}
 {% endblock %}

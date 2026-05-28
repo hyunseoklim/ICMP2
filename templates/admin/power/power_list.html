@@ -331,17 +331,7 @@
     </div>
   </div>
 </div>
-{% endblock %}
 
-{% block modal %}
-{% include "admin/users/logout_complete.html" %}
-{% include "admin/power/power_utils.html" %}
-{% include "admin/power/power_success.html" %}
-{% include "admin/power/power_register.html" %}
-{% include "admin/power/power_detail.html" %}
-{% include "admin/power/power_inspect_register.html" %}
-
-<!-- 삭제 확인 모달 -->
 <div id="pwr-delete-confirm-modal" class="hidden fixed inset-0 bg-slate-900/50 z-[80] items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
     <h3 class="text-base font-bold text-slate-900 mb-2">삭제 확인</h3>
@@ -356,19 +346,23 @@
     </div>
   </div>
 </div>
-{% endblock %}
 
-{% block extra_script %}
-{{ block.super }}
 <script>
-  // 행 클릭 → 상세 모달
   document.getElementById('pwr-tbody')?.addEventListener('click', function(e) {
     var row = e.target.closest('.pwr-row');
     if (!row || e.target.tagName === 'INPUT') return;
     if (typeof window.openPwrDetailModal === 'function') window.openPwrDetailModal(row.dataset);
   });
 
-  // ── 드롭다운 공통 함수 ──
+  function closeAllMenus() {
+    ['dn-menu', 'eq-menu', 'ins-menu', 'st-menu', 'sort-menu'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
+    ['dn-chevron', 'eq-chevron', 'ins-chevron', 'st-chevron', 'sort-chevron'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.classList.remove('rotate-180');
+    });
+  }
+
   function makeDrop(wrapId, toggleId, menuId, chevronId, optClass, hiddenId, labelId) {
     var wrap    = document.getElementById(wrapId);
     var toggle  = document.getElementById(toggleId);
@@ -378,7 +372,9 @@
     function close() { menu.classList.add('hidden');    chevron?.classList.remove('rotate-180'); }
     toggle?.addEventListener('click', function(e) {
       e.stopPropagation();
-      menu.classList.contains('hidden') ? open() : close();
+      var isOpen = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!isOpen) open();
     });
     menu?.querySelectorAll('.' + optClass).forEach(function(btn) {
       btn.addEventListener('click', function() {
@@ -409,7 +405,6 @@
         close();
       });
     });
-    document.addEventListener('click', function(e) { if (!wrap?.contains(e.target)) close(); });
   }
 
   makeDrop('dn-dropdown-wrap',  'dn-toggle',  'dn-menu',  'dn-chevron',  'dn-option',  'hidden-device-name', 'dn-label');
@@ -417,8 +412,7 @@
   makeDrop('ins-dropdown-wrap', 'ins-toggle', 'ins-menu', 'ins-chevron', 'ins-option', 'hidden-inspect',     'ins-label');
   makeDrop('st-dropdown-wrap',  'st-toggle',  'st-menu',  'st-chevron',  'st-option',  'hidden-status',      'st-label');
 
-  // 정렬 드롭다운 (submit)
-  function makeSortDrop() {
+  (function() {
     var wrap    = document.getElementById('sort-dropdown-wrap');
     var toggle  = document.getElementById('sort-toggle');
     var menu    = document.getElementById('sort-menu');
@@ -427,7 +421,9 @@
     function close() { menu.classList.add('hidden');    chevron?.classList.remove('rotate-180'); }
     toggle?.addEventListener('click', function(e) {
       e.stopPropagation();
-      menu.classList.contains('hidden') ? open() : close();
+      var isOpen = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!isOpen) open();
     });
     menu?.querySelectorAll('.sort-option').forEach(function(btn) {
       btn.addEventListener('click', function() {
@@ -435,16 +431,14 @@
         document.getElementById('filter-form').submit();
       });
     });
-    document.addEventListener('click', function(e) { if (!wrap?.contains(e.target)) close(); });
-  }
-  makeSortDrop();
+  })();
 
-  // 초기화
+  document.addEventListener('click', closeAllMenus);
+
   document.getElementById('filter-reset')?.addEventListener('click', function() {
     window.location.href = '{% url "power_list" %}';
   });
 
-  // ── 체크박스 / 삭제 버튼 ──
   var deleteBtn = document.getElementById('pwr-delete-btn');
   function updateDeleteBtn() {
     var cnt = document.querySelectorAll('.row-checkbox:checked').length;
@@ -465,7 +459,6 @@
     updateDeleteBtn();
   });
 
-  // 삭제 버튼 클릭 → 확인 모달 오픈
   deleteBtn?.addEventListener('click', function() {
     var cnt = document.querySelectorAll('.row-checkbox:checked').length;
     if (!cnt) return;
@@ -473,21 +466,15 @@
     var m = document.getElementById('pwr-delete-confirm-modal');
     m.classList.remove('hidden'); m.classList.add('flex');
   });
-
-  // 취소
   document.getElementById('pwr-delete-cancel')?.addEventListener('click', function() {
     var m = document.getElementById('pwr-delete-confirm-modal');
     m.classList.add('hidden'); m.classList.remove('flex');
   });
-
-  // 확인 → API 호출
   document.getElementById('pwr-delete-confirm')?.addEventListener('click', function() {
     var ids = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(function(cb) { return cb.value; });
     if (!ids.length) return;
-
     var fd = new FormData();
     ids.forEach(function(id) { fd.append('ids', id); });
-
     fetch('{% url "power_bulk_delete" %}', {
       method: 'POST',
       headers: { 'X-CSRFToken': '{{ csrf_token }}' },
@@ -509,10 +496,23 @@
     .catch(function() { alert('서버 오류가 발생했습니다.'); });
   });
 
-  // 장비 등록 버튼
   document.getElementById('pwr-register-btn')?.addEventListener('click', function() {
     var m = document.getElementById('pwr-register-modal');
     if (m) { m.classList.remove('hidden'); m.classList.add('flex'); lucide.createIcons(); }
   });
 </script>
+{% endblock %}
+
+{% block modal %}
+{% include "admin/users/logout_complete.html" %}
+{% include "admin/power/power_utils.html" %}
+{% include "admin/power/power_success.html" %}
+{% include "admin/power/power_register.html" %}
+{% include "admin/power/power_detail.html" %}
+{% include "admin/power/power_inspect_register.html" %}
+
+{% endblock %}
+
+{% block extra_script %}
+{{ block.super }}
 {% endblock %}

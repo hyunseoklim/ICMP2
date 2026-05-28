@@ -320,15 +320,11 @@
 
     var ok = !!typeVal && !!statusVal;
 
-    if (ok && !isAbnormal && isActionNeeded) {
+    if (ok && isActionNeeded) {
       ok = !!document.getElementById('pir-expected-date').value.trim();
     }
     if (ok && (isActionNeeded || isAbnormal)) {
       ok = !!document.getElementById('pir-note').value.trim();
-    }
-    if (ok && isAbnormal) {
-      ok = !!document.getElementById('pir-action-complete-date').value.trim() &&
-           !!document.getElementById('pir-action-opinion').value.trim();
     }
 
     var btn = document.getElementById('pir-submit');
@@ -347,8 +343,8 @@
     document.getElementById('pir-subtitle').textContent = SUBTITLES[getModeKey()] || '해당 장비의 점검 결과를 등록합니다.';
     document.getElementById('pir-note').placeholder     = NOTE_PLACEHOLDERS[isAbnormal ? 'abnormal' : 'regular'];
     document.getElementById('pir-note-asterisk').classList.toggle('hidden', !isActionNeeded && !isAbnormal);
-    document.getElementById('pir-expected-date-wrap').classList.toggle('hidden', isAbnormal || !isActionNeeded);
-    document.getElementById('pir-action-section').classList.toggle('hidden', !isAbnormal);
+    document.getElementById('pir-expected-date-wrap').classList.toggle('hidden', !isActionNeeded);
+    document.getElementById('pir-action-section').classList.add('hidden');
 
     updateStatusBadge(statusVal);
     checkSaveBtn();
@@ -377,6 +373,15 @@
     if (e) { e.textContent = msg; e.classList.remove('hidden'); }
   }
 
+  function parsePirDate(str) {
+    var p = str.split('.');
+    if (p.length !== 3) return null;
+    var y = parseInt(p[0]), m = parseInt(p[1]), d = parseInt(p[2]);
+    var dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() + 1 !== m || dt.getDate() !== d) return null;
+    return dt;
+  }
+
   function validatePir() {
     clearPirErrors();
     var valid      = true;
@@ -391,22 +396,19 @@
     if (!statusVal) {
       showPirError('pir-status-error', '점검 상태를 선택해주세요.'); valid = false;
     }
-    if (!isAbnormal && isActionNeeded) {
-      if (!document.getElementById('pir-expected-date').value.trim()) {
+    if (isActionNeeded) {
+      var expectedStr = document.getElementById('pir-expected-date').value.trim();
+      if (!expectedStr) {
         showPirError('pir-expected-date-error', '예상 조치일을 입력해주세요.'); valid = false;
+      } else if (!/^\d{4}\.\d{2}\.\d{2}$/.test(expectedStr)) {
+        showPirError('pir-expected-date-error', '예상 조치일은 YYYY.MM.DD 형식으로 입력해 주세요.'); valid = false;
+      } else if (!parsePirDate(expectedStr)) {
+        showPirError('pir-expected-date-error', '올바른 날짜를 입력해 주세요.'); valid = false;
       }
     }
     if (isActionNeeded || isAbnormal) {
       if (!document.getElementById('pir-note').value.trim()) {
         showPirError('pir-note-error', '점검 메모를 입력해주세요.'); valid = false;
-      }
-    }
-    if (isAbnormal) {
-      if (!document.getElementById('pir-action-complete-date').value.trim()) {
-        showPirError('pir-action-complete-date-error', '조치 완료일을 입력해주세요.'); valid = false;
-      }
-      if (!document.getElementById('pir-action-opinion').value.trim()) {
-        showPirError('pir-action-opinion-error', '조치 의견을 입력해주세요.'); valid = false;
       }
     }
     return valid;

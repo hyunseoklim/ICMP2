@@ -379,17 +379,24 @@
           } else if (insp.has_action) {
             actionCell = '<span class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[11px] font-medium">조치 완료</span>';
           } else {
-            actionCell =
-              '<button type="button" class="action-register-trigger px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[11px] font-medium hover:bg-red-100 transition-colors"' +
+            actionCell = '<span class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-[11px] font-medium">조치 필요</span>';
+          }
+
+          var actorCell;
+          if (insp.has_action && insp.action) {
+            actorCell = '<span class="text-slate-600">' + (insp.action.actor || '—') + '</span>';
+          } else if (insp.status !== 'normal') {
+            actorCell =
+              '<button type="button" class="action-register-trigger text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"' +
               ' data-inspect-id="' + insp.id + '"' +
               ' data-inspect-type="' + insp.type_code + '"' +
               ' data-inspect-date="' + insp.date.replace(/-/g, '.') + '"' +
               ' data-inspect-person="' + (insp.inspector || '') + '"' +
-              ' data-inspect-note="' + (insp.note || '').replace(/"/g, '&quot;') + '">' +
-              '조치 필요</button>';
+              ' data-inspect-note="' + (insp.note || '').replace(/"/g, '&quot;') + '">조치 등록</button>';
+          } else {
+            actorCell = '<span class="text-slate-400">—</span>';
           }
 
-          var actorName   = insp.action ? insp.action.actor : '—';
           var contentHtml = insp.note ? '<span class="text-slate-600">' + insp.note + '</span>' : '';
           if (insp.action && insp.action.note) {
             contentHtml += (contentHtml ? '<span class="text-slate-300 mx-1">·</span>' : '') +
@@ -400,7 +407,7 @@
             '<td class="px-3 py-2.5">' + actionCell + '</td>' +
             '<td class="px-3 py-2.5 text-slate-600 whitespace-nowrap">' + insp.date + '</td>' +
             '<td class="px-3 py-2.5 text-slate-600 whitespace-nowrap">' + (insp.inspector || '—') + '</td>' +
-            '<td class="px-3 py-2.5 text-slate-600 whitespace-nowrap">' + actorName + '</td>' +
+            '<td class="px-3 py-2.5 whitespace-nowrap">' + actorCell + '</td>' +
             '<td class="px-3 py-2.5 text-xs">' + (contentHtml || '<span class="text-slate-300">—</span>') + '</td>' +
             '</tr>';
         }).join('');
