@@ -44,13 +44,12 @@ _METRIC_UNIT = {
 }
 _RULE_TYPE_LABEL = {
     'threshold': '임계치 초과', 'missing': '데이터 누락',
-    'offline': '장비 오프라인', 'power': '전력 이상',
+    'power': '전력 이상',
 }
 _RULE_COLOR = {
     'threshold': ('green', '녹색'),
     'power':     ('orange', '주황'),
     'missing':   ('gray', '회색'),
-    'offline':   ('gray', '회색'),
 }
 
 
@@ -627,26 +626,26 @@ def code_group_create(request):
     """코드 그룹 등록"""
     user = request.user
     current_user_name = getattr(user, 'name', None) or user.get_full_name() or user.username
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     if request.method == 'POST':
         group_code  = request.POST.get('group_code', '').strip().upper()
         group_name  = request.POST.get('group_name', '').strip()
         scope       = request.POST.get('scope', '').strip()
         description = request.POST.get('description', '').strip()
         if group_code and group_name:
-            obj, created = CommonCode.objects.get_or_create(
-                group_code=group_code, code='__meta__',
-                defaults={
-                    'code_name': group_name, 'sort_order': 0, 'is_active': True,
-                    'scope': scope, 'updated_by': current_user_name, 'description': description,
-                },
-            )
-            if not created:
-                obj.code_name   = group_name
-                obj.scope       = scope
-                obj.updated_by  = current_user_name
-                obj.description = description
-                obj.save()
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if CommonCode.objects.filter(group_code=group_code, code='__meta__').exists():
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'field': 'group_code', 'error': '이미 등록된 그룹 코드입니다. 다른 그룹 코드를 입력해 주세요.'})
+            elif CommonCode.objects.filter(code='__meta__', code_name=group_name).exists():
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'field': 'group_name', 'error': '이미 등록된 그룹명입니다. 다른 그룹명을 입력해 주세요.'})
+            else:
+                CommonCode.objects.create(
+                    group_code=group_code, code='__meta__',
+                    code_name=group_name, sort_order=0, is_active=True,
+                    scope=scope, updated_by=current_user_name, description=description,
+                )
+        if is_ajax:
             return JsonResponse({'ok': True})
         return redirect(f'/manager/codes/?group={group_code}')
     return render(request, 'admin/codes/code_group_create.html', {
@@ -701,6 +700,7 @@ def code_value_create(request):
     selected_group = CommonCode.objects.filter(group_code=group_code, code='__meta__').first()
     user = request.user
     current_user_name = getattr(user, 'name', None) or user.get_full_name() or user.username
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     if request.method == 'POST':
         code = request.POST.get('code', '').strip().upper()
         code_name = request.POST.get('code_name', '').strip()
@@ -708,21 +708,20 @@ def code_value_create(request):
         is_active = request.POST.get('is_active', 'true') == 'true'
         description = request.POST.get('description', '').strip()
         if code and code_name and group_code:
-            # 동일 그룹 내 코드명 중복 검사
-            dup = CommonCode.objects.filter(group_code=group_code, code_name=code_name).exclude(code='__meta__').exclude(code=code).exists()
-            if dup:
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if CommonCode.objects.filter(group_code=group_code, code=code).exists():
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'field': 'code', 'error': '이미 해당 코드 그룹에 등록된 코드입니다.'})
+            elif CommonCode.objects.filter(group_code=group_code, code_name=code_name).exclude(code='__meta__').exists():
+                if is_ajax:
                     return JsonResponse({'ok': False, 'field': 'code_name', 'error': '같은 코드 그룹에 동일한 코드명이 이미 등록되어 있습니다.'})
             else:
-                CommonCode.objects.update_or_create(
+                CommonCode.objects.create(
                     group_code=group_code, code=code,
-                    defaults={
-                        'code_name': code_name, 'sort_order': sort_order,
-                        'is_active': is_active, 'description': description,
-                        'updated_by': current_user_name,
-                    },
+                    code_name=code_name, sort_order=sort_order,
+                    is_active=is_active, description=description,
+                    updated_by=current_user_name,
                 )
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if is_ajax:
             return JsonResponse({'ok': True})
         return redirect(f'/manager/codes/?group={group_code}')
     return render(request, 'admin/codes/code_value_create.html', {
@@ -940,21 +939,19 @@ def risk_group_create(request):
         if group_code and group_name:
             if not group_code.startswith('RISK_'):
                 group_code = 'RISK_' + group_code
-            obj, created = CommonCode.objects.get_or_create(
-                group_code=group_code, code='__meta__',
-                defaults={
-                    'code_name': group_name, 'sort_order': 0,
-                    'is_active': is_active, 'scope': scope,
-                    'description': description, 'updated_by': current_user_name,
-                },
-            )
-            if not created:
-                obj.code_name   = group_name
-                obj.is_active   = is_active
-                obj.scope       = scope
-                obj.description = description
-                obj.updated_by  = current_user_name
-                obj.save()
+            if CommonCode.objects.filter(group_code=group_code, code='__meta__').exists():
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'field': 'group_code', 'error': '이미 등록된 분류 코드입니다. 다른 분류 코드를 입력해 주세요.'})
+            elif CommonCode.objects.filter(code='__meta__', code_name=group_name).exists():
+                if is_ajax:
+                    return JsonResponse({'ok': False, 'field': 'group_name', 'error': '이미 등록된 분류명입니다. 다른 분류명을 입력해 주세요.'})
+            else:
+                CommonCode.objects.create(
+                    group_code=group_code, code='__meta__',
+                    code_name=group_name, sort_order=0,
+                    is_active=is_active, scope=scope,
+                    description=description, updated_by=current_user_name,
+                )
         if is_ajax:
             return JsonResponse({'ok': True, 'group_code': group_code})
         return redirect(f'/manager/risks/?group={group_code}')
@@ -1293,10 +1290,23 @@ def threshold_group_create(request):
         user = request.user
         updated_by = getattr(user, 'name', None) or user.get_full_name() or user.username
 
-        if not code or not code_name:
-            return JsonResponse({'ok': False, 'error': '분류코드와 분류명은 필수입니다.'})
+        import re
+        if not code:
+            return JsonResponse({'ok': False, 'field': 'code', 'error': '분류 코드를 입력해주세요.'})
+        if len(code) > 50:
+            return JsonResponse({'ok': False, 'field': 'code', 'error': '그룹명은 최대 50자까지 입력할 수 있습니다.'})
+        if not re.match(r'^[A-Z0-9_]+$', code):
+            return JsonResponse({'ok': False, 'field': 'code', 'error': '그룹 코드는 영문 대문자, 숫자, 밑줄(_)만 사용할 수 있습니다.'})
         if CommonCode.objects.filter(group_code='TH_CATEGORY', code=code).exists():
-            return JsonResponse({'ok': False, 'field': 'code', 'error': '이미 사용 중인 분류코드입니다.'})
+            return JsonResponse({'ok': False, 'field': 'code', 'error': '이미 등록된 분류 코드입니다. 다른 분류 코드를 입력해 주세요.'})
+        if not code_name:
+            return JsonResponse({'ok': False, 'field': 'name', 'error': '분류명 입력해 주세요.'})
+        if len(code_name) > 50:
+            return JsonResponse({'ok': False, 'field': 'name', 'error': '분류명은 최대 50자까지 입력할 수 있습니다.'})
+        if not re.match(r'^[가-힣\s]+$', code_name):
+            return JsonResponse({'ok': False, 'field': 'name', 'error': '분류명은 한글만 입력할 수 있습니다.'})
+        if CommonCode.objects.filter(group_code='TH_CATEGORY', code_name=code_name).exists():
+            return JsonResponse({'ok': False, 'field': 'name', 'error': '이미 등록된 분류명입니다. 다른 분류명을 입력해 주세요.'})
 
         CommonCode.objects.create(
             group_code='TH_CATEGORY', code=code, code_name=code_name,
@@ -1313,17 +1323,32 @@ def threshold_group_edit(request, cat_code):
     """임계치 기준 분류 수정 (GET: JSON, POST: 저장)"""
     obj = get_object_or_404(CommonCode, group_code='TH_CATEGORY', code=cat_code)
     if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        import re
         new_code = request.POST.get('code', obj.code).strip().upper()
-        obj.code_name = request.POST.get('code_name', obj.code_name).strip()
+        new_name = request.POST.get('code_name', obj.code_name).strip()
+        if not new_code:
+            return JsonResponse({'ok': False, 'field': 'code', 'error': '분류 코드를 입력해주세요.'})
+        if len(new_code) > 50:
+            return JsonResponse({'ok': False, 'field': 'code', 'error': '그룹명은 최대 50자까지 입력할 수 있습니다.'})
+        if not re.match(r'^[A-Z0-9_]+$', new_code):
+            return JsonResponse({'ok': False, 'field': 'code', 'error': '그룹 코드는 영문 대문자, 숫자, 밑줄(_)만 사용할 수 있습니다.'})
+        if new_code != obj.code and CommonCode.objects.filter(group_code='TH_CATEGORY', code=new_code).exists():
+            return JsonResponse({'ok': False, 'field': 'code', 'error': '이미 등록된 분류 코드입니다. 다른 분류 코드를 입력해 주세요.'})
+        if not new_name:
+            return JsonResponse({'ok': False, 'field': 'name', 'error': '분류명 입력해 주세요.'})
+        if len(new_name) > 50:
+            return JsonResponse({'ok': False, 'field': 'name', 'error': '분류명은 최대 50자까지 입력할 수 있습니다.'})
+        if not re.match(r'^[가-힣\s]+$', new_name):
+            return JsonResponse({'ok': False, 'field': 'name', 'error': '분류명은 한글만 입력할 수 있습니다.'})
+        if new_name != obj.code_name and CommonCode.objects.filter(group_code='TH_CATEGORY', code_name=new_name).exists():
+            return JsonResponse({'ok': False, 'field': 'name', 'error': '이미 등록된 분류명입니다. 다른 분류명을 입력해 주세요.'})
+        obj.code = new_code
+        obj.code_name = new_name
         obj.scope = request.POST.get('scope', '').strip()
         obj.is_active = request.POST.get('is_active', 'true') == 'true'
         obj.description = request.POST.get('description', '').strip()
         user = request.user
         obj.updated_by = getattr(user, 'name', None) or user.get_full_name() or user.username
-        if new_code and new_code != obj.code:
-            if CommonCode.objects.filter(group_code='TH_CATEGORY', code=new_code).exists():
-                return JsonResponse({'ok': False, 'error': '이미 사용 중인 분류코드입니다.'})
-            obj.code = new_code
         obj.save()
         return JsonResponse({'ok': True})
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1396,10 +1421,16 @@ def threshold_edit(request, pk):
     """임계치 기준 수정 (GET: JSON 반환, POST: 저장)"""
     policy = get_object_or_404(ThresholdPolicy, pk=pk)
     if request.method == 'POST':
+        new_metric  = request.POST.get('metric_code', policy.metric_code).strip().lower()
+        if new_metric != policy.metric_code and \
+                ThresholdPolicy.objects.filter(metric_code=new_metric, category=policy.category).exists():
+            return JsonResponse({'ok': False, 'field': 'metric_code',
+                                 'error': '동일한 기준 분류에 같은 측정 항목이 이미 등록되어 있습니다.'})
         condition   = request.POST.get('condition', policy.condition).strip()
         warning_val = request.POST.get('warning_val') or None
         danger_val  = request.POST.get('danger_val')  or None
         is_lte = condition == '이하'
+        policy.metric_code = new_metric
         policy.unit        = request.POST.get('unit', policy.unit).strip()
         policy.condition   = condition
         policy.warning_min = float(warning_val) if is_lte and warning_val else None
@@ -2751,6 +2782,15 @@ def _parse_date_range(request):
     return date_from, date_to
 
 
+def _date_range_to_dt(date_from, date_to):
+    """date 범위를 KST 기준 UTC datetime 범위로 변환 (measured_at 필터용)."""
+    from zoneinfo import ZoneInfo
+    kst = ZoneInfo('Asia/Seoul')
+    dt_from = datetime(date_from.year, date_from.month, date_from.day, 0, 0, 0, tzinfo=kst)
+    dt_to   = datetime(date_to.year,   date_to.month,   date_to.day,   23, 59, 59, 999999, tzinfo=kst)
+    return dt_from, dt_to
+
+
 @admin_required
 def gas_data_list(request):
     """유해가스 센서 데이터 관리"""
@@ -2760,9 +2800,10 @@ def gas_data_list(request):
     page_num   = request.GET.get('page', 1)
 
     ordering = 'measured_at' if sort == 'old' else '-measured_at'
+    dt_from, dt_to = _date_range_to_dt(date_from, date_to)
     qs = GasReading.objects.select_related('device').filter(
-        measured_at__date__gte=date_from,
-        measured_at__date__lte=date_to,
+        measured_at__gte=dt_from,
+        measured_at__lte=dt_to,
     ).order_by(ordering)
     if device_uid:
         qs = qs.filter(device__device_uid=device_uid)
@@ -2791,9 +2832,10 @@ def gas_data_export(request):
     sort       = request.GET.get('sort', 'new')
 
     ordering = 'measured_at' if sort == 'old' else '-measured_at'
+    dt_from, dt_to = _date_range_to_dt(date_from, date_to)
     qs = GasReading.objects.select_related('device').filter(
-        measured_at__date__gte=date_from,
-        measured_at__date__lte=date_to,
+        measured_at__gte=dt_from,
+        measured_at__lte=dt_to,
     ).order_by(ordering)
     if device_uid:
         qs = qs.filter(device__device_uid=device_uid)
@@ -2803,7 +2845,7 @@ def gas_data_export(request):
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     writer = csv.writer(response)
-    writer.writerow(['수집 시각', '장비명', 'CH4', 'O2', 'CO', 'CO2', 'H2S', 'NH3', 'VOC', 'SO2'])
+    writer.writerow(['수집 시각', '장비명', 'CO2', 'O2', 'CO', 'H2S', 'NH3', 'VOC', 'NO2', 'O3', 'SO2'])
     for r in qs.iterator(chunk_size=500):
         def fmt(val, unit='ppm'):
             return f'{val:.1f} {unit}' if val is not None else '-'
@@ -2817,6 +2859,7 @@ def gas_data_export(request):
             fmt(r.nh3),
             fmt(r.voc),
             fmt(r.no2),
+            fmt(r.o3),
             fmt(r.so2),
         ])
     return response
@@ -2826,13 +2869,14 @@ def gas_data_export(request):
 def power_data_list(request):
     """스마트 전력 시스템 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
+    dt_from, dt_to = _date_range_to_dt(date_from, date_to)
     sort     = request.GET.get('sort', 'new')
     page_num = request.GET.get('page', 1)
 
     ordering = 'measured_at' if sort == 'old' else '-measured_at'
     qs = PowerReading.objects.select_related('device').filter(
-        measured_at__date__gte=date_from,
-        measured_at__date__lte=date_to,
+        measured_at__gte=dt_from,
+        measured_at__lte=dt_to,
     ).order_by(ordering)
 
     paginator = Paginator(qs, 50)
@@ -2852,12 +2896,13 @@ def power_data_list(request):
 def power_data_export(request):
     """스마트 전력 시스템 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
+    dt_from, dt_to = _date_range_to_dt(date_from, date_to)
     sort = request.GET.get('sort', 'new')
 
     ordering = 'measured_at' if sort == 'old' else '-measured_at'
     qs = PowerReading.objects.select_related('device').filter(
-        measured_at__date__gte=date_from,
-        measured_at__date__lte=date_to,
+        measured_at__gte=dt_from,
+        measured_at__lte=dt_to,
     ).order_by(ordering)
 
     filename = f"power_data_{date_from.strftime('%Y%m%d')}_{date_to.strftime('%Y%m%d')}.csv"
@@ -2880,14 +2925,15 @@ def power_data_export(request):
 def node_data_list(request):
     """위치 노드 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
+    dt_from, dt_to = _date_range_to_dt(date_from, date_to)
     node_name = request.GET.get('node_name', '')
     sort      = request.GET.get('sort', 'new')
     page_num  = request.GET.get('page', 1)
 
     ordering = 'received_at' if sort == 'old' else '-received_at'
     qs = NodeReading.objects.select_related('node').filter(
-        received_at__date__gte=date_from,
-        received_at__date__lte=date_to,
+        received_at__gte=dt_from,
+        received_at__lte=dt_to,
     ).order_by(ordering)
     if node_name:
         qs = qs.filter(node__node_name__icontains=node_name)
@@ -2910,13 +2956,14 @@ def node_data_list(request):
 def node_data_export(request):
     """위치 노드 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
+    dt_from, dt_to = _date_range_to_dt(date_from, date_to)
     node_name = request.GET.get('node_name', '')
     sort      = request.GET.get('sort', 'new')
 
     ordering = 'received_at' if sort == 'old' else '-received_at'
     qs = NodeReading.objects.select_related('node').filter(
-        received_at__date__gte=date_from,
-        received_at__date__lte=date_to,
+        received_at__gte=dt_from,
+        received_at__lte=dt_to,
     ).order_by(ordering)
     if node_name:
         qs = qs.filter(node__node_name__icontains=node_name)
@@ -2943,14 +2990,15 @@ def node_data_export(request):
 def worker_data_list(request):
     """작업자 위치 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
+    dt_from, dt_to = _date_range_to_dt(date_from, date_to)
     worker_name = request.GET.get('worker_name', '')
     sort        = request.GET.get('sort', 'new')
     page_num    = request.GET.get('page', 1)
 
     ordering = 'measured_at' if sort == 'old' else '-measured_at'
     qs = WorkerLocation.objects.select_related('worker').filter(
-        measured_at__date__gte=date_from,
-        measured_at__date__lte=date_to,
+        measured_at__gte=dt_from,
+        measured_at__lte=dt_to,
     ).order_by(ordering)
     if worker_name:
         qs = qs.filter(worker__worker_name__icontains=worker_name)
@@ -2973,13 +3021,14 @@ def worker_data_list(request):
 def worker_data_export(request):
     """작업자 위치 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
+    dt_from, dt_to = _date_range_to_dt(date_from, date_to)
     worker_name = request.GET.get('worker_name', '')
     sort        = request.GET.get('sort', 'new')
 
     ordering = 'measured_at' if sort == 'old' else '-measured_at'
     qs = WorkerLocation.objects.select_related('worker').filter(
-        measured_at__date__gte=date_from,
-        measured_at__date__lte=date_to,
+        measured_at__gte=dt_from,
+        measured_at__lte=dt_to,
     ).order_by(ordering)
     if worker_name:
         qs = qs.filter(worker__worker_name__icontains=worker_name)

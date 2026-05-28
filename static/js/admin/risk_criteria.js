@@ -52,7 +52,7 @@ function _clearCreateErrs() {
   ['c_code_err','c_name_err','c_color_err','c_emphasis_err','c_priority_err','c_active_err'].forEach(id => _setErr(id, ''));
 }
 function _clearEditErrs() {
-  ['e_code_err','e_name_err','e_priority_err'].forEach(id => _setErr(id, ''));
+  ['e_code_err','e_name_err','e_color_err','e_emphasis_err','e_priority_err','e_active_err'].forEach(id => _setErr(id, ''));
 }
 
 /* ── 우선순위 값 파싱 ── */
@@ -77,22 +77,33 @@ function _validateCreate() {
   const prio   = document.getElementById('c_priority').value;
   const active = document.getElementById('c_is_active').value;
 
+  const existingCodes = Array.from(document.querySelectorAll('#criteria-tbody tr td:nth-child(3)')).map(td => td.textContent.trim().toUpperCase());
+  const existingNames = Array.from(document.querySelectorAll('#criteria-tbody tr td:nth-child(2)')).map(td => td.textContent.trim());
+
   if (!code) {
     _setErr('c_code_err', '단계 코드를 입력해 주세요.'); ok = false;
   } else if (!/^[A-Z0-9_]+$/.test(code)) {
     _setErr('c_code_err', '단계 코드는 영문 대문자, 숫자, _만 입력할 수 있습니다.'); ok = false;
+  } else if (existingCodes.includes(code.toUpperCase())) {
+    _setErr('c_code_err', '이미 등록된 단계 코드입니다.'); ok = false;
   }
 
-  if (!name) { _setErr('c_name_err', '단계명을 입력해 주세요.'); ok = false; }
+  if (!name) { _setErr('c_name_err', '단계명을 입력해 주세요.'); ok = false;
+  } else if (existingNames.includes(name)) {
+    _setErr('c_name_err', '이미 등록된 단계명입니다.'); ok = false;
+  }
 
   if (!color) { _setErr('c_color_err', '표시 색상을 선택해 주세요.'); ok = false; }
 
   if (!emph) { _setErr('c_emphasis_err', '알림 강조를 선택해 주세요.'); ok = false; }
 
+  const existingPriorities = Array.from(document.querySelectorAll('#criteria-tbody tr td:nth-child(7)')).map(td => td.textContent.trim());
+
   const pr = _parsePriority(prio);
   if (pr.empty)    { _setErr('c_priority_err', '이벤트 우선순위를 입력해 주세요.'); ok = false; }
   else if (pr.notNum)  { _setErr('c_priority_err', '이벤트 우선순위는 숫자만 입력할 수 있습니다.'); ok = false; }
   else if (pr.tooSmall){ _setErr('c_priority_err', '이벤트 우선순위는 1 이상의 값으로 입력해 주세요.'); ok = false; }
+  else if (existingPriorities.includes(String(pr.value))) { _setErr('c_priority_err', '이미 사용 중인 이벤트 우선순위입니다.'); ok = false; }
 
   if (!active) { _setErr('c_active_err', '사용 여부를 선택해 주세요.'); ok = false; }
 
@@ -104,22 +115,43 @@ function _validateEdit() {
   _clearEditErrs();
   let ok = true;
 
-  const code = document.getElementById('e_stage_code').value.trim();
-  const name = document.getElementById('e_stage_name').value.trim();
-  const prio = document.getElementById('e_priority').value;
+  const code   = document.getElementById('e_stage_code').value.trim();
+  const name   = document.getElementById('e_stage_name').value.trim();
+  const color  = document.getElementById('e_color_type').value;
+  const emph   = document.getElementById('e_alert_emphasis').value;
+  const prio   = document.getElementById('e_priority').value;
+  const active = document.getElementById('e_is_active').value;
+
+  const existingCodes     = Array.from(document.querySelectorAll('#criteria-tbody tr td:nth-child(3)')).map(td => td.textContent.trim().toUpperCase());
+  const existingNames     = Array.from(document.querySelectorAll('#criteria-tbody tr td:nth-child(2)')).map(td => td.textContent.trim());
+  const existingPriorities = Array.from(document.querySelectorAll('#criteria-tbody tr td:nth-child(7)')).map(td => td.textContent.trim());
 
   if (!code) {
     _setErr('e_code_err', '단계 코드를 입력해 주세요.'); ok = false;
   } else if (!/^[A-Z0-9_]+$/.test(code)) {
     _setErr('e_code_err', '단계 코드는 영문 대문자, 숫자, _만 입력할 수 있습니다.'); ok = false;
+  } else if (code.toUpperCase() !== _original.stage_code.toUpperCase() && existingCodes.includes(code.toUpperCase())) {
+    _setErr('e_code_err', '이미 등록된 단계 코드입니다.'); ok = false;
   }
 
-  if (!name) { _setErr('e_name_err', '단계명을 입력해 주세요.'); ok = false; }
+  if (!name) { _setErr('e_name_err', '단계명을 입력해 주세요.'); ok = false;
+  } else if (name !== _original.stage_name && existingNames.includes(name)) {
+    _setErr('e_name_err', '이미 등록된 단계명입니다.'); ok = false;
+  }
+
+  if (!color) { _setErr('e_color_err', '표시 색상을 선택해 주세요.'); ok = false; }
+
+  if (!emph) { _setErr('e_emphasis_err', '알림 강조를 선택해 주세요.'); ok = false; }
 
   const pr = _parsePriority(prio);
   if (pr.empty)    { _setErr('e_priority_err', '이벤트 우선순위를 입력해 주세요.'); ok = false; }
   else if (pr.notNum)  { _setErr('e_priority_err', '이벤트 우선순위는 숫자만 입력할 수 있습니다.'); ok = false; }
   else if (pr.tooSmall){ _setErr('e_priority_err', '이벤트 우선순위는 1 이상의 값으로 입력해 주세요.'); ok = false; }
+  else if (String(pr.value) !== _original.priority && existingPriorities.includes(String(pr.value))) {
+    _setErr('e_priority_err', '이미 사용 중인 이벤트 우선순위입니다.'); ok = false;
+  }
+
+  if (!active) { _setErr('e_active_err', '사용 여부를 선택해 주세요.'); ok = false; }
 
   return ok;
 }
@@ -185,7 +217,7 @@ function openEditModal(pk) {
       document.getElementById('e_stage_code').value     = data.stage_code;
       document.getElementById('e_stage_name').value     = data.stage_name;
       document.getElementById('e_color_type').value     = data.color_type;
-      document.getElementById('e_alert_emphasis').value = data.alert_emphasis || '정상';
+      document.getElementById('e_alert_emphasis').value = data.alert_emphasis || '';
       document.getElementById('e_priority').value       = data.priority;
       document.getElementById('e_description').value    = data.description || '';
       document.getElementById('e_desc_count').textContent = (data.description || '').length;
@@ -195,7 +227,7 @@ function openEditModal(pk) {
         stage_code:     data.stage_code,
         stage_name:     data.stage_name,
         color_type:     data.color_type,
-        alert_emphasis: data.alert_emphasis || '정상',
+        alert_emphasis: data.alert_emphasis || '',
         priority:       String(data.priority),
         is_active:      String(data.is_active),
         description:    data.description || '',
@@ -328,6 +360,8 @@ function sortTable(value) {
         return vb - va;
       case 'name_asc':
         return getCellValue(a, 1).localeCompare(getCellValue(b, 1), 'ko');
+      case 'name_desc':
+        return getCellValue(b, 1).localeCompare(getCellValue(a, 1), 'ko');
       case 'priority_asc':
       case 'code_asc':
         return getCellValue(a, 2).localeCompare(getCellValue(b, 2));

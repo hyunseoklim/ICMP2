@@ -21,10 +21,10 @@
 
     <div class="px-8 pt-7 pb-4 border-b border-slate-100">
       <h3 class="text-xl font-bold text-slate-900 mb-1">분류 그룹 수정</h3>
-      <p class="text-sm text-slate-500">위험 분류 그룹 정보를 수정합니다.</p>
+      <p class="text-sm text-slate-500">위험 분류 그룹 기준을 수정합니다.</p>
     </div>
 
-    <form method="post">
+    <form id="edit-form" method="post" novalidate>
       {% csrf_token %}
       <div class="px-8 py-6">
         <div class="grid grid-cols-2 gap-x-5 gap-y-5">
@@ -38,15 +38,15 @@
 
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1.5">분류명 <span class="text-rose-500">*</span></label>
-            <input type="text" name="group_name" value="{{ meta.code_name }}" required
+            <input type="text" name="group_name" id="group_name" value="{{ meta.code_name }}"
                    class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
+            <p id="err_group_name" class="hidden mt-1 text-xs text-rose-500"></p>
           </div>
 
           <!-- Row 2: 연관 범주 선택 (full width) -->
           <div class="col-span-2">
             <label class="block text-sm font-medium text-slate-700 mb-1.5">연관 범주 선택 <span class="text-xs text-slate-400 font-normal">(그룹 선택 기능)</span></label>
             <div class="flex gap-2">
-              {% for label in "위험구역,이벤트,알림"|split:"," %}{% endfor %}
               <button type="button" onclick="toggleScope(this, '위험구역')" id="scope_위험구역"
                       class="scope-btn px-4 py-2 text-sm border rounded-md {% if '위험구역' in selected_scopes %}border-blue-400 bg-blue-50 text-blue-700 font-medium{% else %}border-slate-200 text-slate-600 hover:bg-slate-50{% endif %}">위험구역</button>
               <button type="button" onclick="toggleScope(this, '이벤트')" id="scope_이벤트"
@@ -55,6 +55,7 @@
                       class="scope-btn px-4 py-2 text-sm border rounded-md {% if '알림' in selected_scopes %}border-blue-400 bg-blue-50 text-blue-700 font-medium{% else %}border-slate-200 text-slate-600 hover:bg-slate-50{% endif %}">알림</button>
             </div>
             <input type="hidden" name="scope" id="scope_hidden" value="{{ meta.scope }}">
+            <p id="err_scope" class="hidden mt-1 text-xs text-rose-500">반영 범위를 선택해 주세요.</p>
           </div>
 
           <!-- Row 3: 사용 여부 | 최근 수정일 -->
@@ -102,19 +103,83 @@
 
       <div class="flex items-center justify-center gap-2 px-8 py-5 border-t border-slate-100">
         <a href="{% url 'risk_list' %}?group={{ meta.group_code }}" class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</a>
-        <button type="submit" class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">수정</button>
+        <button type="button" id="submit-btn" onclick="handleSubmit()"
+                class="px-7 py-2.5 text-sm font-medium rounded-md bg-slate-300 text-slate-500 cursor-not-allowed"
+                disabled>수정</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- 재확인 팝업 -->
+<div id="confirm-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-xs text-center px-8 py-8">
+    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="pencil" class="w-6 h-6 text-blue-600"></i>
+    </div>
+    <p class="text-base font-semibold text-slate-900 mb-1">수정하시겠어요?</p>
+    <p class="text-xs text-slate-500 mb-6">변경된 분류 그룹 정보가 저장됩니다.</p>
+    <div class="flex gap-2">
+      <button type="button" onclick="closeConfirm()"
+              class="flex-1 px-4 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button type="button" onclick="doSubmit()"
+              class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 완료 팝업 -->
+<div id="done-modal" class="hidden fixed inset-0 bg-slate-900/40 z-[60] items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-xs text-center px-8 py-8">
+    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="check" class="w-6 h-6 text-green-600"></i>
+    </div>
+    <p class="text-base font-semibold text-slate-900 mb-6">수정되었습니다.</p>
+    <button type="button" onclick="window.location.href='{% url 'risk_list' %}?group={{ meta.group_code }}'"
+            class="w-full px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md">확인</button>
   </div>
 </div>
 {% endblock %}
 
 {% block extra_script %}
 <script>
+  // 원본값 저장
+  const _orig = {
+    group_name: '{{ meta.code_name|escapejs }}',
+    scope:      '{{ meta.scope|escapejs }}',
+    is_active:  '{{ meta.is_active|yesno:"true,false" }}',
+    description:'{{ meta.description|escapejs }}',
+  };
+
+  function isDirty() {
+    return (
+      document.getElementById('group_name').value !== _orig.group_name ||
+      document.getElementById('scope_hidden').value !== _orig.scope ||
+      document.getElementById('is_active_val').value !== _orig.is_active ||
+      document.getElementById('edit_desc').value !== _orig.description
+    );
+  }
+
+  function updateSubmitBtn() {
+    const btn = document.getElementById('submit-btn');
+    if (isDirty()) {
+      btn.disabled = false;
+      btn.className = 'px-7 py-2.5 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700';
+    } else {
+      btn.disabled = true;
+      btn.className = 'px-7 py-2.5 text-sm font-medium rounded-md bg-slate-300 text-slate-500 cursor-not-allowed';
+    }
+  }
+
+  // 변경 감지
+  document.getElementById('group_name').addEventListener('input', updateSubmitBtn);
+  document.getElementById('edit_desc').addEventListener('input', updateSubmitBtn);
+
   function setActive(isActive) {
     document.getElementById('is_active_val').value = isActive ? 'true' : 'false';
     document.getElementById('btn_active').className   = 'px-6 py-1.5 text-sm rounded ' + (isActive ? 'font-medium bg-blue-600 text-white' : 'text-slate-600 hover:bg-white');
     document.getElementById('btn_inactive').className = 'px-6 py-1.5 text-sm rounded ' + (isActive ? 'text-slate-600 hover:bg-white' : 'font-medium bg-blue-600 text-white');
+    updateSubmitBtn();
   }
 
   const selectedScopes = new Set(
@@ -129,6 +194,75 @@
       btn.className = 'scope-btn px-4 py-2 text-sm border border-blue-400 rounded-md bg-blue-50 text-blue-700 font-medium';
     }
     document.getElementById('scope_hidden').value = Array.from(selectedScopes).join(',');
+    updateSubmitBtn();
+  }
+
+  // 유효성 검사
+  function validate() {
+    let ok = true;
+    const nameInput = document.getElementById('group_name');
+    const nameErr   = document.getElementById('err_group_name');
+    const scopeErr  = document.getElementById('err_scope');
+    const name = nameInput.value.trim();
+
+    nameErr.classList.add('hidden');
+    scopeErr.classList.add('hidden');
+
+    if (!name) {
+      nameErr.textContent = '분류명을 입력해 주세요.';
+      nameErr.classList.remove('hidden');
+      nameInput.classList.add('border-rose-400');
+      ok = false;
+    } else if (!/^[가-힣\s]+$/.test(name)) {
+      nameErr.textContent = '분류명은 한글만 입력할 수 있습니다.';
+      nameErr.classList.remove('hidden');
+      nameInput.classList.add('border-rose-400');
+      ok = false;
+    } else if (name.length > 50) {
+      nameErr.textContent = '분류명은 최대 50자까지 입력할 수 있습니다.';
+      nameErr.classList.remove('hidden');
+      nameInput.classList.add('border-rose-400');
+      ok = false;
+    } else {
+      nameInput.classList.remove('border-rose-400');
+    }
+
+    if (selectedScopes.size === 0) {
+      scopeErr.classList.remove('hidden');
+      ok = false;
+    }
+
+    return ok;
+  }
+
+  function handleSubmit() {
+    if (!validate()) return;
+    document.getElementById('confirm-modal').classList.remove('hidden');
+    document.getElementById('confirm-modal').classList.add('flex');
+  }
+
+  function closeConfirm() {
+    document.getElementById('confirm-modal').classList.add('hidden');
+    document.getElementById('confirm-modal').classList.remove('flex');
+  }
+
+  function doSubmit() {
+    closeConfirm();
+    const form = document.getElementById('edit-form');
+    const formData = new FormData(form);
+    fetch(form.action || window.location.href, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
+    }).then(res => {
+      if (res.ok || res.redirected) {
+        document.getElementById('done-modal').classList.remove('hidden');
+        document.getElementById('done-modal').classList.add('flex');
+      }
+    }).catch(() => {
+      document.getElementById('done-modal').classList.remove('hidden');
+      document.getElementById('done-modal').classList.add('flex');
+    });
   }
 </script>
 {% endblock %}

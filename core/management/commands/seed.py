@@ -770,17 +770,17 @@ def seed_monitoring():
     print("  [monitoring] threshold_policies...")
     threshold_data = [
         # metric_code, normal_min, normal_max, warning_min, warning_max, danger_min, danger_max, action_type
-        ("co",            None, None, None, 25.0,   None, 200.0,  "alert"),
-        ("h2s",           None, None, None, 10.0,   None,  15.0,  "alert"),
-        ("current_value", None, None, None, 80.0,   None, 100.0,  "alert"),
-        ("power_value",   None, None, None, 90.0,   None, 110.0,  "alert"),
-        ("co2",           None, None, None, 1000.0, None, 5000.0, "alert"),
-        ("o2",            18.0, 23.5, 16.0, 18.0,   None,  None,  "alert"),
-        ("no2",           None, None, None,  3.0,   None,   5.0,  "alert"),
-        ("so2",           None, None, None,  2.0,   None,   5.0,  "alert"),
-        ("o3",            None, None, None,  0.06,  None,   0.12, "alert"),
-        ("nh3",           None, None, None, 25.0,   None,  35.0,  "alert"),
-        ("voc",           None, None, None,  0.5,   None,   1.0,  "alert"),
+        ("co",            None, None, None, 25.0,   None, 200.0,  "notify"),
+        ("h2s",           None, None, None, 10.0,   None,  15.0,  "notify"),
+        ("current_value", None, None, None, 80.0,   None, 100.0,  "notify"),
+        ("power_value",   None, None, None, 90.0,   None, 110.0,  "notify"),
+        ("co2",           None, None, None, 1000.0, None, 5000.0, "notify"),
+        ("o2",            18.0, 23.5, 16.0, 18.0,   None,  None,  "notify"),
+        ("no2",           None, None, None,  3.0,   None,   5.0,  "notify"),
+        ("so2",           None, None, None,  2.0,   None,   5.0,  "notify"),
+        ("o3",            None, None, None,  0.06,  None,   0.12, "notify"),
+        ("nh3",           None, None, None, 25.0,   None,  35.0,  "notify"),
+        ("voc",           None, None, None,  0.5,   None,   1.0,  "notify"),
     ]
     for row in threshold_data:
         (code, nmin, nmax, wmin, wmax, dmin, dmax, action) = row
@@ -873,7 +873,6 @@ def seed_alerts():
         ("전류 임계치 초과 규칙", "threshold", "notify", True,  "current_value"),
         ("전력 이상 감지 규칙",   "power",     "notify", True,  "power_value"),
         ("센서 데이터 누락 규칙", "missing",   "notify", True,  None),
-        ("장비 오프라인 감지 규칙","offline",  "notify", True,  None),
     ]
     for name, rtype, action, is_active, tp_code in rule_data:
         tp = None
@@ -932,9 +931,9 @@ def seed_alerts():
          3,   "가스센서-B 데이터 누락",
          "가스센서-B(GAS-002)에서 5분 이상 데이터 수신 없음."),
 
-        (5, "FAC-003", "PWR-003", None,   "warning", "device",   "acknowledged",
-         5,   "창고동 전력계 오프라인",
-         "전력계-C(PWR-003)가 오프라인 상태로 전환됨. 네트워크 연결 확인 필요."),
+        (4, "FAC-003", "PWR-003", None,   "warning", "device",   "acknowledged",
+         5,   "창고동 전력계 데이터 누락",
+         "전력계-C(PWR-003)에서 5분 이상 데이터 수신 없음. 네트워크 연결 확인 필요."),
 
         (2, "FAC-001", "PWR-001", None,   "normal",  "power",    "closed",
          24,  "전류 임계치 경고",
@@ -948,9 +947,9 @@ def seed_alerts():
          4,   "H2S 주의 수준 감지",
          "가스센서-A에서 H2S 3.1ppm 감지. 주의 단계. 환기 실시 권고."),
 
-        (5, "FAC-001", "GAS-001", None,   "warning", "device",   "open",
-         6,   "가스센서-A 간헐적 오프라인",
-         "가스센서-A(GAS-001)가 주기적으로 응답 없음. 펌웨어 점검 필요."),
+        (4, "FAC-001", "GAS-001", None,   "warning", "device",   "open",
+         6,   "가스센서-A 데이터 미수신",
+         "가스센서-A(GAS-001)에서 주기적으로 데이터 수신 없음. 펌웨어 점검 필요."),
 
         (3, "FAC-003", "PWR-003", "W005", "normal",  "power",    "closed",
          48,  "창고동 전력 미세 이상",
@@ -1048,12 +1047,12 @@ def seed_alarm_policies():
     from manager.models import AlarmPolicy
 
     defaults = [
-        ("가스 경보 알림",               "가스 경보",                   "앱, 관제 실시간 알림", "관리자, 작업자", True,
+        ("가스 경보 알림",               "가스 경보",                   "앱, 관제 실시간 알림, Slack, Discord", "관리자, 작업자", True,
          "전체 가스 센서 중 위험 상태를 1분 이상 유지한 장비가 발생하면 알림을 발송합니다.",
          "가스 경보 발생",
          "{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}."),
 
-        ("전력 이상 알림",               "전력 이상",                   "앱",                  "관리자",         True,
+        ("전력 이상 알림",               "전력 이상",                   "앱, Slack, Discord",  "관리자",         True,
          "전체 전력 설비 중 위험 상태로 전환된 장비가 발생하면 즉시 알림을 발송합니다.",
          "전력 이상 감지",
          "{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}."),
@@ -1081,7 +1080,7 @@ def seed_alarm_policies():
 
     policy_map = {}
     for name, event, channels, targets, is_active, cond, title, content in defaults:
-        p, _ = AlarmPolicy.objects.get_or_create(
+        p, created = AlarmPolicy.objects.get_or_create(
             name=name,
             defaults={
                 "event_type":        event,
@@ -1093,6 +1092,9 @@ def seed_alarm_policies():
                 "alarm_content":     content,
             },
         )
+        if not created and p.channels != channels:
+            p.channels = channels
+            p.save(update_fields=['channels'])
         policy_map[name] = p
 
     print(f"  [alarm_policies] {len(policy_map)}개 정책 생성/확인")
@@ -1510,15 +1512,22 @@ class Command(BaseCommand):
 
         targets = [section] if section else ALL_ORDER
 
+        from django.db.models.signals import post_save
+        from accounts.signals import sync_worker
+        post_save.disconnect(sync_worker, sender='accounts.User')
+
         self.stdout.write(self.style.MIGRATE_HEADING("=== ICMP2 Seed ==="))
-        with transaction.atomic():
-            for sec in targets:
-                self.stdout.write(f"▶ {sec}")
-                try:
-                    SECTIONS[sec]()
-                except Exception as exc:
-                    self.stderr.write(self.style.ERROR(f"  ✗ {sec}: {exc}"))
-                    raise
+        try:
+            with transaction.atomic():
+                for sec in targets:
+                    self.stdout.write(f"▶ {sec}")
+                    try:
+                        SECTIONS[sec]()
+                    except Exception as exc:
+                        self.stderr.write(self.style.ERROR(f"  ✗ {sec}: {exc}"))
+                        raise
+        finally:
+            post_save.connect(sync_worker, sender='accounts.User')
 
         self.stdout.write(self.style.SUCCESS("✓ 시드 완료"))
 

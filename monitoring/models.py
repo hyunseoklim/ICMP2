@@ -238,7 +238,7 @@ class NodeReading(models.Model):
 class ThresholdPolicy(models.Model):
 
     class ActionType(models.TextChoices):
-        ALERT    = "alert",    "알림"
+        NOTIFY   = "notify",   "알림"
         SHUTDOWN = "shutdown", "장비 차단"
 
     metric_code = models.CharField(max_length=50)
@@ -253,7 +253,7 @@ class ThresholdPolicy(models.Model):
     warning_max = models.FloatField(null=True, blank=True)
     danger_min  = models.FloatField(null=True, blank=True)
     danger_max  = models.FloatField(null=True, blank=True)
-    action_type = models.CharField(max_length=20, choices=ActionType.choices, default=ActionType.ALERT)
+    action_type = models.CharField(max_length=20, choices=ActionType.choices, default=ActionType.NOTIFY)
     is_active   = models.BooleanField(default=True)
     updated_at  = models.DateTimeField(auto_now=True)
     updated_by  = models.CharField(max_length=100, blank=True, default='')
