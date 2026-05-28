@@ -57,7 +57,7 @@ def _get_risk_criteria(severity: str):
     """
     try:
         from .models import RiskCriteria
-        return RiskCriteria.objects.filter(stage_code=severity, is_active=True).first()
+        return RiskCriteria.objects.filter(stage_code__iexact=severity, is_active=True).first()
     except Exception:
         return None
 
