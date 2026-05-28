@@ -131,6 +131,7 @@
 {% endblock %}
 
 {% block modal %}
+{{ block.super }}
 <!-- 정책 등록 팝업 -->
 <div id="modal-policy-create" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scroll">
@@ -355,6 +356,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 {{ policies_data|json_script:"policies-data" }}
 <script>
 const CSRF         = '{{ csrf_token }}';

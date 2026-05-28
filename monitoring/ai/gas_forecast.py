@@ -134,10 +134,11 @@ def _backfill(subsystem) -> None:
 def _parse_ts(raw):
     from django.utils import timezone
     from django.utils.dateparse import parse_datetime
+    from django.utils.timezone import make_aware, is_aware
     if raw:
         ts = parse_datetime(str(raw))
         if ts is not None:
-            return ts
+            return ts if is_aware(ts) else make_aware(ts)
     return timezone.now()
 
 

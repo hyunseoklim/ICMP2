@@ -144,6 +144,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 <script>
 const SAMPLE_DATA = [
   { id:1,  time:'2026-04-12 10:22:41', type:'위험구역 생성',   target:'위험구역 B-02',      result:'성공', content:'위험구역 B-02 반경 24m 생성 후 저장 완료' },

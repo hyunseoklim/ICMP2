@@ -143,6 +143,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 <script>
 const SAMPLE_DATA = [
   { id:1,  time:'2026-04-12 10:22:41', type:'수집', target:'유해가스 센서 게이트웨이', result:'성공', content:'센서 데이터 수신 완료' },
