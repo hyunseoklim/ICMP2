@@ -112,6 +112,12 @@ def ingest_node(request):
         y=request.data.get('y'),
         received_at=timezone.now(),
     )
+
+    # 1:1 연결된 Device(loc) 의 last_seen_at 동기 갱신
+    # — 노드 관리 페이지의 "마지막 데이터 수신" 표시 및 MISSING 알람 활성화의 기반
+    if node.device_id:
+        update_last_seen(node.device)
+
     return Response({'status': 'ok'})
 
 
