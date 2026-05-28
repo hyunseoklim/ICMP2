@@ -131,6 +131,7 @@
 {% endblock %}
 
 {% block modal %}
+{{ block.super }}
 <!-- 정책 등록 팝업 -->
 <div id="modal-policy-create" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scroll">
@@ -355,6 +356,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 {{ policies_data|json_script:"policies-data" }}
 <script>
 const CSRF         = '{{ csrf_token }}';
@@ -400,10 +402,17 @@ function renderTable() {
       ? '0 / 0'
       : `${start + 1} - ${Math.min(start + PAGE_SIZE, filteredData.length)} / ${filteredData.length}`;
 
+  function updateRowHighlight(cb) {
+    const row = cb.closest('tr');
+    if (!row) return;
+    if (cb.checked) { row.classList.add('row-selected'); }
+    else { row.classList.remove('row-selected'); }
+  }
   document.querySelectorAll('.row-check').forEach(cb => {
     cb.addEventListener('change', function() {
       const id = parseInt(this.dataset.id);
       this.checked ? checkedIds.add(id) : checkedIds.delete(id);
+      updateRowHighlight(this);
       updateDeleteBtn();
       syncAllCheckbox();
     });

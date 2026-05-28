@@ -953,6 +953,33 @@ body {
     color: var(--text-primary);
 }
 
+.snb-group--single {
+    border-bottom: 1px solid var(--border);
+}
+
+.snb-single-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.snb-single-link:hover {
+    background: var(--bg-hover);
+}
+
+.snb-single-link.active {
+    color: var(--accent-cyan);
+    border-left: 3px solid var(--accent-cyan);
+    padding-left: 13px;
+}
+
+.snb-single-link .icon { margin-right: 8px; color: var(--text-primary); font-size: 10px; }
+
 .snb-overlay {
     position: fixed;
     inset: 0;
@@ -1108,4 +1135,9 @@ body {
     font-weight: 700;
     color: #ef4444;
     font-family: var(--font-mono);
+}
+
+/* ── 테이블 행 선택 하이라이트 ── */
+tr.row-selected {
+    background-color: #eff6ff !important;
 }

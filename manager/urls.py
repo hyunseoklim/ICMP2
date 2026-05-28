@@ -84,6 +84,8 @@ urlpatterns = [
     path('gas/inspect/create/', views.gas_inspect_create, name='gas_inspect_create'),
     path('gas/inspect/<int:inspection_id>/action/', views.gas_action_create, name='gas_action_create'),
     path('power/', views.power_list, name='power_list'),
+    path('power/create/', views.gas_create, name='power_create'),
+    path('power/comm-check/', views.gas_comm_check, name='power_comm_check'),
     path('power/bulk-delete/', views.power_bulk_delete, name='power_bulk_delete'),
     path('power/inspect/create/', views.power_inspect_create, name='power_inspect_create'),
     path('power/inspect/<int:inspection_id>/action/', views.power_action_create, name='power_action_create'),
@@ -118,6 +120,10 @@ urlpatterns = [
     path('notice/<int:pk>/', views.notice_detail, name='notice_detail'),
     path('notice/<int:pk>/edit/', views.notice_edit, name='notice_edit'),
     path('notice/<int:pk>/delete/', views.notice_delete, name='notice_delete'),
+
+    # 대시보드용 공지사항 (일반 사용자 열람)
+    path('notices/', views.dashboard_notice_list, name='dashboard_notice_list'),
+    path('notices/<int:pk>/', views.dashboard_notice_detail, name='dashboard_notice_detail'),
 
     # 메뉴 관리
     path('menu-manage/', views.menu_manage, name='menu_manage'),

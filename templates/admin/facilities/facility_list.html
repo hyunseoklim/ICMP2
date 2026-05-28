@@ -308,6 +308,15 @@
   window.ASSIGNED_PS = JSON.parse(document.getElementById('assigned-ps-data').textContent);
 </script>
 <script>
+  function closeAllMenus() {
+    ['ps-menu', 'st-menu', 'sort-menu'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
+    ['ps-chevron', 'st-chevron'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.classList.remove('rotate-180');
+    });
+  }
+
   function makeDropdown({ wrapId, toggleId, menuId, chevronId, optionClass, hiddenInputId, labelId, onSelect }) {
     var toggle = document.getElementById(toggleId);
     if (!toggle || toggle._dropdownInit) return;
@@ -330,7 +339,9 @@
 
     toggle?.addEventListener('click', function (e) {
       e.stopPropagation();
-      menu.classList.contains('hidden') ? open() : close();
+      var isOpen = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!isOpen) open();
     });
 
     menu?.querySelectorAll('.' + optionClass).forEach(function (btn) {
@@ -369,9 +380,6 @@
       });
     });
 
-    document.addEventListener('click', function (e) {
-      if (!wrap?.contains(e.target)) close();
-    });
   }
 
   makeDropdown({
@@ -445,7 +453,9 @@
 
     toggle?.addEventListener('click', function (e) {
       e.stopPropagation();
-      menu.classList.toggle('hidden');
+      var isOpen = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!isOpen) menu.classList.remove('hidden');
     });
 
     document.querySelectorAll('.sort-option').forEach(function (btn) {
@@ -459,10 +469,9 @@
       });
     });
 
-    document.addEventListener('click', function (e) {
-      if (!wrap?.contains(e.target)) menu?.classList.add('hidden');
-    });
   })();
+
+  document.addEventListener('click', closeAllMenus);
 
   var checkAll = document.getElementById('check-all');
   var deleteBtn = document.getElementById('facility-delete-btn');

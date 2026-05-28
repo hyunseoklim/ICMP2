@@ -244,8 +244,15 @@
           : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`;
   }
 
+  function updateRowHighlight(cb) {
+    const row = cb.closest('tr');
+    if (!row) return;
+    if (cb.checked) { row.classList.add('row-selected'); }
+    else { row.classList.remove('row-selected'); }
+  }
+
   checkAll?.addEventListener('change', e => {
-    rowChecks.forEach(cb => cb.checked = e.target.checked);
+    rowChecks.forEach(cb => { cb.checked = e.target.checked; updateRowHighlight(cb); });
     updateDeleteBtn();
   });
 
@@ -255,6 +262,7 @@
       const some = [...rowChecks].some(c => c.checked);
       checkAll.checked       = all;
       checkAll.indeterminate = !all && some;
+      updateRowHighlight(cb);
       updateDeleteBtn();
     });
   });
