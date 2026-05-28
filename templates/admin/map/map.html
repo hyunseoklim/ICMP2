@@ -791,7 +791,21 @@
               <span class="object-code text-xs font-mono font-semibold text-slate-500">{{ obj.id }}</span>
               <span class="badge" data-type="{{ obj.type }}">{{ obj.badge }}</span>
             </div>
-            <p class="text-sm font-medium text-slate-700 truncate mt-0.5">{{ obj.name }}</p>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <p class="text-sm font-medium text-slate-700 truncate">{{ obj.name }}</p>
+              {% if obj.is_active is not None %}
+                {% if obj.is_active %}
+                  <span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700">활성</span>
+                {% else %}
+                  <span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">비활성</span>
+                {% endif %}
+                {% if obj.conn_ok %}
+                  <span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">정상</span>
+                {% else %}
+                  <span class="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-600">연결 끊김</span>
+                {% endif %}
+              {% endif %}
+            </div>
           </div>
 
           {% if obj.placed %}

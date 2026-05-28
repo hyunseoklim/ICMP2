@@ -3681,12 +3681,14 @@ def map_editor(request):
         else:
             type_key, badge = 'power', '스마트 전력 시스템'
         objects.append({
-            'id':     dev.device_code,
-            'pk':     sl.pk,            # T1-β P1: SensorLocation.pk (PATCH 대상)
-            'type':   type_key,
-            'name':   sl.device_name or dev.device_name,
-            'placed': sl.is_placed,     # T1-β Q1: is_placed 단일 진실 원천
-            'badge':  badge,
+            'id':        dev.device_code,
+            'pk':        sl.pk,            # T1-β P1: SensorLocation.pk (PATCH 대상)
+            'type':      type_key,
+            'name':      sl.device_name or dev.device_name,
+            'placed':    sl.is_placed,     # T1-β Q1: is_placed 단일 진실 원천
+            'badge':     badge,
+            'is_active': dev.is_active,
+            'conn_ok':   dev.status == 'active',
         })
 
     # ── 4) 위치 노드 (LocationNode) ──
