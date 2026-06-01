@@ -143,33 +143,42 @@ def _jsonable(d: dict) -> dict:
     return out
 
 
-# 정책 엔진 — 현재 상태(5-tier) → 화면 색(danger/warning/normal)
+# 정책 엔진 — 현재 상태(6-tier) → 화면 색(danger/warning/normal)
 _STATE_COLOR = {
     'CRITICAL': 'danger',
     'ML_ANOMALY': 'warning',
     'ANOMALY_WARNING': 'warning',
     'TREND_SHIFT': 'warning',
+    'OBSERVE': 'warning',     # 단일 위험 spark 강등 — 관찰(미확정)
     'NORMAL': 'normal',
 }
 
 
-def merge_current_status(threshold_exceeded, zscore_results, cp_results, if_result) -> str:
+def merge_current_status(threshold_exceeded, zscore_results, cp_results, if_result, prev_danger=False) -> str:
     """판단 4단계(threshold·z-score·CP·IF) → 현재 상태 1개 (우선순위 병합).
 
-    스펙 우선순위: CRITICAL > ML_ANOMALY > ANOMALY_WARNING > TREND_SHIFT > NORMAL.
-    결정1=(나): threshold '주의'는 ANOMALY_WARNING과 동급으로 묶는다.
-    (예측 ARIMA는 별도 — 현재 상태에 미포함)
+    우선순위: CRITICAL > ML_ANOMALY > ANOMALY_WARNING > TREND_SHIFT > OBSERVE > NORMAL.
+    - threshold '위험'은 **연속 위험(prev_danger) OR CP SHIFT**로 확정될 때만 CRITICAL.
+      단일·미확정 위험은 OBSERVE로 강등(일시적 spark 대비, 결정 B / K=2).
+    - threshold '주의'는 ANOMALY_WARNING 동급(결정1=나).
+    - 예측 ARIMA는 별도(현재 상태 미포함).
     """
-    if any(e.get('level') == '위험' for e in (threshold_exceeded or [])):
+    th_danger = any(e.get('level') == '위험' for e in (threshold_exceeded or []))
+    th_warn   = any(e.get('level') == '주의' for e in (threshold_exceeded or []))
+    cp_shift  = any(r.get('event') == 'CHANGE_POINT' or r.get('state') == 'SHIFT' for r in (cp_results or []))
+    if_caution = if_result is not None and getattr(getattr(if_result, 'level', None), 'name', None) == 'CAUTION'
+    z_anom    = any(r.get('final_status') == 'ANOMALY_WARNING' for r in (zscore_results or []))
+
+    if th_danger and (prev_danger or cp_shift):
         return 'CRITICAL'
-    if if_result is not None and getattr(getattr(if_result, 'level', None), 'name', None) == 'CAUTION':
+    if if_caution:
         return 'ML_ANOMALY'
-    if any(r.get('final_status') == 'ANOMALY_WARNING' for r in (zscore_results or [])):
+    if z_anom or th_warn:
         return 'ANOMALY_WARNING'
-    if any(e.get('level') == '주의' for e in (threshold_exceeded or [])):
-        return 'ANOMALY_WARNING'
-    if any(r.get('event') == 'CHANGE_POINT' or r.get('state') == 'SHIFT' for r in (cp_results or [])):
+    if cp_shift:
         return 'TREND_SHIFT'
+    if th_danger:            # 단일·미확정 위험 → 강등(관찰). 다음 reading도 위험이면 CRITICAL 승격
+        return 'OBSERVE'
     return 'NORMAL'
 
 
@@ -317,15 +326,23 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
         )])
 
     # ── 정책 엔진 — 판단 4단계 → 현재 상태 1개 (우선순위 병합) → POLICY 저장 ──
-    current_state = merge_current_status(threshold_exceeded, zscore_results, cp_results, if_result)
+    # 연속 위험 확인(K=2): 직전 reading(최근 90초, 현재 제외)에 threshold 위험이 있었나
+    prev_danger = DetectionResult.objects.filter(
+        device=device, stage=Stage.THRESHOLD, level='위험',
+        created_at__gte=timezone.now() - timedelta(seconds=90),
+    ).exclude(gas_reading_id=reading.id).exists()
+    current_state = merge_current_status(
+        threshold_exceeded, zscore_results, cp_results, if_result, prev_danger=prev_danger,
+    )
     _save_stage([DetectionResult(
         event_id=event_id, gas_reading=reading, device=device,
         sensor_type=None, stage=Stage.POLICY, level=current_state,
         detail={
-            'threshold': any(e.get('level') == '위험' for e in threshold_exceeded) and 'danger'
-                         or (any(e.get('level') == '주의' for e in threshold_exceeded) and 'warn' or None),
+            'threshold': (any(e.get('level') == '위험' for e in threshold_exceeded) and 'danger')
+                         or (any(e.get('level') == '주의' for e in threshold_exceeded) and 'warn') or None,
+            'prev_danger': prev_danger,
             'zscore':  any(r.get('final_status') == 'ANOMALY_WARNING' for r in zscore_results),
-            'cp':      any(r.get('event') == 'CHANGE_POINT' for r in cp_results),
+            'cp':      any(r.get('event') == 'CHANGE_POINT' or r.get('state') == 'SHIFT' for r in cp_results),
             'if':      (if_result.level.name if if_result is not None else None),
         },
     )])
