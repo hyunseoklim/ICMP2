@@ -137,6 +137,23 @@ services:
         condition: service_started
 
 
+  gas-stream-consumer:
+    build: .
+    container_name: gas-stream-consumer
+    command: python manage.py consume_gas_stream
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      django:
+        condition: service_started
+
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus

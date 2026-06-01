@@ -1,7 +1,9 @@
 import asyncio
+import json
 import os
 
 import httpx
+import redis
 from celery import Celery
 
 DJANGO_BASE = os.environ.get("DJANGO_BASE", "http://localhost:8000")
@@ -9,6 +11,37 @@ REDIS_URL   = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 # Django 없이 태스크 큐잉만 담당하는 Celery 클라이언트
 _celery = Celery(broker=REDIS_URL)
+
+# 가스 원천 Redis Stream (단계별 파이프라인 전송)
+GAS_STREAM = "stream:gas:raw"
+_redis_stream = None
+
+
+def _stream_client() -> "redis.Redis":
+    global _redis_stream
+    if _redis_stream is None:
+        _redis_stream = redis.Redis.from_url(REDIS_URL)
+    return _redis_stream
+
+
+async def xadd_gas_reading(data: dict) -> None:
+    """가스 원천 1건을 Redis Stream에 적재 (XADD). consumer가 단계별 처리."""
+    payload = {
+        "device_uid":  data["device_uid"],
+        "measured_at": data["measured_at"],
+        "co":  data["co"],  "h2s": data["h2s"], "co2": data["co2"],
+        "o2":  data["o2"],  "no2": data["no2"], "so2": data["so2"],
+        "o3":  data["o3"],  "nh3": data["nh3"], "voc": data["voc"],
+    }
+    try:
+        await asyncio.to_thread(
+            _stream_client().xadd,
+            GAS_STREAM, {"payload": json.dumps(payload)},
+            maxlen=10000, approximate=True,
+        )
+        print(f"[sender] Redis Stream XADD 성공: {data['device_uid']}")
+    except Exception as e:
+        print(f"[sender] Redis Stream XADD 실패: {e}")
 
 # 시작 시 Django에서 가스 장비 목록을 가져옴
 # 반환값: [{"id": 1, "device_uid": "AA:BB:CC"}, ...]
