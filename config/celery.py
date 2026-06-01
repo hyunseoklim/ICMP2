@@ -23,9 +23,19 @@ def _load_ai_models(**kwargs):
 
     로드 대상:
         - gas_if (STEP F — Isolation Forest)
-        - power_forecast (STEP G — PredictionSubsystem warmup, Phase D M1-10)
-          forecast 큐 worker에서 사용. default 큐 worker도 호출되나 무해
-          (lazy 호출이라 첫 사용 시까지 비용 0).
+          무상태 joblib 모델 파일 1개를 프로세스당 1회 적재(멱등·DB접근 없음).
+          가스 인제스트(STEP F)가 default 큐 worker에서 실행되므로 모든
+          worker에서 로드하는 것이 맞다.
+
+    여기서 *하지 않는* 것 — power_forecast(STEP G) 워밍업:
+        PredictionSubsystem 워밍업은 첫 _get_subsystem() 호출 시 DB 백필
+        (채널 × 200 readings × ARIMA 적합)을 강제하는 *상태기*다. 이를 전역
+        worker_process_init에 두면 default 큐 worker의 prefork 자식마다
+        백필이 중복 실행되어 기동 시 전 코어가 폭주한다(게다가 default
+        worker는 forecast 큐를 소비하지 않아 전량 헛일). 따라서 사전
+        워밍업을 두지 않고, forecast 전용 worker(--concurrency=1)가 첫
+        forecast 작업을 받을 때 run_forecast → _get_subsystem()으로 1회만
+        lazy 초기화하도록 위임한다(gas_forecast와 동일 정책).
 
     참고: power_if (STEP F)는 Phase D 결정 (a)로 비활성. 활성화 시
     monitoring/ai/power_if.py docstring 참조하여 본 함수에 호출 추가.
@@ -35,10 +45,3 @@ def _load_ai_models(**kwargs):
         load_models()
     except Exception as exc:
         logger.error("Gas IF 모델 로드 실패 (worker_process_init): %s", exc)
-
-    # Phase D M1-10 — power forecast subsystem warmup (forecast 큐 worker)
-    try:
-        from monitoring.ai.power_forecast import _get_subsystem
-        _get_subsystem()
-    except Exception as exc:
-        logger.warning("Power forecast subsystem warmup 실패: %s", exc)
