@@ -5,13 +5,9 @@ import uuid
 
 import httpx
 import redis
-from celery import Celery
 
 DJANGO_BASE = os.environ.get("DJANGO_BASE", "http://localhost:8000")
 REDIS_URL   = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-
-# Django 없이 태스크 큐잉만 담당하는 Celery 클라이언트
-_celery = Celery(broker=REDIS_URL)
 
 # 가스 원천 Redis Stream (단계별 파이프라인 전송)
 GAS_STREAM = "stream:gas:raw"
@@ -94,32 +90,6 @@ async def fetch_gas_devices() -> list[dict]:
         except Exception as e:
             print(f"[sender] Django 장비 조회 실패: {e}")
             return []
-
-
-async def queue_gas_reading(data: dict) -> None:
-    payload = {
-        "device_uid":  data["device_uid"],
-        "measured_at": data["measured_at"],
-        "co":  data["co"],
-        "h2s": data["h2s"],
-        "co2": data["co2"],
-        "o2":  data["o2"],
-        "no2": data["no2"],
-        "so2": data["so2"],
-        "o3":  data["o3"],
-        "nh3": data["nh3"],
-        "voc": data["voc"],
-    }
-    try:
-        # send_task는 Redis에 쓰기만 하므로 to_thread로 이벤트 루프 블로킹 방지
-        await asyncio.to_thread(
-            _celery.send_task,
-            'alerts.tasks.ingest_gas_task',
-            args=[payload],
-        )
-        print(f"[sender] Celery 큐 전송 성공: {data['device_uid']}")
-    except Exception as e:
-        print(f"[sender] Celery 큐 전송 실패: {e}")
 
 
 async def post_power_reading(data: dict) -> None:

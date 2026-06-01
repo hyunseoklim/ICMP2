@@ -146,10 +146,6 @@ CACHES = {
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
 DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
 
-# Redis Pub/Sub 채널명 (확정 후 .env에서 교체)
-REDIS_PUBSUB_CHANNEL = os.getenv('REDIS_PUBSUB_CHANNEL', 'sensor_events')
-REDIS_PUBSUB_TIMEOUT = int(os.getenv('REDIS_PUBSUB_TIMEOUT', '30'))
-
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',

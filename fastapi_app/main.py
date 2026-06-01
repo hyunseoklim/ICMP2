@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_power_data, generate_node_readings
-from fastapi_app.sender import fetch_gas_devices, queue_gas_reading, xadd_gas_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading
+from fastapi_app.sender import fetch_gas_devices, xadd_gas_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading
 
 # 웹소켓에 연결된 클라이언트 목록
 _clients: list[WebSocket] = []
@@ -36,8 +36,6 @@ async def _emit_once() -> None:
         await _broadcast(data)
         # 단계별 파이프라인: Redis Stream 전송 (consume_gas_stream이 소비)
         await xadd_gas_reading(data)
-        # 구(舊) celery 직접 큐잉 경로 — Stream 전환으로 잠시 차단
-        # await queue_gas_reading(data)
 
     for _ in range(5):
         power = generate_power_data()
