@@ -131,25 +131,29 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
         DropLog.objects.create(device_uid=device_uid, reason='inactive', raw_payload=dict(payload))
         return
 
-    # event_id 계보 — 원천이 부여했으면 사용, 없으면 ingest 경계에서 발급
+    # event_id 계보 — 원천(FastAPI)이 부여했으면 사용, 없으면 ingest 경계 발급(실장비 대비)
     event_id = payload.get('event_id') or uuid.uuid4()
-    tick_id  = payload.get('tick_id')  or uuid.uuid4()
+    tick_id  = payload.get('tick_id')   # 보류 — 교차 상관 필요 시 원천 부여(없으면 null)
 
     values = {f: payload.get(f) for f in GAS_FIELDS}
-    missing_count = sum(1 for v in values.values() if v is None)
-    # ② 범위 검증 — 위반은 버리지 않고 invalid 태깅
-    violations = [
-        f for f, v in values.items()
-        if v is not None and not (GAS_VALID_RANGE[f][0] <= float(v) <= GAS_VALID_RANGE[f][1])
-    ]
-    if violations:
-        quality_flag = 'invalid'
-    elif missing_count == len(GAS_FIELDS):
-        quality_flag = 'missing'
-    elif missing_count > 0:
-        quality_flag = 'partial'
+    # ② 값 검증 — 원천이 검증했으면 그 결과 신뢰, 아니면 경계에서 검증(실장비 fallback)
+    if 'quality_flag' in payload:
+        quality_flag = payload['quality_flag']
+        violations = payload.get('violations', [])
     else:
-        quality_flag = 'ok'
+        missing_count = sum(1 for v in values.values() if v is None)
+        violations = [
+            f for f, v in values.items()
+            if v is not None and not (GAS_VALID_RANGE[f][0] <= float(v) <= GAS_VALID_RANGE[f][1])
+        ]
+        if violations:
+            quality_flag = 'invalid'
+        elif missing_count == len(GAS_FIELDS):
+            quality_flag = 'missing'
+        elif missing_count > 0:
+            quality_flag = 'partial'
+        else:
+            quality_flag = 'ok'
 
     ts_fallback = False
     measured_at_raw = payload.get('measured_at')

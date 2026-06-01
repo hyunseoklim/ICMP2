@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import uuid
 
 import httpx
 import redis
@@ -24,6 +25,34 @@ def _stream_client() -> "redis.Redis":
     return _redis_stream
 
 
+# 원천 경계 값 검증 (범위·결측) — 검증된 데이터만(태그 달고) 하류로
+GAS_FIELDS = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
+GAS_VALID_RANGE = {
+    'co': (0, 10000), 'h2s': (0, 1000), 'co2': (0, 50000),
+    'o2':  (0, 30),   'no2': (0, 1000), 'so2': (0, 1000),
+    'o3':  (0, 100),  'nh3': (0, 1000), 'voc': (0, 10000),
+}
+
+
+def _validate_gas(payload: dict):
+    """범위·결측 검증 → (quality_flag, violations). 위반은 버리지 않고 태깅."""
+    violations = [
+        f for f in GAS_FIELDS
+        if payload.get(f) is not None
+        and not (GAS_VALID_RANGE[f][0] <= float(payload[f]) <= GAS_VALID_RANGE[f][1])
+    ]
+    missing = sum(1 for f in GAS_FIELDS if payload.get(f) is None)
+    if violations:
+        quality_flag = 'invalid'
+    elif missing == len(GAS_FIELDS):
+        quality_flag = 'missing'
+    elif missing:
+        quality_flag = 'partial'
+    else:
+        quality_flag = 'ok'
+    return quality_flag, violations
+
+
 async def xadd_gas_reading(data: dict) -> None:
     """가스 원천 1건을 Redis Stream에 적재 (XADD). consumer가 단계별 처리."""
     payload = {
@@ -33,6 +62,12 @@ async def xadd_gas_reading(data: dict) -> None:
         "o2":  data["o2"],  "no2": data["no2"], "so2": data["so2"],
         "o3":  data["o3"],  "nh3": data["nh3"], "voc": data["voc"],
     }
+    # ── 원천 경계: 값 검증 + event_id 부여 (tick_id는 보류) ──
+    quality_flag, violations = _validate_gas(payload)
+    payload["event_id"]     = str(uuid.uuid4())   # reading 1건당 계보 키
+    payload["quality_flag"] = quality_flag
+    if violations:
+        payload["violations"] = violations
     try:
         await asyncio.to_thread(
             _stream_client().xadd,
