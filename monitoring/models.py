@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 
 # ── Device ────────────────────────────────────────────────
@@ -135,9 +137,23 @@ class GasReading(models.Model):
     received_at = models.DateTimeField(auto_now_add=True, help_text="서버 수신 시각")
     quality_flag = models.CharField(
         max_length=20, default='ok',
-        help_text="ok / missing / comm_err / partial",
+        help_text="ok / missing / comm_err / partial / invalid",
     )
     raw_payload = models.JSONField(null=True, blank=True, help_text="원본 수신 payload")
+
+    # ── event_id 계보 (단계별 파생·알람까지 상관) ──
+    event_id = models.UUIDField(
+        null=True, blank=True, unique=True, db_index=True,
+        help_text="측정 1건 고유 ID — 원천↔파생 DetectionResult↔알람 상관 키",
+    )
+    tick_id = models.UUIDField(
+        null=True, blank=True, db_index=True,
+        help_text="한 emit 사이클 공유 ID — 가스·전력·위치 교차 상관",
+    )
+    ts_fallback = models.BooleanField(
+        default=False,
+        help_text="measured_at 파싱 실패로 서버 now() 대체됐는지",
+    )
 
     class Meta:
         db_table            = "gas_readings"
@@ -151,6 +167,69 @@ class GasReading(models.Model):
 
     def __str__(self):
         return f"{self.device.device_uid} @ {self.measured_at}"
+
+
+# ── DetectionResult (단계별 판정 계보의 척추) ──────────────
+
+class DetectionResult(models.Model):
+    """원천 1건(event_id)에 대한 단계별 검출 결과. 한 event_id로 5단계 조회·역추적."""
+
+    class Stage(models.TextChoices):
+        THRESHOLD   = "THRESHOLD",   "임계 판정"
+        ZSCORE      = "ZSCORE",      "Z-score"
+        CHANGEPOINT = "CHANGEPOINT", "변화점"
+        IF          = "IF",          "Isolation Forest"
+        ARIMA       = "ARIMA",       "ARIMA 예측"
+
+    event_id    = models.UUIDField(db_index=True, help_text="원천 GasReading.event_id 계보 키")
+    gas_reading = models.ForeignKey(
+        GasReading, on_delete=models.CASCADE, null=True, blank=True, related_name="detections",
+        help_text="원천 참조 (event_id로도 연결되나 FK 편의)",
+    )
+    device      = models.ForeignKey(Device, on_delete=models.PROTECT, related_name="detections")
+    sensor_type = models.CharField(
+        max_length=20, null=True, blank=True,
+        help_text="채널/가스종. IF는 null=9채널 전체",
+    )
+    stage  = models.CharField(max_length=20, choices=Stage.choices, db_index=True)
+    level  = models.CharField(max_length=20, help_text="판정 등급 (정상/주의/위험/이상 등)")
+    score  = models.FloatField(null=True, blank=True, help_text="수치 (z·mahalanobis·예측편차 등)")
+    detail = models.JSONField(null=True, blank=True, help_text="단계별 상세 (anchor·곡선·임계비교 등)")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "detection_results"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=['event_id']),
+            models.Index(fields=['device', 'sensor_type', 'created_at']),
+            models.Index(fields=['stage', 'level']),
+        ]
+
+    def __str__(self):
+        return f"{self.stage} [{self.level}] {self.sensor_type or '*'} ev={self.event_id}"
+
+
+# ── DropLog (들어왔으나 거부된 원천 추적) ──────────────────
+
+class DropLog(models.Model):
+    """ingest 경계에서 거부된 payload. 무음 드롭 금지 — 사후 추적용."""
+
+    event_id   = models.UUIDField(null=True, blank=True, db_index=True)
+    device_uid = models.CharField(max_length=100, db_index=True)
+    reason     = models.CharField(
+        max_length=100,
+        help_text="device_not_found / inactive / invalid_range / parse_fail 등",
+    )
+    raw_payload = models.JSONField(null=True, blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "drop_logs"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"DROP {self.device_uid} ({self.reason}) @ {self.created_at}"
 
 
 # ── PowerReading ─────────────────────────────────────
