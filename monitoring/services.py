@@ -96,9 +96,19 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
     from alerts.services import check_power_thresholds
     check_power_thresholds(device, channel, float(power_w))
     rated_w = float(channel.rated_power_w or 1000)
+    level = '정상'
+    load_rate = None
     if power_w and float(power_w) > 0 and rated_w > 0:
         load_rate = (float(power_w) / rated_w) * 100
         level = '위험' if load_rate >= 75 else ('주의' if load_rate >= 50 else '정상')
+
+    # 연속 위험 확인(K=2): 현재 THRESHOLD 저장 전 조회 → 현재 제외 (device+channel)
+    prev_danger = DetectionResult.objects.filter(
+        device=device, stage=Stage.THRESHOLD, level='위험', sensor_type=channel_code,
+        created_at__gte=timezone.now() - timedelta(seconds=90),
+    ).exists()
+
+    if load_rate is not None:
         detections.append(DetectionResult(
             event_id=event_id, gas_reading=None, device=device,
             sensor_type=channel_code, stage=Stage.THRESHOLD,
@@ -106,8 +116,48 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
             detail={'power_w': float(power_w), 'rated_w': rated_w, 'load_rate': round(load_rate, 2)},
         ))
 
+    # ── 정책 엔진 — 전력 현재 상태 (load_rate 판정만; z/cp/if 없음, 가스와 동일 함수) ──
+    current_state = merge_current_status([{'level': level}], [], [], None, prev_danger=prev_danger)
+    detections.append(DetectionResult(
+        event_id=event_id, gas_reading=None, device=device,
+        sensor_type=channel_code, stage=Stage.POLICY, level=current_state,
+        detail={'load_rate': round(load_rate, 2) if load_rate is not None else None,
+                'prev_danger': prev_danger},
+    ))
+
     if detections:
         DetectionResult.objects.bulk_create(detections)
+
+    # ── WS 브로드캐스트 — 디바이스 단위 최악 채널 상태 (지도 power 마커 1개/디바이스) ──
+    try:
+        from facilities.models import SensorLocation
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        sensor = SensorLocation.objects.filter(device_id=device.id, is_active=True).first()
+        if sensor:
+            _ORDER = ['CRITICAL', 'ML_ANOMALY', 'ANOMALY_WARNING', 'TREND_SHIFT', 'OBSERVE', 'NORMAL']
+            recent_states = list(DetectionResult.objects.filter(
+                device=device, stage=Stage.POLICY,
+                created_at__gte=timezone.now() - timedelta(seconds=90),
+            ).values_list('level', flat=True)) or [current_state]
+            device_state = min(recent_states, key=lambda s: _ORDER.index(s) if s in _ORDER else 99)
+            ws_payload = {
+                'id': sensor.id, 'device_id': device.id,
+                'sensor_type': sensor.sensor_type,
+                'x': float(sensor.x), 'y': float(sensor.y),
+                'device_name': sensor.device_name, 'is_active': sensor.is_active,
+                'status': _STATE_COLOR.get(device_state, 'normal'),
+                'current_state': device_state,
+                'latest_value': {'channel': channel_code, 'current_a': current_a,
+                                 'voltage_v': voltage_v, 'power_w': power_w},
+            }
+            async_to_sync(get_channel_layer().group_send)(
+                f'floor_{sensor.floor_id}_sensor',
+                {'type': 'sensor.update', 'msg_type': 'delta', 'data': [ws_payload]},
+            )
+    except Exception as e:
+        print(f'[power_ws] broadcast 실패: {e}')
 
     # STEP G — ARIMA 예측 (forecast 큐 위임 — gas D2 아키텍처). event_id 전파 → ARIMA 계보는 forecast 태스크가 적재
     from alerts.tasks import forecast_power_task
