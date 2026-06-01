@@ -74,6 +74,54 @@ async def xadd_gas_reading(data: dict) -> None:
     except Exception as e:
         print(f"[sender] Redis Stream XADD 실패: {e}")
 
+
+# 전력 원천 Redis Stream (가스 패턴 미러)
+POWER_STREAM = "stream:power:raw"
+POWER_FIELDS = ['current_a', 'voltage_v', 'power_w']
+POWER_VALID_RANGE = {'current_a': (0, 1000), 'voltage_v': (0, 500), 'power_w': (0, 1_000_000)}
+
+
+def _validate_power(payload: dict):
+    """전력 값 검증. -1=통신불능(comm_err), 0=OFF(정상). 범위위반=invalid."""
+    vals = [payload.get(f, -1.0) for f in POWER_FIELDS]
+    if all(v in (-1, -1.0) for v in vals):
+        return 'comm_err', []
+    violations = [
+        f for f in POWER_FIELDS
+        if payload.get(f) not in (None, -1, -1.0)
+        and not (POWER_VALID_RANGE[f][0] <= float(payload[f]) <= POWER_VALID_RANGE[f][1])
+    ]
+    if violations:
+        return 'invalid', violations
+    if any(v in (-1, -1.0) for v in vals):
+        return 'partial', []
+    return 'ok', []
+
+
+async def xadd_power_reading(data: dict) -> None:
+    """전력 원천 1건을 Redis Stream에 적재 (XADD). consume_power_stream이 단계별 처리."""
+    payload = {
+        "device_uid":   data["device_uid"],
+        "channel_code": data["channel_code"],
+        "measured_at":  data.get("measured_at"),
+        "current_a":    data["current_a"],
+        "voltage_v":    data["voltage_v"],
+        "power_w":      data["power_w"],
+    }
+    quality_flag, violations = _validate_power(payload)
+    payload["event_id"]     = str(uuid.uuid4())
+    payload["quality_flag"] = quality_flag
+    if violations:
+        payload["violations"] = violations
+    try:
+        await asyncio.to_thread(
+            _stream_client().xadd,
+            POWER_STREAM, {"payload": json.dumps(payload)},
+            maxlen=10000, approximate=True,
+        )
+    except Exception as e:
+        print(f"[sender] power XADD 실패: {e}")
+
 # 시작 시 Django에서 가스 장비 목록을 가져옴
 # 반환값: [{"id": 1, "device_uid": "AA:BB:CC"}, ...]
 async def fetch_gas_devices() -> list[dict]:

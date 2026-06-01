@@ -25,63 +25,95 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
         2. STEP B — check_power_thresholds (Django load_rate 즉시 알람)
         3. STEP G — forecast_power_task.delay (forecast 큐 위임)
     """
-    from monitoring.models import Device, DeviceChannel, PowerReading
+    from monitoring.models import Device, DeviceChannel, PowerReading, DropLog, DetectionResult
     from monitoring.collector import update_last_seen
 
+    # ── ① 유효성 게이트 (장비/채널 — 무음 드롭 금지) ──
     device = Device.objects.filter(device_uid=device_uid).first()
     if not device:
+        DropLog.objects.create(device_uid=device_uid or '', reason='device_not_found', raw_payload=dict(payload))
         return
     if not device.is_active or device.status != 'active':
+        DropLog.objects.create(device_uid=device_uid, reason='inactive', raw_payload=dict(payload))
         return
-    channel = DeviceChannel.objects.filter(
-        device=device, channel_code=channel_code,
-    ).first()
+    channel = DeviceChannel.objects.filter(device=device, channel_code=channel_code).first()
     if not channel:
+        DropLog.objects.create(device_uid=device_uid, reason='channel_not_found', raw_payload=dict(payload))
         return
     if not channel.is_active or channel.status != 'active':
+        DropLog.objects.create(device_uid=device_uid, reason='channel_inactive', raw_payload=dict(payload))
         return
+
+    # event_id 계보 — 원천 부여 우선, 없으면 경계 발급(실장비 대비)
+    event_id = payload.get('event_id') or uuid.uuid4()
+    tick_id  = payload.get('tick_id')   # 보류
 
     current_a = payload.get('current_a', -1.0)
     voltage_v = payload.get('voltage_v', -1.0)
     power_w   = payload.get('power_w',   -1.0)
 
-    fields = [current_a, voltage_v, power_w]
-    if all(v in (-1, -1.0) for v in fields):
-        quality_flag = 'comm_err'
-    elif any(v in (-1, -1.0) for v in fields):
-        quality_flag = 'partial'
+    # ② 값 검증 — 원천이 검증했으면 신뢰, 아니면 경계 검증
+    if 'quality_flag' in payload:
+        quality_flag = payload['quality_flag']
     else:
-        quality_flag = 'ok'
+        fields = [current_a, voltage_v, power_w]
+        if all(v in (-1, -1.0) for v in fields):
+            quality_flag = 'comm_err'
+        elif any(v in (-1, -1.0) for v in fields):
+            quality_flag = 'partial'
+        else:
+            quality_flag = 'ok'
 
+    ts_fallback = False
     measured_at_raw = payload.get('measured_at')
     if measured_at_raw:
         from django.utils.dateparse import parse_datetime
         from django.utils.timezone import make_aware, is_aware
         parsed = parse_datetime(str(measured_at_raw))
         if parsed is None:
-            measured_at = timezone.now()
+            measured_at = timezone.now(); ts_fallback = True
         elif not is_aware(parsed):
             measured_at = make_aware(parsed)
         else:
             measured_at = parsed
     else:
-        measured_at = timezone.now()
+        measured_at = timezone.now(); ts_fallback = True
 
     PowerReading.objects.create(
         device=device, channel=channel,
         current_a=current_a, voltage_v=voltage_v, power_w=power_w,
         measured_at=measured_at, quality_flag=quality_flag,
+        event_id=event_id, tick_id=tick_id, ts_fallback=ts_fallback,
         raw_payload=dict(payload),
     )
     update_last_seen(device)
 
-    # STEP B — 즉시 임계 알람 (Django load_rate 정책)
+    # ── ③ 단계별 판정 + DetectionResult 계보 + 알람 ──
+    Stage = DetectionResult.Stage
+    detections = []
+
+    # STEP B — 부하율 임계 판정
     from alerts.services import check_power_thresholds
     check_power_thresholds(device, channel, float(power_w))
+    rated_w = float(channel.rated_power_w or 1000)
+    if power_w and float(power_w) > 0 and rated_w > 0:
+        load_rate = (float(power_w) / rated_w) * 100
+        level = '위험' if load_rate >= 75 else ('주의' if load_rate >= 50 else '정상')
+        detections.append(DetectionResult(
+            event_id=event_id, gas_reading=None, device=device,
+            sensor_type=channel_code, stage=Stage.THRESHOLD,
+            level=level, score=round(load_rate, 2),
+            detail={'power_w': float(power_w), 'rated_w': rated_w, 'load_rate': round(load_rate, 2)},
+        ))
 
-    # STEP G — ARIMA 사전 경고 (forecast 전용 큐 위임 — gas D2 아키텍처)
+    if detections:
+        DetectionResult.objects.bulk_create(detections)
+
+    # STEP G — ARIMA 예측 (forecast 큐 위임 — gas D2 아키텍처). event_id 전파 → ARIMA 계보는 forecast 태스크가 적재
     from alerts.tasks import forecast_power_task
-    forecast_power_task.delay(device_uid, channel_code, dict(payload))
+    fpayload = dict(payload)
+    fpayload['event_id'] = str(event_id)
+    forecast_power_task.delay(device_uid, channel_code, fpayload)
 
 
 # ══════════════════════════════════════════════════════════

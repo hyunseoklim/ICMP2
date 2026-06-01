@@ -273,9 +273,23 @@ class PowerReading(models.Model):
     received_at = models.DateTimeField(auto_now_add=True)
     quality_flag = models.CharField(
         max_length=20, default='ok',
-        help_text="ok / missing / comm_err / partial",
+        help_text="ok / missing / comm_err / partial / invalid",
     )
     raw_payload = models.JSONField(null=True, blank=True, help_text="원본 수신 payload")
+
+    # ── event_id 계보 (가스와 동일 — 단계별 파생·알람 상관) ──
+    event_id = models.UUIDField(
+        null=True, blank=True, unique=True, db_index=True,
+        help_text="측정 1건 고유 ID — 원천↔DetectionResult↔알람 상관 키",
+    )
+    tick_id = models.UUIDField(
+        null=True, blank=True, db_index=True,
+        help_text="한 emit 사이클 공유 ID (교차 상관, 현재 보류)",
+    )
+    ts_fallback = models.BooleanField(
+        default=False,
+        help_text="measured_at 파싱 실패로 서버 now() 대체됐는지",
+    )
 
     class Meta:
         db_table            = "power_readings"

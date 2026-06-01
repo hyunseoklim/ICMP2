@@ -470,6 +470,25 @@ def forecast_power_task(device_uid: str, channel_code: str, payload: dict):
         policy_results = [pr for pr, _ in results]
         save_forecast_snapshots(device, results, channel=channel)
         trigger_forecast_alarms(device, policy_results, channel=channel)
+        # ARIMA 단계 계보 — event_id로 원천 상관 (gas_reading=None, device로 연결)
+        event_id = payload.get('event_id')
+        if event_id:
+            from monitoring.models import DetectionResult
+            dets = [
+                DetectionResult(
+                    event_id=event_id, device=device,
+                    sensor_type=f"{channel_code}/{getattr(pr, 'sensor_type', '')}",
+                    stage=DetectionResult.Stage.ARIMA,
+                    level=getattr(getattr(pr, 'headline_confidence', None), 'name', 'UNKNOWN'),
+                    score=(getattr(pr, 'danger_eta_step', None)
+                           or getattr(pr, 'caution_eta_step', None)),
+                    detail={'severity': getattr(pr, 'headline_severity', None),
+                            'path': getattr(pr, 'path', None)},
+                )
+                for pr in policy_results
+            ]
+            if dets:
+                DetectionResult.objects.bulk_create(dets)
         logger.debug(
             "forecast_power_task 완료 — device=%s ch=%s", device_uid, channel_code,
         )
