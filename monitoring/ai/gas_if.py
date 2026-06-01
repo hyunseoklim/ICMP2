@@ -7,7 +7,7 @@ Celery prefork worker(다중 프로세스)에서 안전하다.
 
 - 모델 로드: load_models() 를 Celery worker_process_init 에서 1회 호출.
 - worker 외 경로(HTTP fallback 등)에서는 get_detector() 가 지연 로드한다.
-- 엔진 import(`from gas...`, `from common...`)는 settings.py 가 sys.path 에
+- 엔진 import(`from gas...`, `from gas.core...`)는 settings.py 가 sys.path 에
   fastapi_app/ai_engine 를 등록한 뒤에만 가능하므로 함수 내부에서 지연 import.
 """
 import logging
@@ -65,7 +65,7 @@ def gasreading_to_bundle(reading):
     한 GasReading row 가 이미 9채널·1시점이므로 채널 집계 없이 직접 변환한다.
     결측(None) 채널은 is_valid_flags=False — 엔진이 UNKNOWN 으로 처리한다.
     """
-    from common.data_types import SensorBundle
+    from gas.core.data_types import SensorBundle
 
     values = {ch: getattr(reading, ch) for ch in GAS_CHANNELS}
     is_valid = {ch: values[ch] is not None for ch in GAS_CHANNELS}

@@ -17,7 +17,7 @@ power/premises/work — 전력 도메인 작업 모드별 사이클 (W.5).
 
 from __future__ import annotations
 
-from common.enums import WorkMode
+from power.core.enums import WorkMode
 
 
 # ============================================================================

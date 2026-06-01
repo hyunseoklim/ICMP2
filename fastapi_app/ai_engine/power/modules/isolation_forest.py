@@ -27,9 +27,9 @@ import joblib
 import numpy as np
 from sklearn.ensemble import IsolationForest
 
-from common.data_types import SensorBundle
-from common.enums import RiskLevel
-from common.premises.measurement import MIN_VALID_RATIO
+from power.core.data_types import SensorBundle
+from power.core.enums import RiskLevel
+from power.core.premises.measurement import MIN_VALID_RATIO
 from power.premises.power_distribution import POWER_SENSOR_TYPES, POWER_DIMENSION
 
 

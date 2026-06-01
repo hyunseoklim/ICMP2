@@ -11,7 +11,7 @@ dict로 변환. gas/thresholds/loader.py와 *대칭 구조*.
 
 표준 사용 예:
     >>> from power.thresholds import load_power_thresholds
-    >>> from common.modules import ThresholdClassifier
+    >>> from power.core.modules import ThresholdClassifier
     >>> 
     >>> table = load_power_thresholds()
     >>> classifier = ThresholdClassifier(table)
@@ -22,7 +22,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional, Union
 
-from common.utils.config_loader import load_config, get_config_dir
+from power.core.utils.config_loader import load_config, get_config_dir
 from power.premises.power_distribution import POWER_SENSOR_TYPES
 
 
@@ -30,7 +30,7 @@ _ALLOWED_DIRECTIONS = {"high", "low", "both"}
 
 
 def _default_path() -> Path:
-    return get_config_dir() / "power" / "threshold.yaml"
+    return get_config_dir() / "threshold.yaml"
 
 
 def load_power_thresholds(

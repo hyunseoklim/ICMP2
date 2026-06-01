@@ -72,7 +72,7 @@ def _get_subsystem():
     """전력 예측 서브시스템을 1회 생성·캐시하여 반환."""
     global _subsystem, _arima_recorder
     if _subsystem is None:
-        from common.integration import PredictionSubsystem, ForecastPolicy
+        from power.core.integration import PredictionSubsystem, ForecastPolicy
         from power.modules import PowerARIMAPredictor
         from power.thresholds import load_power_thresholds
 
@@ -97,7 +97,7 @@ def _backfill(subsystem) -> None:
     gas_forecast._backfill 패턴 미러. 단 power는 (device, channel) 단위라
     채널별로 push + 초기 predict 1회 호출.
     """
-    from common.data_types import DataPoint
+    from power.core.data_types import DataPoint
     from monitoring.models import Device, DeviceChannel, PowerReading
     from alerts.services import save_forecast_snapshots
 
@@ -182,7 +182,7 @@ def run_forecast(device_uid: str, channel_code: str, payload: dict):
         return []
     _last_processed[(device_uid, channel_code)] = measured_at
 
-    from common.data_types import DataPoint
+    from power.core.data_types import DataPoint
 
     results = []
     for st, key in [

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from common.enums import WorkMode
+from power.core.enums import WorkMode
 from .work import POWER_MEANS_WORKING, POWER_MEANS_IDLE
 
 

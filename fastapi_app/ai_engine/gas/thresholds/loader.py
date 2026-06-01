@@ -11,7 +11,7 @@ dict로 변환한다. 9종 가스 모두 정의되어 있는지, 형식이 올�
 
 표준 사용 예:
     >>> from gas.thresholds import load_gas_thresholds
-    >>> from common.modules import ThresholdClassifier
+    >>> from gas.core.modules import ThresholdClassifier
     >>> 
     >>> table = load_gas_thresholds()
     >>> classifier = ThresholdClassifier(table)
@@ -23,7 +23,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional, Union
 
-from common.utils.config_loader import load_config, get_config_dir
+from gas.core.utils.config_loader import load_config, get_config_dir
 from gas.premises.gas_distribution import GAS_SENSOR_TYPES
 
 
@@ -33,7 +33,7 @@ _ALLOWED_DIRECTIONS = {"high", "low", "both"}
 # 기본 yaml 경로
 def _default_path() -> Path:
     """기본 yaml 경로 — 호출 시점에 동적 계산 (ai_engine 루트 기준)."""
-    return get_config_dir() / "gas" / "threshold.yaml"
+    return get_config_dir() / "threshold.yaml"
 
 
 # ============================================================================

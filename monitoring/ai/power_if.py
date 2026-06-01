@@ -131,7 +131,7 @@ def powerreading_to_bundle(reading):
     PowerReading의 -1.0 결측 규약 → is_valid_flags=False (엔진이 UNKNOWN 처리).
     Phase C-5: FloatField 마이그레이션 후 -1.0 비교 정확성.
     """
-    from common.data_types import SensorBundle
+    from power.core.data_types import SensorBundle
 
     raw = {
         'voltage': reading.voltage_v,

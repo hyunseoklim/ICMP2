@@ -44,9 +44,9 @@ import joblib
 import numpy as np
 from sklearn.ensemble import IsolationForest
 
-from common.data_types import SensorBundle
-from common.enums import RiskLevel
-from common.premises.measurement import MIN_VALID_RATIO
+from gas.core.data_types import SensorBundle
+from gas.core.enums import RiskLevel
+from gas.core.premises.measurement import MIN_VALID_RATIO
 from gas.premises.gas_distribution import GAS_SENSOR_TYPES, GAS_DIMENSION
 
 

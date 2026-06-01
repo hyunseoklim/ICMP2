@@ -63,7 +63,7 @@ def _get_subsystem():
     """가스 예측 서브시스템을 1회 생성·캐시하여 반환."""
     global _subsystem, _arima_recorder
     if _subsystem is None:
-        from common.integration import PredictionSubsystem, ForecastPolicy
+        from gas.core.integration import PredictionSubsystem, ForecastPolicy
         from gas.modules import GasARIMAPredictor
         from gas.thresholds import load_gas_thresholds
 
@@ -95,7 +95,7 @@ def _backfill(subsystem) -> None:
     (~수 초). K-카운터는 0에서 시작하므로 CONFIRMED 등급은 이후 라이브
     reading으로 재누적된다(곡선·차트는 즉시 정상).
     """
-    from common.data_types import DataPoint
+    from gas.core.data_types import DataPoint
     from monitoring.models import Device, GasReading
     from alerts.services import save_forecast_snapshots
 
@@ -162,7 +162,7 @@ def run_forecast(device_uid: str, payload: dict):
         return []
     _last_processed[device_uid] = measured_at   # 처리 착수 기록 (재처리 차단)
 
-    from common.data_types import DataPoint
+    from gas.core.data_types import DataPoint
 
     results = []
     for ch in GAS_CHANNELS:

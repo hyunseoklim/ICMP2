@@ -39,7 +39,7 @@ from typing import Optional
 
 import numpy as np
 
-from common.modules.change_point import CPAnchorResult
+from gas.core.modules.change_point import CPAnchorResult
 
 
 # ============================================================================
