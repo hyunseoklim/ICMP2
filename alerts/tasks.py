@@ -424,6 +424,25 @@ def forecast_gas_task(device_uid: str, payload: dict):
         if device:
             save_forecast_snapshots(device, results)         # 등급 + 곡선(튜플) → 스냅샷 upsert
             trigger_forecast_alarms(device, policy_results)  # CONFIRMED 시 predictive_warning 알람
+            # ARIMA 단계 계보 — event_id로 원천과 상관 (gas_reading은 null, event_id로 연결)
+            event_id = payload.get('event_id')
+            if event_id:
+                from monitoring.models import DetectionResult
+                dets = [
+                    DetectionResult(
+                        event_id=event_id, device=device,
+                        sensor_type=getattr(pr, 'sensor_type', None),
+                        stage=DetectionResult.Stage.ARIMA,
+                        level=getattr(getattr(pr, 'headline_confidence', None), 'name', 'UNKNOWN'),
+                        score=(getattr(pr, 'danger_eta_step', None)
+                               or getattr(pr, 'caution_eta_step', None)),
+                        detail={'severity': getattr(pr, 'headline_severity', None),
+                                'path': getattr(pr, 'path', None)},
+                    )
+                    for pr in policy_results
+                ]
+                if dets:
+                    DetectionResult.objects.bulk_create(dets)
         logger.debug("forecast_gas_task 완료 — device=%s", device_uid)
     except Exception as exc:
         logger.error("forecast_gas_task 실패 — device=%s: %s", device_uid, exc)
