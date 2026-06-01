@@ -220,65 +220,72 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     # ── ③ 단계별 판정 + 결과 영속(DetectionResult 계보) + 알람 ──
     from monitoring.models import DetectionResult
     Stage = DetectionResult.Stage
-    detections: list = []
+
+    def _save_stage(rows):
+        """단계 결과를 그 자리에서 즉시 영속(중간중간 저장) — 단계 완료 시점마다 1회."""
+        if rows:
+            DetectionResult.objects.bulk_create(rows)
 
     # STEP C — Sliding Window 버퍼 갱신 (상태)
     from monitoring.anomaly.window import push as window_push
     window_push(device.device_uid, reading)
 
-    # STEP B — 임계치 초과 판단
+    # STEP B — 임계치 초과 판단 → 즉시 저장
     from alerts.services import check_gas_thresholds
     check_gas_thresholds(device, reading)
-    for e in check_threshold_exceeded(reading):
-        detections.append(DetectionResult(
+    _save_stage([
+        DetectionResult(
             event_id=event_id, gas_reading=reading, device=device,
             sensor_type=e.get('gas'), stage=Stage.THRESHOLD,
             level=str(e.get('level')), score=values.get(e.get('gas')), detail=_jsonable(e),
-        ))
+        )
+        for e in check_threshold_exceeded(reading)
+    ])
 
-    # STEP D — Z-score 통계 이상 탐지
+    # STEP D — Z-score 통계 이상 탐지 → 즉시 저장
     from monitoring.anomaly.zscore import analyze as zscore_analyze
     from alerts.services import trigger_anomaly_alarms
     zscore_results = zscore_analyze(device.device_uid, reading)
     trigger_anomaly_alarms(device, zscore_results)
-    for r in zscore_results:
-        detections.append(DetectionResult(
+    _save_stage([
+        DetectionResult(
             event_id=event_id, gas_reading=reading, device=device,
             sensor_type=r.get('metric'), stage=Stage.ZSCORE,
             level=str(r.get('final_status')), score=r.get('z_score'), detail=_jsonable(r),
-        ))
+        )
+        for r in zscore_results
+    ])
 
-    # STEP E — Change Point 탐지
+    # STEP E — Change Point 탐지 → 즉시 저장
     from monitoring.anomaly.changepoint import detect as cp_detect
     from alerts.services import trigger_changepoint_alarms
     cp_results = cp_detect(device.device_uid, reading)
     trigger_changepoint_alarms(device, cp_results)
-    for r in cp_results:
-        detections.append(DetectionResult(
+    _save_stage([
+        DetectionResult(
             event_id=event_id, gas_reading=reading, device=device,
             sensor_type=r.get('metric'), stage=Stage.CHANGEPOINT,
             level=str(r.get('state') or 'NORMAL'), score=r.get('mean_shift_score'), detail=_jsonable(r),
-        ))
+        )
+        for r in cp_results
+    ])
 
-    # STEP F — Isolation Forest 9채널 분포 이상 탐지 (AI 엔진)
+    # STEP F — Isolation Forest 9채널 분포 이상 탐지 (AI 엔진) → 즉시 저장
     from monitoring.ai.gas_if import predict_gas_anomaly
     from alerts.services import trigger_if_anomaly_alarms
     if_result = predict_gas_anomaly(reading)
     trigger_if_anomaly_alarms(device, if_result)
     if if_result is not None:
-        detections.append(DetectionResult(
+        _save_stage([DetectionResult(
             event_id=event_id, gas_reading=reading, device=device,
             sensor_type=None, stage=Stage.IF,
             level=if_result.level.name,
             score=getattr(if_result, 'mahalanobis_distance', None),
             detail={'is_anomaly': bool(getattr(if_result, 'is_anomaly', False)),
                     'reason': str(getattr(if_result, 'reason', ''))},
-        ))
+        )])
 
-    if detections:
-        DetectionResult.objects.bulk_create(detections)
-
-    # STEP G — ARIMA 예측 (forecast 큐 위임). event_id 전파 → ARIMA 단계 계보는 forecast 태스크가 적재
+    # STEP G — ARIMA 예측 (forecast 큐 위임, 비동기 별도 저장). event_id 전파
     from alerts.tasks import forecast_gas_task
     fpayload = dict(payload)
     fpayload['event_id'] = str(event_id)

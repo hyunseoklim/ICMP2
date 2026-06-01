@@ -59,18 +59,40 @@ class _RecordingARIMA:
         return result
 
 
+def _gas_thresholds_from_django() -> dict:
+    """임계치 단일 출처 = Django(DB ThresholdPolicy). 엔진은 참고만 해서 계산.
+
+    Django get_thresholds(DB/기본값) + O2 역방향 상수를 ThresholdClassifier
+    형식 {sensor_type: {direction, caution, danger}}으로 변환한다.
+    → 판단(Django)과 예측(엔진)이 동일 위험기준을 쓴다. (yaml 이원화 제거)
+    """
+    from monitoring.services import get_thresholds, O2_WARN, O2_DANGER
+    table = {
+        gas: {'direction': 'high', 'caution': float(warn), 'danger': float(danger)}
+        for gas, (warn, danger) in get_thresholds(scope='실시간 관제').items()
+    }
+    table['o2'] = {'direction': 'low', 'caution': float(O2_WARN), 'danger': float(O2_DANGER)}
+    return table
+
+
 def _get_subsystem():
     """가스 예측 서브시스템을 1회 생성·캐시하여 반환."""
     global _subsystem, _arima_recorder
     if _subsystem is None:
         from gas.core.integration import PredictionSubsystem, ForecastPolicy
         from gas.modules import GasARIMAPredictor
-        from gas.thresholds import load_gas_thresholds
 
         k = int(getattr(settings, 'FORECAST_K_CONFIRM', 18))
         _arima_recorder = _RecordingARIMA(GasARIMAPredictor())
+        # 임계치 단일 출처 = Django. 실패 시에만 엔진 yaml 폴백.
+        try:
+            threshold_table = _gas_thresholds_from_django()
+        except Exception as exc:
+            from gas.thresholds import load_gas_thresholds
+            logger.warning("Django 임계치 로드 실패 — yaml 폴백: %s", exc)
+            threshold_table = load_gas_thresholds()
         _subsystem = PredictionSubsystem(
-            load_gas_thresholds(),
+            threshold_table,
             arima=_arima_recorder,
             policy=ForecastPolicy(k_confirm=k),
         )
