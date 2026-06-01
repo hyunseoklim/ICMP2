@@ -180,6 +180,7 @@ class DetectionResult(models.Model):
         CHANGEPOINT = "CHANGEPOINT", "변화점"
         IF          = "IF",          "Isolation Forest"
         ARIMA       = "ARIMA",       "ARIMA 예측"
+        POLICY      = "POLICY",      "정책 엔진 (현재 상태 통합)"
 
     event_id    = models.UUIDField(db_index=True, help_text="원천 GasReading.event_id 계보 키")
     gas_reading = models.ForeignKey(

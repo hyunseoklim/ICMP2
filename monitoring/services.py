@@ -143,6 +143,36 @@ def _jsonable(d: dict) -> dict:
     return out
 
 
+# 정책 엔진 — 현재 상태(5-tier) → 화면 색(danger/warning/normal)
+_STATE_COLOR = {
+    'CRITICAL': 'danger',
+    'ML_ANOMALY': 'warning',
+    'ANOMALY_WARNING': 'warning',
+    'TREND_SHIFT': 'warning',
+    'NORMAL': 'normal',
+}
+
+
+def merge_current_status(threshold_exceeded, zscore_results, cp_results, if_result) -> str:
+    """판단 4단계(threshold·z-score·CP·IF) → 현재 상태 1개 (우선순위 병합).
+
+    스펙 우선순위: CRITICAL > ML_ANOMALY > ANOMALY_WARNING > TREND_SHIFT > NORMAL.
+    결정1=(나): threshold '주의'는 ANOMALY_WARNING과 동급으로 묶는다.
+    (예측 ARIMA는 별도 — 현재 상태에 미포함)
+    """
+    if any(e.get('level') == '위험' for e in (threshold_exceeded or [])):
+        return 'CRITICAL'
+    if if_result is not None and getattr(getattr(if_result, 'level', None), 'name', None) == 'CAUTION':
+        return 'ML_ANOMALY'
+    if any(r.get('final_status') == 'ANOMALY_WARNING' for r in (zscore_results or [])):
+        return 'ANOMALY_WARNING'
+    if any(e.get('level') == '주의' for e in (threshold_exceeded or [])):
+        return 'ANOMALY_WARNING'
+    if any(r.get('event') == 'CHANGE_POINT' or r.get('state') == 'SHIFT' for r in (cp_results or [])):
+        return 'TREND_SHIFT'
+    return 'NORMAL'
+
+
 def process_gas_ingest(device_uid: str, payload: dict) -> None:
     """
     가스 센서 데이터 1건 처리.
@@ -233,13 +263,14 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     # STEP B — 임계치 초과 판단 → 즉시 저장
     from alerts.services import check_gas_thresholds
     check_gas_thresholds(device, reading)
+    threshold_exceeded = check_threshold_exceeded(reading)
     _save_stage([
         DetectionResult(
             event_id=event_id, gas_reading=reading, device=device,
             sensor_type=e.get('gas'), stage=Stage.THRESHOLD,
             level=str(e.get('level')), score=values.get(e.get('gas')), detail=_jsonable(e),
         )
-        for e in check_threshold_exceeded(reading)
+        for e in threshold_exceeded
     ])
 
     # STEP D — Z-score 통계 이상 탐지 → 즉시 저장
@@ -285,6 +316,20 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
                     'reason': str(getattr(if_result, 'reason', ''))},
         )])
 
+    # ── 정책 엔진 — 판단 4단계 → 현재 상태 1개 (우선순위 병합) → POLICY 저장 ──
+    current_state = merge_current_status(threshold_exceeded, zscore_results, cp_results, if_result)
+    _save_stage([DetectionResult(
+        event_id=event_id, gas_reading=reading, device=device,
+        sensor_type=None, stage=Stage.POLICY, level=current_state,
+        detail={
+            'threshold': any(e.get('level') == '위험' for e in threshold_exceeded) and 'danger'
+                         or (any(e.get('level') == '주의' for e in threshold_exceeded) and 'warn' or None),
+            'zscore':  any(r.get('final_status') == 'ANOMALY_WARNING' for r in zscore_results),
+            'cp':      any(r.get('event') == 'CHANGE_POINT' for r in cp_results),
+            'if':      (if_result.level.name if if_result is not None else None),
+        },
+    )])
+
     # STEP G — ARIMA 예측 (forecast 큐 위임, 비동기 별도 저장). event_id 전파
     from alerts.tasks import forecast_gas_task
     fpayload = dict(payload)
@@ -302,8 +347,8 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
         ).first()
 
         if sensor:
-            level_kr = calc_danger_level(reading)
-            status = {'위험': 'danger', '주의': 'warning', '정상': 'normal'}.get(level_kr, 'normal')
+            # 정책 엔진 통합 현재 상태 → 화면 색 (raw threshold 대신 정제 판단)
+            status = _STATE_COLOR.get(current_state, 'normal')
             ws_payload = {
                 'id': sensor.id,
                 'device_id': device.id,
@@ -313,6 +358,7 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
                 'device_name': sensor.device_name,
                 'is_active': sensor.is_active,
                 'status': status,
+                'current_state': current_state,   # 5-tier 정책 현재상태 (팝업·상세용)
                 'latest_value': {f: getattr(reading, f) for f in GAS_FIELDS},
             }
             channel_layer = get_channel_layer()
