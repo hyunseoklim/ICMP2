@@ -5,6 +5,7 @@ from asgiref.sync import async_to_sync
 from celery import shared_task
 from channels.layers import get_channel_layer
 from django.conf import settings
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ def _render_policy_message(event, alarm_policy) -> tuple:
         '{이벤트상세}': event.get_event_type_display(),
         '{발생대상}':   str(event.device or event.facility or '-'),
         '{상태}':       event.get_severity_display(),
-        '{발생시각}':   event.occurred_at.strftime('%Y-%m-%d %H:%M:%S'),
+        '{발생시각}':   timezone.localtime(event.occurred_at).strftime('%Y-%m-%d %H:%M:%S %Z'),
     }
 
     if alarm_policy:
@@ -132,7 +133,7 @@ def send_slack_notification(self, event_id: int):
     text = (
         f"{severity_emoji} *[ICMP2 알림]* {emphasis}{title}\n"
         f"> {content}\n"
-        f"> 시설: {event.facility or '-'}  |  발생: {event.occurred_at.strftime('%Y-%m-%d %H:%M:%S')}{target_str}"
+        f"> 시설: {event.facility or '-'}  |  발생: {timezone.localtime(event.occurred_at).strftime('%Y-%m-%d %H:%M:%S %Z')}{target_str}"
     )
 
     try:
@@ -170,7 +171,7 @@ def send_discord_notification(self, event_id: int):
 
     fields = [
         {'name': '시설',      'value': str(event.facility or '-'),                      'inline': True},
-        {'name': '발생 시각', 'value': event.occurred_at.strftime('%Y-%m-%d %H:%M:%S'), 'inline': True},
+        {'name': '발생 시각', 'value': timezone.localtime(event.occurred_at).strftime('%Y-%m-%d %H:%M:%S %Z'), 'inline': True},
     ]
     if targets:
         fields.append({'name': '수신 대상', 'value': targets, 'inline': True})

@@ -28,6 +28,7 @@ from manager.models import DataRetentionPolicy
 from core.models import CommonCode, SystemLog
 from monitoring.models import ThresholdPolicy, GasReading, PowerReading, Device, NodeReading, InspectionLog, ActionLog
 from alerts.models import AlarmRule, RiskCriteria
+from core.timeutils import to_korea_time_str
 from facilities.models import WorkerLocation, Worker, LocationNode, Equipment, Facility, Floor, Geofence, SensorLocation
 from accounts.models import User, Department, Position
 from .mixins import AdminRequiredMixin, ManagerRequiredMixin, RoleRequiredMixin, DepartmentScopeMixin
@@ -431,8 +432,8 @@ def org_dept_api(request, pk):
             'member_count': qs.count(),
             'leader_id': dept.leader_id,
             'leader_name': dept.leader.name if dept.leader else None,
-            'created_at': dept.created_at.strftime('%Y-%m-%d %H:%M:%S') if dept.created_at else '-',
-            'updated_at': dept.updated_at.strftime('%Y-%m-%d %H:%M:%S') if dept.updated_at else '-',
+            'created_at': to_korea_time_str(dept.created_at) if dept.created_at else '-',
+            'updated_at': to_korea_time_str(dept.updated_at) if dept.updated_at else '-',
             'updated_by': dept.updated_by.name if dept.updated_by else '-',
         }
 
@@ -681,7 +682,7 @@ def code_group_edit(request, group_code):
             'group_name':  meta.code_name,
             'scope':       meta.scope,
             'description': meta.description,
-            'updated_at':  meta.updated_at.strftime('%Y-%m-%d %H:%M:%S') if meta.updated_at else '',
+            'updated_at':  to_korea_time_str(meta.updated_at) if meta.updated_at else '',
             'updated_by':  meta.updated_by or '-',
             'code_count':  code_count,
         })
@@ -992,7 +993,7 @@ def risk_group_edit(request, group_code):
             'scope':        meta.scope or '',
             'is_active':    meta.is_active,
             'description':  meta.description or '',
-            'updated_at':   meta.updated_at.strftime('%Y-%m-%d %H:%M:%S') if meta.updated_at else '',
+            'updated_at':   to_korea_time_str(meta.updated_at) if meta.updated_at else '',
             'updated_by':   meta.updated_by or '-',
             'type_count':   type_count,
         })
@@ -1141,7 +1142,7 @@ def risk_criteria_edit(request, pk):
         'priority':       obj.priority,
         'is_active':      obj.is_active,
         'description':    obj.description,
-        'updated_at':     obj.updated_at.strftime('%Y-%m-%d %H:%M:%S') if obj.updated_at else '',
+        'updated_at':     to_korea_time_str(obj.updated_at) if obj.updated_at else '',
         'updated_by':     obj.updated_by or '-',
     })
 
@@ -1363,7 +1364,7 @@ def threshold_group_edit(request, cat_code):
             'scope':      obj.scope,
             'is_active':  obj.is_active,
             'description': obj.description,
-            'updated_at': obj.updated_at.strftime('%Y-%m-%d %H:%M:%S') if obj.updated_at else '-',
+            'updated_at': to_korea_time_str(obj.updated_at) if obj.updated_at else '-',
             'updated_by': obj.updated_by or '-',
             'type_count': type_count.count(),
         })
@@ -1461,7 +1462,7 @@ def threshold_edit(request, pk):
         'scope':       policy.scope or '',
         'description': policy.description or '',
         'is_active':   policy.is_active,
-        'updated_at':  policy.updated_at.strftime('%Y-%m-%d %H:%M:%S') if policy.updated_at else '',
+        'updated_at':  to_korea_time_str(policy.updated_at) if policy.updated_at else '',
         'updated_by':  policy.updated_by or '-',
     })
 
@@ -1508,9 +1509,9 @@ def safety_checklist_list(request):
     snap_data = [
         {
             'id':       s['id'],
-            'saved_at': s['saved_at'].strftime('%Y-%m-%d %H:%M:%S'),
-            'date':     s['saved_at'].strftime('%Y-%m-%d'),
-            'time':     s['saved_at'].strftime('%H:%M'),
+            'saved_at': to_korea_time_str(s['saved_at']),
+            'date':     to_korea_time_str(s['saved_at'], '%Y-%m-%d'),
+            'time':     to_korea_time_str(s['saved_at'], '%H:%M'),
             'saved_by': s['saved_by__name'] or '-',
             'data':     s['data'],
         }
@@ -1521,7 +1522,7 @@ def safety_checklist_list(request):
         'active_menu':  'safety',
         'sections':     sections,
         'snapshots':    snap_data,
-        'latest_saved': latest.saved_at.strftime('%Y-%m-%d') if latest else '-',
+        'latest_saved': to_korea_time_str(latest.saved_at, '%Y-%m-%d') if latest else '-',
     })
 
 
@@ -1584,8 +1585,8 @@ def safety_checklist_save(request):
 
     return JsonResponse({
         'success':    True,
-        'saved_at':   snapshot.saved_at.strftime('%Y-%m-%d %H:%M:%S'),
-        'saved_date': snapshot.saved_at.strftime('%Y-%m-%d'),
+        'saved_at':   to_korea_time_str(snapshot.saved_at),
+        'saved_date': to_korea_time_str(snapshot.saved_at, '%Y-%m-%d'),
     })
 
 # ===== VR 교육 관리 =====
@@ -1646,7 +1647,7 @@ def vr_education_save(request):
         'success':          True,
         'title':            edu.title,
         'description':      edu.description,
-        'updated_at':       edu.updated_at.strftime('%Y-%m-%d'),
+        'updated_at':       to_korea_time_str(edu.updated_at, '%Y-%m-%d'),
         'duration_badge':   edu.duration_badge,
         'duration_display': edu.duration_display,
     })
@@ -1922,8 +1923,7 @@ def gas_comm_check(request):
                 return JsonResponse({'ok': False, 'mac_mismatch': True,
                                      'error': '입력한 장비 ID와 실제 응답 장비 정보가 일치하지 않습니다.'})
 
-    from django.utils import timezone as tz
-    now = tz.localtime(tz.now())
+    now = timezone.localtime(timezone.now())
     pad = lambda n: str(n).zfill(2)
     ts = (f"{now.year}-{pad(now.month)}-{pad(now.day)} "
           f"{pad(now.hour)}:{pad(now.minute)}:{pad(now.second)}")
@@ -2029,7 +2029,7 @@ def gas_edit(request, pk):
 
     if install_date_str:
         try:
-            device.installed_at = datetime.strptime(install_date_str, '%Y.%m.%d')
+            device.installed_at = timezone.make_aware(datetime.strptime(install_date_str, '%Y.%m.%d'))
         except ValueError:
             pass
 
@@ -2133,7 +2133,7 @@ def gas_inspect_create(request):
     try:
         inspect_date = datetime.strptime(date_str, '%Y.%m.%d').date()
     except (ValueError, TypeError):
-        inspect_date = date.today()
+        inspect_date = timezone.localdate()
 
     action_date = None
     if action_date_str:
@@ -2173,7 +2173,7 @@ def gas_action_create(request, inspection_id):
     try:
         action_date = datetime.strptime(action_date_str, '%Y.%m.%d').date()
     except (ValueError, TypeError):
-        action_date = date.today()
+        action_date = timezone.localdate()
 
     actor = User.objects.filter(name=actor_name).first() if actor_name else None
 
@@ -2441,7 +2441,7 @@ def power_action_create(request, inspection_id):
     try:
         action_date = datetime.strptime(action_date_str, '%Y.%m.%d').date()
     except (ValueError, TypeError):
-        action_date = date.today()
+        action_date = timezone.localdate()
 
     actor = User.objects.filter(name=actor_name).first() if actor_name else None
 
@@ -2472,7 +2472,7 @@ def power_inspect_create(request):
     try:
         inspect_date = datetime.strptime(date_str, '%Y.%m.%d').date()
     except (ValueError, TypeError):
-        inspect_date = date.today()
+        inspect_date = timezone.localdate()
 
     action_date = None
     if action_date_str:
@@ -2736,7 +2736,7 @@ def node_action_create(request, inspection_id):
     try:
         action_date = datetime.strptime(action_date_str, '%Y.%m.%d').date()
     except (ValueError, TypeError):
-        action_date = date.today()
+        action_date = timezone.localdate()
 
     actor = User.objects.filter(name=actor_name).first() if actor_name else None
 
@@ -2767,7 +2767,7 @@ def node_inspect_create(request):
     try:
         inspect_date = datetime.strptime(date_str, '%Y.%m.%d').date()
     except (ValueError, TypeError):
-        inspect_date = date.today()
+        inspect_date = timezone.localdate()
 
     action_date = None
     if action_date_str:
@@ -2792,7 +2792,7 @@ def node_inspect_create(request):
 # ===== 데이터 관리 =====
 def _parse_date_range(request):
     """GET 파라미터에서 date_from / date_to를 파싱, 기본값 = 최근 7일"""
-    today = date.today()
+    today = timezone.localdate()
     default_from = today - timedelta(days=6)
     try:
         date_from = datetime.strptime(request.GET.get('date_from', ''), '%Y-%m-%d').date()
@@ -2868,12 +2868,12 @@ def gas_data_export(request):
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     writer = csv.writer(response)
-    writer.writerow(['수집 시각', '장비명', 'CO2', 'O2', 'CO', 'H2S', 'NH3', 'VOC', 'NO2', 'O3', 'SO2'])
+    writer.writerow(['수집 시각(KST)', '장비명', 'CO2', 'O2', 'CO', 'H2S', 'NH3', 'VOC', 'NO2', 'O3', 'SO2'])
     for r in qs.iterator(chunk_size=500):
         def fmt(val, unit='ppm'):
             return f'{val:.1f} {unit}' if val is not None else '-'
         writer.writerow([
-            r.measured_at.strftime('%Y-%m-%d %H:%M:%S'),
+            to_korea_time_str(r.measured_at, '%Y-%m-%d %H:%M:%S'),
             r.device.device_uid,
             fmt(r.co2),
             fmt(r.o2, '%'),
@@ -2933,10 +2933,10 @@ def power_data_export(request):
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     writer = csv.writer(response)
-    writer.writerow(['수집 시각', '장비명', '전력값(W)', '온도(℃)'])
+    writer.writerow(['수집 시각(KST)', '장비명', '전력값(W)', '온도(℃)'])
     for r in qs.iterator(chunk_size=500):
         writer.writerow([
-            r.measured_at.strftime('%Y-%m-%d %H:%M:%S'),
+            to_korea_time_str(r.measured_at, '%Y-%m-%d %H:%M:%S'),
             r.device.device_uid,
             r.power_w if r.power_w >= 0 else '-',
             f'{r.temperature_c:.1f}' if r.temperature_c is not None else '-',
@@ -2999,13 +2999,13 @@ def node_data_export(request):
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     writer = csv.writer(response)
-    writer.writerow(['수신 시각', '장비명', '위치 좌표'])
+    writer.writerow(['수신 시각(KST)', '장비명', '위치 좌표'])
     for r in qs.iterator(chunk_size=500):
         x_str = f'{r.x:.3f}' if r.x is not None else '-'
         y_str = f'{r.y:.3f}' if r.y is not None else '-'
         coord = f'{x_str} / {y_str}'
         writer.writerow([
-            r.received_at.strftime('%Y-%m-%d %H:%M:%S'),
+            to_korea_time_str(r.received_at, '%Y-%m-%d %H:%M:%S'),
             r.node.node_name,
             coord,
         ])
@@ -3064,10 +3064,10 @@ def worker_data_export(request):
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     writer = csv.writer(response)
-    writer.writerow(['수신 시각', '작업자명', '위치 좌표'])
+    writer.writerow(['수신 시각(KST)', '작업자명', '위치 좌표'])
     for r in qs.iterator(chunk_size=500):
         writer.writerow([
-            r.measured_at.strftime('%Y-%m-%d %H:%M:%S'),
+            to_korea_time_str(r.measured_at, '%Y-%m-%d %H:%M:%S'),
             r.worker.worker_name,
             f'{r.x:.3f} / {r.y:.3f}',
         ])
@@ -3225,7 +3225,7 @@ def notice_list(request):
             'category':      n.category,
             'exposed':       n.is_exposed,
             'author':        n.author.name if n.author else '',
-            'modDate':       n.updated_at.strftime('%Y-%m-%d'),
+            'modDate':       to_korea_time_str(n.updated_at, '%Y-%m-%d'),
         }
         for n in notices
     ]
@@ -3404,7 +3404,7 @@ def alarm_policy_list(request):
             'targets':   p.targets,
             'active':    p.is_active,
             'condition': p.condition_summary,
-            'modDate':   p.updated_at.strftime('%Y-%m-%d'),
+            'modDate':   to_korea_time_str(p.updated_at, '%Y-%m-%d'),
         }
         for p in policies
     ]
@@ -3446,7 +3446,7 @@ def alarm_policy_create(request):
             'targets':   policy.targets,
             'active':    policy.is_active,
             'condition': policy.condition_summary,
-            'modDate':   policy.updated_at.strftime('%Y-%m-%d'),
+            'modDate':   to_korea_time_str(policy.updated_at, '%Y-%m-%d'),
         },
     })
 
@@ -3464,7 +3464,6 @@ def alarm_policy_bulk_delete(request):
 
 def event_history_list(request):
     from alerts.models import AlarmEvent
-    from django.utils import timezone as tz
 
     EVENT_TYPE_LABEL = {
         'gas':      '가스 경보',
@@ -3497,18 +3496,18 @@ def event_history_list(request):
 
         events_data.append({
             'id':         e.pk,
-            'time':       e.occurred_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'date':       e.occurred_at.strftime('%Y-%m-%d'),
+            'time':       to_korea_time_str(e.occurred_at),
+            'date':       to_korea_time_str(e.occurred_at, '%Y-%m-%d'),
             'type':       EVENT_TYPE_LABEL.get(e.event_type, e.event_type),
             'target':     target,
             'policy':     e.rule.rule_name if e.rule else '-',
             'status':     STATUS_LABEL.get(e.event_status, e.event_status),
-            'releasedAt': e.closed_at.strftime('%Y-%m-%d %H:%M:%S') if e.closed_at else '-',
+            'releasedAt': to_korea_time_str(e.closed_at) if e.closed_at else '-',
             'content':    e.message or e.title,
             'memo':       e.title,
         })
 
-    today = tz.localdate().strftime('%Y-%m-%d')
+    today = timezone.localdate().strftime('%Y-%m-%d')
 
     return render(request, 'admin/alarm/event_history_list.html', {
         'active_menu':  'alarm',
@@ -3517,15 +3516,14 @@ def event_history_list(request):
     })
 
 def alarm_send_history_list(request):
-    from django.utils import timezone as tz
 
     histories = AlarmSendHistory.objects.order_by('-sent_at')[:500]
 
     sends_data = [
         {
             'id':        h.pk,
-            'time':      h.sent_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'date':      h.sent_at.strftime('%Y-%m-%d'),
+            'time':      to_korea_time_str(h.sent_at),
+            'date':      to_korea_time_str(h.sent_at, '%Y-%m-%d'),
             'channel':   h.channel,
             'targets':   h.targets,
             'result':    h.result,
@@ -3538,7 +3536,7 @@ def alarm_send_history_list(request):
         for h in histories
     ]
 
-    today = tz.localdate().strftime('%Y-%m-%d')
+    today = timezone.localdate().strftime('%Y-%m-%d')
 
     return render(request, 'admin/alarm/alarm_send_history_list.html', {
         'active_menu': 'alarm',

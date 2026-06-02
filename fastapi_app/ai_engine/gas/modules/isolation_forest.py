@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Union
 
@@ -269,7 +269,7 @@ class GasIsolationForestDetector:
         mahal_mean = float(np.mean(mahal_distances))
 
         self._is_fitted = True
-        self._trained_at = datetime.now().isoformat()
+        self._trained_at = datetime.now(timezone.utc).isoformat()
 
         training_time = time.time() - start_time
 

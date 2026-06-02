@@ -109,11 +109,11 @@ class TestB1Corroboration:
     @staticmethod
     def _arima_result(mean, ci_lower, ci_upper):
         """단일 채널 ARIMAResult를 합성 (normal 경로)."""
-        from datetime import datetime
+        from datetime import datetime, timezone
         from gas.modules.arima import ARIMAResult
         h = 60
         return ARIMAResult(
-            timestamp=datetime.now(), device_id='g', sensor_type='voc',
+            timestamp=datetime.now(timezone.utc), device_id='g', sensor_type='voc',
             path='normal',
             forecast_mean=[mean] * h, ci_lower=[ci_lower] * h,
             ci_upper=[ci_upper] * h, forecast_steps=h,
