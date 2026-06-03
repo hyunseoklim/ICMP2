@@ -10,6 +10,7 @@ class RiskCriteria(models.Model):
         YELLOW = 'yellow', '황색'
         ORANGE = 'orange', '주황'
         RED    = 'red',    '적색'
+        PURPLE = 'purple', '보라'
         GRAY   = 'gray',   '회색'
 
     stage_code     = models.CharField(max_length=50, unique=True)
@@ -211,45 +212,31 @@ class EventHistory(models.Model):
         return f"Event {self.alarm_event_id} [{self.action_type}] @ {self.action_at}"
 
 
-class Notification(models.Model):
-    class SendStatus(models.TextChoices):
-        PENDING = "pending", "대기"
-        SENT = "sent", "발송 완료"
-        FAILED = "failed", "발송 실패"
-
-    event = models.ForeignKey(
-        "alerts.AlarmEvent", on_delete=models.CASCADE, related_name="notifications"
-    )
-    receiver = models.ForeignKey(
-        "accounts.User", on_delete=models.CASCADE, related_name="notifications"
-    )
-    channel_type = models.CharField(max_length=20)
-    title = models.CharField(max_length=300)
-    message = models.TextField()
-    send_status = models.CharField(
-        max_length=20, choices=SendStatus.choices, default=SendStatus.PENDING
-    )
-    sent_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        db_table = "notifications"
-        ordering = ["-sent_at"]
-
-    def __str__(self):
-        return f"{self.receiver.username} [{self.channel_type}] {self.send_status}"
-
-
 class NotificationTemplate(models.Model):
-    class ChannelType(models.TextChoices):
-        EMAIL = "email", "이메일"
-        SMS = "sms", "문자"
-        PUSH = "push", "푸시 알림"
+    """채널별 알림 메시지 포맷 템플릿.
 
-    template_name = models.CharField(max_length=200)
-    channel_type = models.CharField(max_length=20, choices=ChannelType.choices)
-    title_template = models.CharField(max_length=300)
-    body_template = models.TextField()
-    is_active = models.BooleanField(default=True)
+    title_template / body_template에서 사용 가능한 변수:
+        {severity_emoji}  — RiskCriteria 색상 이모지 (🔴 🟠 🟡 🟢 🟣 ⚪)
+        {emphasis}        — RiskCriteria alert_emphasis + 공백 (예: "[위험] ")
+        {title}           — AlarmPolicy.alarm_title 또는 event.title
+        {content}         — AlarmPolicy.alarm_content 또는 event.message
+        {facility}        — 발생 시설명
+        {device}          — 발생 장비명
+        {occurred_at}     — 발생 시각 (KST, 'YYYY-MM-DD HH:MM:SS')
+        {targets}         — 수신 대상 (예: "관리자, 작업자")
+        {targets_line}    — " | 수신 대상: {targets}" 또는 빈 문자열
+    """
+
+    class ChannelType(models.TextChoices):
+        SLACK     = "slack",     "Slack"
+        DISCORD   = "discord",   "Discord"
+        WEBSOCKET = "websocket", "관제 실시간 알림"
+
+    template_name  = models.CharField(max_length=200)
+    channel_type   = models.CharField(max_length=20, choices=ChannelType.choices)
+    title_template = models.CharField(max_length=300, blank=True)
+    body_template  = models.TextField()
+    is_active      = models.BooleanField(default=True)
 
     class Meta:
         db_table = "notification_templates"
@@ -314,3 +301,40 @@ class ForecastSnapshot(models.Model):
     def __str__(self):
         ch = f"/{self.channel.channel_code}" if self.channel_id else ""
         return f"{self.device.device_uid}{ch} {self.sensor_type} → {self.headline_confidence}"
+
+
+class TaskLog(models.Model):
+    """Celery task 실행 상태 기록.
+
+    before_task_publish  → PENDING  생성
+    task_prerun          → STARTED  갱신
+    task_postrun(SUCCESS)→ SUCCESS  갱신
+    task_postrun(RETRY)  → RETRY    갱신
+    task_failure         → FAILURE  갱신 + error 메시지
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "대기"
+        STARTED = "STARTED", "처리 중"
+        SUCCESS = "SUCCESS", "성공"
+        FAILURE = "FAILURE", "실패"
+        RETRY   = "RETRY",   "재시도"
+
+    task_id      = models.CharField(max_length=255, unique=True, db_index=True)
+    task_name    = models.CharField(max_length=255, db_index=True)
+    status       = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    error        = models.TextField(blank=True)
+    created_at   = models.DateTimeField(auto_now_add=True, help_text="PENDING 기록 시각")
+    started_at   = models.DateTimeField(null=True, blank=True, help_text="worker 실행 시작 시각")
+    completed_at = models.DateTimeField(null=True, blank=True, help_text="완료(성공/실패) 시각")
+
+    class Meta:
+        db_table = "task_logs"
+        ordering = ["-created_at"]
+        verbose_name        = "태스크 로그"
+        verbose_name_plural = "태스크 로그 목록"
+
+    def __str__(self):
+        return f"[{self.status}] {self.task_name} ({self.task_id[:8]})"

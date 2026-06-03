@@ -566,11 +566,13 @@ def org_confirm(request):
 
 # ===== 공통 코드 관리 =====
 
-def _get_code_groups(prefix=''):
+def _get_code_groups(prefix='', exclude_prefix=''):
     """그룹 목록: code=='__meta__' 항목이 각 그룹의 대표."""
     qs = CommonCode.objects.filter(code='__meta__')
     if prefix:
         qs = qs.filter(group_code__startswith=prefix)
+    if exclude_prefix:
+        qs = qs.exclude(group_code__startswith=exclude_prefix)
     return qs.order_by('sort_order', 'group_code')
 
 
@@ -581,7 +583,7 @@ def code_list(request):
     search = request.GET.get('search', '')
     code_search = request.GET.get('code_search', '')
 
-    groups = _get_code_groups()
+    groups = _get_code_groups(exclude_prefix='RISK_')
     if search:
         groups = groups.filter(code_name__icontains=search)
 
@@ -1023,9 +1025,10 @@ def risk_delete(request):
 
 @admin_required
 def risk_criteria_list(request):
-    search        = request.GET.get('search', '')
-    is_active_f   = request.GET.get('is_active', '')
-    color_f       = request.GET.get('color_type', '')
+    search      = request.GET.get('search', '')
+    is_active_f = request.GET.get('is_active', '')
+    color_f     = request.GET.get('color_type', '')
+    sort        = request.GET.get('sort', 'priority_asc')
 
     qs = RiskCriteria.objects.all()
     if search:
@@ -1037,18 +1040,53 @@ def risk_criteria_list(request):
     if color_f:
         qs = qs.filter(color_type=color_f)
 
+    _sort_map = {
+        'priority_asc':  'priority',
+        'priority_desc': '-priority',
+        'priority_low':  '-priority',
+        'name_asc':      'stage_name',
+        'name_desc':     '-stage_name',
+        'code_asc':      'stage_code',
+        'code_desc':     '-stage_code',
+        'updated_new':   '-updated_at',
+        'updated_old':   'updated_at',
+        'active_first':  '-is_active',
+        'inactive_first': 'is_active',
+    }
+    qs = qs.order_by(_sort_map.get(sort, 'priority'))
+
     user = request.user
     current_user_name = getattr(user, 'name', None) or user.get_full_name() or user.username
 
+    sort_options = [
+        ('priority_asc',  '우선순위 오름차순'),
+        ('priority_desc', '우선순위 내림차순'),
+        ('name_asc',      '단계명 가나다순'),
+        ('name_desc',     '단계명 가나다 역순'),
+        ('code_asc',      '단계 코드 오름차순'),
+        ('code_desc',     '단계 코드 내림차순'),
+        ('updated_new',   '최근 수정일 최신순'),
+        ('updated_old',   '최근 수정일 오래된순'),
+        ('active_first',  '사용 여부 사용 우선'),
+        ('inactive_first','사용 여부 미사용 우선'),
+    ]
+
+    total = qs.count()
+    paginator = Paginator(qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
     return render(request, 'admin/risk_criteria/risk_criteria_list.html', {
         'active_menu': 'reference',
-        'criteria':   qs,
-        'total':      qs.count(),
+        'criteria':   page_obj,
+        'total':      total,
+        'page_obj':   page_obj,
         'search':     search,
         'is_active_filter': is_active_f,
         'color_filter':     color_f,
         'color_choices':    RiskCriteria.ColorType.choices,
         'current_user_name': current_user_name,
+        'sort':             sort,
+        'sort_options':     sort_options,
     })
 
 
@@ -2814,6 +2852,14 @@ def _date_range_to_dt(date_from, date_to):
     return dt_from, dt_to
 
 
+def _fmt_kst(dt):
+    """UTC datetime → KST 문자열 변환 (CSV export용)."""
+    from zoneinfo import ZoneInfo
+    if dt is None:
+        return '-'
+    return dt.astimezone(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d %H:%M:%S')
+
+
 @admin_required
 def gas_data_list(request):
     """유해가스 센서 데이터 관리"""
@@ -2873,7 +2919,7 @@ def gas_data_export(request):
         def fmt(val, unit='ppm'):
             return f'{val:.1f} {unit}' if val is not None else '-'
         writer.writerow([
-            r.measured_at.strftime('%Y-%m-%d %H:%M:%S'),
+            _fmt_kst(r.measured_at),
             r.device.device_uid,
             fmt(r.co2),
             fmt(r.o2, '%'),
@@ -2936,7 +2982,7 @@ def power_data_export(request):
     writer.writerow(['수집 시각', '장비명', '전력값(W)', '온도(℃)'])
     for r in qs.iterator(chunk_size=500):
         writer.writerow([
-            r.measured_at.strftime('%Y-%m-%d %H:%M:%S'),
+            _fmt_kst(r.measured_at),
             r.device.device_uid,
             r.power_w if r.power_w >= 0 else '-',
             f'{r.temperature_c:.1f}' if r.temperature_c is not None else '-',
@@ -3005,7 +3051,7 @@ def node_data_export(request):
         y_str = f'{r.y:.3f}' if r.y is not None else '-'
         coord = f'{x_str} / {y_str}'
         writer.writerow([
-            r.received_at.strftime('%Y-%m-%d %H:%M:%S'),
+            _fmt_kst(r.received_at),
             r.node.node_name,
             coord,
         ])
@@ -3067,7 +3113,7 @@ def worker_data_export(request):
     writer.writerow(['수신 시각', '작업자명', '위치 좌표'])
     for r in qs.iterator(chunk_size=500):
         writer.writerow([
-            r.measured_at.strftime('%Y-%m-%d %H:%M:%S'),
+            _fmt_kst(r.measured_at),
             r.worker.worker_name,
             f'{r.x:.3f} / {r.y:.3f}',
         ])
@@ -3495,15 +3541,17 @@ def event_history_list(request):
         else:
             target = '-'
 
+        occurred_kst  = tz.localtime(e.occurred_at)
+        closed_kst    = tz.localtime(e.closed_at) if e.closed_at else None
         events_data.append({
             'id':         e.pk,
-            'time':       e.occurred_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'date':       e.occurred_at.strftime('%Y-%m-%d'),
+            'time':       occurred_kst.strftime('%Y-%m-%d %H:%M:%S'),
+            'date':       occurred_kst.strftime('%Y-%m-%d'),
             'type':       EVENT_TYPE_LABEL.get(e.event_type, e.event_type),
             'target':     target,
             'policy':     e.rule.rule_name if e.rule else '-',
             'status':     STATUS_LABEL.get(e.event_status, e.event_status),
-            'releasedAt': e.closed_at.strftime('%Y-%m-%d %H:%M:%S') if e.closed_at else '-',
+            'releasedAt': closed_kst.strftime('%Y-%m-%d %H:%M:%S') if closed_kst else '-',
             'content':    e.message or e.title,
             'memo':       e.title,
         })
@@ -3524,8 +3572,8 @@ def alarm_send_history_list(request):
     sends_data = [
         {
             'id':        h.pk,
-            'time':      h.sent_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'date':      h.sent_at.strftime('%Y-%m-%d'),
+            'time':      tz.localtime(h.sent_at).strftime('%Y-%m-%d %H:%M:%S'),
+            'date':      tz.localtime(h.sent_at).strftime('%Y-%m-%d'),
             'channel':   h.channel,
             'targets':   h.targets,
             'result':    h.result,
