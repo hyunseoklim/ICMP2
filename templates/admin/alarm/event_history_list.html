@@ -109,6 +109,7 @@
     <table class="w-full">
       <thead>
         <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="px-4 py-3 w-10"></th>
           <th class="text-left text-xs font-semibold text-slate-700 px-6 py-3 w-44">발생시간</th>
           <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-28">이벤트 구분</th>
           <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-52">발생 대상</th>
@@ -223,11 +224,17 @@ function renderTable() {
   const tbody    = document.getElementById('event-table-body');
 
   tbody.innerHTML = pageData.length === 0
-    ? `<tr><td colspan="6" class="text-center text-sm text-slate-400 py-12">검색 결과가 없습니다.</td></tr>`
+    ? `<tr><td colspan="7" class="text-center text-sm text-slate-400 py-12">검색 결과가 없습니다.</td></tr>`
     : pageData.map(e => `
       <tr data-id="${e.id}" onclick="selectRow(${e.id})"
         class="border-b border-slate-100 last:border-0 transition-colors cursor-pointer
                ${selectedId === e.id ? 'bg-blue-50 hover:bg-blue-50' : 'hover:bg-slate-50/50'}">
+        <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
+          <input type="checkbox" value="${e.id}"
+            ${selectedId === e.id ? 'checked' : ''}
+            onchange="checkRow(${e.id}, this)"
+            class="row-check w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer">
+        </td>
         <td class="px-6 py-3 text-sm text-slate-700 whitespace-nowrap">${e.time}</td>
         <td class="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">${e.type}</td>
         <td class="px-4 py-3 text-sm text-slate-600">${e.target}</td>
@@ -247,6 +254,15 @@ function renderTable() {
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+function checkRow(id, cb) {
+  if (cb && !cb.checked) {
+    selectedId = null;
+  } else {
+    selectedId = id;
+  }
+  renderTable();
+}
+
 function selectRow(id) {
   selectedId = id;
   renderTable();
@@ -257,21 +273,29 @@ function renderPagination() {
   const total     = Math.ceil(filteredData.length / PAGE_SIZE);
   const container = document.getElementById('pagination');
   if (total <= 1) { container.innerHTML = ''; return; }
+
+  let startPage = Math.max(1, currentPage - 2);
+  let endPage   = Math.min(total, startPage + 4);
+  if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+  const BTN_BASE   = 'w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors';
+  const BTN_ACTIVE = 'bg-blue-600 text-white';
+  const BTN_NORMAL = 'border border-slate-200 text-slate-700 hover:bg-slate-50';
+  const BTN_NAV    = 'border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed';
   const pages = [];
 
   pages.push(`<button onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}
-    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
+    class="${BTN_BASE} ${BTN_NAV}">
     <i data-lucide="chevron-left" class="w-4 h-4"></i></button>`);
 
-  for (let i = 1; i <= Math.min(total, 5); i++) {
+  for (let i = startPage; i <= endPage; i++) {
     pages.push(`<button onclick="goPage(${i})"
-      class="w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors
-             ${i === currentPage ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-700 hover:bg-slate-50'}">
+      class="${BTN_BASE} ${i === currentPage ? BTN_ACTIVE : BTN_NORMAL}">
       ${i}</button>`);
   }
 
   pages.push(`<button onclick="goPage(${currentPage + 1})" ${currentPage === total ? 'disabled' : ''}
-    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
+    class="${BTN_BASE} ${BTN_NAV}">
     <i data-lucide="chevron-right" class="w-4 h-4"></i></button>`);
 
   container.innerHTML = pages.join('');
@@ -368,13 +392,11 @@ function openDetailModal() {
 }
 
 document.getElementById('btn-detail-view').addEventListener('click', function() {
-  if (selectedId) {
-    openDetailModal();
-  } else if (filteredData.length > 0) {
-    selectedId = filteredData[0].id;
-    renderTable();
-    openDetailModal();
+  if (!selectedId) {
+    alert('상세 조회할 항목을 체크박스로 선택해주세요.');
+    return;
   }
+  openDetailModal();
 });
 
 function openModal(id)  { const el = document.getElementById(id); el.classList.remove('hidden'); el.classList.add('flex'); }

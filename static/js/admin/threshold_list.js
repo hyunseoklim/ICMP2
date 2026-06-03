@@ -28,7 +28,32 @@ function showDone(msg, callback) {
   showModal('doneModal');
 }
 
-// ── 정렬 ──────────────────────────────────────────────────────
+// ── 정렬 드롭박스 ────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  const toggle = document.getElementById('sort-toggle');
+  const menu   = document.getElementById('sort-menu');
+  const chevron = document.getElementById('sort-chevron');
+  if (!toggle) return;
+
+  toggle.addEventListener('click', function (e) {
+    e.stopPropagation();
+    const open = !menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', open);
+    chevron.style.transform = open ? '' : 'rotate(180deg)';
+  });
+
+  document.addEventListener('click', function () {
+    menu.classList.add('hidden');
+    chevron.style.transform = '';
+  });
+
+  document.querySelectorAll('.sort-opt').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      applySort(btn.dataset.value);
+    });
+  });
+});
+
 function applySort(val) {
   const url = new URL(location.href);
   url.searchParams.set('sort', val);
