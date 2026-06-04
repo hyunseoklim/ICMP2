@@ -109,24 +109,25 @@ def on_task_prerun(task_id, task, **kwargs):
 
 @task_postrun.connect
 def on_task_postrun(task_id, task, state, **kwargs):
-    """task 실행 완료 → SUCCESS 또는 RETRY 갱신.
+    """task 실행 완료(SUCCESS) → completed_at 기록.
 
-    FAILURE는 task_failure 시그널이 처리하므로 여기서는 건너뜀.
+    FAILURE는 task_failure 시그널이, RETRY는 task_retry 시그널이 각각 처리.
+    RETRY 시 completed_at을 찍으면 재시도 중인 태스크가 완료된 것처럼 보이는
+    오해를 유발하므로 여기서는 SUCCESS만 처리한다.
     """
     if task.name not in _TRACKED_TASKS:
         return
-    if state == 'FAILURE':
+    if state in ('FAILURE', 'RETRY'):
         return
     try:
         from alerts.models import TaskLog
         from django.utils import timezone
-        status = TaskLog.Status.RETRY if state == 'RETRY' else TaskLog.Status.SUCCESS
         TaskLog.objects.filter(task_id=task_id).update(
-            status=status,
+            status=TaskLog.Status.SUCCESS,
             completed_at=timezone.now(),
         )
     except Exception as exc:
-        logger.warning("TaskLog 완료 갱신 실패: %s", exc)
+        logger.warning("TaskLog SUCCESS 갱신 실패: %s", exc)
 
 
 @task_failure.connect

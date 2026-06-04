@@ -533,16 +533,28 @@ function _setGEBtnState(enabled) {
 }
 
 function validateGroupEdit() {
-  const name  = document.getElementById('ge_name').value.trim();
-  const scope = document.getElementById('ge_scope_hidden').value;
+  const name     = document.getElementById('ge_name').value.trim();
+  const scope    = document.getElementById('ge_scope_hidden').value;
+  const isActive = document.getElementById('ge_is_active').value;
   let ok = true;
   const setErr = (id, msg) => {
     const el = document.getElementById(id);
     el.textContent = msg; el.classList.toggle('hidden', !msg);
     if (msg) ok = false;
   };
-  setErr('ge_name_err',  !name  ? '분류명을 입력하세요.' : '');
-  setErr('ge_scope_err', !scope ? '반영 범위를 하나 이상 선택하세요.' : '');
+
+  if (!name) {
+    setErr('ge_name_err', '분류명을 입력해 주세요.');
+  } else if (!/^[가-힣\s]+$/.test(name)) {
+    setErr('ge_name_err', '분류명은 한글만 입력할 수 있습니다.');
+  } else if (name.length > 50) {
+    setErr('ge_name_err', '분류명은 최대 50자까지 입력할 수 있습니다.');
+  } else {
+    setErr('ge_name_err', '');
+  }
+
+  setErr('ge_scope_err',  !scope    ? '반영 범위를 선택해 주세요.' : '');
+  setErr('ge_active_err', !isActive ? '사용 여부를 선택해 주세요.' : '');
   return ok;
 }
 

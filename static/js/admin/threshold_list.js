@@ -504,7 +504,7 @@ function _validateGroupFields(code, name, codeErrId, nameErrId, excludeCode, exc
   let hasErr = false;
 
   let codeErr = '';
-  if (!code)                         codeErr = '분류 코드를 입력해주세요.';
+  if (!code)                         codeErr = '분류 코드를 입력해 주세요.';
   else if (code.length > 50)         codeErr = '그룹명은 최대 50자까지 입력할 수 있습니다.';
   else if (!codePattern.test(code))  codeErr = '그룹 코드는 영문 대문자, 숫자, 밑줄(_)만 사용할 수 있습니다.';
   else if (code !== excludeCode && codes.includes(code))
