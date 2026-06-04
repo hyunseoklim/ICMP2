@@ -141,8 +141,8 @@ class GasReading(models.Model):
     )
     raw_payload = models.JSONField(null=True, blank=True, help_text="원본 수신 payload")
 
-    # ── event_id 계보 (단계별 파생·알람까지 상관) ──
-    event_id = models.UUIDField(
+    # ── trace_id 계보 (단계별 파생·알람까지 상관) ──
+    trace_id = models.UUIDField(
         null=True, blank=True, unique=True, db_index=True,
         help_text="측정 1건 고유 ID — 원천↔파생 DetectionResult↔알람 상관 키",
     )
@@ -172,7 +172,7 @@ class GasReading(models.Model):
 # ── DetectionResult (단계별 판정 계보의 척추) ──────────────
 
 class DetectionResult(models.Model):
-    """원천 1건(event_id)에 대한 단계별 검출 결과. 한 event_id로 5단계 조회·역추적."""
+    """원천 1건(trace_id)에 대한 단계별 검출 결과. 한 trace_id로 5단계 조회·역추적."""
 
     class Stage(models.TextChoices):
         THRESHOLD   = "THRESHOLD",   "임계 판정"
@@ -182,10 +182,10 @@ class DetectionResult(models.Model):
         ARIMA       = "ARIMA",       "ARIMA 예측"
         POLICY      = "POLICY",      "정책 엔진 (현재 상태 통합)"
 
-    event_id    = models.UUIDField(db_index=True, help_text="원천 GasReading.event_id 계보 키")
+    trace_id    = models.UUIDField(db_index=True, help_text="원천 GasReading.trace_id 계보 키")
     gas_reading = models.ForeignKey(
         GasReading, on_delete=models.CASCADE, null=True, blank=True, related_name="detections",
-        help_text="원천 참조 (event_id로도 연결되나 FK 편의)",
+        help_text="원천 참조 (trace_id로도 연결되나 FK 편의)",
     )
     device      = models.ForeignKey(Device, on_delete=models.PROTECT, related_name="detections")
     sensor_type = models.CharField(
@@ -202,13 +202,13 @@ class DetectionResult(models.Model):
         db_table = "detection_results"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['event_id']),
+            models.Index(fields=['trace_id']),
             models.Index(fields=['device', 'sensor_type', 'created_at']),
             models.Index(fields=['stage', 'level']),
         ]
 
     def __str__(self):
-        return f"{self.stage} [{self.level}] {self.sensor_type or '*'} ev={self.event_id}"
+        return f"{self.stage} [{self.level}] {self.sensor_type or '*'} ev={self.trace_id}"
 
 
 # ── DropLog (들어왔으나 거부된 원천 추적) ──────────────────
@@ -216,7 +216,7 @@ class DetectionResult(models.Model):
 class DropLog(models.Model):
     """ingest 경계에서 거부된 payload. 무음 드롭 금지 — 사후 추적용."""
 
-    event_id   = models.UUIDField(null=True, blank=True, db_index=True)
+    trace_id   = models.UUIDField(null=True, blank=True, db_index=True)
     device_uid = models.CharField(max_length=100, db_index=True)
     reason     = models.CharField(
         max_length=100,
@@ -278,8 +278,8 @@ class PowerReading(models.Model):
     )
     raw_payload = models.JSONField(null=True, blank=True, help_text="원본 수신 payload")
 
-    # ── event_id 계보 (가스와 동일 — 단계별 파생·알람 상관) ──
-    event_id = models.UUIDField(
+    # ── trace_id 계보 (가스와 동일 — 단계별 파생·알람 상관) ──
+    trace_id = models.UUIDField(
         null=True, blank=True, unique=True, db_index=True,
         help_text="측정 1건 고유 ID — 원천↔DetectionResult↔알람 상관 키",
     )

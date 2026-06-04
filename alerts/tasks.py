@@ -404,13 +404,13 @@ def forecast_gas_task(device_uid: str, payload: dict):
         if device:
             save_forecast_snapshots(device, results)         # 등급 + 곡선(튜플) → 스냅샷 upsert
             trigger_forecast_alarms(device, policy_results)  # CONFIRMED 시 predictive_warning 알람
-            # ARIMA 단계 계보 — event_id로 원천과 상관 (gas_reading은 null, event_id로 연결)
-            event_id = payload.get('event_id')
-            if event_id:
+            # ARIMA 단계 계보 — trace_id로 원천과 상관 (gas_reading은 null, trace_id로 연결)
+            trace_id = payload.get('trace_id')
+            if trace_id:
                 from monitoring.models import DetectionResult
                 dets = [
                     DetectionResult(
-                        event_id=event_id, device=device,
+                        trace_id=trace_id, device=device,
                         sensor_type=getattr(pr, 'sensor_type', None),
                         stage=DetectionResult.Stage.ARIMA,
                         level=getattr(getattr(pr, 'headline_confidence', None), 'name', 'UNKNOWN'),
@@ -470,13 +470,13 @@ def forecast_power_task(device_uid: str, channel_code: str, payload: dict):
         policy_results = [pr for pr, _ in results]
         save_forecast_snapshots(device, results, channel=channel)
         trigger_forecast_alarms(device, policy_results, channel=channel)
-        # ARIMA 단계 계보 — event_id로 원천 상관 (gas_reading=None, device로 연결)
-        event_id = payload.get('event_id')
-        if event_id:
+        # ARIMA 단계 계보 — trace_id로 원천 상관 (gas_reading=None, device로 연결)
+        trace_id = payload.get('trace_id')
+        if trace_id:
             from monitoring.models import DetectionResult
             dets = [
                 DetectionResult(
-                    event_id=event_id, device=device,
+                    trace_id=trace_id, device=device,
                     sensor_type=f"{channel_code}/{getattr(pr, 'sensor_type', '')}",
                     stage=DetectionResult.Stage.ARIMA,
                     level=getattr(getattr(pr, 'headline_confidence', None), 'name', 'UNKNOWN'),

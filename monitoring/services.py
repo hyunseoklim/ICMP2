@@ -44,8 +44,8 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
         DropLog.objects.create(device_uid=device_uid, reason='channel_inactive', raw_payload=dict(payload))
         return
 
-    # event_id 계보 — 원천 부여 우선, 없으면 경계 발급(실장비 대비)
-    event_id = payload.get('event_id') or uuid.uuid4()
+    # trace_id 계보 — 원천 부여 우선, 없으면 경계 발급(실장비 대비)
+    trace_id = payload.get('trace_id') or uuid.uuid4()
     tick_id  = payload.get('tick_id')   # 보류
 
     current_a = payload.get('current_a', -1.0)
@@ -83,7 +83,7 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
         device=device, channel=channel,
         current_a=current_a, voltage_v=voltage_v, power_w=power_w,
         measured_at=measured_at, quality_flag=quality_flag,
-        event_id=event_id, tick_id=tick_id, ts_fallback=ts_fallback,
+        trace_id=trace_id, tick_id=tick_id, ts_fallback=ts_fallback,
         raw_payload=dict(payload),
     )
     update_last_seen(device)
@@ -110,7 +110,7 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
 
     if load_rate is not None:
         detections.append(DetectionResult(
-            event_id=event_id, gas_reading=None, device=device,
+            trace_id=trace_id, gas_reading=None, device=device,
             sensor_type=channel_code, stage=Stage.THRESHOLD,
             level=level, score=round(load_rate, 2),
             detail={'power_w': float(power_w), 'rated_w': rated_w, 'load_rate': round(load_rate, 2)},
@@ -119,7 +119,7 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
     # ── 정책 엔진 — 전력 현재 상태 (load_rate 판정만; z/cp/if 없음, 가스와 동일 함수) ──
     current_state = merge_current_status([{'level': level}], [], [], None, prev_danger=prev_danger)
     detections.append(DetectionResult(
-        event_id=event_id, gas_reading=None, device=device,
+        trace_id=trace_id, gas_reading=None, device=device,
         sensor_type=channel_code, stage=Stage.POLICY, level=current_state,
         detail={'load_rate': round(load_rate, 2) if load_rate is not None else None,
                 'prev_danger': prev_danger},
@@ -159,10 +159,10 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
     except Exception as e:
         print(f'[power_ws] broadcast 실패: {e}')
 
-    # STEP G — ARIMA 예측 (forecast 큐 위임 — gas D2 아키텍처). event_id 전파 → ARIMA 계보는 forecast 태스크가 적재
+    # STEP G — ARIMA 예측 (forecast 큐 위임 — gas D2 아키텍처). trace_id 전파 → ARIMA 계보는 forecast 태스크가 적재
     from alerts.tasks import forecast_power_task
     fpayload = dict(payload)
-    fpayload['event_id'] = str(event_id)
+    fpayload['trace_id'] = str(trace_id)
     forecast_power_task.delay(device_uid, channel_code, fpayload)
 
 
@@ -252,8 +252,8 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
         DropLog.objects.create(device_uid=device_uid, reason='inactive', raw_payload=dict(payload))
         return
 
-    # event_id 계보 — 원천(FastAPI)이 부여했으면 사용, 없으면 ingest 경계 발급(실장비 대비)
-    event_id = payload.get('event_id') or uuid.uuid4()
+    # trace_id 계보 — 원천(FastAPI)이 부여했으면 사용, 없으면 ingest 경계 발급(실장비 대비)
+    trace_id = payload.get('trace_id') or uuid.uuid4()
     tick_id  = payload.get('tick_id')   # 보류 — 교차 상관 필요 시 원천 부여(없으면 null)
 
     values = {f: payload.get(f) for f in GAS_FIELDS}
@@ -299,7 +299,7 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
         **values,
         measured_at=measured_at,
         quality_flag=quality_flag,
-        event_id=event_id,
+        trace_id=trace_id,
         tick_id=tick_id,
         ts_fallback=ts_fallback,
         raw_payload=raw,
@@ -325,7 +325,7 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     threshold_exceeded = check_threshold_exceeded(reading)
     _save_stage([
         DetectionResult(
-            event_id=event_id, gas_reading=reading, device=device,
+            trace_id=trace_id, gas_reading=reading, device=device,
             sensor_type=e.get('gas'), stage=Stage.THRESHOLD,
             level=str(e.get('level')), score=values.get(e.get('gas')), detail=_jsonable(e),
         )
@@ -339,7 +339,7 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     trigger_anomaly_alarms(device, zscore_results)
     _save_stage([
         DetectionResult(
-            event_id=event_id, gas_reading=reading, device=device,
+            trace_id=trace_id, gas_reading=reading, device=device,
             sensor_type=r.get('metric'), stage=Stage.ZSCORE,
             level=str(r.get('final_status')), score=r.get('z_score'), detail=_jsonable(r),
         )
@@ -353,7 +353,7 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     trigger_changepoint_alarms(device, cp_results)
     _save_stage([
         DetectionResult(
-            event_id=event_id, gas_reading=reading, device=device,
+            trace_id=trace_id, gas_reading=reading, device=device,
             sensor_type=r.get('metric'), stage=Stage.CHANGEPOINT,
             level=str(r.get('state') or 'NORMAL'), score=r.get('mean_shift_score'), detail=_jsonable(r),
         )
@@ -367,7 +367,7 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     trigger_if_anomaly_alarms(device, if_result)
     if if_result is not None:
         _save_stage([DetectionResult(
-            event_id=event_id, gas_reading=reading, device=device,
+            trace_id=trace_id, gas_reading=reading, device=device,
             sensor_type=None, stage=Stage.IF,
             level=if_result.level.name,
             score=getattr(if_result, 'mahalanobis_distance', None),
@@ -385,7 +385,7 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
         threshold_exceeded, zscore_results, cp_results, if_result, prev_danger=prev_danger,
     )
     _save_stage([DetectionResult(
-        event_id=event_id, gas_reading=reading, device=device,
+        trace_id=trace_id, gas_reading=reading, device=device,
         sensor_type=None, stage=Stage.POLICY, level=current_state,
         detail={
             'threshold': (any(e.get('level') == '위험' for e in threshold_exceeded) and 'danger')
@@ -397,10 +397,10 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
         },
     )])
 
-    # STEP G — ARIMA 예측 (forecast 큐 위임, 비동기 별도 저장). event_id 전파
+    # STEP G — ARIMA 예측 (forecast 큐 위임, 비동기 별도 저장). trace_id 전파
     from alerts.tasks import forecast_gas_task
     fpayload = dict(payload)
-    fpayload['event_id'] = str(event_id)
+    fpayload['trace_id'] = str(trace_id)
     forecast_gas_task.delay(device_uid, fpayload)
 
     # WebSocket 브로드캐스트

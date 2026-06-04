@@ -58,9 +58,9 @@ async def xadd_gas_reading(data: dict) -> None:
         "o2":  data["o2"],  "no2": data["no2"], "so2": data["so2"],
         "o3":  data["o3"],  "nh3": data["nh3"], "voc": data["voc"],
     }
-    # ── 원천 경계: 값 검증 + event_id 부여 (tick_id는 보류) ──
+    # ── 원천 경계: 값 검증 + trace_id 부여 (tick_id는 보류) ──
     quality_flag, violations = _validate_gas(payload)
-    payload["event_id"]     = str(uuid.uuid4())   # reading 1건당 계보 키
+    payload["trace_id"]     = str(uuid.uuid4())   # reading 1건당 계보 키
     payload["quality_flag"] = quality_flag
     if violations:
         payload["violations"] = violations
@@ -109,7 +109,7 @@ async def xadd_power_reading(data: dict) -> None:
         "power_w":      data["power_w"],
     }
     quality_flag, violations = _validate_power(payload)
-    payload["event_id"]     = str(uuid.uuid4())
+    payload["trace_id"]     = str(uuid.uuid4())
     payload["quality_flag"] = quality_flag
     if violations:
         payload["violations"] = violations
