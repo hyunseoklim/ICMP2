@@ -26,3 +26,4 @@ dump.rdb
 dump.json
 staticfiles/
 celerybeat-schedule
+celerybeat-schedule
