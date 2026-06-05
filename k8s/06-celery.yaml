@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-default
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: celery-default
+  template:
+    metadata:
+      labels:
+        app: celery-default
+    spec:
+      containers:
+        - name: celery
+          image: icmp2-django:latest
+          imagePullPolicy: IfNotPresent
+          command: ["celery", "-A", "config", "worker", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: icmp2-config
+            - secretRef:
+                name: icmp2-secret
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-forecast
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: celery-forecast
+  template:
+    metadata:
+      labels:
+        app: celery-forecast
+    spec:
+      containers:
+        - name: celery-forecast
+          image: icmp2-django:latest
+          imagePullPolicy: IfNotPresent
+          command: ["celery", "-A", "config", "worker", "-Q", "forecast", "--concurrency=1", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: icmp2-config
+            - secretRef:
+                name: icmp2-secret
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-events
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: celery-events
+  template:
+    metadata:
+      labels:
+        app: celery-events
+    spec:
+      containers:
+        - name: celery-events
+          image: icmp2-django:latest
+          imagePullPolicy: IfNotPresent
+          command: ["celery", "-A", "config", "worker", "-Q", "events", "--concurrency=1", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: icmp2-config
+            - secretRef:
+                name: icmp2-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-beat
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: celery-beat
+  template:
+    metadata:
+      labels:
+        app: celery-beat
+    spec:
+      containers:
+        - name: celery-beat
+          image: icmp2-django:latest
+          imagePullPolicy: IfNotPresent
+          command: ["celery", "-A", "config", "beat", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: icmp2-config
+            - secretRef:
+                name: icmp2-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: celery-default-hpa
+  namespace: icmp2
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: celery-default
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80

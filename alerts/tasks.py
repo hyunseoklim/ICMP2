@@ -1,11 +1,39 @@
 import logging
+import time
 
 import requests
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from channels.layers import get_channel_layer
 from django.conf import settings
+
 from django.utils import timezone
+
+from prometheus_client import Counter, Histogram
+
+# ── 커스텀 Prometheus 메트릭 ──────────────────────────────────────────────────
+ALARM_EVENT_COUNTER = Counter(
+    'icmp2_alarm_events_total',
+    '알람 이벤트 발생 건수',
+    ['severity'],
+)
+AI_FORECAST_DURATION = Histogram(
+    'icmp2_ai_forecast_duration_seconds',
+    'AI ARIMA 예측 처리 시간(초)',
+    ['task_type'],
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0],
+)
+AI_INGEST_DURATION = Histogram(
+    'icmp2_ai_ingest_duration_seconds',
+    'Celery ingest(STEP B~E) 처리 시간(초)',
+    buckets=[0.05, 0.1, 0.3, 0.5, 1.0, 2.0, 5.0],
+)
+CELERY_TASK_COUNTER = Counter(
+    'icmp2_celery_tasks_total',
+    'Celery task 완료 건수',
+    ['task_name', 'status'],
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -385,9 +413,13 @@ def ingest_gas_task(self, payload: dict):
 
     try:
         from monitoring.services import process_gas_ingest
+        _t = time.time()
         process_gas_ingest(device_uid, payload)
+        AI_INGEST_DURATION.observe(time.time() - _t)
+        CELERY_TASK_COUNTER.labels(task_name='ingest_gas', status='success').inc()
         logger.debug("ingest_gas_task 완료 — device=%s", device_uid)
     except Exception as exc:
+        CELERY_TASK_COUNTER.labels(task_name='ingest_gas', status='failure').inc()
         logger.error("ingest_gas_task 실패 — device=%s: %s", device_uid, exc)
         raise self.retry(exc=exc)
 
@@ -416,7 +448,10 @@ def forecast_gas_task(device_uid: str, payload: dict):
         from monitoring.models import Device
         from alerts.services import trigger_forecast_alarms, save_forecast_snapshots
 
+        _t = time.time()
         results = run_forecast(device_uid, payload)
+        AI_FORECAST_DURATION.labels(task_type='gas').observe(time.time() - _t)
+
         if not results:
             return  # idempotency 가드에 의해 skip됨
         # results: [(ForecastPolicyResult, ARIMAResult|None), ...]
@@ -425,8 +460,10 @@ def forecast_gas_task(device_uid: str, payload: dict):
         if device:
             save_forecast_snapshots(device, results)         # 등급 + 곡선(튜플) → 스냅샷 upsert
             trigger_forecast_alarms(device, policy_results)  # CONFIRMED 시 predictive_warning 알람
+        CELERY_TASK_COUNTER.labels(task_name='forecast_gas', status='success').inc()
         logger.debug("forecast_gas_task 완료 — device=%s", device_uid)
     except Exception as exc:
+        CELERY_TASK_COUNTER.labels(task_name='forecast_gas', status='failure').inc()
         logger.error("forecast_gas_task 실패 — device=%s: %s", device_uid, exc)
         # 재시도하지 않음 — 다음 reading에서 복구
 
@@ -455,7 +492,10 @@ def forecast_power_task(device_uid: str, channel_code: str, payload: dict):
         from monitoring.models import Device, DeviceChannel
         from alerts.services import trigger_forecast_alarms, save_forecast_snapshots
 
+        _t = time.time()
         results = run_forecast(device_uid, channel_code, payload)
+        AI_FORECAST_DURATION.labels(task_type='power').observe(time.time() - _t)
+
         if not results:
             return  # idempotency 가드에 의해 skip됨
 
@@ -472,10 +512,12 @@ def forecast_power_task(device_uid: str, channel_code: str, payload: dict):
         policy_results = [pr for pr, _ in results]
         save_forecast_snapshots(device, results, channel=channel)
         trigger_forecast_alarms(device, policy_results, channel=channel)
+        CELERY_TASK_COUNTER.labels(task_name='forecast_power', status='success').inc()
         logger.debug(
             "forecast_power_task 완료 — device=%s ch=%s", device_uid, channel_code,
         )
     except Exception as exc:
+        CELERY_TASK_COUNTER.labels(task_name='forecast_power', status='failure').inc()
         logger.error(
             "forecast_power_task 실패 — device=%s ch=%s: %s",
             device_uid, channel_code, exc,
