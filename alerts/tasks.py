@@ -6,9 +6,6 @@ from asgiref.sync import async_to_sync
 from celery import shared_task
 from channels.layers import get_channel_layer
 from django.conf import settings
-
-from django.utils import timezone
-
 from prometheus_client import Counter, Histogram
 
 # ── 커스텀 Prometheus 메트릭 ──────────────────────────────────────────────────
@@ -34,7 +31,6 @@ CELERY_TASK_COUNTER = Counter(
     ['task_name', 'status'],
 )
 
-
 logger = logging.getLogger(__name__)
 
 # 3. RiskCriteria.color_type → Slack emoji / Discord embed color 매핑
@@ -44,6 +40,7 @@ _COLOR_EMOJI = {
     'yellow': '🟡',
     'green':  '🟢',
     'gray':   '⚪',
+    'purple': '🟣',
 }
 _COLOR_DISCORD = {
     'red':    0xFF0000,
@@ -51,18 +48,38 @@ _COLOR_DISCORD = {
     'yellow': 0xFFCC00,
     'green':  0x00CC00,
     'gray':   0xAAAAAA,
+    'purple': 0x9B59B6,
 }
 _SEVERITY_EMOJI_FALLBACK = {
-    'danger': '🔴', 'warning': '🟡', 'anomaly': '🟠', 'predictive_warning': '🔵',
+    'danger': '🔴', 'warning': '🟡', 'anomaly': '🟠', 'predictive_warning': '🟣',
 }
 _SEVERITY_COLOR_FALLBACK = {
-    'danger': 0xFF0000, 'warning': 0xFFCC00, 'anomaly': 0xFF8800, 'predictive_warning': 0x0088FF,
+    'danger': 0xFF0000, 'warning': 0xFFCC00, 'anomaly': 0xFF8800, 'predictive_warning': 0x9B59B6,
 }
 
 # 12. AlarmEvent.event_type → AlarmPolicy.event_type 매핑
 _POLICY_EVENT_TYPE = {
     'gas':   '가스 경보',
     'power': '전력 이상',
+}
+
+# NotificationTemplate DB 레코드가 없을 때 사용하는 채널별 기본 포맷
+# (DB 템플릿은 관리자 페이지에서 선택적으로 덮어쓸 수 있음)
+_TEMPLATE_FALLBACK = {
+    'slack': {
+        'title': '',
+        'body':  '{severity_emoji} *[ICMP2 알림]* {emphasis}{title}\n'
+                 '> {content}\n'
+                 '> 시설: {facility}  |  발생: {occurred_at}{targets_line}',
+    },
+    'discord': {
+        'title': '[ICMP2 알림] {title}',
+        'body':  '{content}',
+    },
+    'websocket': {
+        'title': '[ICMP2 알림] {title}',
+        'body':  '{content}',
+    },
 }
 
 
@@ -91,6 +108,27 @@ def _get_risk_criteria(severity: str):
         return None
 
 
+def _save_send_history(channel: str, targets: str, result: str, content: str,
+                       alarm_policy, reason: str = '') -> None:
+    """Slack·Discord·WebSocket 발송 결과를 AlarmSendHistory에 기록."""
+    try:
+        from django.utils import timezone
+        from manager.models import AlarmSendHistory
+        AlarmSendHistory.objects.create(
+            sent_at     = timezone.now(),
+            channel     = channel,
+            targets     = targets or '-',
+            result      = result,
+            alarm_policy= alarm_policy,
+            policy_name = alarm_policy.event_type if alarm_policy else '',
+            scope       = alarm_policy.targets if alarm_policy else '',
+            content     = content[:500],
+            reason      = reason[:500],
+        )
+    except Exception as exc:
+        logger.warning("AlarmSendHistory 기록 실패 (%s): %s", channel, exc)
+
+
 def _get_alarm_policy(event_type: str):
     """12. AlarmPolicy — event_type으로 조회. 없으면 None."""
     try:
@@ -109,11 +147,13 @@ def _render_policy_message(event, alarm_policy) -> tuple:
     반환: (title, content, targets)
     alarm_policy가 없거나 필드가 비어 있으면 event 기본값 사용.
     """
+    from django.utils import timezone as tz
+    occurred_kst = tz.localtime(event.occurred_at)
     replacements = {
         '{이벤트상세}': event.get_event_type_display(),
         '{발생대상}':   str(event.device or event.facility or '-'),
         '{상태}':       event.get_severity_display(),
-        '{발생시각}':   timezone.localtime(event.occurred_at).strftime('%Y-%m-%d %H:%M:%S %Z'),
+        '{발생시각}':   occurred_kst.strftime('%Y-%m-%d %H:%M:%S'),
     }
 
     if alarm_policy:
@@ -132,6 +172,50 @@ def _render_policy_message(event, alarm_policy) -> tuple:
     return title, content, targets
 
 
+def _get_template_ctx(event, title: str, content: str, targets: str,
+                      severity_emoji: str, emphasis: str) -> dict:
+    """NotificationTemplate 렌더링에 사용할 context dict 생성."""
+    from django.utils import timezone as tz
+    occurred_kst = tz.localtime(event.occurred_at).strftime('%Y-%m-%d %H:%M:%S')
+    return {
+        'severity_emoji': severity_emoji,
+        'emphasis':       emphasis,
+        'title':          title,
+        'content':        content,
+        'facility':       str(event.facility or '-'),
+        'device':         str(event.device or '-'),
+        'occurred_at':    occurred_kst,
+        'targets':        targets,
+        'targets_line':   f'  |  수신 대상: {targets}' if targets else '',
+    }
+
+
+def _render_notification_template(channel_type: str, ctx: dict) -> tuple:
+    """channel_type('slack'/'discord'/'websocket')에 해당하는 NotificationTemplate을 DB에서 조회,
+    ctx dict로 title_template + body_template을 렌더링.
+
+    반환: (rendered_title, rendered_body)
+    DB 템플릿이 없거나 렌더링 실패 시 _TEMPLATE_FALLBACK의 채널별 기본 포맷 사용.
+    """
+    try:
+        from .models import NotificationTemplate
+        tmpl = NotificationTemplate.objects.filter(
+            channel_type=channel_type, is_active=True
+        ).first()
+        if tmpl:
+            rendered_title = tmpl.title_template.format_map(ctx) if tmpl.title_template else ctx.get('title', '')
+            rendered_body  = tmpl.body_template.format_map(ctx)  if tmpl.body_template  else ctx.get('content', '')
+            return rendered_title, rendered_body
+    except Exception as exc:
+        logger.warning("NotificationTemplate 렌더링 실패 (%s): %s", channel_type, exc)
+
+    # DB 템플릿 없을 때 채널별 기본 포맷 폴백
+    fallback = _TEMPLATE_FALLBACK.get(channel_type, {})
+    rendered_title = fallback.get('title', '{title}').format_map(ctx)
+    rendered_body  = fallback.get('body',  '{content}').format_map(ctx)
+    return rendered_title, rendered_body
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)
 def send_slack_notification(self, event_id: int):
     from .models import AlarmEvent
@@ -144,7 +228,7 @@ def send_slack_notification(self, event_id: int):
     except AlarmEvent.DoesNotExist:
         return
 
-    # 3 & 4: RiskCriteria → emoji(color_type) + 알림 강조(alert_emphasis)
+    # RiskCriteria → emoji(color_type) + 알림 강조(alert_emphasis)
     risk = _get_risk_criteria(event.severity)
     if risk:
         severity_emoji = _COLOR_EMOJI.get(risk.color_type, '⚪')
@@ -153,22 +237,23 @@ def send_slack_notification(self, event_id: int):
         severity_emoji = _SEVERITY_EMOJI_FALLBACK.get(event.severity, '⚪')
         emphasis = ''
 
-    # 12: AlarmPolicy → alarm_title/alarm_content 템플릿 + targets
+    # AlarmPolicy → 이벤트별 title/content 오버라이드
     alarm_policy = _get_alarm_policy(event.event_type)
     title, content, targets = _render_policy_message(event, alarm_policy)
 
-    target_str = f"  |  수신 대상: {targets}" if targets else ''
-    text = (
-        f"{severity_emoji} *[ICMP2 알림]* {emphasis}{title}\n"
-        f"> {content}\n"
-        f"> 시설: {event.facility or '-'}  |  발생: {timezone.localtime(event.occurred_at).strftime('%Y-%m-%d %H:%M:%S %Z')}{target_str}"
-    )
+    # NotificationTemplate → Slack 채널 메시지 포맷 렌더링
+    ctx = _get_template_ctx(event, title, content, targets, severity_emoji, emphasis)
+    _, text = _render_notification_template('slack', ctx)
 
     try:
         resp = requests.post(webhook_url, json={'text': text}, timeout=5)
         resp.raise_for_status()
+        _save_send_history('Slack', targets, '성공', text, alarm_policy)
     except Exception as exc:
         logger.warning("Slack 알림 실패 (event=%s): %s", event_id, exc)
+        if self.request.retries >= self.max_retries:
+            _save_send_history('Slack', targets, '실패', text, alarm_policy,
+                               reason=str(exc))
         raise self.retry(exc=exc)
 
 
@@ -184,7 +269,7 @@ def send_discord_notification(self, event_id: int):
     except AlarmEvent.DoesNotExist:
         return
 
-    # 3 & 4: RiskCriteria → embed 색상(color_type) + 알림 강조(alert_emphasis)
+    # RiskCriteria → embed 색상(color_type) + 알림 강조(alert_emphasis)
     risk = _get_risk_criteria(event.severity)
     if risk:
         color = _COLOR_DISCORD.get(risk.color_type, 0xAAAAAA)
@@ -193,13 +278,18 @@ def send_discord_notification(self, event_id: int):
         color = _SEVERITY_COLOR_FALLBACK.get(event.severity, 0xAAAAAA)
         emphasis = ''
 
-    # 12: AlarmPolicy → alarm_title/alarm_content 템플릿 + targets
+    # AlarmPolicy → 이벤트별 title/content 오버라이드
     alarm_policy = _get_alarm_policy(event.event_type)
     title, content, targets = _render_policy_message(event, alarm_policy)
 
+    # NotificationTemplate → Discord 채널 embed title/description 렌더링
+    ctx = _get_template_ctx(event, title, content, targets, '', emphasis)
+    rendered_title, rendered_body = _render_notification_template('discord', ctx)
+
+    from django.utils import timezone as tz
     fields = [
-        {'name': '시설',      'value': str(event.facility or '-'),                      'inline': True},
-        {'name': '발생 시각', 'value': timezone.localtime(event.occurred_at).strftime('%Y-%m-%d %H:%M:%S %Z'), 'inline': True},
+        {'name': '시설',      'value': str(event.facility or '-'),                                   'inline': True},
+        {'name': '발생 시각', 'value': tz.localtime(event.occurred_at).strftime('%Y-%m-%d %H:%M:%S'), 'inline': True},
     ]
     if targets:
         fields.append({'name': '수신 대상', 'value': targets, 'inline': True})
@@ -208,8 +298,8 @@ def send_discord_notification(self, event_id: int):
 
     payload = {
         'embeds': [{
-            'title':       title,
-            'description': content,
+            'title':       rendered_title,
+            'description': rendered_body,
             'color':       color,
             'fields':      fields,
         }]
@@ -218,8 +308,12 @@ def send_discord_notification(self, event_id: int):
     try:
         resp = requests.post(webhook_url, json=payload, timeout=5)
         resp.raise_for_status()
+        _save_send_history('Discord', targets, '성공', rendered_body, alarm_policy)
     except Exception as exc:
         logger.warning("Discord 알림 실패 (event=%s): %s", event_id, exc)
+        if self.request.retries >= self.max_retries:
+            _save_send_history('Discord', targets, '실패', rendered_body, alarm_policy,
+                               reason=str(exc))
         raise self.retry(exc=exc)
 
 
@@ -232,12 +326,21 @@ def push_websocket_alert(event_id: int):
     except AlarmEvent.DoesNotExist:
         return
 
+    # NotificationTemplate → WebSocket 알림 메시지 렌더링
+    alarm_policy = _get_alarm_policy(event.event_type)
+    title, content, targets = _render_policy_message(event, alarm_policy)
+    ctx = _get_template_ctx(event, title, content, targets, '', '')
+    _, ws_message = _render_notification_template('websocket', ctx)
+
+    payload = _build_alert_payload(event)
+    payload['message_text'] = ws_message  # 템플릿 렌더링 메시지 (대시보드 알림 텍스트용)
+
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         'alerts',
         {
             'type': 'alert_message',
-            'data': _build_alert_payload(event),
+            'data': payload,
         },
     )
 
@@ -269,9 +372,11 @@ def send_all_notifications(event_id: int):
             )
 
     # 중복 방지 (5분 쿨다운)
+    # severity를 키에 포함: 임계치(danger/warning)와 AI(anomaly/predictive_warning) 알람이
+    # 같은 rule+facility를 공유하더라도 서로를 차단하지 않도록 분리
     rule_id = event.rule_id or 0
     facility_id = event.facility_id or 0
-    dedup_key = f"alarm:dedup:{rule_id}:{facility_id}"
+    dedup_key = f"alarm:dedup:{rule_id}:{facility_id}:{event.severity}"
     if cache.get(dedup_key):
         logger.info("중복 알람 방지 — event=%s key=%s", event_id, dedup_key)
         return
@@ -705,6 +810,39 @@ def run_data_retention():
         if deleted_count > 0:
             logger.info("데이터 삭제 완료 — %s: %d건", label, deleted_count)
             _notify_retention_deleted(label, deleted_count)
+
+    # ── 보조 운영 로그 고정 주기 정리 ─────────────────────────────
+    # AlarmSendHistory, EventHistory, TaskLog는 DataRetentionPolicy 대상이 아닌
+    # 운영 보조 로그로, 법적 보존 의무 없음 → 고정 기간 자동 정리
+    _cleanup_operational_logs(now)
+
+
+def _cleanup_operational_logs(now) -> None:
+    """보조 운영 로그 고정 주기 자동 정리 (매일 새벽 3시 run_data_retention과 함께 실행).
+
+    보존 기간:
+        AlarmSendHistory : 90일  (알림 발송 채널 로그)
+        EventHistory     : 180일 (알람 상태 변경 이력)
+        TaskLog          : 30일  (Celery 태스크 실행 로그)
+    """
+    from datetime import timedelta
+    from manager.models import AlarmSendHistory
+    from alerts.models import EventHistory, TaskLog
+
+    _LOG_POLICIES = [
+        (AlarmSendHistory, 'sent_at',    90,  '알림 발송 이력'),
+        (EventHistory,     'action_at', 180,  '이벤트 상태 변경 이력'),
+        (TaskLog,          'created_at', 30,  '태스크 실행 로그'),
+    ]
+
+    for model, ts_field, days, label in _LOG_POLICIES:
+        cutoff = now - timedelta(days=days)
+        try:
+            deleted, _ = model.objects.filter(**{f"{ts_field}__lt": cutoff}).delete()
+            if deleted:
+                logger.info("운영 로그 정리 완료 — %s: %d건 (보존 %d일)", label, deleted, days)
+        except Exception as exc:
+            logger.warning("운영 로그 정리 실패 — %s: %s", label, exc)
 
 
 def _notify_retention_warning(label: str, retention_days: int, count: int) -> None:

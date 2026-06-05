@@ -335,56 +335,11 @@ function updateDeleteBtn() {
   }
 }
 
-/* ── 정렬 ── */
-function getCellValue(row, colIdx) {
-  const cells = row.querySelectorAll('td');
-  return cells[colIdx] ? cells[colIdx].textContent.trim() : '';
-}
-
-function sortTable(value) {
-  const tbody = document.getElementById('criteria-tbody');
-  if (!tbody) return;
-  const rows = Array.from(tbody.querySelectorAll('tr[onclick]'));
-  if (rows.length === 0) return;
-
-  rows.sort((a, b) => {
-    let va, vb;
-    switch (value) {
-      case 'priority_desc':
-        va = parseInt(getCellValue(a, 6)) || 99;
-        vb = parseInt(getCellValue(b, 6)) || 99;
-        return va - vb;
-      case 'priority_low':
-        va = parseInt(getCellValue(a, 6)) || 99;
-        vb = parseInt(getCellValue(b, 6)) || 99;
-        return vb - va;
-      case 'name_asc':
-        return getCellValue(a, 1).localeCompare(getCellValue(b, 1), 'ko');
-      case 'name_desc':
-        return getCellValue(b, 1).localeCompare(getCellValue(a, 1), 'ko');
-      case 'priority_asc':
-      case 'code_asc':
-        return getCellValue(a, 2).localeCompare(getCellValue(b, 2));
-      case 'code_desc':
-        return getCellValue(b, 2).localeCompare(getCellValue(a, 2));
-      case 'updated_new':
-        return getCellValue(b, 5).localeCompare(getCellValue(a, 5));
-      case 'updated_old':
-        return getCellValue(a, 5).localeCompare(getCellValue(b, 5));
-      case 'active_first':
-        va = getCellValue(a, 3).includes('사용') ? 0 : 1;
-        vb = getCellValue(b, 3).includes('사용') ? 0 : 1;
-        return va - vb;
-      case 'inactive_first':
-        va = getCellValue(a, 3).includes('미사용') ? 0 : 1;
-        vb = getCellValue(b, 3).includes('미사용') ? 0 : 1;
-        return va - vb;
-      default:
-        return 0;
-    }
-  });
-
-  rows.forEach(row => tbody.appendChild(row));
+/* ── 정렬 (서버사이드) ── */
+function applySort(val) {
+  const url = new URL(location.href);
+  url.searchParams.set('sort', val);
+  location.href = url.toString();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -426,20 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.sort-opt').forEach(opt => {
     opt.addEventListener('click', e => {
       e.stopPropagation();
-      document.querySelectorAll('.sort-opt').forEach(o => {
-        o.classList.remove('bg-blue-50', 'text-slate-900');
-        o.classList.add('text-slate-700', 'pl-8');
-        const ic = o.querySelector('i[data-lucide="check"]');
-        if (ic) ic.style.display = 'none';
-      });
-      opt.classList.add('bg-blue-50', 'text-slate-900');
-      opt.classList.remove('text-slate-700', 'pl-8');
-      const ic = opt.querySelector('i[data-lucide="check"]');
-      if (ic) ic.style.display = '';
-      document.getElementById('sort-label').textContent = opt.dataset.label;
-      sortTable(opt.dataset.value);
-      sortMenu.classList.add('hidden');
-      if (sortChevron) sortChevron.style.transform = '';
+      applySort(opt.dataset.value);
     });
   });
 

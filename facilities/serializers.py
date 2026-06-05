@@ -172,7 +172,7 @@ class WorkerLocationLatestSerializer(serializers.ModelSerializer):
     프론트 시뮬레이션용 — 작업자별 최신 위치 1건씩 반환한다.
     """
     worker_name = serializers.CharField(source='worker.worker_name', read_only=True)
-    worker_status = serializers.CharField(source='worker.current_state', read_only=True)
+    worker_status = serializers.CharField(source='worker.safety_status', read_only=True)
 
     class Meta:
         model = WorkerLocation

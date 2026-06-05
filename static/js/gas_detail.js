@@ -382,7 +382,9 @@ async function loadLatestGas(deviceId) {
         renderGasTable(data);
 
         const device = gasSensors[gasCurrentIndex];
-        const gasLevels = data._gasLevels || calcPerGasLevels(data);
+        const gasLevels = (data.gas_levels && Object.keys(data.gas_levels).length > 0)
+            ? data.gas_levels
+            : calcPerGasLevels(data);
         const level = data.danger_level;
 
         if (device && (level === '위험' || level === '주의')) {

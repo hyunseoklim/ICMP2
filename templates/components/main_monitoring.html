@@ -31,9 +31,9 @@
             window._MAP_LOCKED = true; 
             const API_BASE = '/facilities/api';
             const SAMPLE_IMAGE = "{{ MEDIA_URL }}img/sample_floor.png";
-            const MAP_AUTO_FLOOR_ID = 1;  // ← 고정
+            const MAP_AUTO_FLOOR_ID = {{ default_floor_id|default:1 }};
             window._MAP_CLICK_NAVIGATE = true;   // ← 클릭 시 페이지 이동 활성화
-            window._MAP_FLOOR_ID       = 1;      // ← 현재 floor_id
+            window._MAP_FLOOR_ID       = {{ default_floor_id|default:1 }};
         </script>
         {% include "components/map_only.html" %}
     </div>

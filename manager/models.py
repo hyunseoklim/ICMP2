@@ -59,10 +59,9 @@ class NoticeAttachment(models.Model):
 
 class AlarmSendHistory(models.Model):
     CHANNEL_CHOICES = [
-        ('SMS',         'SMS'),
-        ('이메일',      '이메일'),
-        ('앱 푸시',     '앱 푸시'),
         ('관제 실시간 알림', '관제 실시간 알림'),
+        ('Slack',           'Slack'),
+        ('Discord',         'Discord'),
     ]
     RESULT_CHOICES = [
         ('성공', '성공'),

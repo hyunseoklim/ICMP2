@@ -46,6 +46,7 @@ window._DEFAULT_GAS_THRESHOLDS = {
 window.GAS_THRESHOLDS    = { ...window._DEFAULT_GAS_THRESHOLDS };
 window.POWER_LOAD_WARN   = 50;   // 전력 부하율 주의 임계치 (%)
 window.POWER_LOAD_DANGER = 75;   // 전력 부하율 위험 임계치 (%)
+window.DEFAULT_RATED_W   = 1000; // 채널 정격 전력 기본값 (W) — app-config API 로드 후 갱신됨
 
 /**
  * DB에서 활성 임계치 정책을 조회하여 전역 변수 갱신
@@ -104,6 +105,18 @@ window.loadThresholdsFromDB = async function () {
         window.GAS_THRESHOLDS    = gas;
         window.POWER_LOAD_WARN   = warnLoad;
         window.POWER_LOAD_DANGER = dangerLoad;
+
+        // app-config에서 DEFAULT_POWER_RATED_W 로드
+        try {
+            const cfgRes = await fetch('/monitoring/api/app-config/');
+            if (cfgRes.ok) {
+                const cfg = await cfgRes.json();
+                if (cfg.DEFAULT_POWER_RATED_W) {
+                    window.DEFAULT_RATED_W = cfg.DEFAULT_POWER_RATED_W;
+                }
+            }
+        } catch (_) { /* 기본값 유지 */ }
+
         console.log('[Thresholds] DB 임계치 로드 완료 ✓');
     } catch (e) {
         console.warn('[Thresholds] DB 임계치 로드 실패 → 기본값 사용:', e);

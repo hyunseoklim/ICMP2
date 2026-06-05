@@ -1,6 +1,9 @@
 import json
+import logging
 
 from django.contrib.auth.decorators import login_required
+
+logger = logging.getLogger(__name__)
 from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, get_object_or_404
@@ -127,7 +130,7 @@ class FloorGridSetupView(View):
     def post(self, request, floor_id):
         floor = get_object_or_404(Floor, id=floor_id)
         count = setup_index_grid_for_floor(floor)
-        return JsonResponse({"created": count})
+        return Response({"created": count}, status=status.HTTP_200_OK)
     
 class FloorGridViewSet(viewsets.ModelViewSet):
     """
@@ -343,7 +346,7 @@ class WorkerLocationViewSet(viewsets.ModelViewSet):
                         try:
                             update_geofence_from_gas(reading)
                         except Exception as e:
-                            print(f'[geofence_sync] device_id={device_id} 오류: {e}')
+                            logger.warning('[geofence_sync] device_id=%s 오류: %s', device_id, e)
 
 
             # 2. 현장 근무 중인 작업자 geofence 판단 (off_duty 제외)
@@ -594,7 +597,7 @@ class GeofenceViewSet(viewsets.ModelViewSet):
                 try:
                     update_geofence_from_gas(reading)
                 except Exception as e:
-                    print(f'[geofence_sync] device_id={device_id} 오류: {e}')
+                    logger.warning('[geofence_sync] device_id=%s 오류: %s', device_id, e)
 
 
 # ─────────────────────────────────────────────────────────────────────
