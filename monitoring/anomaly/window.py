@@ -30,7 +30,14 @@ def _ensure_buffer(device_uid: str) -> None:
 
 def push(device_uid: str, reading) -> None:
     """새 GasReading을 버퍼에 추가. ingest_gas() 수신 직후 호출."""
+    is_new = device_uid not in _buffers
     _ensure_buffer(device_uid)
+    if is_new:
+        # 콜드 스타트(프로세스 재시작) 워밍업 — DB 최근 BUFFER_SIZE 백필.
+        # 이게 없으면 push가 빈 버퍼를 1건씩 채워 get()의 init_from_db가 영영
+        # 발동 안 해(버퍼가 비어있지 않음), CHANGEPOINT가 60점 찰 때까지(~60분)
+        # 죽는다. init_from_db는 _ensure_buffer만 호출하므로 재귀 없음(is_new 가드).
+        init_from_db(device_uid)
     buf = _buffers[device_uid]
     for gas in GAS_FIELDS:
         value = getattr(reading, gas, None)
