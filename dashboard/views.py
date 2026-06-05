@@ -53,6 +53,10 @@ def dashboard_view(request):
         recent_events = []
         event_summary = {'danger': 0, 'warning': 0}
 
+    from facilities.models import Floor
+    default_floor = Floor.objects.order_by('id').first()
+    default_floor_id = default_floor.id if default_floor else 1
+
     return render(request, "dashboard.html", {
         "today_session":       today_session,
         "recent_events":       recent_events,
@@ -61,4 +65,5 @@ def dashboard_view(request):
         "current_worker_name": current_worker_name,
         "safety_done":         safety_done,
         "vr_done":             vr_done,
+        "default_floor_id":    default_floor_id,
     })

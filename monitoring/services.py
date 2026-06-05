@@ -208,11 +208,7 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
         from facilities.services.geofence_service import update_geofence_from_gas
         update_geofence_from_gas(reading)
     except Exception as e:
-<<<<<<< HEAD
-        logger.warning("geofence 업데이트 실패: %s", e)
-=======
         logger.warning('[geofence] 업데이트 실패: %s', e)
->>>>>>> origin/dev
 
 # ──────────────────────────────────────────────────────────
 # 가스 위험도 상수
