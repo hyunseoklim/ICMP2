@@ -487,7 +487,7 @@
             const res = await ChannelAPI.getForecast(ch.id);
             const data = res.data || {};
             const intervalSec = data.interval_seconds || 60;
-            const ratedW = data.rated_power_w || ch.rated_power_w || 1000;
+            const ratedW = data.rated_power_w || ch.rated_power_w || window.DEFAULT_RATED_W || 1000;
 
             const byType = {};
             (data.sensors || []).forEach(s => { byType[s.sensor_type] = s; });

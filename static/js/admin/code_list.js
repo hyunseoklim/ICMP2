@@ -37,10 +37,20 @@ function _renderPageButtons(numPages) {
   const container = document.getElementById('page-number-btns');
   if (!container) return;
 
-  const slots = Math.max(5, numPages);
+  const prevBtn = document.getElementById('page-prev');
+  const nextBtn = document.getElementById('page-next');
+  if (numPages <= 1) {
+    container.innerHTML = '';
+    if (prevBtn) prevBtn.style.display = 'none';
+    if (nextBtn) nextBtn.style.display = 'none';
+    return;
+  }
+  if (prevBtn) prevBtn.style.display = '';
+  if (nextBtn) nextBtn.style.display = '';
+  const slots = numPages;
   let startSlot = Math.max(1, _currentPage - 2);
-  let endSlot   = startSlot + 4;
-  if (endSlot > slots) { endSlot = slots; startSlot = Math.max(1, endSlot - 4); }
+  let endSlot   = Math.min(numPages, startSlot + 4);
+  if (endSlot - startSlot < 4) startSlot = Math.max(1, endSlot - 4);
 
   container.innerHTML = '';
   for (let i = startSlot; i <= endSlot; i++) {
@@ -55,8 +65,6 @@ function _renderPageButtons(numPages) {
     container.appendChild(btn);
   }
 
-  const prevBtn = document.getElementById('page-prev');
-  const nextBtn = document.getElementById('page-next');
   if (prevBtn) { prevBtn.disabled = _currentPage <= 1; prevBtn.onclick = () => { if (_currentPage > 1) _renderPage(_currentPage - 1); }; }
   if (nextBtn) { nextBtn.disabled = _currentPage >= numPages; nextBtn.onclick = () => { if (_currentPage < numPages) _renderPage(_currentPage + 1); }; }
 }

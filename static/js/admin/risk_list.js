@@ -37,10 +37,20 @@ function _renderPageButtons(numPages) {
   const container = document.getElementById('page-number-btns');
   if (!container) return;
 
-  const slots = Math.max(5, numPages);
+  const prevBtn = document.getElementById('page-prev');
+  const nextBtn = document.getElementById('page-next');
+  if (numPages <= 1) {
+    container.innerHTML = '';
+    if (prevBtn) prevBtn.style.display = 'none';
+    if (nextBtn) nextBtn.style.display = 'none';
+    return;
+  }
+  if (prevBtn) prevBtn.style.display = '';
+  if (nextBtn) nextBtn.style.display = '';
+  const slots = numPages;
   let startSlot = Math.max(1, _currentPage - 2);
-  let endSlot   = startSlot + 4;
-  if (endSlot > slots) { endSlot = slots; startSlot = Math.max(1, endSlot - 4); }
+  let endSlot   = Math.min(numPages, startSlot + 4);
+  if (endSlot - startSlot < 4) startSlot = Math.max(1, endSlot - 4);
 
   container.innerHTML = '';
   for (let i = startSlot; i <= endSlot; i++) {
@@ -56,8 +66,6 @@ function _renderPageButtons(numPages) {
     container.appendChild(btn);
   }
 
-  const prevBtn = document.getElementById('page-prev');
-  const nextBtn = document.getElementById('page-next');
   if (prevBtn) { prevBtn.disabled = _currentPage <= 1; prevBtn.onclick = () => { if (_currentPage > 1) _renderPage(_currentPage - 1); }; }
   if (nextBtn) { nextBtn.disabled = _currentPage >= numPages; nextBtn.onclick = () => { if (_currentPage < numPages) _renderPage(_currentPage + 1); }; }
 }
@@ -525,16 +533,28 @@ function _setGEBtnState(enabled) {
 }
 
 function validateGroupEdit() {
-  const name  = document.getElementById('ge_name').value.trim();
-  const scope = document.getElementById('ge_scope_hidden').value;
+  const name     = document.getElementById('ge_name').value.trim();
+  const scope    = document.getElementById('ge_scope_hidden').value;
+  const isActive = document.getElementById('ge_is_active').value;
   let ok = true;
   const setErr = (id, msg) => {
     const el = document.getElementById(id);
     el.textContent = msg; el.classList.toggle('hidden', !msg);
     if (msg) ok = false;
   };
-  setErr('ge_name_err',  !name  ? '분류명을 입력하세요.' : '');
-  setErr('ge_scope_err', !scope ? '반영 범위를 하나 이상 선택하세요.' : '');
+
+  if (!name) {
+    setErr('ge_name_err', '분류명을 입력해 주세요.');
+  } else if (!/^[가-힣\s]+$/.test(name)) {
+    setErr('ge_name_err', '분류명은 한글만 입력할 수 있습니다.');
+  } else if (name.length > 50) {
+    setErr('ge_name_err', '분류명은 최대 50자까지 입력할 수 있습니다.');
+  } else {
+    setErr('ge_name_err', '');
+  }
+
+  setErr('ge_scope_err',  !scope    ? '반영 범위를 선택해 주세요.' : '');
+  setErr('ge_active_err', !isActive ? '사용 여부를 선택해 주세요.' : '');
   return ok;
 }
 

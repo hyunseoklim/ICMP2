@@ -24,7 +24,7 @@
     let deviceName = '';
     let channelName = '';
     let intervalSec = 60;
-    let ratedW = 1000;
+    let ratedW = window.DEFAULT_RATED_W ?? 1000;
     let page = 0;
     let chart = null;
 
