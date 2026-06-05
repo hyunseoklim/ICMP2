@@ -27,7 +27,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -364,7 +364,7 @@ def run_power_validation(
     """Phase B-4 전체 검증 실행."""
     logger = logging.getLogger("validate_power_pool")
     results = {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "n_samples": n_samples,
         "seed": seed,
         "groups": {},

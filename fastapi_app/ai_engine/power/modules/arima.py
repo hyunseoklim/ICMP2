@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import numpy as np
@@ -226,7 +226,7 @@ class PowerARIMAPredictor:
         Returns:
             ARIMAResult — 원시 예측(점·CI) + 신뢰성 메타데이터.
         """
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         device_id = cp_anchor.device_id
         sensor_type = cp_anchor.sensor_type
         H = self._forecast_steps

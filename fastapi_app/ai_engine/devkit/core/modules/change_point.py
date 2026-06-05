@@ -38,7 +38,7 @@ change_point — ruptures.Pelt 기반 시계열 변화점 탐지 모듈.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import numpy as np
@@ -294,7 +294,7 @@ class ChangePointDetector:
         if points:
             last_ts = points[-1].timestamp
         else:
-            last_ts = datetime.now()
+            last_ts = datetime.now(timezone.utc)
 
         # 케이스 1: 윈도우 미충족
         if not is_full:
@@ -402,7 +402,7 @@ class ChangePointDetector:
         points = self._window.get(device_id, sensor_type)
         values = self._window.get_values(device_id, sensor_type)
         n = len(values)
-        last_ts = points[-1].timestamp if points else datetime.now()
+        last_ts = points[-1].timestamp if points else datetime.now(timezone.utc)
         win_size = self._window.window_size
 
         anchor_index: Optional[int] = None

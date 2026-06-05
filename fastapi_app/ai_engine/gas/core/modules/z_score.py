@@ -29,7 +29,7 @@ z_score — Z-score 기반 통계적 이상(SPIKE) 탐지 모듈.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import numpy as np
@@ -290,13 +290,13 @@ class ZScoreDetector:
             device_id: 장비 식별자 (또는 잔차 식별자).
             sensor_type: 센서 종류 (또는 잔차 종류).
             current_value: 현재 값.
-            timestamp: 결과의 timestamp. None이면 datetime.now() 사용.
+            timestamp: 결과의 timestamp. None이면 datetime.now(timezone.utc) 사용.
         
         Returns:
             ZScoreResult.
         """
         if timestamp is None:
-            timestamp = datetime.now()
+            timestamp = datetime.now(timezone.utc)
 
         # 임시 DataPoint를 만들어 detect() 위임
         temp_point = DataPoint(

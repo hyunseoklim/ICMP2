@@ -571,7 +571,7 @@ def main() -> None:
                 sum(1 for s in scenarios if s.kind == "abrupt"),
                 sum(1 for s in scenarios if s.kind == "normal"))
 
-    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
 
     if args.mode == "confirm":
         logger.info("provisional 평가 ...")
