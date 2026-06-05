@@ -13,7 +13,7 @@ MVP: Python 메모리 deque (Redis로 교체 가능)
 
 from collections import deque
 
-GAS_FIELDS = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
+from monitoring.constants import GAS_FIELDS
 WINDOW_SIZE = 30               # STEP D 단위 (W)
 BUFFER_SIZE = WINDOW_SIZE * 2  # STEP E 단위 (2W = 60)
 

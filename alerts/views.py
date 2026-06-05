@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Case, When, IntegerField
+from django.db.models import Case, When, IntegerField, Q
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -126,7 +126,6 @@ def recent_alarms(request):
             if latest_location and latest_location.floor:
                 facility = latest_location.floor.building.facility
                 # 본인 이벤트 OR 해당 층 facility 이벤트
-                from django.db.models import Q
                 qs = qs.filter(
                     Q(worker=worker) | Q(facility=facility)
                 )

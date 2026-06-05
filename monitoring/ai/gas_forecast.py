@@ -23,8 +23,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# 엔진 가스 9채널 — gas_distribution.GAS_SENSOR_TYPES 와 동일
-GAS_CHANNELS = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
+from monitoring.constants import GAS_FIELDS as GAS_CHANNELS
 
 # 워커 시작 시 DB에서 재생할 채널당 최근 측정 개수 (ARIMA history_size 150 이상)
 _BACKFILL_POINTS = 200

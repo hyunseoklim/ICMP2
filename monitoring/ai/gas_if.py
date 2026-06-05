@@ -16,9 +16,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# 엔진 가스 9채널 — Django GasReading 컬럼명·순서와 동일
-# (fastapi_app/ai_engine/gas/premises/gas_distribution.GAS_SENSOR_TYPES 와 일치)
-GAS_CHANNELS = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
+from monitoring.constants import GAS_FIELDS as GAS_CHANNELS
 
 # 프로세스 로컬 모델 보관소 (worker 프로세스당 1개)
 _detector = None

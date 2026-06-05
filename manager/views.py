@@ -49,25 +49,7 @@ from facilities.models import WorkerLocation, Worker, LocationNode, Equipment, F
 from accounts.models import User, Department, Position
 from .mixins import AdminRequiredMixin, ManagerRequiredMixin, RoleRequiredMixin, DepartmentScopeMixin
 from .models import Notice, NoticeAttachment, AlarmPolicy, AlarmSendHistory, VREducation, ChecklistSnapshot
-
-# ── 임계치 카테고리 분류 ──────────────────────────────────────────
-_GAS_METRICS   = {'co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc', 'ch4'}
-_POWER_METRICS = {'current_value', 'power_value', 'voltage', 'kw', 'kwh', 'pf'}
-_METRIC_UNIT = {
-    'co': 'ppm', 'h2s': 'ppm', 'co2': 'ppm', 'no2': 'ppm',
-    'so2': 'ppm', 'o3': 'ppm', 'nh3': 'ppm', 'voc': 'ppm',
-    'ch4': '%LEL', 'o2': '%',
-    'current_value': 'A', 'power_value': 'kW', 'voltage': 'V', 'kw': 'kW', 'kwh': 'kWh',
-}
-_RULE_TYPE_LABEL = {
-    'threshold': '임계치 초과', 'missing': '데이터 누락',
-    'power': '전력 이상',
-}
-_RULE_COLOR = {
-    'threshold': ('green', '녹색'),
-    'power':     ('orange', '주황'),
-    'missing':   ('gray', '회색'),
-}
+from .constants import GAS_METRICS as _GAS_METRICS, POWER_METRICS as _POWER_METRICS, METRIC_UNIT as _METRIC_UNIT, RULE_TYPE_LABEL as _RULE_TYPE_LABEL, RULE_COLOR as _RULE_COLOR
 
 
 

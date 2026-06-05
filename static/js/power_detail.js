@@ -15,7 +15,7 @@ const POWER_LEVEL_COLOR = {
     off:     'rgba(100,100,100,0.3)',
 };
 
-const DEFAULT_RATED_W = 1000; // 카탈로그 기준 채널 최대 전력 (W)
+const DEFAULT_RATED_W = window.DEFAULT_RATED_W ?? 1000;
 // WARN_LOAD / DANGER_LOAD → window.POWER_LOAD_WARN / window.POWER_LOAD_DANGER 로 대체
 // (monitoring.js 에서 기본값 50/75 초기화, DB 로드 후 갱신됨)
 
@@ -382,7 +382,7 @@ async function loadLatestPower(deviceId) {
             current_a:       r.current_a,
             voltage_v:       r.voltage_v,
             power_w:         r.power_w,
-            level:           calcChannelLevel(r),
+            level:           r.level || calcChannelLevel(r),
         }));
 
         currentChannels = channels;
