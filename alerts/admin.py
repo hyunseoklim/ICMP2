@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AlarmEvent, AlarmRule, EventHistory, NotificationTemplate
+from .models import AlarmEvent, AlarmRule, EventHistory, NotificationTemplate, TaskLog
 
 
 @admin.register(AlarmRule)
@@ -29,3 +29,16 @@ class EventHistoryAdmin(admin.ModelAdmin):
 class NotificationTemplateAdmin(admin.ModelAdmin):
     list_display = ('template_name', 'channel_type', 'is_active')
     list_filter = ('channel_type', 'is_active')
+
+
+@admin.register(TaskLog)
+class TaskLogAdmin(admin.ModelAdmin):
+    list_display = ('task_name', 'status', 'task_id_short', 'created_at', 'started_at', 'completed_at', 'error')
+    list_filter = ('status', 'task_name')
+    search_fields = ('task_id', 'task_name', 'error')
+    ordering = ('-created_at',)
+    readonly_fields = ('task_id', 'task_name', 'status', 'error', 'created_at', 'started_at', 'completed_at')
+
+    @admin.display(description='Task ID')
+    def task_id_short(self, obj):
+        return obj.task_id[:8]
