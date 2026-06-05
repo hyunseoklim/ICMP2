@@ -100,6 +100,7 @@ CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_TRACK_STARTED = True   # TaskLog STARTED 상태 추적(task_prerun) 보장
 
 # STEP G(예측)는 상태기(PredictionSubsystem)라 전용 큐 + 단일 동시성 worker로
 # 처리한다. forecast_gas_task + forecast_power_task가 forecast 큐로 라우팅
@@ -145,6 +146,9 @@ CACHES = {
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
 DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
+
+# 전력 채널 정격 기본값 (DeviceChannel.rated_power_w 미설정 시 폴백) — app_config API 노출
+DEFAULT_POWER_RATED_W = int(os.environ.get('DEFAULT_POWER_RATED_W', '1000'))
 
 CHANNEL_LAYERS = {
     'default': {

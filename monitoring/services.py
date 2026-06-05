@@ -540,6 +540,45 @@ def get_thresholds(scope: str = '실시간 관제') -> dict:
     }
 
 
+def calc_power_channel_level(reading) -> str:
+    """PowerReading 1건의 위험 등급을 반환 (전력 대시보드/시리얼라이저용).
+
+    반환값: 'error' / 'off' / 'danger' / 'warning' / 'normal'
+    - error : 통신 불능 (current_a, voltage_v, power_w 모두 -1)
+    - off   : 전원 차단 (세 값 모두 0)
+    - 그 외 : DB ThresholdPolicy(load_rate)의 경고/위험 % 기준으로 판단
+              DB 미등록 시 기본값 50 % / 75 % 사용
+    """
+    ca = reading.current_a
+    vv = reading.voltage_v
+    pw = reading.power_w
+
+    if ca == -1 and vv == -1 and pw == -1:
+        return 'error'
+    if ca == 0 and vv == 0 and pw == 0:
+        return 'off'
+    if pw is None or pw <= 0:
+        return 'normal'
+
+    from monitoring.models import ThresholdPolicy
+    policy = ThresholdPolicy.objects.filter(
+        category='TH_POWER',
+        metric_code='load_rate',
+        is_active=True,
+    ).first()
+    warn_pct   = float(policy.warning_max) if policy and policy.warning_max is not None else 50.0
+    danger_pct = float(policy.danger_max)  if policy and policy.danger_max  is not None else 75.0
+
+    rated_w  = float(reading.channel.rated_power_w or 1000)
+    load_pct = (float(pw) / rated_w) * 100
+
+    if load_pct >= danger_pct:
+        return 'danger'
+    if load_pct >= warn_pct:
+        return 'warning'
+    return 'normal'
+
+
 def calc_danger_level(reading) -> str:
     """
     GasReading 인스턴스를 받아 전체 위험도 반환
