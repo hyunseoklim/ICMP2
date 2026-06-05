@@ -100,6 +100,7 @@ CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_TRACK_STARTED = True
 
 # STEP G(예측)는 상태기(PredictionSubsystem)라 전용 큐 + 단일 동시성 worker로
 # 처리한다. forecast_gas_task + forecast_power_task가 forecast 큐로 라우팅
@@ -134,6 +135,8 @@ CELERY_BEAT_SCHEDULE = {
 
 # Phase 2 — AI 예측(STEP G) 튜닝 파라미터. 검증·운영 중 무재학습 조정용.
 FORECAST_K_CONFIRM = int(os.environ.get('FORECAST_K_CONFIRM', '18'))
+
+DEFAULT_POWER_RATED_W = int(os.environ.get('DEFAULT_POWER_RATED_W', '1000'))
 
 
 CACHES = {
@@ -225,3 +228,31 @@ AUTH_USER_MODEL = 'accounts.User'
 # LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'default': {
+            'format': '[{levelname}] {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'default',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}

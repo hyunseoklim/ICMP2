@@ -89,7 +89,7 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
 # 가스 수신 처리 파이프라인 (HTTP 뷰 & Celery 공용)
 # ══════════════════════════════════════════════════════════
 
-GAS_FIELDS = ['co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc']
+from monitoring.constants import GAS_FIELDS
 
 
 def process_gas_ingest(device_uid: str, payload: dict) -> None:
@@ -201,14 +201,18 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
                 {'type': 'sensor.update', 'msg_type': 'delta', 'data': [ws_payload]},
             )
     except Exception as e:
-        logger.warning("sensor_ws broadcast 실패: %s", e)
+        logger.warning('[sensor_ws] broadcast 실패: %s', e)
 
     # Geofence 자동 갱신
     try:
         from facilities.services.geofence_service import update_geofence_from_gas
         update_geofence_from_gas(reading)
     except Exception as e:
+<<<<<<< HEAD
         logger.warning("geofence 업데이트 실패: %s", e)
+=======
+        logger.warning('[geofence] 업데이트 실패: %s', e)
+>>>>>>> origin/dev
 
 # ──────────────────────────────────────────────────────────
 # 가스 위험도 상수
@@ -278,6 +282,45 @@ def get_thresholds(scope: str = '실시간 관제') -> dict:
         and p.warning_max is not None
         and p.danger_max  is not None
     }
+
+
+def calc_power_channel_level(reading) -> str:
+    """PowerReading 1건의 위험 등급을 반환.
+
+    반환값: 'error' / 'off' / 'danger' / 'warning' / 'normal'
+    - error : 통신 불능 (current_a, voltage_v, power_w 모두 -1)
+    - off   : 전원 차단 (세 값 모두 0)
+    - 그 외 : DB ThresholdPolicy(load_rate)의 경고/위험 % 기준으로 판단
+              DB 미등록 시 기본값 50 % / 75 % 사용
+    """
+    ca = reading.current_a
+    vv = reading.voltage_v
+    pw = reading.power_w
+
+    if ca == -1 and vv == -1 and pw == -1:
+        return 'error'
+    if ca == 0 and vv == 0 and pw == 0:
+        return 'off'
+    if pw is None or pw <= 0:
+        return 'normal'
+
+    from monitoring.models import ThresholdPolicy
+    policy = ThresholdPolicy.objects.filter(
+        category='TH_POWER',
+        metric_code='load_rate',
+        is_active=True,
+    ).first()
+    warn_pct   = float(policy.warning_max) if policy and policy.warning_max is not None else 50.0
+    danger_pct = float(policy.danger_max)  if policy and policy.danger_max  is not None else 75.0
+
+    rated_w  = float(reading.channel.rated_power_w or 1000)
+    load_pct = (float(pw) / rated_w) * 100
+
+    if load_pct >= danger_pct:
+        return 'danger'
+    if load_pct >= warn_pct:
+        return 'warning'
+    return 'normal'
 
 
 def calc_danger_level(reading) -> str:
@@ -377,7 +420,7 @@ def is_stale(ts) -> bool:
     return timezone.now() - ts > STALE_THRESHOLD
 
 
-def get_channel_status(reading) -> str:
+def check_channel_status(reading) -> str:
     """
     단일 채널의 상태 반환 (통합 PowerReading 기준)
 
@@ -459,7 +502,7 @@ def get_channel_summary(device_uid: str) -> list:
             channel=channel
         ).order_by("-measured_at").first()
 
-        status = get_channel_status(reading)
+        status = check_channel_status(reading)
 
         result.append({
             "channel":          channel.channel_code,

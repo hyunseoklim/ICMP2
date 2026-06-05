@@ -12,7 +12,8 @@ from monitoring.models import (
     InspectionLog,
     ActionLog,
 )
-from monitoring.services import calc_danger_level, check_threshold_exceeded
+from monitoring.constants import GAS_FIELDS
+from monitoring.services import calc_danger_level, check_threshold_exceeded, calc_power_channel_level
 from alerts.models import ForecastSnapshot
 
 # ── Device ────────────────────────────────────────────────
@@ -61,7 +62,6 @@ class DeviceStatusLogSerializer(serializers.ModelSerializer):
 
 # ── GasReading ─────────────────────────────────────────────
 
-GAS_FIELDS = ["co", "h2s", "co2", "o2", "no2", "so2", "o3", "nh3", "voc"]
 
 
 class GasReadingSerializer(serializers.ModelSerializer):
@@ -106,9 +106,13 @@ class PowerStatusReadingSerializer(serializers.ModelSerializer):
 # ── PowerReading ───────────────────────────────────────────
 
 class PowerReadingSerializer(serializers.ModelSerializer):
-    channel_name      = serializers.CharField(source="channel.channel_name", read_only=True)
-    channel_code      = serializers.CharField(source="channel.channel_code", read_only=True)
+    channel_name        = serializers.CharField(source="channel.channel_name", read_only=True)
+    channel_code        = serializers.CharField(source="channel.channel_code", read_only=True)
     channel_rated_power = serializers.IntegerField(source="channel.rated_power_w", read_only=True)
+    level               = serializers.SerializerMethodField()
+
+    def get_level(self, obj):
+        return calc_power_channel_level(obj)
 
     class Meta:
         model            = PowerReading

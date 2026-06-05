@@ -28,7 +28,32 @@ function showDone(msg, callback) {
   showModal('doneModal');
 }
 
-// ── 정렬 ──────────────────────────────────────────────────────
+// ── 정렬 드롭박스 ────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  const toggle = document.getElementById('sort-toggle');
+  const menu   = document.getElementById('sort-menu');
+  const chevron = document.getElementById('sort-chevron');
+  if (!toggle) return;
+
+  toggle.addEventListener('click', function (e) {
+    e.stopPropagation();
+    const open = !menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', open);
+    chevron.style.transform = open ? '' : 'rotate(180deg)';
+  });
+
+  document.addEventListener('click', function () {
+    menu.classList.add('hidden');
+    chevron.style.transform = '';
+  });
+
+  document.querySelectorAll('.sort-opt').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      applySort(btn.dataset.value);
+    });
+  });
+});
+
 function applySort(val) {
   const url = new URL(location.href);
   url.searchParams.set('sort', val);
@@ -479,7 +504,7 @@ function _validateGroupFields(code, name, codeErrId, nameErrId, excludeCode, exc
   let hasErr = false;
 
   let codeErr = '';
-  if (!code)                         codeErr = '분류 코드를 입력해주세요.';
+  if (!code)                         codeErr = '분류 코드를 입력해 주세요.';
   else if (code.length > 50)         codeErr = '그룹명은 최대 50자까지 입력할 수 있습니다.';
   else if (!codePattern.test(code))  codeErr = '그룹 코드는 영문 대문자, 숫자, 밑줄(_)만 사용할 수 있습니다.';
   else if (code !== excludeCode && codes.includes(code))

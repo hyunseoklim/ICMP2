@@ -205,14 +205,14 @@ def trigger_changepoint_alarms(device, cp_results: list) -> None:
         ).order_by('-occurred_at').first()
 
         if event == 'CHANGE_POINT':
+            cp_message = (
+                f"이전 평균 {r['prev_mean']:.2f} → 현재 평균 {r['curr_mean']:.2f} "
+                f"(평균 이동량: {r['mean_shift_score']:.2f}, 표준편차 비율: {r['std_ratio']:.2f})"
+            )
             if open_event:
                 open_event.last_seen_at  = now
                 open_event.current_value = r['mean_shift_score']
-                open_event.message = (
-                    f"mean_shift={r['mean_shift_score']:.2f}, "
-                    f"std_ratio={r['std_ratio']:.2f} | "
-                    f"prev_mean={r['prev_mean']:.2f} → curr_mean={r['curr_mean']:.2f}"
-                )
+                open_event.message       = cp_message
                 open_event.save(update_fields=['last_seen_at', 'current_value', 'message', 'updated_at'])
             else:
                 create_alarm_event(
@@ -221,11 +221,7 @@ def trigger_changepoint_alarms(device, cp_results: list) -> None:
                     severity=AlarmEvent.Severity.ANOMALY,
                     title=f"[CP] {gas} 상태 변화 감지",
                     device=device,
-                    message=(
-                        f"mean_shift={r['mean_shift_score']:.2f}, "
-                        f"std_ratio={r['std_ratio']:.2f} | "
-                        f"prev_mean={r['prev_mean']:.2f} → curr_mean={r['curr_mean']:.2f}"
-                    ),
+                    message=cp_message,
                     current_value=r['mean_shift_score'],
                 )
 
@@ -471,6 +467,11 @@ def create_alarm_event(
         current_value=current_value,
         last_seen_at=now,
     )
+    try:
+        from alerts.tasks import ALARM_EVENT_COUNTER
+        ALARM_EVENT_COUNTER.labels(severity=severity).inc()
+    except Exception:
+        pass
     from .tasks import send_all_notifications
     send_all_notifications.delay(event.id)
     return event

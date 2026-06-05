@@ -16,6 +16,8 @@ from monitoring.views import (
     ThresholdPolicyViewSet,
     InspectionLogViewSet,
     ActionLogViewSet,
+    # API Functions
+    app_config,
 )
 
 # ── API Router ─────────────────────────────────────────────
@@ -39,4 +41,5 @@ urlpatterns = [
 
     # API URL
     path("api/", include(router.urls)),
+    path("api/app-config/", app_config, name="app-config"),
 ]

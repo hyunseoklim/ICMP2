@@ -128,6 +128,16 @@ def ingest_node(request):
 FORECAST_PAST_POINTS = 60   # 'AI 예측' 차트에 표시할 과거 실측 개수
 GAS_CHANNEL_CODES = ["co", "h2s", "co2", "o2", "no2", "so2", "o3", "nh3", "voc"]
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def app_config(request):
+    """GET /monitoring/api/app-config/ — 프론트엔드에 필요한 Django settings 값을 반환."""
+    from django.conf import settings
+    return Response({
+        'DEFAULT_POWER_RATED_W': settings.DEFAULT_POWER_RATED_W,
+    })
+
+
 # Phase D M2-1 — 전력 'AI 예측' 탭의 sensor 순서 (PowerReading 컬럼명 매핑)
 POWER_SENSOR_TYPES = ["voltage", "current", "power"]
 _POWER_SENSOR_TO_FIELD = {

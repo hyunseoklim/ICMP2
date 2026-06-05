@@ -152,7 +152,7 @@ def _broadcast_geofence(geofence, msg_type='delta') -> None:
             },
         )
     except Exception as e:
-        logger.warning("geofence_ws broadcast 실패: %s", e)
+        logger.warning('[geofence_ws] broadcast 실패: %s', e)
 
 def _auto_name(sensor) -> str:
     """

@@ -3,14 +3,31 @@ import re
 import csv
 from datetime import datetime
 
-from django.contrib.auth.decorators import login_required, user_passes_test
-
-def _is_admin(user):
-    return getattr(user, 'user_type', '') == 'admin'
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from functools import wraps
 
 def admin_required(view_func):
-    decorated = login_required(user_passes_test(_is_admin, login_url='/')(view_func))
-    return decorated
+    """슈퍼관리자(admin) 전용. 미로그인 → 로그인 페이지(302), 권한 없음 → 403."""
+    @wraps(view_func)
+    @login_required(login_url='/accounts/login/')
+    def wrapped(request, *args, **kwargs):
+        if request.user.user_type != 'admin':
+            raise PermissionDenied
+        return view_func(request, *args, **kwargs)
+    return wrapped
+
+
+def manager_required(view_func):
+    """슈퍼관리자+관리자 전용. 미로그인 → 로그인 페이지(302), 권한 없음 → 403."""
+    @wraps(view_func)
+    @login_required(login_url='/accounts/login/')
+    def wrapped(request, *args, **kwargs):
+        if request.user.user_type not in ('admin', 'manager'):
+            raise PermissionDenied
+        return view_func(request, *args, **kwargs)
+    return wrapped
+
 
 
 from django.db import models as db_models
@@ -32,28 +49,11 @@ from facilities.models import WorkerLocation, Worker, LocationNode, Equipment, F
 from accounts.models import User, Department, Position
 from .mixins import AdminRequiredMixin, ManagerRequiredMixin, RoleRequiredMixin, DepartmentScopeMixin
 from .models import Notice, NoticeAttachment, AlarmPolicy, AlarmSendHistory, VREducation, ChecklistSnapshot
-
-# ── 임계치 카테고리 분류 ──────────────────────────────────────────
-_GAS_METRICS   = {'co', 'h2s', 'co2', 'o2', 'no2', 'so2', 'o3', 'nh3', 'voc', 'ch4'}
-_POWER_METRICS = {'current_value', 'power_value', 'voltage', 'kw', 'kwh', 'pf'}
-_METRIC_UNIT = {
-    'co': 'ppm', 'h2s': 'ppm', 'co2': 'ppm', 'no2': 'ppm',
-    'so2': 'ppm', 'o3': 'ppm', 'nh3': 'ppm', 'voc': 'ppm',
-    'ch4': '%LEL', 'o2': '%',
-    'current_value': 'A', 'power_value': 'kW', 'voltage': 'V', 'kw': 'kW', 'kwh': 'kWh',
-}
-_RULE_TYPE_LABEL = {
-    'threshold': '임계치 초과', 'missing': '데이터 누락',
-    'power': '전력 이상',
-}
-_RULE_COLOR = {
-    'threshold': ('green', '녹색'),
-    'power':     ('orange', '주황'),
-    'missing':   ('gray', '회색'),
-}
+from .constants import GAS_METRICS as _GAS_METRICS, POWER_METRICS as _POWER_METRICS, METRIC_UNIT as _METRIC_UNIT, RULE_TYPE_LABEL as _RULE_TYPE_LABEL, RULE_COLOR as _RULE_COLOR
 
 
 
+@admin_required
 def user_list(request):
     """사용자 관리 메인 페이지"""
     sort_map = {
@@ -108,6 +108,7 @@ def user_list(request):
         'base_params': base_params,
     })
 
+@admin_required
 def user_bulk_delete(request):
     if request.method != 'POST':
         return redirect('user_list')
@@ -119,6 +120,7 @@ def user_bulk_delete(request):
     return redirect('user_list')
 
 
+@admin_required
 def user_bulk_lock(request):
     if request.method != 'POST':
         return redirect('user_list')
@@ -129,6 +131,7 @@ def user_bulk_lock(request):
     return redirect('user_list')
 
 
+@admin_required
 def user_bulk_unlock(request):
     if request.method != 'POST':
         return redirect('user_list')
@@ -146,6 +149,7 @@ def check_username(request):
     return JsonResponse({'exists': exists})
 
 
+@admin_required
 def user_create(request):
     """사용자 등록"""
     if request.method == 'POST':
@@ -281,6 +285,7 @@ def user_create(request):
         'positions': User.objects.exclude(position='').values_list('position', flat=True).distinct().order_by('position'),
     })
 
+@admin_required
 def user_create_error(request):
     """사용자 등록 - 유효성 에러"""
     return render(request, 'admin/users/user_create_error.html', {
@@ -288,6 +293,7 @@ def user_create_error(request):
         'departments': Department.objects.all(),
     })
 
+@admin_required
 def user_detail(request):
     """사용자 정보 조회"""
     return render(request, 'admin/users/user_detail.html', {
@@ -295,6 +301,7 @@ def user_detail(request):
         'departments': Department.objects.all(),
     })
 
+@admin_required
 def user_edit(request, pk):
     """사용자 정보 수정"""
     from django.shortcuts import get_object_or_404
@@ -342,15 +349,18 @@ def user_edit(request, pk):
         'positions': User.objects.exclude(position='').values_list('position', flat=True).distinct().order_by('position'),
     })
 
+@login_required
 def logout_complete(request):
     """로그아웃 완료"""
     return render(request, 'admin/users/logout_complete.html', {'active_menu': 'account'})
 
+@admin_required
 def user_list_filter(request):
     """필터 펼친 상태"""
     return render(request, 'admin/users/user_list_filter_open.html', {'active_menu': 'account'})
 
 # ===== 직위 관리 =====
+@admin_required
 def position_list(request):
     """직위 관리 메인 페이지"""
     qs = Position.objects.all()
@@ -362,6 +372,7 @@ def position_list(request):
         'total_count': qs.count(),
     })
 
+@admin_required
 def position_create(request):
     """직위 등록 POST 처리"""
     if request.method == 'POST':
@@ -376,6 +387,7 @@ def position_create(request):
     return redirect('position_list')
 
 
+@admin_required
 def position_edit(request, pk):
     """직위 수정 POST 처리"""
     from django.shortcuts import get_object_or_404
@@ -393,6 +405,7 @@ def position_edit(request, pk):
     return redirect('position_list')
 
 
+@admin_required
 def position_bulk_delete(request):
     """직위 일괄 삭제"""
     if request.method != 'POST':
@@ -405,6 +418,7 @@ def position_bulk_delete(request):
 
 
 # ===== 조직 관리 =====
+@admin_required
 def org_list(request):
     """조직 관리 메인 페이지"""
     departments = Department.objects.annotate(member_count=Count('users')).order_by('name')
@@ -414,6 +428,7 @@ def org_list(request):
     })
 
 
+@admin_required
 def org_dept_api(request, pk):
     """부서 클릭 시 부서 정보 + 구성원 목록 반환 (JSON AJAX)"""
     from django.http import JsonResponse
@@ -472,6 +487,7 @@ def org_dept_api(request, pk):
     })
 
 
+@admin_required
 def org_all_api(request):
     """전체 사용자 목록 반환 (구성원 선택 팝업 회사 행용)"""
     from django.http import JsonResponse
@@ -487,6 +503,7 @@ def org_all_api(request):
     return JsonResponse({'members': members, 'total': qs.count()})
 
 
+@admin_required
 def org_add_members(request):
     """구성원 부서 추가 저장"""
     from django.shortcuts import get_object_or_404
@@ -502,6 +519,7 @@ def org_add_members(request):
     messages.success(request, f'{len(user_ids)}명이 {dept.name}에 추가되었습니다.')
     return redirect('org_list')
 
+@admin_required
 def org_exclude_members(request):
     """소속 제외: 선택된 사용자들의 department를 NULL로 설정"""
     if request.method != 'POST':
@@ -515,6 +533,7 @@ def org_exclude_members(request):
     return redirect('org_list')
 
 
+@admin_required
 def org_appoint_leader(request):
     """조직장 임명: 선택된 사용자를 해당 부서의 leader로 설정"""
     from django.shortcuts import get_object_or_404
@@ -534,6 +553,7 @@ def org_appoint_leader(request):
     return redirect('org_list')
 
 
+@admin_required
 def org_revoke_leader(request):
     """조직장 해제: 해당 부서의 leader를 NULL로 설정"""
     from django.shortcuts import get_object_or_404
@@ -552,36 +572,41 @@ def org_revoke_leader(request):
     return redirect('org_list')
 
 
+@admin_required
 def org_member_select(request):
     """구성원 선택 (모달이 org_list에 통합됨, URL 하위호환 유지)"""
     return redirect('org_list')
 
+@admin_required
 def org_dept_move(request):
     """부서 이동 모달"""
     return render(request, 'admin/organizations/org_dept_move.html', {'active_menu': 'account'})
 
+@admin_required
 def org_confirm(request):
     """재확인 모달"""
     return render(request, 'admin/organizations/org_confirm.html', {'active_menu': 'account'})
 
 # ===== 공통 코드 관리 =====
 
-def _get_code_groups(prefix=''):
+def _get_code_groups(prefix='', exclude_prefix=''):
     """그룹 목록: code=='__meta__' 항목이 각 그룹의 대표."""
-    qs = CommonCode.objects.filter(code='__meta__')
+    qs = CommonCode.objects.filter(code='__meta__', is_active=True)
     if prefix:
         qs = qs.filter(group_code__startswith=prefix)
+    if exclude_prefix:
+        qs = qs.exclude(group_code__startswith=exclude_prefix)
     return qs.order_by('sort_order', 'group_code')
 
 
-@admin_required
+@manager_required
 def code_list(request):
     """공통 코드 관리 메인 페이지"""
     group_code = request.GET.get('group', '')
     search = request.GET.get('search', '')
     code_search = request.GET.get('code_search', '')
 
-    groups = _get_code_groups()
+    groups = _get_code_groups(exclude_prefix='RISK_')
     if search:
         groups = groups.filter(code_name__icontains=search)
 
@@ -621,7 +646,7 @@ def code_list(request):
         'current_user_name': getattr(user, 'name', None) or user.get_full_name() or user.username,
     })
 
-@admin_required
+@manager_required
 def code_group_create(request):
     """코드 그룹 등록"""
     user = request.user
@@ -654,7 +679,7 @@ def code_group_create(request):
     })
 
 
-@admin_required
+@manager_required
 def code_group_edit(request, group_code):
     """코드 그룹 수정 (GET: JSON 반환, POST: 저장)"""
     meta = get_object_or_404(CommonCode, group_code=group_code, code='__meta__')
@@ -693,7 +718,7 @@ def code_group_edit(request, group_code):
     })
 
 
-@admin_required
+@manager_required
 def code_value_create(request):
     """공통 코드 등록"""
     group_code = request.GET.get('group', '') or request.POST.get('group_code', '')
@@ -732,7 +757,7 @@ def code_value_create(request):
     })
 
 
-@admin_required
+@manager_required
 def code_value_edit(request, pk):
     """공통 코드 수정 (GET: JSON 반환, POST: 저장)"""
     code_obj = get_object_or_404(CommonCode, pk=pk)
@@ -775,7 +800,7 @@ def code_value_edit(request, pk):
     })
 
 
-@admin_required
+@manager_required
 @require_POST
 def code_value_delete(request):
     """공통 코드 삭제 (복수)"""
@@ -790,7 +815,7 @@ def code_value_delete(request):
 
 # ===== 위험 유형 관리 =====
 
-@admin_required
+@manager_required
 def risk_list(request):
     """위험 유형 관리 메인 페이지"""
     group_code = request.GET.get('group', '')
@@ -831,7 +856,7 @@ def risk_list(request):
     })
 
 
-@admin_required
+@manager_required
 def risk_create(request):
     """위험 유형 코드 등록 (AJAX POST 지원)"""
     group_code = request.GET.get('group', '') or request.POST.get('group_code', '')
@@ -877,7 +902,7 @@ def risk_create(request):
     })
 
 
-@admin_required
+@manager_required
 def risk_edit(request, pk):
     """위험 유형 코드 수정 (AJAX 지원)"""
     code_obj = get_object_or_404(CommonCode, pk=pk)
@@ -922,7 +947,7 @@ def risk_edit(request, pk):
     })
 
 
-@admin_required
+@manager_required
 def risk_group_create(request):
     """위험 분류 그룹 등록"""
     user = request.user
@@ -961,7 +986,7 @@ def risk_group_create(request):
     })
 
 
-@admin_required
+@manager_required
 def risk_group_edit(request, group_code):
     """위험 분류 그룹 수정 (AJAX 지원)"""
     meta = get_object_or_404(CommonCode, group_code=group_code, code='__meta__')
@@ -1006,7 +1031,7 @@ def risk_group_edit(request, group_code):
     })
 
 
-@admin_required
+@manager_required
 @require_POST
 def risk_delete(request):
     """위험 유형 코드 삭제 (복수)"""
@@ -1021,11 +1046,12 @@ def risk_delete(request):
 
 # ===== 위험 기준 관리 =====
 
-@admin_required
+@manager_required
 def risk_criteria_list(request):
-    search        = request.GET.get('search', '')
-    is_active_f   = request.GET.get('is_active', '')
-    color_f       = request.GET.get('color_type', '')
+    search      = request.GET.get('search', '')
+    is_active_f = request.GET.get('is_active', '')
+    color_f     = request.GET.get('color_type', '')
+    sort        = request.GET.get('sort', 'priority_asc')
 
     qs = RiskCriteria.objects.all()
     if search:
@@ -1037,22 +1063,57 @@ def risk_criteria_list(request):
     if color_f:
         qs = qs.filter(color_type=color_f)
 
+    _sort_map = {
+        'priority_asc':  'priority',
+        'priority_desc': '-priority',
+        'priority_low':  '-priority',
+        'name_asc':      'stage_name',
+        'name_desc':     '-stage_name',
+        'code_asc':      'stage_code',
+        'code_desc':     '-stage_code',
+        'updated_new':   '-updated_at',
+        'updated_old':   'updated_at',
+        'active_first':  '-is_active',
+        'inactive_first': 'is_active',
+    }
+    qs = qs.order_by(_sort_map.get(sort, 'priority'))
+
     user = request.user
     current_user_name = getattr(user, 'name', None) or user.get_full_name() or user.username
 
+    sort_options = [
+        ('priority_asc',  '우선순위 오름차순'),
+        ('priority_desc', '우선순위 내림차순'),
+        ('name_asc',      '단계명 가나다순'),
+        ('name_desc',     '단계명 가나다 역순'),
+        ('code_asc',      '단계 코드 오름차순'),
+        ('code_desc',     '단계 코드 내림차순'),
+        ('updated_new',   '최근 수정일 최신순'),
+        ('updated_old',   '최근 수정일 오래된순'),
+        ('active_first',  '사용 여부 사용 우선'),
+        ('inactive_first','사용 여부 미사용 우선'),
+    ]
+
+    total = qs.count()
+    paginator = Paginator(qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
     return render(request, 'admin/risk_criteria/risk_criteria_list.html', {
         'active_menu': 'reference',
-        'criteria':   qs,
-        'total':      qs.count(),
+        'criteria':   page_obj,
+        'total':      total,
+        'page_obj':   page_obj,
         'search':     search,
         'is_active_filter': is_active_f,
         'color_filter':     color_f,
         'color_choices':    RiskCriteria.ColorType.choices,
         'current_user_name': current_user_name,
+        'sort':             sort,
+        'sort_options':     sort_options,
     })
 
 
-@admin_required
+@manager_required
 def risk_criteria_create(request):
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'method not allowed'}, status=405)
@@ -1096,7 +1157,7 @@ def risk_criteria_create(request):
     return JsonResponse({'ok': True})
 
 
-@admin_required
+@manager_required
 def risk_criteria_edit(request, pk):
     obj = get_object_or_404(RiskCriteria, pk=pk)
     if request.method == 'POST':
@@ -1146,7 +1207,7 @@ def risk_criteria_edit(request, pk):
     })
 
 
-@admin_required
+@manager_required
 @require_POST
 def risk_criteria_delete(request):
     pks = request.POST.getlist('pks')
@@ -1214,7 +1275,7 @@ def _ensure_th_categories():
     ThresholdPolicy.objects.filter(condition='미만').update(condition='이하')
 
 
-@admin_required
+@manager_required
 def threshold_list(request):
     """임계치 기준 관리 메인 페이지 (모든 모달 포함)"""
     _ensure_th_categories()
@@ -1278,7 +1339,7 @@ def threshold_list(request):
     })
 
 
-@admin_required
+@manager_required
 def threshold_group_create(request):
     """임계치 기준 분류 등록 (AJAX)"""
     if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1318,7 +1379,7 @@ def threshold_group_create(request):
     return JsonResponse({'ok': False}, status=400)
 
 
-@admin_required
+@manager_required
 def threshold_group_edit(request, cat_code):
     """임계치 기준 분류 수정 (GET: JSON, POST: 저장)"""
     obj = get_object_or_404(CommonCode, group_code='TH_CATEGORY', code=cat_code)
@@ -1370,7 +1431,7 @@ def threshold_group_edit(request, cat_code):
     return JsonResponse({'ok': False}, status=400)
 
 
-@admin_required
+@manager_required
 def threshold_create(request):
     """임계치 기준 등록"""
     if request.method == 'POST':
@@ -1416,7 +1477,7 @@ def threshold_create(request):
     return redirect(f"/manager/thresholds/?category={request.POST.get('category', 'TH_GAS')}")
 
 
-@admin_required
+@manager_required
 def threshold_edit(request, pk):
     """임계치 기준 수정 (GET: JSON 반환, POST: 저장)"""
     policy = get_object_or_404(ThresholdPolicy, pk=pk)
@@ -1466,7 +1527,7 @@ def threshold_edit(request, pk):
     })
 
 
-@admin_required
+@manager_required
 @require_POST
 def threshold_delete(request):
     """임계치 기준 삭제 (복수)"""
@@ -1479,6 +1540,7 @@ def threshold_delete(request):
     return redirect(f'/manager/thresholds/?category={category}')
 
 # ===== 안전 확인 관리 =====
+@manager_required
 def safety_checklist_list(request):
     from safety.models import SafetyCheckItem
     from itertools import groupby
@@ -1589,6 +1651,7 @@ def safety_checklist_save(request):
     })
 
 # ===== VR 교육 관리 =====
+@manager_required
 def vr_education_list(request):
     edu, _ = VREducation.objects.get_or_create(
         pk=1,
@@ -1652,6 +1715,7 @@ def vr_education_save(request):
     })
 
 # ===== 설비 관리 =====
+@manager_required
 def facility_list(request):
     """설비 관리 메인 페이지 (Equipment)"""
     qs = Equipment.objects.select_related('updated_by').annotate(
@@ -1719,6 +1783,7 @@ def facility_list(request):
     })
 
 
+@manager_required
 def facility_create(request):
     """설비 등록 POST 처리"""
     if request.method == 'POST':
@@ -1747,6 +1812,7 @@ def facility_create(request):
     return redirect('facility_list')
 
 
+@manager_required
 def facility_edit(request, pk):
     """설비 수정 POST 처리"""
     from django.shortcuts import get_object_or_404
@@ -1769,6 +1835,7 @@ def facility_edit(request, pk):
     return redirect('facility_list')
 
 
+@manager_required
 def facility_bulk_delete(request):
     """설비 일괄 삭제"""
     if request.method != 'POST':
@@ -1785,6 +1852,7 @@ def _next_device_code(prefix, device_type):
     return f'{prefix}-{(max(nums) + 1 if nums else 1):03d}'
 
 
+@manager_required
 def gas_list(request):
     """유해가스 센서 관리 메인 페이지"""
     sort_map = {
@@ -1877,6 +1945,7 @@ def gas_list(request):
     })
 
 
+@manager_required
 def gas_comm_check(request):
     """장비 통신 확인 API — TCP 소켓으로 IP:PORT 연결 가능 여부 확인"""
     if request.method != 'POST':
@@ -1930,6 +1999,7 @@ def gas_comm_check(request):
     return JsonResponse({'ok': True, 'checked_at': ts})
 
 
+@manager_required
 def gas_create(request):
     """장비 등록 API (GAS / PWR / LOC 공통)"""
     if request.method != 'POST':
@@ -1996,6 +2066,7 @@ def gas_create(request):
     return JsonResponse({'ok': True, 'device_uid': device_uid, 'id': device.id})
 
 
+@manager_required
 def gas_edit(request, pk):
     """유해가스 센서 수정 API"""
     if request.method != 'POST':
@@ -2037,6 +2108,7 @@ def gas_edit(request, pk):
     return JsonResponse({'ok': True})
 
 
+@manager_required
 def gas_bulk_delete(request):
     """유해가스 센서 일괄 삭제 API"""
     if request.method != 'POST':
@@ -2050,6 +2122,7 @@ def gas_bulk_delete(request):
     return JsonResponse({'ok': True, 'count': count})
 
 
+@manager_required
 def gas_inspections_api(request, pk):
     """장비별 점검 이력 JSON API"""
     device = get_object_or_404(Device, pk=pk, device_type='gas')
@@ -2115,6 +2188,7 @@ def gas_inspections_api(request, pk):
     return JsonResponse({'ok': True, 'inspections': data, 'summary': summary})
 
 
+@manager_required
 def gas_inspect_create(request):
     """점검 이력 등록 API"""
     if request.method != 'POST':
@@ -2156,6 +2230,7 @@ def gas_inspect_create(request):
     return JsonResponse({'ok': True, 'id': log.id})
 
 
+@manager_required
 def gas_action_create(request, inspection_id):
     """조치 이력 등록 API"""
     if request.method != 'POST':
@@ -2185,6 +2260,7 @@ def gas_action_create(request, inspection_id):
     )
     return JsonResponse({'ok': True})
 
+@manager_required
 def power_list(request):
     """스마트 전력 시스템 관리 메인 페이지"""
     sort_map = {
@@ -2321,6 +2397,7 @@ def power_list(request):
         'next_loc_code':  _next_device_code('LOC', 'loc'),
     })
 
+@manager_required
 def power_bulk_delete(request):
     """스마트 전력 시스템 일괄 삭제 API"""
     if request.method != 'POST':
@@ -2332,6 +2409,7 @@ def power_bulk_delete(request):
     return JsonResponse({'ok': True, 'count': count})
 
 
+@manager_required
 def power_edit(request, pk):
     """스마트 전력 시스템 수정 API"""
     if request.method != 'POST':
@@ -2362,6 +2440,7 @@ def power_edit(request, pk):
     return JsonResponse({'ok': True})
 
 
+@manager_required
 def power_inspections_api(request, pk):
     """전력 장비별 점검 이력 JSON API"""
     device = get_object_or_404(Device, pk=pk, device_type='power')
@@ -2454,6 +2533,7 @@ def power_action_create(request, inspection_id):
     return JsonResponse({'ok': True})
 
 
+@manager_required
 def power_inspect_create(request):
     """전력 장비 점검 이력 등록 API"""
     if request.method != 'POST':
@@ -2495,6 +2575,7 @@ def power_inspect_create(request):
     return JsonResponse({'ok': True, 'id': log.id})
 
 
+@manager_required
 def node_list(request):
     """위치 노드 관리 메인 페이지"""
     sort_map = {
@@ -2630,6 +2711,7 @@ def node_bulk_delete(request):
     return JsonResponse({'ok': True, 'deleted': deleted})
 
 
+@manager_required
 def node_edit(request, pk):
     """위치 노드 수정 API"""
     if request.method != 'POST':
@@ -2658,6 +2740,7 @@ def node_edit(request, pk):
     return JsonResponse({'ok': True})
 
 
+@manager_required
 def node_inspections_api(request, pk):
     """위치 노드별 점검 이력 JSON API"""
     device = get_object_or_404(Device, pk=pk, device_type='loc')
@@ -2749,6 +2832,7 @@ def node_action_create(request, inspection_id):
     return JsonResponse({'ok': True})
 
 
+@manager_required
 def node_inspect_create(request):
     """위치 노드 점검 이력 등록 API"""
     if request.method != 'POST':
@@ -2814,7 +2898,15 @@ def _date_range_to_dt(date_from, date_to):
     return dt_from, dt_to
 
 
-@admin_required
+def _fmt_kst(dt):
+    """UTC datetime → KST 문자열 변환 (CSV export용)."""
+    from zoneinfo import ZoneInfo
+    if dt is None:
+        return '-'
+    return dt.astimezone(ZoneInfo('Asia/Seoul')).strftime('%Y-%m-%d %H:%M:%S')
+
+
+@manager_required
 def gas_data_list(request):
     """유해가스 센서 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
@@ -2847,7 +2939,7 @@ def gas_data_list(request):
     })
 
 
-@admin_required
+@manager_required
 def gas_data_export(request):
     """유해가스 센서 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
@@ -2873,7 +2965,7 @@ def gas_data_export(request):
         def fmt(val, unit='ppm'):
             return f'{val:.1f} {unit}' if val is not None else '-'
         writer.writerow([
-            r.measured_at.strftime('%Y-%m-%d %H:%M:%S'),
+            _fmt_kst(r.measured_at),
             r.device.device_uid,
             fmt(r.co2),
             fmt(r.o2, '%'),
@@ -2888,7 +2980,7 @@ def gas_data_export(request):
     return response
 
 
-@admin_required
+@manager_required
 def power_data_list(request):
     """스마트 전력 시스템 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
@@ -2915,7 +3007,7 @@ def power_data_list(request):
     })
 
 
-@admin_required
+@manager_required
 def power_data_export(request):
     """스마트 전력 시스템 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
@@ -2936,7 +3028,7 @@ def power_data_export(request):
     writer.writerow(['수집 시각', '장비명', '전력값(W)', '온도(℃)'])
     for r in qs.iterator(chunk_size=500):
         writer.writerow([
-            r.measured_at.strftime('%Y-%m-%d %H:%M:%S'),
+            _fmt_kst(r.measured_at),
             r.device.device_uid,
             r.power_w if r.power_w >= 0 else '-',
             f'{r.temperature_c:.1f}' if r.temperature_c is not None else '-',
@@ -2944,7 +3036,7 @@ def power_data_export(request):
     return response
 
 
-@admin_required
+@manager_required
 def node_data_list(request):
     """위치 노드 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
@@ -2977,7 +3069,7 @@ def node_data_list(request):
     })
 
 
-@admin_required
+@manager_required
 def node_data_export(request):
     """위치 노드 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
@@ -3005,14 +3097,14 @@ def node_data_export(request):
         y_str = f'{r.y:.3f}' if r.y is not None else '-'
         coord = f'{x_str} / {y_str}'
         writer.writerow([
-            r.received_at.strftime('%Y-%m-%d %H:%M:%S'),
+            _fmt_kst(r.received_at),
             r.node.node_name,
             coord,
         ])
     return response
 
 
-@admin_required
+@manager_required
 def worker_data_list(request):
     """작업자 위치 데이터 관리"""
     date_from, date_to = _parse_date_range(request)
@@ -3043,7 +3135,7 @@ def worker_data_list(request):
     })
 
 
-@admin_required
+@manager_required
 def worker_data_export(request):
     """작업자 위치 데이터 CSV 내보내기"""
     date_from, date_to = _parse_date_range(request)
@@ -3067,14 +3159,14 @@ def worker_data_export(request):
     writer.writerow(['수신 시각', '작업자명', '위치 좌표'])
     for r in qs.iterator(chunk_size=500):
         writer.writerow([
-            r.measured_at.strftime('%Y-%m-%d %H:%M:%S'),
+            _fmt_kst(r.measured_at),
             r.worker.worker_name,
             f'{r.x:.3f} / {r.y:.3f}',
         ])
     return response
 
 
-@admin_required
+@manager_required
 def retention_list(request):
     """데이터 보관 주기 관리"""
     device_type     = request.GET.get('device_type', '')
@@ -3128,7 +3220,7 @@ def retention_list(request):
     })
 
 
-@admin_required
+@manager_required
 @require_POST
 def retention_create(request):
     """보관 주기 등록 AJAX"""
@@ -3163,7 +3255,7 @@ def retention_create(request):
     return JsonResponse({'ok': True, 'id': policy.pk})
 
 
-@admin_required
+@manager_required
 @require_POST
 def retention_update(request, pk):
     """보관 주기 수정 AJAX"""
@@ -3193,7 +3285,7 @@ def retention_update(request, pk):
     return JsonResponse({'ok': True})
 
 
-@admin_required
+@manager_required
 @require_POST
 def retention_delete(request):
     """보관 주기 삭제 AJAX (복수)"""
@@ -3210,6 +3302,7 @@ def retention_delete(request):
 
 # ===== 공지사항 관리 =====
 
+@manager_required
 def notice_list(request):
     notices = (
         Notice.objects
@@ -3235,6 +3328,7 @@ def notice_list(request):
     })
 
 
+@manager_required
 def notice_detail(request, pk):
     notice = get_object_or_404(
         Notice.objects.select_related('author').prefetch_related('attachments'),
@@ -3254,6 +3348,7 @@ def notice_detail(request, pk):
     })
 
 
+@manager_required
 def notice_create(request):
     if request.method == 'POST':
         title      = request.POST.get('title', '').strip()
@@ -3283,6 +3378,7 @@ def notice_create(request):
     return render(request, 'admin/notice/notice_create.html', {'active_menu': 'notice'})
 
 
+@manager_required
 def notice_edit(request, pk):
     notice = get_object_or_404(Notice, pk=pk)
 
@@ -3339,6 +3435,7 @@ def notice_bulk_delete(request):
     return JsonResponse({'success': True})
 
 
+@manager_required
 def notice_attachment_download(request, pk):
     att = get_object_or_404(NoticeAttachment, pk=pk)
     return FileResponse(att.file.open('rb'), as_attachment=True, filename=att.original_name)
@@ -3387,12 +3484,14 @@ def dashboard_notice_detail(request, pk):
     })
 
 # ===== 메뉴 관리 =====
+@admin_required
 def menu_manage(request):
     """메뉴 관리 (슈퍼관리자 전용)"""
     return render(request, 'admin/menu_manage/menu_manage.html', {'active_menu': 'menu_manage'})
 
 # ===== 알림/이벤트 관리 =====
 
+@manager_required
 def alarm_policy_list(request):
     policies = AlarmPolicy.objects.order_by('-updated_at')
     policies_data = [
@@ -3462,6 +3561,7 @@ def alarm_policy_bulk_delete(request):
     AlarmPolicy.objects.filter(pk__in=ids).delete()
     return JsonResponse({'success': True})
 
+@manager_required
 def event_history_list(request):
     from alerts.models import AlarmEvent
     from django.utils import timezone as tz
@@ -3495,15 +3595,17 @@ def event_history_list(request):
         else:
             target = '-'
 
+        occurred_kst  = tz.localtime(e.occurred_at)
+        closed_kst    = tz.localtime(e.closed_at) if e.closed_at else None
         events_data.append({
             'id':         e.pk,
-            'time':       e.occurred_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'date':       e.occurred_at.strftime('%Y-%m-%d'),
+            'time':       occurred_kst.strftime('%Y-%m-%d %H:%M:%S'),
+            'date':       occurred_kst.strftime('%Y-%m-%d'),
             'type':       EVENT_TYPE_LABEL.get(e.event_type, e.event_type),
             'target':     target,
             'policy':     e.rule.rule_name if e.rule else '-',
             'status':     STATUS_LABEL.get(e.event_status, e.event_status),
-            'releasedAt': e.closed_at.strftime('%Y-%m-%d %H:%M:%S') if e.closed_at else '-',
+            'releasedAt': closed_kst.strftime('%Y-%m-%d %H:%M:%S') if closed_kst else '-',
             'content':    e.message or e.title,
             'memo':       e.title,
         })
@@ -3516,6 +3618,7 @@ def event_history_list(request):
         'today':        today,
     })
 
+@manager_required
 def alarm_send_history_list(request):
     from django.utils import timezone as tz
 
@@ -3524,8 +3627,8 @@ def alarm_send_history_list(request):
     sends_data = [
         {
             'id':        h.pk,
-            'time':      h.sent_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'date':      h.sent_at.strftime('%Y-%m-%d'),
+            'time':      tz.localtime(h.sent_at).strftime('%Y-%m-%d %H:%M:%S'),
+            'date':      tz.localtime(h.sent_at).strftime('%Y-%m-%d'),
             'channel':   h.channel,
             'targets':   h.targets,
             'result':    h.result,
@@ -3547,6 +3650,7 @@ def alarm_send_history_list(request):
     })
 
 # ===== 로그 및 연동 관리 =====
+@manager_required
 def system_log_list(request):
     """시스템 로그"""
     from core.models import ChangeLog
@@ -3566,6 +3670,7 @@ def system_log_list(request):
         'log_types': log_types,
     })
 
+@manager_required
 def user_activity_log_list(request):
     """사용자 활동 로그"""
     from accounts.models import LoginHistory
@@ -3584,6 +3689,7 @@ def user_activity_log_list(request):
         'users': User.objects.all(),
     })
 
+@manager_required
 def integration_log_list(request):
     """연동 로그"""
     from core.models import ChangeLog
@@ -3599,6 +3705,7 @@ def integration_log_list(request):
         'total_count': paginator.count,
     })
 
+@manager_required
 def map_edit_log_list(request):
     """지도 편집 로그"""
     from core.models import ChangeLog
@@ -3614,16 +3721,7 @@ def map_edit_log_list(request):
 
 # ===== 지도 관리 =====
 
-# ⚠️ 임시 권한 차단 — 운영 전 일괄 권한 정책 적용 시 교체 예정
-# 사유: 다른 팀원이 권한 관련 데코레이터·믹스인을 추가 중일 수 있어
-#       지금은 최소 범위(map_editor 페이지 진입)만 차단함.
-# 향후 작업 (TODO — 운영 전 일괄):
-#   - manager 전체 view 함수에 통일된 권한 데코레이터/믹스인 적용
-#   - facilities API ViewSet 에 permission_classes 적용 (IsAdminOrReadOnly 등)
-#   - manager/mixins.py 의 AdminRequiredMixin 슈퍼유저 우회 보강
-#   - 거부 응답을 redirect(302) → PermissionDenied(403) 으로 통일할지 결정
-@login_required
-@user_passes_test(lambda u: getattr(u, 'user_type', None) == 'admin')
+@manager_required
 def map_editor(request):
     """지도 편집 관리 — 첫 번째 floor의 전체 객체 조회 (미배치 포함)
 

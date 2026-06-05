@@ -151,6 +151,15 @@ def generate_power_data(ch: dict | None = None) -> dict:
     }
 
 
+def generate_all_power_data() -> list[dict]:
+    """전체 전력 채널 데이터를 순서대로 생성해서 반환.
+
+    랜덤 뽑기 대신 _POWER_CHANNELS 전체를 순회하므로
+    중복·누락 없이 모든 채널이 정확히 1번씩 기록된다.
+    """
+    return [generate_power_data(ch=ch) for ch in _POWER_CHANNELS]
+
+
 # ── 작업자 위치 데이터 생성 ───────────────────────────────────
 def generate_location_data() -> dict:
     worker_id = random.choice(list(_worker_positions.keys()))

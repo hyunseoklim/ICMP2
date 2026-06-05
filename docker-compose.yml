@@ -35,10 +35,13 @@ services:
     container_name: django
     volumes:
       - .:/app
+      - prometheus_multiproc:/tmp/prometheus_multiproc
     ports:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
     depends_on:
       db:
         condition: service_healthy
@@ -77,8 +80,11 @@ services:
     command: celery -A config worker --loglevel=info
     volumes:
       - .:/app
+      - prometheus_multiproc:/tmp/prometheus_multiproc
     env_file:
       - .env
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
     depends_on:
       db:
         condition: service_healthy
@@ -93,8 +99,11 @@ services:
     command: celery -A config beat --loglevel=info
     volumes:
       - .:/app
+      - prometheus_multiproc:/tmp/prometheus_multiproc
     env_file:
       - .env
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
     depends_on:
       db:
         condition: service_healthy
@@ -109,8 +118,11 @@ services:
     command: celery -A config worker -Q forecast --concurrency=1 --loglevel=info
     volumes:
       - .:/app
+      - prometheus_multiproc:/tmp/prometheus_multiproc
     env_file:
       - .env
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
     depends_on:
       db:
         condition: service_healthy
@@ -126,8 +138,11 @@ services:
     command: celery -A config worker -Q events --concurrency=1 --loglevel=info
     volumes:
       - .:/app
+      - prometheus_multiproc:/tmp/prometheus_multiproc
     env_file:
       - .env
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
     depends_on:
       db:
         condition: service_healthy
@@ -136,6 +151,28 @@ services:
       django:
         condition: service_started
 
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    ports:
+      - "9121:9121"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable
+    ports:
+      - "9187:9187"
+    depends_on:
+      db:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus:latest
@@ -149,6 +186,10 @@ services:
       django:
         condition: service_started
       fastapi:
+        condition: service_started
+      redis-exporter:
+        condition: service_started
+      postgres-exporter:
         condition: service_started
 
   alertmanager:
@@ -180,3 +221,4 @@ volumes:
   db_data:
   redis_data:
   grafana_data:
+  prometheus_multiproc:
