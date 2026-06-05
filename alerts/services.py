@@ -467,6 +467,11 @@ def create_alarm_event(
         current_value=current_value,
         last_seen_at=now,
     )
+    try:
+        from alerts.tasks import ALARM_EVENT_COUNTER
+        ALARM_EVENT_COUNTER.labels(severity=severity).inc()
+    except Exception:
+        pass
     from .tasks import send_all_notifications
     send_all_notifications.delay(event.id)
     return event
