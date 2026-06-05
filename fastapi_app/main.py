@@ -7,7 +7,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_power_data, generate_node_readings
+from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_all_power_data, generate_node_readings
 from fastapi_app.sender import fetch_gas_devices, xadd_gas_reading, xadd_power_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading
 
 logger = logging.getLogger(__name__)
@@ -40,8 +40,7 @@ async def _emit_once() -> None:
         # 단계별 파이프라인: Redis Stream 전송 (consume_gas_stream이 소비)
         await xadd_gas_reading(data)
 
-    for _ in range(5):
-        power = generate_power_data()
+    for power in generate_all_power_data():
         await _broadcast(power)
         # 단계별 파이프라인: Redis Stream 전송 (consume_power_stream이 소비)
         await xadd_power_reading(power)
