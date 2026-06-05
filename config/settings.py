@@ -221,3 +221,34 @@ AUTH_USER_MODEL = 'accounts.User'
 # LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# 로깅 — 콘솔 핸들러 + 레벨 라벨 포맷 (dev 흡수).
+# root=WARNING이라 logger.warning/error가 [LEVEL] name message 형식으로 노출된다.
+# (모듈별 INFO 가시화가 필요하면 'loggers'에 해당 모듈 INFO 엔트리 추가)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'default': {
+            'format': '[{levelname}] {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'default',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}
