@@ -28,7 +28,7 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
         2. STEP B — check_power_thresholds (Django load_rate 즉시 알람)
         3. STEP G — forecast_power_task.delay (forecast 큐 위임)
     """
-    from monitoring.models import Device, DeviceChannel, PowerReading, DropLog, DetectionResult
+    from monitoring.models import Device, DeviceChannel, PowerReading, DropLog, DetectionResult, DeviceStatusLog
     from monitoring.collector import update_last_seen
 
     # ── ① 유효성 게이트 (장비/채널 — 무음 드롭 금지) ──
@@ -58,7 +58,9 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
     # ② 값 검증 — 원천이 검증했으면 신뢰, 아니면 경계 검증
     if 'quality_flag' in payload:
         quality_flag = payload['quality_flag']
+        violations = payload.get('violations', [])
     else:
+        violations = []
         fields = [current_a, voltage_v, power_w]
         if all(v in (-1, -1.0) for v in fields):
             quality_flag = 'comm_err'
@@ -90,6 +92,17 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
         raw_payload=dict(payload),
     )
     update_last_seen(device)
+
+    # ── invalid(범위위반) = 센서 고장 신호 → DeviceStatusLog fault 기록 (결정 ㄱ) ──
+    # 이번 범위는 "기록만". 부하탐지 분리·중복억제·comm_err(통신불능) 유형 처리는 별도.
+    if quality_flag == 'invalid':
+        ch_desc = ', '.join(violations) if violations else channel_code
+        DeviceStatusLog.objects.create(
+            device=device,
+            status_code='sensor_fault',
+            status_message=f"채널 {channel_code} 범위위반: {ch_desc}",
+            occurred_at=measured_at,
+        )
 
     # ── ③ 단계별 판정 + DetectionResult 계보 + 알람 ──
     Stage = DetectionResult.Stage
@@ -308,6 +321,17 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
         raw_payload=raw,
     )
     update_last_seen(device)
+
+    # ── invalid(범위위반) = 센서 고장 신호 → DeviceStatusLog fault 기록 (결정 ㄱ) ──
+    # 이번 범위는 "기록만". 농도탐지 분리(window 미투입)·중복억제·유형별 처리정책은 별도.
+    if quality_flag == 'invalid' and violations:
+        from monitoring.models import DeviceStatusLog
+        DeviceStatusLog.objects.create(
+            device=device,
+            status_code='sensor_fault',
+            status_message=f"범위위반 채널: {', '.join(violations)}",
+            occurred_at=measured_at,
+        )
 
     # ── ③ 단계별 판정 + 결과 영속(DetectionResult 계보) + 알람 ──
     from monitoring.models import DetectionResult
