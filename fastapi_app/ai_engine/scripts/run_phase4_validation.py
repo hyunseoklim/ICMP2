@@ -17,7 +17,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -417,7 +417,7 @@ def main():
         logger.info(f"  {scenario_id:12s} ({domain:5s}) 예측등급={pr['headline']}")
 
     # 리포트 저장
-    generated_at = datetime.now().isoformat(timespec="seconds")
+    generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     report_md = render_report(results, prediction_results, generated_at)
 
     args.output.mkdir(parents=True, exist_ok=True)

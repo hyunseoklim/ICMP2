@@ -25,7 +25,7 @@ import argparse
 import logging
 import sys
 import warnings
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -293,7 +293,7 @@ def main() -> None:
         onset_step=onsets["U.4"],
     )
 
-    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
     report = render_report(h2s, voc, onsets, generated_at)
 
     args.output.mkdir(parents=True, exist_ok=True)

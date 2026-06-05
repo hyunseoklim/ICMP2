@@ -15,7 +15,7 @@ device_id로 가스/전력을 구분.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import numpy as np
@@ -206,7 +206,7 @@ class SensorBundle:
         
         Examples:
             >>> bundle = SensorBundle(
-            ...     timestamp=datetime.now(),
+            ...     timestamp=datetime.now(timezone.utc),
             ...     device_id="gas_A",
             ...     values={"co": 5.0, "h2s": 1.0, "co2": 450.0},
             ... )
@@ -231,7 +231,7 @@ class SensorBundle:
         
         Examples:
             >>> bundle = SensorBundle(
-            ...     timestamp=datetime.now(),
+            ...     timestamp=datetime.now(timezone.utc),
             ...     device_id="gas_A",
             ...     values={"co": 5.0, "h2s": None, "co2": 450.0},
             ...     is_valid_flags={"co": True, "h2s": False, "co2": True},

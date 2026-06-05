@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from core.timeutils import to_korea_time_str
 
 from .models import SafetyCheckItem, SafetyCheckItemResult, SafetyCheckSession
 
@@ -147,7 +148,7 @@ def mysafety_history(request):
     worker = _get_worker(request)
     if worker is None and not is_admin:
         return render(request, "safety/mysafety_history.html", {"no_worker": True})
-    today = date.today()
+    today = timezone.localdate()
 
     # ── 인쇄 전용 모드 ──────────────────────────────
     if request.GET.get("print") == "1":
@@ -262,15 +263,15 @@ def mysafety_worker_calendar(request, worker_id):
         return JsonResponse({"error": "권한 없음"}, status=403)
     from facilities.models import Worker
     worker = get_object_or_404(Worker, pk=worker_id)
-    year = int(request.GET.get("year", date.today().year))
-    month = int(request.GET.get("month", date.today().month))
+    year = int(request.GET.get("year", timezone.localdate().year))
+    month = int(request.GET.get("month", timezone.localdate().month))
     sessions_qs = SafetyCheckSession.objects.filter(worker=worker)
     weeks = _build_calendar(sessions_qs, year, month)
 
     prev_month_date = date(year, month, 1) - timedelta(days=1)
     next_month_date = (date(year, month, 28) + timedelta(days=4)).replace(day=1)
 
-    today = date.today()
+    today = timezone.localdate()
     weeks_data = []
     for week in weeks:
         row = []
@@ -329,7 +330,7 @@ def mysafety_history_download(request):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "안전확인 이력"
-    ws.append(["작업자명", "날짜", "안전 체크리스트", "체크리스트 완료 시각", "VR 교육", "VR 완료 시각"])
+    ws.append(["작업자명", "날짜", "안전 체크리스트", "체크리스트 완료 시각(KST)", "VR 교육", "VR 완료 시각(KST)"])
 
     for worker in target_workers:
         sessions = {
@@ -346,9 +347,9 @@ def mysafety_history_download(request):
                 name,
                 cur.strftime("%Y-%m-%d"),
                 "완료" if s and s.checklist_completed else "미완료",
-                s.checklist_completed_at.strftime("%H:%M") if s and s.checklist_completed_at else "-",
+                to_korea_time_str(s.checklist_completed_at, "%H:%M") if s and s.checklist_completed_at else "-",
                 "완료" if s and s.vr_completed else "미완료",
-                s.vr_completed_at.strftime("%H:%M") if s and s.vr_completed_at else "-",
+                to_korea_time_str(s.vr_completed_at, "%H:%M") if s and s.vr_completed_at else "-",
             ])
             cur += timedelta(days=1)
 
