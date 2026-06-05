@@ -764,15 +764,20 @@ def _cleanup_operational_logs(now) -> None:
         AlarmSendHistory : 90일  (알림 발송 채널 로그)
         EventHistory     : 180일 (알람 상태 변경 이력)
         TaskLog          : 30일  (Celery 태스크 실행 로그)
+        DetectionResult  : 30일  (단계별 탐지 계보 — reading당 ~17행, 최대 용량)
+        DropLog          : 90일  (게이트 드롭 진단 로그)
     """
     from datetime import timedelta
     from manager.models import AlarmSendHistory
     from alerts.models import EventHistory, TaskLog
+    from monitoring.models import DetectionResult, DropLog
 
     _LOG_POLICIES = [
         (AlarmSendHistory, 'sent_at',    90,  '알림 발송 이력'),
         (EventHistory,     'action_at', 180,  '이벤트 상태 변경 이력'),
         (TaskLog,          'created_at', 30,  '태스크 실행 로그'),
+        (DetectionResult,  'created_at', 30,  '단계별 탐지 계보'),
+        (DropLog,          'created_at', 90,  '게이트 드롭 로그'),
     ]
 
     for model, ts_field, days, label in _LOG_POLICIES:
