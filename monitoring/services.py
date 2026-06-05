@@ -1,5 +1,8 @@
+import logging
 from datetime import timedelta
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 
 # ══════════════════════════════════════════════════════════
@@ -198,14 +201,14 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
                 {'type': 'sensor.update', 'msg_type': 'delta', 'data': [ws_payload]},
             )
     except Exception as e:
-        print(f'[sensor_ws] broadcast 실패: {e}')
+        logger.warning("sensor_ws broadcast 실패: %s", e)
 
     # Geofence 자동 갱신
     try:
         from facilities.services.geofence_service import update_geofence_from_gas
         update_geofence_from_gas(reading)
     except Exception as e:
-        print(f'[geofence] 업데이트 실패: {e}')
+        logger.warning("geofence 업데이트 실패: %s", e)
 
 # ──────────────────────────────────────────────────────────
 # 가스 위험도 상수

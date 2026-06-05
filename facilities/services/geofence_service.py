@@ -15,6 +15,10 @@ facilities/services/geofence_service.py
   - monitoring 앱 import는 함수 내부에서만 수행 (순환 import 방지)
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # 가스 수치 기반 지오펜스 반경 (임시값, 추후 확정값으로 교체)
 GEOFENCE_RADIUS = {
     'warning': 3.0,  # m
@@ -148,7 +152,7 @@ def _broadcast_geofence(geofence, msg_type='delta') -> None:
             },
         )
     except Exception as e:
-        print(f'[geofence_ws] broadcast 실패: {e}')
+        logger.warning("geofence_ws broadcast 실패: %s", e)
 
 def _auto_name(sensor) -> str:
     """

@@ -200,21 +200,6 @@ class DeviceViewSet(viewsets.ModelViewSet):
         serializer = PowerReadingSerializer(latest.values(), many=True)
         return Response(serializer.data)
     
-    # @action(detail=True, methods=["get"])
-    # def latest_power(self, request, pk=None):
-    #     """GET /api/devices/{id}/latest_power/ - 해당 장비의 채널별 최신 전력값"""
-    #     device = self.get_object()
-        
-    #     # [수정] DB 단에서 채널별로 가장 최신의 데이터 1개씩만 쿼리해 옵니다. (PostgreSQL 전용)
-    #     # 만약 SQLite나 MySQL을 쓴다면 방식이 달라져야 함!!
-    #     latest_readings = PowerReading.objects.filter(device=device) \
-    #         .select_related("channel") \
-    #         .order_by("channel", "-measured_at") \
-    #         .distinct("channel")
-            
-    #     serializer = PowerReadingSerializer(latest_readings, many=True)
-    #     return Response(serializer.data)
-
     @action(detail=True, methods=["get"])
     def status_logs(self, request, pk=None):
         """GET /api/devices/{id}/status_logs/ - 해당 장비의 상태 이력"""

@@ -26,7 +26,7 @@ class DeviceSerializer(serializers.ModelSerializer):
     def validate_port(self, value):
         """포트 번호 범위 검증 (1~65535)"""
         if value is not None and not (1 <= value <= 65535):
-            raise serializers.ValidationError("포트 번호는 1~65535 사이여야 합니다.")
+            raise serializers.ValidationError({"port": "포트 번호는 1~65535 사이여야 합니다."})
         return value
 
     def validate_device_uid(self, value):
@@ -36,7 +36,7 @@ class DeviceSerializer(serializers.ModelSerializer):
         if instance:
             qs = qs.exclude(pk=instance.pk)
         if qs.exists():
-            raise serializers.ValidationError("이미 등록된 장비 ID입니다.")
+            raise serializers.ValidationError({"device_uid": "이미 등록된 장비 ID입니다."})
         return value
 
 
@@ -143,19 +143,19 @@ class ThresholdPolicySerializer(serializers.ModelSerializer):
         if warning_min is not None and warning_max is not None:
             if warning_min >= warning_max:
                 raise serializers.ValidationError(
-                    "warning_min은 warning_max보다 작아야 합니다."
+                    {"non_field_errors": "warning_min은 warning_max보다 작아야 합니다."}
                 )
 
         if danger_min is not None and danger_max is not None:
             if danger_min >= danger_max:
                 raise serializers.ValidationError(
-                    "danger_min은 danger_max보다 작아야 합니다."
+                    {"non_field_errors": "danger_min은 danger_max보다 작아야 합니다."}
                 )
 
         if warning_max is not None and danger_min is not None:
             if warning_max > danger_min:
                 raise serializers.ValidationError(
-                    "주의 범위(warning_max)는 위험 범위(danger_min)보다 작거나 같아야 합니다."
+                    {"non_field_errors": "주의 범위(warning_max)는 위험 범위(danger_min)보다 작거나 같아야 합니다."}
                 )
 
         return data
@@ -179,14 +179,14 @@ class InspectionLogSerializer(serializers.ModelSerializer):
         # 조치 필요 상태면 예상 조치일 필수
         if status == "action_required" and not expected_action_date:
             raise serializers.ValidationError(
-                "조치 필요 상태일 때 예상 조치일은 필수입니다."
+                {"expected_action_date": "조치 필요 상태일 때 예상 조치일은 필수입니다."}
             )
 
         # 예상 조치일은 점검일 이후여야 함
         if inspection_date and expected_action_date:
             if expected_action_date < inspection_date:
                 raise serializers.ValidationError(
-                    "예상 조치일은 점검일 이후여야 합니다."
+                    {"expected_action_date": "예상 조치일은 점검일 이후여야 합니다."}
                 )
 
         return data
@@ -205,7 +205,7 @@ class ActionLogSerializer(serializers.ModelSerializer):
         """조치 완료일은 미래일 수 없음"""
         if value > timezone.now().date():
             raise serializers.ValidationError(
-                "조치 완료일은 오늘 이후일 수 없습니다."
+                {"action_date": "조치 완료일은 오늘 이후일 수 없습니다."}
             )
         return value
 

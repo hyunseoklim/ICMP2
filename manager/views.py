@@ -1,7 +1,7 @@
 import json
 import re
 import csv
-from datetime import timedelta, datetime, date
+from datetime import datetime
 
 from django.contrib.auth.decorators import login_required, user_passes_test
 
