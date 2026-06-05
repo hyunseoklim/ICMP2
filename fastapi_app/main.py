@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -8,6 +9,8 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_power_data, generate_node_readings
 from fastapi_app.sender import fetch_gas_devices, xadd_gas_reading, xadd_power_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading
+
+logger = logging.getLogger(__name__)
 
 # 웹소켓에 연결된 클라이언트 목록
 _clients: list[WebSocket] = []
@@ -60,12 +63,12 @@ async def _data_loop() -> None:
             devices = await fetch_gas_devices()
             if devices:
                 _devices.extend(devices)
-                print(f"[FastAPI] 가스 장비 재로드 완료: {[d['device_uid'] for d in _devices]}")
+                logger.info("가스 장비 재로드 완료: %s", [d['device_uid'] for d in _devices])
         if not _nodes:
             nodes = await fetch_location_nodes()
             if nodes:
                 _nodes.extend(nodes)
-                print(f"[FastAPI] 위치 노드 재로드 완료: {[n['node_code'] for n in _nodes]}")
+                logger.info("위치 노드 재로드 완료: %s", [n['node_code'] for n in _nodes])
         await _emit_once()
         await asyncio.sleep(60)
 
@@ -80,14 +83,14 @@ async def lifespan(app: FastAPI):
     _nodes.extend(nodes)
 
     if _devices:
-        print(f"[FastAPI] 가스 장비 {len(_devices)}개 로드 완료: {[d['device_uid'] for d in _devices]}")
+        logger.info("가스 장비 %d개 로드 완료: %s", len(_devices), [d['device_uid'] for d in _devices])
     else:
-        print("[FastAPI] 장비 없음 — Django에 가스 장비를 먼저 등록하세요")
+        logger.warning("장비 없음 — Django에 가스 장비를 먼저 등록하세요")
 
     if _nodes:
-        print(f"[FastAPI] 위치 노드 {len(_nodes)}개 로드 완료: {[n['node_code'] for n in _nodes]}")
+        logger.info("위치 노드 %d개 로드 완료: %s", len(_nodes), [n['node_code'] for n in _nodes])
     else:
-        print("[FastAPI] 위치 노드 없음 — Django에 LocationNode를 먼저 등록하세요")
+        logger.warning("위치 노드 없음 — Django에 LocationNode를 먼저 등록하세요")
 
     task = asyncio.create_task(_data_loop())
     yield
@@ -112,13 +115,13 @@ app.add_middleware(
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
     _clients.append(ws)
-    print(f"[WS] 연결됨 — 현재 {len(_clients)}명")
+    logger.info("WS 연결됨 — 현재 %d명", len(_clients))
     try:
         while True:
             await ws.receive_text()  # 연결 유지 (클라이언트 ping 수신용)
     except WebSocketDisconnect:
         _clients.remove(ws)
-        print(f"[WS] 해제됨 — 현재 {len(_clients)}명")
+        logger.info("WS 해제됨 — 현재 %d명", len(_clients))
 
 
 @app.post("/trigger")

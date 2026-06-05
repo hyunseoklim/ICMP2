@@ -1,7 +1,10 @@
+import logging
 import uuid
 from datetime import timedelta
 
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 
 # ══════════════════════════════════════════════════════════
@@ -157,7 +160,7 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
                 {'type': 'sensor.update', 'msg_type': 'delta', 'data': [ws_payload]},
             )
     except Exception as e:
-        print(f'[power_ws] broadcast 실패: {e}')
+        logger.warning('[power_ws] broadcast 실패: %s', e)
 
     # STEP G — ARIMA 예측 (forecast 큐 위임 — gas D2 아키텍처). trace_id 전파 → ARIMA 계보는 forecast 태스크가 적재
     from alerts.tasks import forecast_power_task
@@ -434,14 +437,14 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
                 {'type': 'sensor.update', 'msg_type': 'delta', 'data': [ws_payload]},
             )
     except Exception as e:
-        print(f'[sensor_ws] broadcast 실패: {e}')
+        logger.warning('[sensor_ws] broadcast 실패: %s', e)
 
     # Geofence 자동 갱신
     try:
         from facilities.services.geofence_service import update_geofence_from_gas
         update_geofence_from_gas(reading)
     except Exception as e:
-        print(f'[geofence] 업데이트 실패: {e}')
+        logger.warning('[geofence] 업데이트 실패: %s', e)
 
 # ──────────────────────────────────────────────────────────
 # 가스 위험도 상수

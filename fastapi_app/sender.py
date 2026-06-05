@@ -1,10 +1,13 @@
 import asyncio
 import json
+import logging
 import os
 import uuid
 
 import httpx
 import redis
+
+logger = logging.getLogger(__name__)
 
 DJANGO_BASE = os.environ.get("DJANGO_BASE", "http://localhost:8000")
 REDIS_URL   = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
@@ -70,9 +73,9 @@ async def xadd_gas_reading(data: dict) -> None:
             GAS_STREAM, {"payload": json.dumps(payload)},
             maxlen=10000, approximate=True,
         )
-        print(f"[sender] Redis Stream XADD 성공: {data['device_uid']}")
+        logger.info("Redis Stream XADD 성공: %s", data['device_uid'])
     except Exception as e:
-        print(f"[sender] Redis Stream XADD 실패: {e}")
+        logger.error("Redis Stream XADD 실패: %s", e)
 
 
 # 전력 원천 Redis Stream (가스 패턴 미러)
@@ -120,7 +123,7 @@ async def xadd_power_reading(data: dict) -> None:
             maxlen=10000, approximate=True,
         )
     except Exception as e:
-        print(f"[sender] power XADD 실패: {e}")
+        logger.error("power XADD 실패: %s", e)
 
 # 시작 시 Django에서 가스 장비 목록을 가져옴
 # 반환값: [{"id": 1, "device_uid": "AA:BB:CC"}, ...]
@@ -136,7 +139,7 @@ async def fetch_gas_devices() -> list[dict]:
             results = data.get("results", data) if isinstance(data, dict) else data
             return [{"id": d["id"], "device_uid": d["device_uid"]} for d in results]
         except Exception as e:
-            print(f"[sender] Django 장비 조회 실패: {e}")
+            logger.error("Django 장비 조회 실패: %s", e)
             return []
 
 
@@ -155,9 +158,9 @@ async def post_power_reading(data: dict) -> None:
                 f"{DJANGO_BASE}/monitoring/api/power-readings/",
                 json=payload,
             )
-            print(f"[sender] PowerReading POST 성공: {data['device_uid']} {data['channel_code']}")
+            logger.info("PowerReading POST 성공: %s %s", data['device_uid'], data['channel_code'])
         except Exception as e:
-            print(f"[sender] PowerReading POST 실패: {e}")
+            logger.error("PowerReading POST 실패: %s", e)
 
 
 async def fetch_location_nodes() -> list[dict]:
@@ -169,7 +172,7 @@ async def fetch_location_nodes() -> list[dict]:
             results = data.get("results", data) if isinstance(data, dict) else data
             return [{"node_code": n["node_code"], "x": n["x"], "y": n["y"]} for n in results]
         except Exception as e:
-            print(f"[sender] LocationNode 조회 실패: {e}")
+            logger.error("LocationNode 조회 실패: %s", e)
             return []
 
 
@@ -178,9 +181,9 @@ async def post_node_reading(data: dict) -> None:
     async with httpx.AsyncClient(timeout=3.0) as client:
         try:
             await client.post(f"{DJANGO_BASE}/monitoring/api/node-readings/", json=payload)
-            print(f"[sender] NodeReading POST 성공: {data['node_code']}")
+            logger.info("NodeReading POST 성공: %s", data['node_code'])
         except Exception as e:
-            print(f"[sender] NodeReading POST 실패: {e}")
+            logger.error("NodeReading POST 실패: %s", e)
 
 
 async def post_location_reading(data: dict) -> None:
@@ -196,6 +199,6 @@ async def post_location_reading(data: dict) -> None:
                 f"{DJANGO_BASE}/facilities/api/worker-locations/dummy/",
                 json=payload,
             )
-            print(f"[sender] WorkerLocation POST 성공: worker_id={data['worker_id']}")
+            logger.info("WorkerLocation POST 성공: worker_id=%s", data['worker_id'])
         except Exception as e:
-            print(f"[sender] WorkerLocation POST 실패: {e}")
+            logger.error("WorkerLocation POST 실패: %s", e)
