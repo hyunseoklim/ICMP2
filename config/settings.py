@@ -100,6 +100,7 @@ CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_TRACK_STARTED = True
 
 # STEP G(예측)는 상태기(PredictionSubsystem)라 전용 큐 + 단일 동시성 worker로
 # 처리한다. forecast_gas_task + forecast_power_task가 forecast 큐로 라우팅

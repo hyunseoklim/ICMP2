@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AlarmEvent, AlarmRule, EventHistory, Notification, NotificationTemplate
+from .models import AlarmEvent, AlarmRule, EventHistory, NotificationTemplate
 
 
 @admin.register(AlarmRule)
@@ -23,12 +23,6 @@ class EventHistoryAdmin(admin.ModelAdmin):
     list_display = ('alarm_event', 'action_type', 'action_by', 'action_at')
     list_filter = ('action_type',)
     ordering = ('-action_at',)
-
-
-@admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    list_display = ('receiver', 'channel_type', 'send_status', 'sent_at')
-    list_filter = ('channel_type', 'send_status')
 
 
 @admin.register(NotificationTemplate)

@@ -426,25 +426,30 @@ function renderPagination() {
   const total = Math.ceil(filteredData.length / PAGE_SIZE);
   const container = document.getElementById('pagination');
   if (total <= 1) { container.innerHTML = ''; return; }
+
+  let startPage = Math.max(1, currentPage - 2);
+  let endPage   = Math.min(total, startPage + 4);
+  if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+  const BTN_BASE   = 'w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors';
+  const BTN_ACTIVE = 'bg-blue-600 text-white';
+  const BTN_NORMAL = 'border border-slate-200 text-slate-700 hover:bg-slate-50';
+  const BTN_NAV    = 'border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed';
   const pages = [];
 
   pages.push(`<button onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}
-    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-    <i data-lucide="chevron-left" class="w-4 h-4"></i>
-  </button>`);
+    class="${BTN_BASE} ${BTN_NAV}">
+    <i data-lucide="chevron-left" class="w-4 h-4"></i></button>`);
 
-  for (let i = 1; i <= Math.min(total, 5); i++) {
+  for (let i = startPage; i <= endPage; i++) {
     pages.push(`<button onclick="goPage(${i})"
-      class="w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors
-             ${i === currentPage ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-700 hover:bg-slate-50'}">
-      ${i}
-    </button>`);
+      class="${BTN_BASE} ${i === currentPage ? BTN_ACTIVE : BTN_NORMAL}">
+      ${i}</button>`);
   }
 
   pages.push(`<button onclick="goPage(${currentPage + 1})" ${currentPage === total ? 'disabled' : ''}
-    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-    <i data-lucide="chevron-right" class="w-4 h-4"></i>
-  </button>`);
+    class="${BTN_BASE} ${BTN_NAV}">
+    <i data-lucide="chevron-right" class="w-4 h-4"></i></button>`);
 
   container.innerHTML = pages.join('');
   if (typeof lucide !== 'undefined') lucide.createIcons();

@@ -487,7 +487,7 @@
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
     <div class="px-8 pt-7 pb-4 border-b border-slate-100">
       <h3 class="text-xl font-bold text-slate-900 mb-1">분류 그룹 수정</h3>
-      <p class="text-sm text-slate-500">위험 분류 그룹 정보를 수정합니다.</p>
+      <p class="text-sm text-slate-500">위험 분류 그룹 기준을 수정합니다.</p>
     </div>
     <form id="groupEditForm" novalidate>
       {% csrf_token %}
@@ -530,6 +530,7 @@
             <button type="button" id="ge_btn_inactive" onclick="setGEActive(false)"
                     class="px-6 py-1.5 text-sm text-slate-600 rounded hover:bg-white">미사용</button>
           </div>
+          <p class="mt-1 text-xs text-rose-500 hidden" id="ge_active_err"></p>
         </div>
 
         <div>
