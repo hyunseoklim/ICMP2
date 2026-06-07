@@ -192,6 +192,72 @@ services:
         condition: service_started
 
 
+  gas-result-consumer:
+    build: .
+    container_name: gas-result-consumer
+    command: python manage.py consume_gas_result
+    volumes:
+      - .:/app
+      - prometheus_multiproc:/tmp/prometheus_multiproc
+    env_file:
+      - .env
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      django:
+        condition: service_started
+
+  power-result-consumer:
+    build: .
+    container_name: power-result-consumer
+    command: python manage.py consume_power_result
+    volumes:
+      - .:/app
+      - prometheus_multiproc:/tmp/prometheus_multiproc
+    env_file:
+      - .env
+    environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      django:
+        condition: service_started
+
+  ai-engine-gas:
+    build:
+      context: ./fastapi_app/ai_engine
+      dockerfile: Dockerfile.ai
+    container_name: ai-engine-gas
+    environment:
+      AI_DOMAIN: gas
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8002:8002"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  ai-engine-power:
+    build:
+      context: ./fastapi_app/ai_engine
+      dockerfile: Dockerfile.ai
+    container_name: ai-engine-power
+    environment:
+      AI_DOMAIN: power
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8003:8002"
+    depends_on:
+      redis:
+        condition: service_healthy
+
   redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: redis-exporter

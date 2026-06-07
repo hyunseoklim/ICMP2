@@ -540,7 +540,8 @@ def forecast_gas_task(device_uid: str, payload: dict):
         device = Device.objects.filter(device_uid=device_uid).first()
         if device:
             save_forecast_snapshots(device, results)         # 등급 + 곡선(튜플) → 스냅샷 upsert
-            trigger_forecast_alarms(device, policy_results)  # CONFIRMED 시 predictive_warning 알람
+            if settings.AI_ALARM_SOURCE == 'ingest':         # 컷오버 시 result-consumer가 대체(XOR)
+                trigger_forecast_alarms(device, policy_results)  # CONFIRMED 시 predictive_warning
             # ARIMA 단계 계보 — trace_id로 원천과 상관 (gas_reading은 null, trace_id로 연결)
             trace_id = payload.get('trace_id')
             if trace_id:
@@ -610,7 +611,8 @@ def forecast_power_task(device_uid: str, channel_code: str, payload: dict):
         # results: [(ForecastPolicyResult, ARIMAResult|None), ...]
         policy_results = [pr for pr, _ in results]
         save_forecast_snapshots(device, results, channel=channel)
-        trigger_forecast_alarms(device, policy_results, channel=channel)
+        if settings.AI_ALARM_SOURCE == 'ingest':            # 컷오버 시 result-consumer가 대체(XOR)
+            trigger_forecast_alarms(device, policy_results, channel=channel)
         # ARIMA 단계 계보 — trace_id로 원천 상관 (gas_reading=None, device로 연결)
         trace_id = payload.get('trace_id')
         if trace_id:

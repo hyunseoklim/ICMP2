@@ -1,0 +1,18 @@
+# AI 엔진 서비스 이미지 (배포 아티팩트 분리 — Django 코드 미포함).
+# 빌드 컨텍스트 = fastapi_app/ai_engine.
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY . /app
+
+# ML 스택을 **학습(Django) 환경과 동일 버전으로 한 번에 일관 설치**
+# (numpy ABI 일관성 — 2단계 설치 시 multiarray import 실패). 그 뒤 엔진 패키지는
+# --no-deps로 설치(pyproject 범위가 numpy<2.0로 되돌리지 않도록).
+RUN pip install --no-cache-dir \
+      "numpy==2.4.3" "scipy==1.17.1" "scikit-learn==1.8.0" "statsmodels==0.14.6" \
+      "ruptures==1.1.10" "joblib==1.5.3" "pandas==3.0.1" "pyarrow" "PyYAML" \
+      "fastapi==0.135.1" "uvicorn==0.42.0" "redis==7.3.0" \
+ && pip install --no-cache-dir --no-deps .
+
+EXPOSE 8002
+CMD ["uvicorn", "service.ai_main:app", "--host", "0.0.0.0", "--port", "8002"]

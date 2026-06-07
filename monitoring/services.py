@@ -361,9 +361,11 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
 
     # STEP D — Z-score 통계 이상 탐지 → 즉시 저장
     from monitoring.anomaly.zscore import analyze as zscore_analyze
+    from django.conf import settings
     from alerts.services import trigger_anomaly_alarms
     zscore_results = zscore_analyze(device.device_uid, reading)
-    trigger_anomaly_alarms(device, zscore_results)
+    if settings.AI_ALARM_SOURCE == 'ingest':   # 컷오버 시 'result' → dispatch_alert가 대체(XOR)
+        trigger_anomaly_alarms(device, zscore_results)
     _save_stage([
         DetectionResult(
             trace_id=trace_id, gas_reading=reading, device=device,
@@ -377,7 +379,8 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     from monitoring.anomaly.changepoint import detect as cp_detect
     from alerts.services import trigger_changepoint_alarms
     cp_results = cp_detect(device.device_uid, reading)
-    trigger_changepoint_alarms(device, cp_results)
+    if settings.AI_ALARM_SOURCE == 'ingest':
+        trigger_changepoint_alarms(device, cp_results)
     _save_stage([
         DetectionResult(
             trace_id=trace_id, gas_reading=reading, device=device,
@@ -391,7 +394,8 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     from monitoring.ai.gas_if import predict_gas_anomaly
     from alerts.services import trigger_if_anomaly_alarms
     if_result = predict_gas_anomaly(reading)
-    trigger_if_anomaly_alarms(device, if_result)
+    if settings.AI_ALARM_SOURCE == 'ingest':
+        trigger_if_anomaly_alarms(device, if_result)
     if if_result is not None:
         _save_stage([DetectionResult(
             trace_id=trace_id, gas_reading=reading, device=device,

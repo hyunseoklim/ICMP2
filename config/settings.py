@@ -95,6 +95,10 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
+# AI 알람 경로 컷오버 스위치 (C1 §11) — 'ingest'(현행: process_ingest 동기 trigger_*)
+# | 'result'(AI 엔진 result-consumer dispatch_alert). 3지점이 읽어 XOR. 기본=현행.
+AI_ALARM_SOURCE = os.environ.get('AI_ALARM_SOURCE', 'ingest')
+
 CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 CELERY_TIMEZONE = 'Asia/Seoul'
