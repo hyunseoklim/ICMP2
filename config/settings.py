@@ -95,10 +95,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-# AI 알람 경로 컷오버 스위치 (C1 §11) — 'ingest'(현행: process_ingest 동기 trigger_*)
-# | 'result'(AI 엔진 result-consumer dispatch_alert). 3지점이 읽어 XOR. 기본=현행.
-AI_ALARM_SOURCE = os.environ.get('AI_ALARM_SOURCE', 'ingest')
-
 CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
 CELERY_TIMEZONE = 'Asia/Seoul'
@@ -106,14 +102,9 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_TRACK_STARTED = True   # TaskLog STARTED 상태 추적(task_prerun) 보장
 
-# STEP G(예측)는 상태기(PredictionSubsystem)라 전용 큐 + 단일 동시성 worker로
-# 처리한다. forecast_gas_task + forecast_power_task가 forecast 큐로 라우팅
-# (아키텍처 D2). Phase D 결정 (i): 기존 celery-forecast 컨테이너 공유.
+# ARIMA(STEP G)는 AI 엔진으로 이관(F4) → forecast 큐 라우팅 제거.
+# facilities 이벤트 subscriber만 전용 큐 + 단일 worker로 격리(중복 dispatch 차단).
 CELERY_TASK_ROUTES = {
-    'alerts.tasks.forecast_gas_task':   {'queue': 'forecast'},
-    'alerts.tasks.forecast_power_task': {'queue': 'forecast'},   # Phase D M1-8
-    # facilities 이벤트 subscriber는 전용 큐 + 단일 worker로 격리해
-    # 다중 subscriber 중복 dispatch를 인프라 레벨에서 차단한다.
     'facilities.tasks.consume_facilities_events': {'queue': 'events'},
 }
 

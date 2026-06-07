@@ -95,13 +95,11 @@ def post_store_dispatch(device, payload: dict) -> None:
     각 dispatch는 guarded — 전파 실패가 이미 완료된 저장을 무효화하지 않는다.
     """
     dispatch_forecast_ws(device, payload)               # 화면 push — 항상
-    # 알람: 컷오버 플래그(C1 §11)로 게이팅 — 'result'일 때만(ingest의 trigger_*와 XOR)
-    from django.conf import settings
-    if getattr(settings, "AI_ALARM_SOURCE", "ingest") == "result":
-        try:
-            dispatch_alert(device, payload)
-        except Exception as e:                          # 알람 실패가 저장·화면을 무효화하지 않음
-            logger.warning("[result] dispatch_alert 실패 trace_id=%s: %s", payload.get("trace_id"), e)
+    # AI 알람: dispatch_alert 상시(F4 컷오버 — ingest trigger_* 제거, XOR 플래그 불요)
+    try:
+        dispatch_alert(device, payload)
+    except Exception as e:                              # 알람 실패가 저장·화면을 무효화하지 않음
+        logger.warning("[result] dispatch_alert 실패 trace_id=%s: %s", payload.get("trace_id"), e)
 
 
 def dispatch_forecast_ws(device, payload: dict) -> None:
