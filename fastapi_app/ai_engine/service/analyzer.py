@@ -8,7 +8,7 @@ DeviceChannel.rated_power_w 이며, 여기 정적 맵은 부트스트랩(임시)
 """
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import adapters, domain
@@ -37,6 +37,15 @@ _ZSCORE_WINDOW = 30
 _CP_WINDOW = 40
 _ARIMA_THROTTLE_SEC = 30   # 채널별 ARIMA 예측 최소 간격(초) — fit 부하 절감(forecast는 매 reading 불요)
 _last_arima: dict = {}     # (series_dev, sensor) -> monotonic 시각
+
+# WorkMode 판정용 로컬 타임존 — settings.TIME_ZONE('Asia/Seoul')과 동일.
+# 코드베이스 정책: UTC 저장 / KST는 "표시 또는 KST 업무규칙(작업시간) 해석"에만.
+# AI 엔진은 Django 독립이라 core.timeutils(timezone.localtime) 대신 stdlib zoneinfo 사용.
+try:
+    from zoneinfo import ZoneInfo
+    _KST = ZoneInfo("Asia/Seoul")
+except Exception:                       # tzdata 부재 폴백 (KST=UTC+9, DST 없음)
+    _KST = timezone(timedelta(hours=9))
 
 # 부트스트랩 상태 (1회 로드)
 _classifier = None       # ThresholdClassifier
@@ -211,9 +220,14 @@ def _analyze_window(payload: dict) -> list:
 
 # ── WorkMode 게이팅 (전력 전용 — boundary.py 의도를 서비스가 적용) ──
 def _work_mode(payload: dict):
-    """전력 측정 시각 → WorkMode(WORKING/IDLE). 08:00~18:00=WORKING."""
+    """전력 측정 시각 → WorkMode(WORKING/IDLE). 작업시간 08:00~18:00은 **KST 기준**.
+
+    determine_work_mode는 timestamp.time()만 보고 tz는 호출자 책임 →
+    UTC measured_at을 KST(_KST=Asia/Seoul)로 변환 후 전달(미변환 시 정오가 03시로 오판→IDLE).
+    """
     from power.core.premises import determine_work_mode
-    return determine_work_mode(adapters._parse_ts(payload.get("measured_at")))
+    ts = adapters._parse_ts(payload.get("measured_at"))
+    return determine_work_mode(ts.astimezone(_KST))
 
 
 def _active(module_name: str, mode) -> bool:
