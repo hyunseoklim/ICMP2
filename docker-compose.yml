@@ -112,26 +112,6 @@ services:
       django:
         condition: service_started
 
-  celery-forecast:
-    build: .
-    container_name: celery-forecast
-    command: celery -A config worker -Q forecast --concurrency=1 --loglevel=info
-    volumes:
-      - .:/app
-      - prometheus_multiproc:/tmp/prometheus_multiproc
-    env_file:
-      - .env
-    environment:
-      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      django:
-        condition: service_started
-
-
   celery-events:
     build: .
     container_name: celery-events
