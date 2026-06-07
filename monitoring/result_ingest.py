@@ -75,9 +75,11 @@ def store_result(payload: dict) -> bool:
                 "path":                d.get("path") or "unknown",
                 "forecast_steps":      d.get("forecast_steps", 0),
                 "reason":              d.get("reason", ""),
+                "forecast_mean":       d.get("forecast_mean"),   # 곡선(결과 객체가 담아 전달)
+                "ci_lower":            d.get("ci_lower"),
+                "ci_upper":            d.get("ci_upper"),
             },
         )
-        # 곡선(forecast_mean·ci_*)은 v2 — AI 결과에 곡선 포함 시 채움(현재 None 유지)
     else:
         logger.warning("[result] 알 수 없는 stage=%s 스킵", stage)
         return False

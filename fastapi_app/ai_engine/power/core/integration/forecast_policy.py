@@ -99,6 +99,9 @@ class ForecastPolicyResult:
     present_level: RiskLevel
     corroborated: bool
     reason: str
+    forecast_mean: Optional[list] = None   # ARIMA 점예측 곡선(그래프용). path='unknown'이면 None
+    ci_lower: Optional[list] = None        # 95% CI 하한
+    ci_upper: Optional[list] = None        # 95% CI 상한
 
     def to_dict(self) -> dict:
         """JSON 직렬화용 dict."""
@@ -335,4 +338,7 @@ class ForecastPolicy:
             present_level=present_level,
             corroborated=corroborated,
             reason=reason,
+            forecast_mean=ar.forecast_mean,
+            ci_lower=ar.ci_lower,
+            ci_upper=ar.ci_upper,
         )

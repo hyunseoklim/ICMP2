@@ -274,22 +274,29 @@ def _analyze_arima(payload: dict) -> list:
             continue                                      # 예측 스로틀 — fit 부하 절감(backlog 폭주 방지)
         _last_arima[key] = now_m
         fr = _subsystem.predict_channel(series_dev, sensor_type)
+        detail = {
+            "headline_severity": fr.headline_severity,
+            "headline_confidence": fr.headline_confidence.name,
+            "caution_confidence": fr.caution_confidence.name,
+            "danger_confidence": fr.danger_confidence.name,
+            "caution_eta_step": fr.caution_eta_step,
+            "danger_eta_step": fr.danger_eta_step,
+            "path": fr.path,
+            "forecast_steps": getattr(fr, "forecast_steps", 0),
+            "reason": getattr(fr, "reason", ""),
+            "config": {"module": "arima"},
+        }
+        # 곡선: 결과 객체(ForecastPolicyResult)가 직접 담음 — recorder/global 없음.
+        # path='unknown'(워밍업·예측불가)이면 미첨부. float 변환=JSON 직렬화 경계.
+        if fr.path != "unknown" and fr.forecast_mean:
+            detail["forecast_mean"] = [float(x) for x in fr.forecast_mean]
+            detail["ci_lower"] = [float(x) for x in fr.ci_lower]
+            detail["ci_upper"] = [float(x) for x in fr.ci_upper]
         out.append(adapters.result_to_payload(
             trace_id=payload.get("trace_id"), device_uid=dev, channel_code=ch_code,
             sensor_type=sensor_type, stage="ARIMA",
-            level=(fr.headline_severity or "normal"), score=None, computed_at=_now_iso(),
-            detail={
-                "headline_severity": fr.headline_severity,
-                "headline_confidence": fr.headline_confidence.name,
-                "caution_confidence": fr.caution_confidence.name,
-                "danger_confidence": fr.danger_confidence.name,
-                "caution_eta_step": fr.caution_eta_step,
-                "danger_eta_step": fr.danger_eta_step,
-                "path": fr.path,
-                "forecast_steps": getattr(fr, "forecast_steps", 0),
-                "reason": getattr(fr, "reason", ""),
-                "config": {"module": "arima"},
-            }))
+            level=(fr.headline_severity or "normal"), score=None,
+            computed_at=_now_iso(), detail=detail))
     return out
 
 
