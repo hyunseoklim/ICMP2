@@ -24,16 +24,19 @@
 
 현장에서 발생하는 가스 누출, 전력 이상, 작업자 위험 구역 진입은 **사고가 발생한 후에야 인지**되는 구조적 문제가 있습니다.
 
-ICMP2는 센서 데이터, 위치 정보, 판단 로직을 하나의 화면에서 실시간으로 연결해 **사전 감지 → 알람 발생**까지의 흐름을 자동화합니다.
+ICMP2는 센서 데이터, 위치 정보, 판단 로직을 하나의 화면에서 실시간으로 연결해 **사전 감지 → 알람 발생 → 알림 발송**까지의 흐름을 자동화하며, AI 기반 이상 탐지와 예측 경보로 임계값 초과 이전에 위험을 예고합니다.
 
 | 항목 | 내용 |
 |---|---|
 | 언어 | Python 3.x |
 | 백엔드 | Django 6.0.4 + Daphne (ASGI) |
-| 데이터 생성 | FastAPI 0.135.1 (독립 실행) |
+| 데이터 생성 / AI 분석 | FastAPI 0.135.1 (독립 실행) |
 | 실시간 통신 | Django Channels 4.3.2 + Redis |
+| 비동기 처리 | Celery 5.6.2 + Celery Beat |
 | 프론트엔드 | Django Templates + Leaflet.js + Chart.js |
-| DB | SQLite (개발) / PostgreSQL (운영 가능) |
+| DB | PostgreSQL 15 (Docker) / SQLite (로컬 개발) |
+| 모니터링 | Prometheus + Grafana + Alertmanager |
+| 배포 | Docker Compose / Kubernetes (Minikube) |
 
 ---
 
@@ -44,13 +47,19 @@ Django 6.0.4        웹 프레임워크 (REST API + 비즈니스 로직)
 Daphne 4.2.1        ASGI 서버 (HTTP + WebSocket 동시 처리)
 Django Channels     WebSocket 그룹 관리
 channels-redis      Redis 기반 Channel Layer
-FastAPI 0.135.1     가짜 데이터 생성 및 송신 전담 서버
-Redis 7.x           WebSocket 메시지 브로커
+FastAPI 0.135.1     가짜 데이터 생성 및 AI 분석 전담 서버
+Celery 5.6.2        비동기 태스크 (알람 발송, 누락 감지, 데이터 보존)
+Redis 7.x           WebSocket 메시지 브로커 / Celery 브로커·캐시
+PostgreSQL 15       운영 데이터베이스
+scikit-learn 1.8    Isolation Forest 기반 이상 탐지
+statsmodels         ARIMA 기반 예측 경보
+ruptures            Change Point Detection
+Prometheus          메트릭 수집 (django-prometheus + FastAPI instrumentator)
+Grafana             메트릭 대시보드
+Alertmanager        Prometheus 알림 라우팅
 Leaflet.js          공장 도면 기반 지도 + 지오펜스 렌더링
 Chart.js            가스·전력 실시간 시계열 차트
 DRF 3.16.0          REST API 프레임워크
-Celery 5.6.2        비동기 태스크 (4차 고도화 예정)
-scikit-learn        AI 이상 탐지 (4차 고도화 예정)
 ```
 
 ---
@@ -58,30 +67,42 @@ scikit-learn        AI 이상 탐지 (4차 고도화 예정)
 ## 시스템 아키텍처
 
 ```
-┌──────────────────────────────────────────────┐
-│              FastAPI 서버 (:8001)             │
-│  가짜 센서값 생성 (5초 간격)                   │
-│  가스 9종 / 전력 24채널 / 작업자 위치 5명      │
-└──────────────────┬───────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│               FastAPI 서버 (:8001)                           │
+│  ① 가짜 센서값 생성 (5초 간격)                               │
+│     가스 9종 / 전력 24채널 / 작업자 위치 5명                 │
+│  ② AI 분석 파이프라인                                        │
+│     Isolation Forest (이상 탐지) + ARIMA (예측 경보)        │
+└──────────────────┬───────────────────────────────────────────┘
                    │ HTTP POST (REST API)
                    ▼
-┌──────────────────────────────────────────────┐
-│         Django + Daphne ASGI (:8000)         │
-│  ① POST 수신 → DB 저장 (SQLite)              │
-│  ② 임계값 비교 + 지오펜스 판단               │
-│  ③ AlarmEvent 생성 (중복 방지 5분 윈도우)     │
-│  ④ channel_layer.group_send() → Redis        │
-└──────────┬───────────────────────────────────┘
-           │                         │
-     WebSocket (ws://)            Redis :6379
-           │                 (Channel Layer)
-           ▼
-┌──────────────────────────────────────────────┐
-│          프론트엔드 (Django Templates)        │
-│  Chart.js  : 가스·전력 실시간 차트            │
-│  Leaflet   : 공장 도면 + 지오펜스 + 작업자    │
-│  WebSocket : 서버 푸시 수신 → 즉시 반영       │
-└──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│            Django + Daphne ASGI (:8000)                      │
+│  ① POST 수신 → DB 저장 (PostgreSQL)                          │
+│  ② 임계값 비교 + 지오펜스 판단                               │
+│  ③ AlarmEvent 생성 (5분 중복 방지)                           │
+│  ④ channel_layer.group_send() → Redis                        │
+│  ⑤ Celery 태스크 위임 (알람 발송 등)                         │
+└──────────────────┬───────────────────────────────────────────┘
+       ┌───────────┤────────────────────────────┐
+       │           │                            │
+  WebSocket    Redis :6379               Celery Workers
+  (ws://)   (Channel Layer +          ┌─ worker (default)
+       │     Pub/Sub + Broker)        ├─ forecast (AI 예측)
+       ▼                              └─ events (시설 이벤트)
+┌──────────────────┐          Celery Beat
+│  프론트엔드       │          ├─ 누락 장비 감지 (1분)
+│  Chart.js        │          └─ 데이터 보존 (매일 03:00)
+│  Leaflet         │
+│  WebSocket 수신  │
+└──────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│            모니터링 스택                                      │
+│  Prometheus (:9090) ← Django / FastAPI / Redis / PostgreSQL  │
+│  Alertmanager (:9093) ← Prometheus 알림 라우팅               │
+│  Grafana (:3000) ← 메트릭 대시보드                           │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -94,12 +115,18 @@ ICMP2/
 │   ├── settings.py
 │   ├── urls.py
 │   ├── asgi.py             # Daphne ASGI 진입점
+│   ├── celery.py           # Celery 앱 + Beat 스케줄
 │   └── wsgi.py
 │
 ├── accounts/               # 사용자 인증 및 권한
 ├── facilities/             # 시설·층·지오펜스·작업자 위치
+│   ├── events/             # Pub/Sub 이벤트 핸들러
+│   └── tasks.py            # consume_facilities_events (Celery)
 ├── monitoring/             # 가스·전력 센서 및 임계값 관리
+│   ├── ai/                 # ARIMA 예측 모듈 (가스·전력)
+│   └── anomaly/            # Z-Score / 슬라이딩 윈도우 / Change Point
 ├── alerts/                 # 알람 규칙 및 이벤트 라이프사이클
+│   └── tasks.py            # Celery 알람 발송 / 누락 감지 / 보존 정책
 ├── dashboard/              # 관제 대시보드 위젯·레이아웃
 ├── safety/                 # 안전 체크리스트 및 VR 교육
 ├── manager/                # 보고서 및 관리 기능
@@ -107,25 +134,31 @@ ICMP2/
 │
 ├── fastapi_app/            # 가짜 데이터 생성 서버 (FastAPI)
 │   ├── main.py             # FastAPI 앱 + 데이터 루프
-│   ├── fake_data.py        # 가스·전력·위치 데이터 생성 로직
-│   └── sender.py           # Django REST API 송신 클라이언트
+│   ├── routers/            # gas / power / worker 라우터
+│   ├── ai_engine/          # AI 분석 엔진
+│   │   ├── common/         # 공통 모듈 (Z-Score, ARIMA, IForest, Change Point)
+│   │   ├── gas/            # 가스 이상 탐지·예측
+│   │   ├── power/          # 전력 이상 탐지·예측
+│   │   └── generator/      # 시나리오 기반 데이터 생성기
+│   ├── adapters/           # ORM ↔ 데이터 변환
+│   └── sender.py           # Django REST API 비동기 POST 클라이언트 (httpx)
+│
+├── prometheus/             # Prometheus 설정 + 알림 규칙
+├── alertmanager/           # Alertmanager 설정
+├── grafana/                # Grafana 대시보드 프로비저닝
+├── k8s/                    # Kubernetes 매니페스트
 │
 ├── static/
 │   └── js/
 │       ├── map/            # Leaflet 지도 관련 JS
-│       │   ├── map_core.js
-│       │   ├── map_config.js
-│       │   ├── geofence.js
-│       │   └── monitoring.js
 │       └── websocket.js
 │
 ├── templates/              # Django HTML 템플릿
-│   ├── dashboard/
-│   ├── monitoring/
-│   ├── alerts/
-│   └── facilities/
-│
 ├── media/                  # 업로드 파일 (도면 이미지 등)
+├── docker-compose.yml      # 전체 스택 (DB, Redis, Django, FastAPI, Celery, 모니터링)
+├── Dockerfile
+├── Dockerfile.fastapi
+├── entrypoint.sh
 ├── manage.py
 └── requirements.txt
 ```
@@ -172,15 +205,56 @@ ICMP2/
 
 ### 5. 알람 이벤트 관리
 
+알람 규칙 타입 5종:
+
+| RuleType | 설명 |
+|---|---|
+| `threshold` | 임계값 초과 |
+| `missing` | 데이터 누락 (1분 주기 감지) |
+| `power` | 전력 이상 |
+| `ai` | Isolation Forest 이상 탐지 |
+| `forecast` | ARIMA 예측 경보 |
+
 - 이벤트 상태 라이프사이클: `open → acknowledged → closed`
 - **중복 방지:** 동일 디바이스 5분 이내 열린 이벤트 존재 시 신규 생성 안 함
 - 이력 추적: 상태 변경마다 `EventHistory` 기록
 
-### 6. 관제 대시보드
+### 6. AI 이상 탐지 · 예측 경보
+
+- **Isolation Forest:** 가스·전력 센서의 다변량 이상값 실시간 탐지
+- **ARIMA:** 가스·전력 시계열 기반 단기 예측 → 임계 도달 예상 시 예측 경보 발생
+- **Z-Score / 슬라이딩 윈도우 / Change Point Detection:** 보조 이상 징후 판단
+- AI 탐지 결과는 `AlarmEvent`(`severity: anomaly / predictive_warning`)로 생성
+
+### 7. Celery 비동기 처리
+
+| 태스크 | 큐 | 주기 |
+|---|---|---|
+| 알람 이벤트 발송 (Slack / Discord / WebSocket) | default | 이벤트 트리거 시 |
+| AI ARIMA 예측 | forecast | 이벤트 트리거 시 |
+| 누락 장비 감지 | default | 60초 |
+| 시설 이벤트 처리 | events | Pub/Sub 구독 |
+| 데이터 보존 정책 실행 | default | 매일 03:00 |
+
+### 8. 알림 발송 (Slack / Discord)
+
+- `AlarmPolicy` + `NotificationTemplate`으로 채널별 메시지 포맷 관리
+- `AlarmSendHistory`에 발송 결과(성공/실패/지연) 기록
+- 폴백 템플릿 내장 → DB 레코드 없어도 동작
+
+### 9. 관제 대시보드
 
 - WebSocket 수신으로 새로고침 없이 차트 실시간 갱신
 - Leaflet 지도: 공장 도면 기반 커스텀 CRS (픽셀↔미터 직접 매핑)
 - 레이어 분리: 작업자 / 장비 / 가스센서 / 전력장치 / 지오펜스 / 그리드
+
+### 10. Prometheus + Grafana 모니터링
+
+- Django / FastAPI 요청 메트릭 (`django-prometheus`, `prometheus-fastapi-instrumentator`)
+- Redis 큐 적체 메트릭 (`redis-exporter`)
+- PostgreSQL 메트릭 (`postgres-exporter`)
+- 커스텀 메트릭: 알람 이벤트 건수, AI 예측 처리 시간, Celery 태스크 완료 건수
+- Alertmanager를 통한 임계 알림 라우팅
 
 ---
 
@@ -198,6 +272,7 @@ ICMP2/
   check_gas_thresholds() 호출
       │
       ├─ 임계값 초과 → AlarmEvent 생성 (5분 중복 방지)
+      │   └─ Celery 태스크 → Slack/Discord/WebSocket 발송
       ├─ 자동 지오펜스 업데이트 (update_geofence_from_gas)
       │
       └─ channel_layer.group_send("floor_{id}_sensor", {...})
@@ -210,6 +285,17 @@ ICMP2/
       ▼
 [프론트엔드]
   onmessage → Chart.js 차트 갱신
+
+---
+
+[FastAPI]
+  AI 분석 파이프라인 (Isolation Forest + ARIMA)
+      │
+      │ POST /monitoring/api/gas-readings/ (AI 결과 포함)
+      ▼
+[Django]
+  AI 이상 탐지 결과 → AlarmEvent(anomaly / predictive_warning) 생성
+      └─ Celery forecast 큐 → ARIMA 재학습·예측 업데이트
 
 ---
 
@@ -328,16 +414,35 @@ POST /facilities/api/worker-locations/dummy/
 
 ### 사전 요구사항
 
-- Python 3.10+
-- Redis 7.x (`redis-server` 실행 중이어야 함)
+- Docker + Docker Compose (권장)
+- 또는 Python 3.10+ + Redis 7.x (로컬 실행 시)
 
-### 설치
+### Docker Compose 실행 (권장)
 
 ```bash
 # 저장소 클론
 git clone <repo-url>
 cd ICMP2
 
+# 환경 변수 파일 작성
+cp .env.example .env   # DB_USER, DB_PASSWORD, DB_NAME, REDIS_HOST 등 설정
+
+# 전체 스택 실행
+# (PostgreSQL, Redis, Django, FastAPI, Celery workers, Prometheus, Grafana, Alertmanager)
+docker compose up --build
+```
+
+| 서비스 | 주소 |
+|---|---|
+| Django (관제 화면) | http://localhost:8000 |
+| FastAPI (AI 엔진) | http://localhost:8001 |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 |
+| Alertmanager | http://localhost:9093 |
+
+### 로컬 직접 실행
+
+```bash
 # 가상환경 생성 및 의존성 설치
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
@@ -350,9 +455,7 @@ python manage.py migrate
 python manage.py loaddata facilities_data.json
 ```
 
-### 실행
-
-서버 3개를 **각각 별도 터미널**에서 실행합니다.
+서버 5개를 **각각 별도 터미널**에서 실행합니다.
 
 ```bash
 # 터미널 1 — Redis
@@ -360,14 +463,16 @@ redis-server
 
 # 터미널 2 — Django (Daphne ASGI)
 python manage.py runserver
-# 또는 Daphne 직접 실행:
-# daphne -b 0.0.0.0 -p 8000 config.asgi:application
 
-# 터미널 3 — FastAPI (가짜 데이터 생성)
+# 터미널 3 — FastAPI (가짜 데이터 + AI 분석)
 uvicorn fastapi_app.main:app --host 0.0.0.0 --port 8001 --reload
-```
 
-브라우저에서 `http://localhost:8000` 접속
+# 터미널 4 — Celery Worker
+celery -A config worker --loglevel=info
+
+# 터미널 5 — Celery Beat (스케줄러)
+celery -A config beat --loglevel=info
+```
 
 ---
 
@@ -382,7 +487,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
+            'hosts': [(os.environ.get('REDIS_HOST', 'redis'), 6379)],
         },
     },
 }
@@ -390,19 +495,14 @@ CHANNEL_LAYERS = {
 
 ### 데이터베이스
 
-기본값은 SQLite입니다. PostgreSQL로 전환하려면:
+기본값은 PostgreSQL(Docker)입니다. 로컬 SQLite로 전환하려면 `settings.py`의 `DATABASES`를 수정합니다.
 
-```python
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'icmp2',
-        'USER': 'icmp2_user',
-        'PASSWORD': 'password',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+### 알림 웹훅
+
+```bash
+# .env
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ```
 
 ### FastAPI → Django 전송 주소
@@ -426,6 +526,7 @@ DATABASES = {
 - `WorkerLocation`: 실시간 작업자 좌표
 - `geofence_checker.py`: 레이 캐스팅 + 거리 공식 기반 판단 로직
 - `consumers.py`: WebSocket Consumer 3개 (worker / sensor / geofence)
+- `events/`: Redis Pub/Sub 기반 이벤트 핸들러 (Celery `events` 큐)
 
 ### `monitoring` — 센서 데이터
 
@@ -438,16 +539,20 @@ DATABASES = {
 - `NodeReading`: 위치 노드 수신값 저장
 - `ThresholdPolicy`: 가스 종류별 경고·위험 임계값 관리
 - `services.py`: `calc_danger_level()`, `check_gas_thresholds()`
+- `ai/`: ARIMA 예측 모듈 (`gas_forecast.py`, `power_forecast.py`)
+- `anomaly/`: Z-Score / 슬라이딩 윈도우 / Change Point Detection
 
 ### `alerts` — 알람 이벤트
 
 - `RiskCriteria`: 위험 기준 색상·등급 정의
-- `AlarmRule`: 규칙 정의 (threshold / missing / offline / power)
+- `AlarmRule`: 규칙 정의 (threshold / missing / power / ai / forecast)
 - `AlarmEvent`: 트리거된 이벤트 (open → acknowledged → closed)
 - `EventHistory`: 상태 변경 이력
+- `ForecastSnapshot`: AI 예측 스냅샷 저장
 - `Notification`: 알림 발송 기록
 - `NotificationTemplate`: 채널별 알림 템플릿
-- `services.py`: 임계값·전력 알람 생성, 5분 중복 방지 로직
+- `services.py`: 임계값·전력·AI 알람 생성, 5분 중복 방지 로직
+- `tasks.py`: Celery 알람 발송 (Slack / Discord / WebSocket), 누락 감지, 데이터 보존
 
 ### `dashboard` — 관제 화면
 
@@ -471,24 +576,21 @@ DATABASES = {
 - 조직 관리: 부서 트리, 구성원 추가·제외, 팀장 임명
 - 공통코드 관리: 그룹코드 및 코드값 등록·편집
 - 공지사항(`Notice`), 알람 발송 이력(`AlarmSendHistory`), 알람 정책(`AlarmPolicy`), 데이터 보존 정책(`DataRetentionPolicy`)
+- `AlarmSendHistory` 발송 채널: 관제 실시간 알림 / Slack / Discord
 
-### `fastapi_app` — 가짜 데이터 생성기
+### `fastapi_app` — 데이터 생성기 + AI 엔진
 
-- `main.py`: 5초 주기 데이터 루프, WebSocket broadcast
-- `fake_data.py`: 상태 기반 데이터 생성 (단순 난수 아님)
-  - 가스: 85% 정상 / 10% 경고 / 5% 위험 확률 분포
-  - 전력: 60% 정상 / 15% 경고 / 10% 위험 / 10% OFF / 5% 통신오류
-  - 위치: 이전 좌표 ±2m 범위 랜덤 워크
+- `main.py`: 5초 주기 데이터 루프
+- `routers/`: gas / power / worker 수신 엔드포인트
+- `ai_engine/`: AI 분석 파이프라인
+  - `gas/`: Isolation Forest + ARIMA (가스 이상 탐지·예측)
+  - `power/`: Isolation Forest + ARIMA (전력 이상 탐지·예측)
+  - `common/`: Z-Score, 슬라이딩 윈도우, Change Point Detection, 공통 데이터 타입
+  - `generator/`: 시나리오 기반 데이터 생성기 (정상/경고/위험 전이 확률 제어)
+- `adapters/`: ORM ↔ AI 엔진 데이터 변환
 - `sender.py`: Django REST API 비동기 POST 클라이언트 (httpx)
 
----
-
-## 향후 계획 (4차)
-
-| 항목 | 내용 |
-|---|---|
-| 실제 센서 하드웨어 연동 | FastAPI 시뮬레이터 → 실제 장비 교체 |
-| AI 기반 이상 탐지 | scikit-learn 이상 감지 모델 적용 |
-| Celery 비동기 처리 | 알람 발송, 리포트 생성 비동기화 |
-| 클라우드 배포 | PostgreSQL 전환 + Nginx + Docker |
-| Prometheus 모니터링 | 시스템 메트릭 수집 및 Grafana 연동 |
+**데이터 생성 확률 분포:**
+- 가스: 85% 정상 / 10% 경고 / 5% 위험
+- 전력: 60% 정상 / 15% 경고 / 10% 위험 / 10% OFF / 5% 통신오류
+- 위치: 이전 좌표 ±2m 범위 랜덤 워크
