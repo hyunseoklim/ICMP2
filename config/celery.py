@@ -9,6 +9,7 @@ from celery.signals import (
     task_prerun,
     task_retry,
     worker_process_init,
+    worker_ready,
 )
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
@@ -18,6 +19,14 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
 logger = logging.getLogger(__name__)
+
+
+@worker_ready.connect
+def on_worker_ready(sender, **kwargs):
+    """events 워커 시작 시 consume_facilities_events 첫 실행을 큐에 등록."""
+    if os.environ.get('CELERY_IS_EVENTS_WORKER') == 'true':
+        from facilities.tasks import consume_facilities_events
+        consume_facilities_events.delay()
 
 
 @worker_process_init.connect

@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+alertmanager/alertmanager.yml
 db.sqlite3
 *.log
 .DS_Store

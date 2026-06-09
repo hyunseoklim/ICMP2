@@ -76,7 +76,7 @@
           "legendFormat": "Django",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         },
         {
@@ -84,7 +84,7 @@
           "legendFormat": "FastAPI",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         },
         {
@@ -92,7 +92,7 @@
           "legendFormat": "Redis",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         },
         {
@@ -100,21 +100,13 @@
           "legendFormat": "PostgreSQL",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "expr": "up{job=\"celery\"}",
-          "legendFormat": "Celery",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         }
       ],
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       }
     },
     {
@@ -151,13 +143,13 @@
           "legendFormat": "RPS",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         }
       ],
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       }
     },
     {
@@ -211,7 +203,7 @@
           "legendFormat": "p95",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         },
         {
@@ -219,13 +211,13 @@
           "legendFormat": "p50",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         }
       ],
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       }
     },
     {
@@ -241,6 +233,8 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
+          "min": 0,
+          "max": 1,
           "color": {
             "mode": "palette-classic"
           },
@@ -271,17 +265,17 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(django_http_responses_total_by_status_view_method_total{status=~\"5..\"}[5m])) / clamp_min(sum(rate(django_http_responses_total_by_status_view_method_total[5m])), 1e-9)",
+          "expr": "(sum(rate(django_http_responses_total_by_status_view_method_total{status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(django_http_responses_total_by_status_view_method_total[5m])), 1e-9)",
           "legendFormat": "5xx 에러율",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         }
       ],
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       }
     },
     {
@@ -310,19 +304,25 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(icmp2_ai_forecast_duration_seconds_bucket[5m])) by (le, task_type))",
-          "legendFormat": "{{task_type}} p95",
-          "refId": "A"
+          "expr": "histogram_quantile(0.95, sum(rate(icmp2_ai_ingest_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "ingest p95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
         },
         {
-          "expr": "histogram_quantile(0.50, sum(rate(icmp2_ai_forecast_duration_seconds_bucket[5m])) by (le, task_type))",
-          "legendFormat": "{{task_type}} p50",
-          "refId": "B"
+          "expr": "histogram_quantile(0.50, sum(rate(icmp2_ai_ingest_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "ingest p50",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
         }
       ],
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       }
     },
     {
@@ -372,17 +372,33 @@
       },
       "targets": [
         {
-          "expr": "sum(celery_queue_length) or vector(0)",
-          "legendFormat": "큐 대기 작업 수",
+          "expr": "redis_key_size{key=\"celery\"}",
+          "legendFormat": "기본 큐",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "expr": "redis_key_size{key=\"forecast\"}",
+          "legendFormat": "예측 큐",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "expr": "redis_key_size{key=\"events\"}",
+          "legendFormat": "이벤트 큐",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
           }
         }
       ],
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       }
     },
     {
@@ -398,6 +414,8 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
+          "min": 0,
+          "max": 1,
           "color": {
             "mode": "palette-classic"
           },
@@ -435,7 +453,7 @@
       ],
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       }
     },
     {
@@ -450,7 +468,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "bytes",
+          "unit": "none",
           "color": {
             "mode": "palette-classic"
           }
@@ -468,25 +486,25 @@
       },
       "targets": [
         {
-          "expr": "redis_memory_used_bytes",
-          "legendFormat": "사용 중",
+          "expr": "redis_memory_used_bytes / 1024 / 1024",
+          "legendFormat": "사용 중 (MB)",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         },
         {
-          "expr": "redis_memory_max_bytes",
-          "legendFormat": "최대",
+          "expr": "redis_memory_used_peak_bytes / 1024 / 1024",
+          "legendFormat": "최대 사용 (MB)",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         }
       ],
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       }
     },
     {
@@ -501,10 +519,11 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "none",
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "decimals": 0
         },
         "overrides": []
       },
@@ -519,17 +538,17 @@
       },
       "targets": [
         {
-          "expr": "pg_stat_activity_count{state=\"active\"}",
+          "expr": "sum(pg_stat_activity_count{state=\"active\"})",
           "legendFormat": "활성 연결",
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "PBFA97CFB590B2093"
           }
         }
       ],
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "PBFA97CFB590B2093"
       }
     },
     {
@@ -637,6 +656,57 @@
         "defaults": {
           "unit": "ops"
         }
+      }
+    },
+    {
+      "id": 101,
+      "title": "센서 데이터 수신률 (건/분)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 56,
+        "w": 12,
+        "h": 7
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(icmp2_celery_tasks_total{task_name=\"ingest_gas\"}[1m])) * 60",
+          "legendFormat": "가스 ingest",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "expr": "sum(rate(icmp2_celery_tasks_total{task_name=\"ingest_power\"}[1m])) * 60",
+          "legendFormat": "전력 ingest",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
       }
     }
   ],
