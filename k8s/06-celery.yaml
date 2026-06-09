@@ -17,7 +17,7 @@ spec:
         - name: celery
           image: icmp2-django:latest
           imagePullPolicy: IfNotPresent
-          command: ["celery", "-A", "config", "worker", "--loglevel=info"]
+          command: ["celery", "-A", "config", "worker", "--concurrency=2", "--loglevel=info"]
           envFrom:
             - configMapRef:
                 name: icmp2-config
@@ -30,6 +30,13 @@ spec:
             limits:
               cpu: "500m"
               memory: "1Gi"
+          livenessProbe:
+            exec:
+              command: ["celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
 
 ---
 apiVersion: apps/v1
@@ -64,6 +71,13 @@ spec:
             limits:
               cpu: "1000m"
               memory: "1Gi"
+          livenessProbe:
+            exec:
+              command: ["celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
 
 ---
 apiVersion: apps/v1
@@ -91,6 +105,9 @@ spec:
                 name: icmp2-config
             - secretRef:
                 name: icmp2-secret
+          env:
+            - name: CELERY_IS_EVENTS_WORKER
+              value: "true"
           resources:
             requests:
               cpu: "100m"
@@ -98,6 +115,13 @@ spec:
             limits:
               cpu: "300m"
               memory: "256Mi"
+          livenessProbe:
+            exec:
+              command: ["celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
 
 ---
 apiVersion: apps/v1
