@@ -1,3 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: django-media-pvc
+  namespace: icmp2
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -43,6 +55,13 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+          volumeMounts:
+            - name: django-media
+              mountPath: /app/media
+      volumes:
+        - name: django-media
+          persistentVolumeClaim:
+            claimName: django-media-pvc
 
 ---
 apiVersion: v1
