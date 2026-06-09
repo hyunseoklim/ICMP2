@@ -1,9 +1,10 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: redis
   namespace: icmp2
 spec:
+  serviceName: redis
   replicas: 1
   selector:
     matchLabels:
@@ -28,6 +29,17 @@ spec:
               command: ["redis-cli", "ping"]
             initialDelaySeconds: 15
             periodSeconds: 10
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
 
 ---
 apiVersion: v1
