@@ -49,3 +49,4 @@ def consume_facilities_events() -> None:
     finally:
         ps.unsubscribe(CHANNEL)
         ps.close()
+        consume_facilities_events.delay()

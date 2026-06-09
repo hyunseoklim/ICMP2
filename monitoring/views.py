@@ -77,6 +77,8 @@ def ingest_power(request):
     Phase D M1-7 (2026-05-23): HTTP·Celery 공용 진입점으로 위임 (gas 패턴).
     PowerReading INSERT + STEP B (load_rate 알람) + STEP G (forecast 큐) 위임.
     """
+    from alerts.tasks import CELERY_TASK_COUNTER
+
     device_uid   = request.data.get('device_uid')
     channel_code = request.data.get('channel_code')
 
@@ -88,7 +90,12 @@ def ingest_power(request):
         return Response({'error': f'채널 없음: {channel_code}'}, status=404)
 
     from monitoring.services import process_power_ingest
-    process_power_ingest(device_uid, channel_code, dict(request.data))
+    try:
+        process_power_ingest(device_uid, channel_code, dict(request.data))
+        CELERY_TASK_COUNTER.labels(task_name='ingest_power', status='success').inc()
+    except Exception as exc:
+        CELERY_TASK_COUNTER.labels(task_name='ingest_power', status='failure').inc()
+        raise
     return Response({'status': 'ok'})
 
 

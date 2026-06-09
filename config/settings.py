@@ -123,10 +123,7 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'alerts.tasks.check_missing_devices',
         'schedule': 60.0,
     },
-    'consume-facilities-events': {
-        'task': 'facilities.tasks.consume_facilities_events',
-        'schedule': 30.0,
-    },
+
     'data-retention-daily': {
         'task': 'alerts.tasks.run_data_retention',
         'schedule': crontab(hour=3, minute=0),

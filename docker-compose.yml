@@ -42,6 +42,7 @@ services:
       - .env
     environment:
       PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+    command: sh -c "rm -f /tmp/prometheus_multiproc/*.db && /entrypoint.sh"
     depends_on:
       db:
         condition: service_healthy
@@ -77,7 +78,7 @@ services:
   celery:
     build: .
     container_name: celery
-    command: celery -A config worker --loglevel=info
+    command: sh -c "rm -f /tmp/prometheus_multiproc/*.db && celery -A config worker --loglevel=info"
     volumes:
       - .:/app
       - prometheus_multiproc:/tmp/prometheus_multiproc
@@ -96,7 +97,7 @@ services:
   celery-beat:
     build: .
     container_name: celery-beat
-    command: celery -A config beat --loglevel=info
+    command: sh -c "rm -f /tmp/prometheus_multiproc/*.db && celery -A config beat --loglevel=info"
     volumes:
       - .:/app
       - prometheus_multiproc:/tmp/prometheus_multiproc
@@ -115,7 +116,7 @@ services:
   celery-forecast:
     build: .
     container_name: celery-forecast
-    command: celery -A config worker -Q forecast --concurrency=1 --loglevel=info
+    command: sh -c "rm -f /tmp/prometheus_multiproc/*.db && celery -A config worker -Q forecast --concurrency=1 --loglevel=info"
     volumes:
       - .:/app
       - prometheus_multiproc:/tmp/prometheus_multiproc
@@ -135,7 +136,7 @@ services:
   celery-events:
     build: .
     container_name: celery-events
-    command: celery -A config worker -Q events --concurrency=1 --loglevel=info
+    command: sh -c "rm -f /tmp/prometheus_multiproc/*.db && celery -A config worker -Q events --concurrency=1 --loglevel=info"
     volumes:
       - .:/app
       - prometheus_multiproc:/tmp/prometheus_multiproc
@@ -143,6 +144,7 @@ services:
       - .env
     environment:
       PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      CELERY_IS_EVENTS_WORKER: "true"
     depends_on:
       db:
         condition: service_healthy
@@ -157,6 +159,7 @@ services:
     container_name: redis-exporter
     environment:
       REDIS_ADDR: redis://redis:6379
+      REDIS_EXPORTER_CHECK_KEYS: celery,forecast,events
     ports:
       - "9121:9121"
     depends_on:
@@ -201,6 +204,8 @@ services:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
+    environment:
+      TZ: Asia/Seoul
     env_file:
       - .env
     depends_on:
