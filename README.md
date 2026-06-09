@@ -69,7 +69,7 @@ DRF 3.16.0          REST API 프레임워크
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │               FastAPI 서버 (:8001)                           │
-│  ① 가짜 센서값 생성 (5초 간격)                               │
+│  ① 가짜 센서값 생성 (60초 간격)                              │
 │     가스 9종 / 전력 24채널 / 작업자 위치 5명                 │
 │  ② AI 분석 파이프라인                                        │
 │     Isolation Forest (이상 탐지) + ARIMA (예측 경보)        │
@@ -123,7 +123,7 @@ ICMP2/
 │   ├── events/             # Pub/Sub 이벤트 핸들러
 │   └── tasks.py            # consume_facilities_events (Celery)
 ├── monitoring/             # 가스·전력 센서 및 임계값 관리
-│   ├── ai/                 # ARIMA 예측 모듈 (가스·전력)
+│   ├── ai/                 # Isolation Forest(이상 탐지) + ARIMA(예측) 모듈 (가스·전력)
 │   └── anomaly/            # Z-Score / 슬라이딩 윈도우 / Change Point
 ├── alerts/                 # 알람 규칙 및 이벤트 라이프사이클
 │   └── tasks.py            # Celery 알람 발송 / 누락 감지 / 보존 정책
@@ -134,7 +134,8 @@ ICMP2/
 │
 ├── fastapi_app/            # 가짜 데이터 생성 서버 (FastAPI)
 │   ├── main.py             # FastAPI 앱 + 데이터 루프
-│   ├── routers/            # gas / power / worker 라우터
+│   ├── fake_data.py        # 가스·전력·위치 더미 데이터 생성 함수
+│   ├── routers/            # gas / power 라우터
 │   ├── ai_engine/          # AI 분석 엔진
 │   │   ├── common/         # 공통 모듈 (Z-Score, ARIMA, IForest, Change Point)
 │   │   ├── gas/            # 가스 이상 탐지·예측
@@ -159,6 +160,8 @@ ICMP2/
 ├── Dockerfile
 ├── Dockerfile.fastapi
 ├── entrypoint.sh
+├── setup.sh                # 초기 환경 설정 스크립트
+├── k6_icmp2_test.js        # k6 부하 테스트 스크립트
 ├── manage.py
 └── requirements.txt
 ```
@@ -169,7 +172,7 @@ ICMP2/
 
 ### 1. 실시간 가스 센서 모니터링
 
-- 9종 가스 (CO, H₂S, CO₂, O₂, NO₂, SO₂, O₃, NH₃, VOC) 5초 주기 수신
+- 9종 가스 (CO, H₂S, CO₂, O₂, NO₂, SO₂, O₃, NH₃, VOC) 60초 주기 수신
 - 임계값 초과 시 자동 알람 생성
 - O₂는 역방향 판단 (낮을수록 위험: 16% 미만 → 위험, 18% 미만 → 경고)
 
@@ -188,7 +191,7 @@ ICMP2/
 
 ### 3. 작업자 위치 추적 + 지오펜스
 
-- 5명 작업자 위치 5초 주기 업데이트 (±2m 상태 기반 이동)
+- 5명 작업자 위치 60초 주기 업데이트 (±2m 상태 기반 이동)
 - 지오펜스 판단:
   - **원형:** 거리 공식으로 내부 판단
   - **다각형:** 레이 캐스팅 알고리즘
@@ -262,7 +265,7 @@ ICMP2/
 
 ```
 [FastAPI]
-  가스 데이터 생성 (5초)
+  가스 데이터 생성 (60초)
       │
       │ POST /monitoring/api/gas-readings/
       │ Body: {device_uid, co, h2s, co2, o2, no2, so2, o3, nh3, voc}
@@ -300,7 +303,7 @@ ICMP2/
 ---
 
 [FastAPI]
-  작업자 위치 생성 (5초)
+  작업자 위치 생성 (60초)
       │
       │ POST /facilities/api/worker-locations/dummy/
       │ Body: {worker_id, x, y, floor_id}
@@ -516,7 +519,7 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ### `accounts` — 사용자 인증
 
 - 커스텀 User 모델 (`user_type`: admin / manager / worker)
-- Department, Role, UserRole, LoginHistory
+- Position, Department, Role, UserRole, LoginHistory
 - JWT 기반 인증 (`PyJWT`)
 
 ### `facilities` — 시설 및 위치
@@ -539,7 +542,7 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 - `NodeReading`: 위치 노드 수신값 저장
 - `ThresholdPolicy`: 가스 종류별 경고·위험 임계값 관리
 - `services.py`: `calc_danger_level()`, `check_gas_thresholds()`
-- `ai/`: ARIMA 예측 모듈 (`gas_forecast.py`, `power_forecast.py`)
+- `ai/`: Isolation Forest(`gas_if.py`, `power_if.py`) + ARIMA 예측(`gas_forecast.py`, `power_forecast.py`) 모듈
 - `anomaly/`: Z-Score / 슬라이딩 윈도우 / Change Point Detection
 
 ### `alerts` — 알람 이벤트
@@ -549,8 +552,8 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 - `AlarmEvent`: 트리거된 이벤트 (open → acknowledged → closed)
 - `EventHistory`: 상태 변경 이력
 - `ForecastSnapshot`: AI 예측 스냅샷 저장
-- `Notification`: 알림 발송 기록
 - `NotificationTemplate`: 채널별 알림 템플릿
+- `TaskLog`: Celery 태스크 실행 상태 추적 (PENDING → STARTED → SUCCESS/FAILURE/RETRY)
 - `services.py`: 임계값·전력·AI 알람 생성, 5분 중복 방지 로직
 - `tasks.py`: Celery 알람 발송 (Slack / Discord / WebSocket), 누락 감지, 데이터 보존
 
@@ -581,7 +584,7 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 ### `fastapi_app` — 데이터 생성기 + AI 엔진
 
 - `main.py`: 5초 주기 데이터 루프
-- `routers/`: gas / power / worker 수신 엔드포인트
+- `routers/`: gas / power 수신 엔드포인트
 - `ai_engine/`: AI 분석 파이프라인
   - `gas/`: Isolation Forest + ARIMA (가스 이상 탐지·예측)
   - `power/`: Isolation Forest + ARIMA (전력 이상 탐지·예측)
