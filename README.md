@@ -120,8 +120,7 @@ ICMP2/
 │
 ├── accounts/               # 사용자 인증 및 권한
 ├── facilities/             # 시설·층·지오펜스·작업자 위치
-│   ├── events/             # Pub/Sub 이벤트 핸들러
-│   └── tasks.py            # consume_facilities_events (Celery)
+│   └── tasks.py            # handle_floor_grid_changed / handle_floor_dimensions_changed (Celery)
 ├── monitoring/             # 가스·전력 센서 및 임계값 관리
 │   ├── ai/                 # Isolation Forest(이상 탐지) + ARIMA(예측) 모듈 (가스·전력)
 │   └── anomaly/            # Z-Score / 슬라이딩 윈도우 / Change Point
@@ -236,7 +235,7 @@ ICMP2/
 | 알람 이벤트 발송 (Slack / Discord / WebSocket) | default | 이벤트 트리거 시 |
 | AI ARIMA 예측 | forecast | 이벤트 트리거 시 |
 | 누락 장비 감지 | default | 60초 |
-| 시설 이벤트 처리 | events | Pub/Sub 구독 |
+| 시설 이벤트 처리 (IndexGrid 재생성·캐시 무효화) | events | Floor/FloorGrid 변경 시 |
 | 데이터 보존 정책 실행 | default | 매일 03:00 |
 
 ### 8. 알림 발송 (Slack / Discord)
@@ -529,7 +528,7 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 - `WorkerLocation`: 실시간 작업자 좌표
 - `geofence_checker.py`: 레이 캐스팅 + 거리 공식 기반 판단 로직
 - `consumers.py`: WebSocket Consumer 3개 (worker / sensor / geofence)
-- `events/`: Redis Pub/Sub 기반 이벤트 핸들러 (Celery `events` 큐)
+- `tasks.py`: Floor/FloorGrid 변경 시 신호(signal)에서 직접 큐잉되는 Celery 태스크 (`events` 큐) — IndexGrid 재생성, 캐시 무효화
 
 ### `monitoring` — 센서 데이터
 
