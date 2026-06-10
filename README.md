@@ -69,10 +69,8 @@ DRF 3.16.0          REST API 프레임워크
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │               FastAPI 서버 (:8001)                            │
-│  ① 가짜 센서값 생성 (60초 간격)                                   │
-│     가스 9종 / 전력 24채널 / 작업자 위치 5명                        │
-│  ② AI 분석 파이프라인                                           │
-│     Isolation Forest (이상 탐지) + ARIMA (예측 경보)             │
+│  가짜 센서값 생성 (60초 간격)                                     │
+│  가스 9종 / 전력 24채널 / 작업자 위치 5명                          │
 └──────────────────┬───────────────────────────────────────────┘
                    │ HTTP POST (REST API)
                    ▼
@@ -80,21 +78,22 @@ DRF 3.16.0          REST API 프레임워크
 │            Django + Daphne ASGI (:8000)                      │
 │  ① POST 수신 → DB 저장 (PostgreSQL)                            │
 │  ② 임계값 비교 + 지오펜스 판단                                     │
-│  ③ AlarmEvent 생성 (5분 중복 방지)                               │
-│  ④ channel_layer.group_send() → Redis                        │
-│  ⑤ Celery 태스크 위임 (알람 발송 등)                              │
+│  ③ AI 분석: Isolation Forest(동기) / ARIMA(forecast 큐)         │
+│  ④ AlarmEvent 생성 (5분 중복 방지)                               │
+│  ⑤ channel_layer.group_send() → Redis                        │
+│  ⑥ Celery 태스크 위임 (알람 발송 등)                              │
 └──────────────────┬───────────────────────────────────────────┘
        ┌───────────┤────────────────────────────┐
        │           │                            │
   WebSocket    Redis :6379               Celery Workers
   (ws://)   (Channel Layer +          ┌─ worker (default)
        │     Pub/Sub + Broker)        ├─ forecast (AI 예측)
-       ▼                              └─ events (시설 이벤트)
+       ▼                              └─ events (Floor/FloorGrid 치수 변경, IndexGrid 재생성 시)
 ┌──────────────────┐          Celery Beat
-│  프론트엔드       │          ├─ 누락 장비 감지 (1분)
-│  Chart.js        │          └─ 데이터 보존 (매일 03:00)
+│  프론트엔드         │            ├─ 누락 장비 감지 (1분)
+│  Chart.js        │            └─ 데이터 보존 (매일 03:00)
 │  Leaflet         │
-│  WebSocket 수신  │
+│  WebSocket 수신   │
 └──────────────────┘
 
 ┌──────────────────────────────────────────────────────────────┐
@@ -134,11 +133,11 @@ ICMP2/
 ├── fastapi_app/            # 가짜 데이터 생성 서버 (FastAPI)
 │   ├── main.py             # FastAPI 앱 + 데이터 루프
 │   ├── fake_data.py        # 가스·전력·위치 더미 데이터 생성 함수
-│   ├── routers/            # gas / power 라우터
-│   ├── ai_engine/          # AI 분석 엔진
+│   ├── routers/            # gas / power 라우터 (Phase 5 placeholder, 미구현)
+│   ├── ai_engine/          # AI 모델 학습·검증·시나리오 생성용 (라이브 파이프라인 미연동)
 │   │   ├── common/         # 공통 모듈 (Z-Score, ARIMA, IForest, Change Point)
-│   │   ├── gas/            # 가스 이상 탐지·예측
-│   │   ├── power/          # 전력 이상 탐지·예측
+│   │   ├── gas/            # 가스 이상 탐지·예측 (학습 스크립트용)
+│   │   ├── power/          # 전력 이상 탐지·예측 (학습 스크립트용)
 │   │   └── generator/      # 시나리오 기반 데이터 생성기
 │   ├── adapters/           # ORM ↔ 데이터 변환
 │   └── sender.py           # Django REST API 비동기 POST 클라이언트 (httpx)
@@ -290,14 +289,11 @@ ICMP2/
 
 ---
 
-[FastAPI]
-  AI 분석 파이프라인 (Isolation Forest + ARIMA)
-      │
-      │ POST /monitoring/api/gas-readings/ (AI 결과 포함)
-      ▼
-[Django]
-  AI 이상 탐지 결과 → AlarmEvent(anomaly / predictive_warning) 생성
-      └─ Celery forecast 큐 → ARIMA 재학습·예측 업데이트
+[Django - monitoring/services.py::process_gas_ingest()] (이어서)
+  STEP F: Isolation Forest 이상 탐지 (동기, monitoring/ai/gas_if.py)
+      └─ 이상 시 AlarmEvent(severity=anomaly) 생성
+  STEP G: forecast_gas_task.delay() → Celery forecast 큐
+      └─ ARIMA 예측 → 임계 도달 예상 시 AlarmEvent(severity=predictive_warning) 생성
 
 ---
 
@@ -580,13 +576,12 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 - 공지사항(`Notice`), 알람 발송 이력(`AlarmSendHistory`), 알람 정책(`AlarmPolicy`), 데이터 보존 정책(`DataRetentionPolicy`)
 - `AlarmSendHistory` 발송 채널: 관제 실시간 알림 / Slack / Discord
 
-### `fastapi_app` — 데이터 생성기 + AI 엔진
+### `fastapi_app` — 가짜 데이터 생성기 (+ AI 모델 학습·시나리오 생성용 ai_engine)
 
-- `main.py`: 5초 주기 데이터 루프
-- `routers/`: gas / power 수신 엔드포인트
-- `ai_engine/`: AI 분석 파이프라인
-  - `gas/`: Isolation Forest + ARIMA (가스 이상 탐지·예측)
-  - `power/`: Isolation Forest + ARIMA (전력 이상 탐지·예측)
+- `main.py`: 60초 주기 데이터 루프 — 가스/전력/위치 더미 데이터를 생성해 Django로 전송
+- `routers/`: gas / power 라우터 (Phase 5 placeholder, 현재 미구현)
+- `ai_engine/`: 라이브 파이프라인과는 별도 — 모델 학습/검증, 시나리오 데이터 생성용
+  - `gas/`, `power/`: Isolation Forest + ARIMA 학습 스크립트 (`train_*_models.py`)에서 사용하는 모듈
   - `common/`: Z-Score, 슬라이딩 윈도우, Change Point Detection, 공통 데이터 타입
   - `generator/`: 시나리오 기반 데이터 생성기 (정상/경고/위험 전이 확률 제어)
 - `adapters/`: ORM ↔ AI 엔진 데이터 변환
