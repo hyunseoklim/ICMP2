@@ -32,11 +32,11 @@ spec:
               memory: "1Gi"
           livenessProbe:
             exec:
-              command: ["celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
-            initialDelaySeconds: 30
+              command: ["sh", "-c", "celery -A config inspect ping -d celery@$HOSTNAME"]
+            initialDelaySeconds: 180
             periodSeconds: 60
-            timeoutSeconds: 10
-            failureThreshold: 3
+            timeoutSeconds: 30
+            failureThreshold: 5
 
 ---
 apiVersion: apps/v1
@@ -73,11 +73,11 @@ spec:
               memory: "1Gi"
           livenessProbe:
             exec:
-              command: ["celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
-            initialDelaySeconds: 30
+              command: ["sh", "-c", "celery -A config inspect ping -d celery@$HOSTNAME"]
+            initialDelaySeconds: 180
             periodSeconds: 60
-            timeoutSeconds: 10
-            failureThreshold: 3
+            timeoutSeconds: 30
+            failureThreshold: 5
 
 ---
 apiVersion: apps/v1
@@ -117,11 +117,11 @@ spec:
               memory: "256Mi"
           livenessProbe:
             exec:
-              command: ["celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
-            initialDelaySeconds: 30
+              command: ["sh", "-c", "celery -A config inspect ping -d celery@$HOSTNAME"]
+            initialDelaySeconds: 180
             periodSeconds: 60
-            timeoutSeconds: 10
-            failureThreshold: 3
+            timeoutSeconds: 30
+            failureThreshold: 5
 
 ---
 apiVersion: apps/v1

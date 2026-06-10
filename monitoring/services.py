@@ -68,7 +68,7 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
     else:
         measured_at = timezone.now()
 
-    PowerReading.objects.create(
+    reading = PowerReading.objects.create(
         device=device, channel=channel,
         current_a=current_a, voltage_v=voltage_v, power_w=power_w,
         measured_at=measured_at, quality_flag=quality_flag,
@@ -79,6 +79,14 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
     # STEP B — 즉시 임계 알람 (Django load_rate 정책)
     from alerts.services import check_power_thresholds
     check_power_thresholds(device, channel, float(power_w))
+
+    # STEP F — Isolation Forest 전력 3채널 조합 이상 탐지 (AI 엔진)
+    # Phase D 비활성 해제 — 전압 안정+전류/전력 조합 이상을 Threshold가 못 잡는
+    # 구간에서 포착. 모델 미가용·추론 실패 시 predict가 None → 알람 단계 자연 skip.
+    from monitoring.ai.power_if import predict_power_anomaly
+    from alerts.services import trigger_if_anomaly_alarms_power
+    if_result = predict_power_anomaly(reading)
+    trigger_if_anomaly_alarms_power(device, channel, if_result)
 
     # STEP G — ARIMA 사전 경고 (forecast 전용 큐 위임 — gas D2 아키텍처)
     from alerts.tasks import forecast_power_task

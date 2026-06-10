@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 from contextlib import asynccontextmanager
 
 logger = logging.getLogger(__name__)
@@ -10,7 +11,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_all_power_data, generate_node_readings
+from fastapi_app import fake_data2
 from fastapi_app.sender import fetch_gas_devices, queue_gas_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading
+
+# 데이터 생성 독립 플래그 (둘 다 켜면 동시 실행) — env로 토글, 재빌드 불필요.
+#   ENABLE_LOAD  : fake_data(랜덤 부하) 생성기
+#   ENABLE_STORY : fake_data2(통합 검증 스토리) 생성기
+def _truthy(v: str) -> bool:
+    return str(v).strip().lower() in ("1", "true", "yes", "on")
+
+ENABLE_LOAD  = _truthy(os.environ.get("ENABLE_LOAD",  "false"))
+ENABLE_STORY = _truthy(os.environ.get("ENABLE_STORY", "true"))
+STORY_TICK_SECONDS = float(os.environ.get("STORY_TICK_SECONDS", "2"))
 
 # 웹소켓에 연결된 클라이언트 목록
 _clients: list[WebSocket] = []
@@ -68,6 +80,35 @@ async def _data_loop() -> None:
         await asyncio.sleep(60)
 
 
+async def _story_loop() -> None:
+    """통합 검증 스토리(fake_data2) 1회 가속 재생.
+
+    load 모드의 _emit_once(전체 장비·채널·작업자 송신) 대신, 스토리 대상만
+    (GAS-001·PWR-001/slave61·작업자5) 1 논리분=1 tick으로 STORY_TICK_SECONDS
+    간격으로 송신한다. 송신 경로(sender)는 load와 동일 — 파이프라인 보존.
+    """
+    logger.info("STORY 모드 시작 — tick=%ss, %d~%d분",
+                STORY_TICK_SECONDS, fake_data2.STORY_START, fake_data2.STORY_END)
+    # 논리분당 STORY_DENSITY점(가스 ARIMA 정규경로 충족). m은 float로 누적.
+    m = float(fake_data2.STORY_START)
+    while m <= fake_data2.STORY_END:
+        gas = fake_data2.generate_gas_tick(m)
+        await _broadcast(gas)
+        await queue_gas_reading(gas)
+
+        pwr = fake_data2.generate_power_tick(m)
+        await _broadcast(pwr)
+        await post_power_reading(pwr)
+
+        for loc in fake_data2.generate_worker_ticks(m):
+            await _broadcast(loc)
+            await post_location_reading(loc)
+
+        m += fake_data2.STORY_STEP
+        await asyncio.sleep(STORY_TICK_SECONDS)
+    logger.info("STORY 모드 종료 — 스토리 1회 재생 완료")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 앱 시작 시 Django 장비/노드 목록 로드
@@ -87,9 +128,18 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("위치 노드 없음 — Django에 LocationNode를 먼저 등록하세요")
 
-    task = asyncio.create_task(_data_loop())
+    # 켜진 생성기만 태스크 생성 (둘 다 켜면 동시 실행)
+    logger.info("생성기 플래그 — ENABLE_LOAD=%s ENABLE_STORY=%s", ENABLE_LOAD, ENABLE_STORY)
+    tasks = []
+    if ENABLE_LOAD:
+        tasks.append(asyncio.create_task(_data_loop()))
+    if ENABLE_STORY:
+        tasks.append(asyncio.create_task(_story_loop()))
+    if not tasks:
+        logger.warning("생성기 비활성 — ENABLE_LOAD/ENABLE_STORY 모두 false")
     yield
-    task.cancel()
+    for t in tasks:
+        t.cancel()
 
 
 app = FastAPI(title="ICMP2 실시간 데이터 서버", lifespan=lifespan)

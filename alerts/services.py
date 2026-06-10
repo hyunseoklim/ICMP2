@@ -301,6 +301,74 @@ def trigger_if_anomaly_alarms(device, if_result) -> None:
         )
 
 
+def trigger_if_anomaly_alarms_power(device, channel, if_result) -> None:
+    """STEP F (전력) — Isolation Forest 3채널 조합 이상 결과 → AlarmEvent.
+
+    가스 trigger_if_anomaly_alarms의 전력 채널 버전. 전용 AlarmRule(RuleType.AI)로
+    생성하며, open '[전력·IF]' 이벤트를 **채널 단위**로 재사용한다(전력은 채널별
+    독립 장비). 가스와 동일한 CAUTION/NORMAL/UNKNOWN 처리.
+    - CAUTION : open 이벤트 갱신 또는 신규 생성
+    - NORMAL  : open 이벤트 자동 종료
+    - UNKNOWN : 결측 — 판정 보류
+    """
+    if if_result is None or not device.facility_id:
+        return
+
+    level = if_result.level.name  # 'NORMAL' / 'CAUTION' / 'UNKNOWN'
+    if level == 'UNKNOWN':
+        return
+
+    rule = AlarmRule.objects.filter(
+        rule_type=AlarmRule.RuleType.AI,
+        is_active=True,
+    ).first()
+    if not rule:
+        return
+
+    now = timezone.now()
+    open_event = AlarmEvent.objects.filter(
+        rule=rule,
+        device=device,
+        channel=channel,
+        event_status=AlarmEvent.EventStatus.OPEN,
+    ).order_by('-occurred_at').first()
+
+    if level == 'NORMAL':
+        # 분포 정상 복귀 → open 이벤트 자동 종료
+        if open_event:
+            open_event.event_status = AlarmEvent.EventStatus.CLOSED
+            open_event.closed_at = now
+            open_event.save(update_fields=['event_status', 'closed_at', 'updated_at'])
+            EventHistory.objects.create(
+                alarm_event=open_event,
+                action_type='close',
+                action_note='전력 IF 분포 정상 복귀로 자동 종료',
+            )
+        return
+
+    # level == 'CAUTION'
+    ch_label = channel.channel_name or channel.channel_code
+    score   = if_result.mahalanobis_distance
+    message = f"[전력·IF] {ch_label} 조합 이상 — {if_result.reason}"
+
+    if open_event:
+        open_event.last_seen_at  = now
+        open_event.current_value = score
+        open_event.message       = message
+        open_event.save(update_fields=['last_seen_at', 'current_value', 'message', 'updated_at'])
+    else:
+        create_alarm_event(
+            rule=rule,
+            facility=device.facility,
+            severity=AlarmEvent.Severity.ANOMALY,
+            title=f"[전력·IF] {ch_label} 조합 이상 감지",
+            device=device,
+            channel=channel,
+            message=message,
+            current_value=score,
+        )
+
+
 def trigger_forecast_alarms(device, results, channel=None) -> None:
     """STEP G — ARIMA 예측 결과 → predictive_warning AlarmEvent (채널별).
 

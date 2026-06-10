@@ -4,7 +4,7 @@ metadata:
   name: fastapi
   namespace: icmp2
 spec:
-  replicas: 2
+  replicas: 1   # 스토리 생성기는 1개 파드에서만(2개면 중복 송신)
   selector:
     matchLabels:
       app: fastapi
@@ -24,6 +24,14 @@ spec:
                 name: icmp2-config
             - secretRef:
                 name: icmp2-secret
+          env:
+            # 데이터 생성 독립 플래그 (kubectl set env로 토글, 재빌드 불필요)
+            - name: ENABLE_STORY
+              value: "true"       # fake_data2(통합 검증 스토리)
+            - name: ENABLE_LOAD
+              value: "false"      # fake_data(랜덤 부하)
+            - name: STORY_TICK_SECONDS
+              value: "0.5"        # 스토리 틱 간격(초). 작을수록 빠름
           readinessProbe:
             httpGet:
               path: /docs
@@ -68,8 +76,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: fastapi
-  minReplicas: 2
-  maxReplicas: 4
+  minReplicas: 1   # 생성기는 싱글톤 — 2개면 스토리 중복 송신
+  maxReplicas: 1
   metrics:
     - type: Resource
       resource:

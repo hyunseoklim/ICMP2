@@ -38,19 +38,24 @@ def _load_ai_models(**kwargs):
     인제스트 파이프라인을 막지 않도록 예외는 로깅만 한다.
 
     로드 대상:
-        - gas_if (STEP F — Isolation Forest)
+        - gas_if  (STEP F — Isolation Forest)
+        - power_if (STEP F — Isolation Forest, Phase D 비활성 해제. low/high 2모델)
         - power_forecast (STEP G — PredictionSubsystem warmup, Phase D M1-10)
           forecast 큐 worker에서 사용. default 큐 worker도 호출되나 무해
           (lazy 호출이라 첫 사용 시까지 비용 0).
-
-    참고: power_if (STEP F)는 Phase D 결정 (a)로 비활성. 활성화 시
-    monitoring/ai/power_if.py docstring 참조하여 본 함수에 호출 추가.
     """
     try:
         from monitoring.ai.gas_if import load_models
         load_models()
     except Exception as exc:
         logger.error("Gas IF 모델 로드 실패 (worker_process_init): %s", exc)
+
+    # STEP F (전력) — Isolation Forest 모델 로드 (rated 기준 low/high 자동 선택)
+    try:
+        from monitoring.ai.power_if import load_models as load_power_if_models
+        load_power_if_models()
+    except Exception as exc:
+        logger.error("Power IF 모델 로드 실패 (worker_process_init): %s", exc)
 
     # Phase D M1-10 — power forecast subsystem warmup (forecast 큐 worker)
     try:
