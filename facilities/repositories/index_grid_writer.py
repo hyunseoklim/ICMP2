@@ -7,7 +7,7 @@ class IndexGridWriter:
     """
     IndexGrid 저장/삭제 전담.
     사용 시점: Floor 생성 시, 공간 변경 시.
-    커밋 성공 후 FloorGridChanged 이벤트를 발행한다.
+    커밋 성공 후 handle_floor_grid_changed 태스크를 큐잉한다.
     """
 
     def bulk_create(self, floor, cells: list[dict]) -> None:
@@ -33,7 +33,7 @@ class IndexGridWriter:
             ignore_conflicts=True,
         )
         floor_id = floor.id
-        transaction.on_commit(lambda: self._publish_changed(floor_id))
+        transaction.on_commit(lambda: self._queue_grid_changed(floor_id))
 
     def delete_by_floor(self, floor) -> int:
         """
@@ -44,10 +44,10 @@ class IndexGridWriter:
         """
         deleted_count, _ = IndexGrid.objects.filter(floor=floor).delete()
         floor_id = floor.id
-        transaction.on_commit(lambda: self._publish_changed(floor_id))
+        transaction.on_commit(lambda: self._queue_grid_changed(floor_id))
         return deleted_count
 
     @staticmethod
-    def _publish_changed(floor_id: int) -> None:
-        from ..events import FloorGridChanged, publish
-        publish(FloorGridChanged(floor_id=floor_id))
+    def _queue_grid_changed(floor_id: int) -> None:
+        from ..tasks import handle_floor_grid_changed
+        handle_floor_grid_changed.delay(floor_id=floor_id)

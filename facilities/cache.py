@@ -1,7 +1,7 @@
 """facilities 도메인 캐시 키·TTL·무효화 진입점.
 
 캐시 키 네이밍과 무효화 로직을 단일 진입점에서 관리한다.
-events/handlers.py와 repositories에서만 import.
+tasks.py와 repositories에서만 import.
 """
 from django.core.cache import cache
 

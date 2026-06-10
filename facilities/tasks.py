@@ -1,52 +1,40 @@
 """facilities 도메인 Celery 태스크.
 
-`consume_facilities_events`: Redis Pub/Sub `facilities.events` 채널을 구독하고
-들어온 메시지를 events.handlers.dispatch로 라우팅한다.
-
-`get_message(timeout=...)` 폴링으로 deadline을 정확히 지킨다.
-`ps.listen()`은 메시지 미수신 시 무한 블록되어 worker thread를 점유하므로 사용하지 않는다.
+Floor/FloorGrid 변경 시 후속 처리(IndexGrid 재생성, 캐시 무효화)를
+Celery 태스크로 직접 큐잉한다. Redis Pub/Sub은 사용하지 않는다 —
+구독 윈도우 사이의 gap에서 메시지가 영구 소실될 수 있기 때문이다.
 """
-import json
 import logging
-import time
 
-import redis
 from celery import shared_task
-from django.conf import settings
-
-from .events.handlers import dispatch
-from .events.publisher import CHANNEL
 
 logger = logging.getLogger(__name__)
 
-LISTEN_SEC = 30
-POLL_INTERVAL_SEC = 1.0
-
 
 @shared_task
-def consume_facilities_events() -> None:
-    redis_url = getattr(settings, "CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
-    r = redis.Redis.from_url(redis_url)
-    ps = r.pubsub()
-    ps.subscribe(CHANNEL)
-    logger.info("Subscribed to %s for %ss", CHANNEL, LISTEN_SEC)
+def handle_floor_grid_changed(floor_id: int) -> None:
+    """IndexGrid가 floor 단위로 변경된 뒤 관련 캐시를 무효화한다."""
+    from .cache import invalidate_floor
 
-    deadline = time.time() + LISTEN_SEC
+    logger.info("handle_floor_grid_changed floor_id=%s", floor_id)
+    invalidate_floor(floor_id)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=10)
+def handle_floor_dimensions_changed(self, floor_id: int) -> None:
+    """Floor.width/length 또는 FloorGrid.cell_size 변경 후 IndexGrid를 재생성한다."""
+    from .models import Floor
+    from .services.floor_grid_maker import regenerate_index_grid_for_floor
+
+    logger.info("handle_floor_dimensions_changed floor_id=%s", floor_id)
     try:
-        while time.time() < deadline:
-            message = ps.get_message(timeout=POLL_INTERVAL_SEC)
-            if message is None:
-                continue
-            if message.get("type") != "message":
-                continue
-            raw = message["data"]
-            try:
-                payload = json.loads(raw)
-            except (ValueError, TypeError):
-                logger.warning("Pub/Sub 메시지 파싱 실패: %s", raw)
-                continue
-            dispatch(payload)
-    finally:
-        ps.unsubscribe(CHANNEL)
-        ps.close()
-        consume_facilities_events.delay()
+        floor = Floor.objects.get(id=floor_id)
+    except Floor.DoesNotExist:
+        logger.warning("Floor id=%s not found; skip regenerate", floor_id)
+        return
+
+    try:
+        regenerate_index_grid_for_floor(floor)
+    except Exception as exc:
+        logger.error("handle_floor_dimensions_changed 실패 — floor_id=%s: %s", floor_id, exc)
+        raise self.retry(exc=exc)
