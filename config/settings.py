@@ -136,6 +136,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'facilities.tasks.deactivate_stale_geofences',
         'schedule': 30.0,
     },
+
+    # 10. STALE 작업자 off_duty 정리 — 30초 주기
+    #     위치 수신이 끊긴 on_duty 작업자가 '근무 중'(+위험)으로 남는 문제 해소.
+    'deactivate-stale-workers': {
+        'task': 'facilities.tasks.deactivate_stale_workers',
+        'schedule': 30.0,
+    },
 }
 
 # Phase 2 — AI 예측(STEP G) 튜닝 파라미터. 검증·운영 중 무재학습 조정용.

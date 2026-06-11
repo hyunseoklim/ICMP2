@@ -47,8 +47,16 @@ def update_geofence_from_gas(reading) -> None:
     Args:
         reading: monitoring.models.GasReading 인스턴스
     """
-    from monitoring.services import calc_danger_level
+    from monitoring.services import calc_danger_level, STALE_THRESHOLD
     from facilities.models import SensorLocation, Geofence
+    from django.utils import timezone
+
+    # 0. 신선도 가드 — 조회 경로(dummy GET·geofence list)가 "마지막 저장 reading"으로
+    #    이 함수를 호출해도, 그 reading이 STALE_THRESHOLD를 넘었으면 생성/활성/비활성 모두
+    #    하지 않는다. ingest 경로는 방금 저장한 fresh reading이라 항상 통과.
+    #    (stale 지오펜스 비활성화는 deactivate_stale_geofences sweep이 담당)
+    if reading.measured_at < timezone.now() - STALE_THRESHOLD:
+        return
 
     # 1. 위험도 판단
     level_kr = calc_danger_level(reading)

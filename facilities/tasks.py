@@ -35,6 +35,21 @@ def deactivate_stale_geofences() -> int:
     return n
 
 
+@shared_task
+def deactivate_stale_workers() -> int:
+    """위치 수신이 끊긴 on_duty 작업자를 off_duty로 정리한다 (celery beat 주기 호출).
+
+    데이터가 끊긴 작업자가 지도/현황에 '근무 중'(+위험)으로 유령처럼 남는 것을 막는다.
+    실제 판단·정리는 geofence_checker.deactivate_stale_workers에 위임.
+    """
+    from .services.geofence_checker import deactivate_stale_workers as _sweep
+
+    n = _sweep()
+    if n:
+        logger.info("deactivate_stale_workers: %s명 off_duty 정리", n)
+    return n
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=10)
 def handle_floor_dimensions_changed(self, floor_id: int) -> None:
     """Floor.width/length 또는 FloorGrid.cell_size 변경 후 IndexGrid를 재생성한다."""
