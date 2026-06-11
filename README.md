@@ -68,40 +68,40 @@ DRF 3.16.0          REST API 프레임워크
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│               FastAPI 서버 (:8001)                           │
-│  ① 가짜 센서값 생성 (60초 간격)                              │
-│     가스 9종 / 전력 24채널 / 작업자 위치 5명                 │
-│  ② AI 분석 파이프라인                                        │
-│     Isolation Forest (이상 탐지) + ARIMA (예측 경보)        │
+│               FastAPI 서버 (:8001)                            │
+│  가짜 센서값 생성 (60초 간격)                                     │
+│  가스 9종 / 전력 34채널 (장비 3대) / 작업자 위치 5명                 │
 └──────────────────┬───────────────────────────────────────────┘
-                   │ HTTP POST (REST API)
+                   │ 가스: Celery 태스크 직접 큐잉 (ingest_gas_task → Redis)
+                   │ 전력·위치·노드: HTTP POST (REST API)
                    ▼
 ┌──────────────────────────────────────────────────────────────┐
-│            Django + Daphne ASGI (:8000)                      │
-│  ① POST 수신 → DB 저장 (PostgreSQL)                          │
-│  ② 임계값 비교 + 지오펜스 판단                               │
-│  ③ AlarmEvent 생성 (5분 중복 방지)                           │
-│  ④ channel_layer.group_send() → Redis                        │
-│  ⑤ Celery 태스크 위임 (알람 발송 등)                         │
+│     Django + Daphne ASGI (:8000) / Celery Worker (가스)       │
+│  ① 데이터 수신 → DB 저장 (PostgreSQL)                           │
+│  ② 임계값 비교 + 지오펜스 판단                                     │
+│  ③ AI 분석: Isolation Forest(동기) / ARIMA(forecast 큐)         │
+│  ④ AlarmEvent 생성 (5분 중복 방지)                               │
+│  ⑤ channel_layer.group_send() → Redis                        │
+│  ⑥ Celery 태스크 위임 (알람 발송 등)                              │
 └──────────────────┬───────────────────────────────────────────┘
        ┌───────────┤────────────────────────────┐
        │           │                            │
   WebSocket    Redis :6379               Celery Workers
   (ws://)   (Channel Layer +          ┌─ worker (default)
        │     Pub/Sub + Broker)        ├─ forecast (AI 예측)
-       ▼                              └─ events (시설 이벤트)
+       ▼                              └─ events (Floor/FloorGrid 치수 변경, IndexGrid 재생성 시)
 ┌──────────────────┐          Celery Beat
-│  프론트엔드       │          ├─ 누락 장비 감지 (1분)
-│  Chart.js        │          └─ 데이터 보존 (매일 03:00)
+│  프론트엔드         │            ├─ 누락 장비 감지 (1분)
+│  Chart.js        │            └─ 데이터 보존 (매일 03:00)
 │  Leaflet         │
-│  WebSocket 수신  │
+│  WebSocket 수신   │
 └──────────────────┘
 
 ┌──────────────────────────────────────────────────────────────┐
-│            모니터링 스택                                      │
+│            모니터링 스택                                        │
 │  Prometheus (:9090) ← Django / FastAPI / Redis / PostgreSQL  │
-│  Alertmanager (:9093) ← Prometheus 알림 라우팅               │
-│  Grafana (:3000) ← 메트릭 대시보드                           │
+│  Alertmanager (:9093) ← Prometheus 알림 라우팅                  │
+│  Grafana (:3000) ← 메트릭 대시보드                               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -120,26 +120,29 @@ ICMP2/
 │
 ├── accounts/               # 사용자 인증 및 권한
 ├── facilities/             # 시설·층·지오펜스·작업자 위치
-│   ├── events/             # Pub/Sub 이벤트 핸들러
-│   └── tasks.py            # consume_facilities_events (Celery)
+│   ├── services/           # geofence_checker, 그리드 생성·검증·좌표 변환
+│   ├── repositories/       # IndexGrid 읽기/쓰기
+│   ├── signals.py          # Floor/FloorGrid 변경 감지 → Celery 태스크 큐잉
+│   └── tasks.py            # handle_floor_grid_changed / handle_floor_dimensions_changed (events 큐)
 ├── monitoring/             # 가스·전력 센서 및 임계값 관리
 │   ├── ai/                 # Isolation Forest(이상 탐지) + ARIMA(예측) 모듈 (가스·전력)
 │   └── anomaly/            # Z-Score / 슬라이딩 윈도우 / Change Point
 ├── alerts/                 # 알람 규칙 및 이벤트 라이프사이클
-│   └── tasks.py            # Celery 알람 발송 / 누락 감지 / 보존 정책
+│   └── tasks.py            # 가스 인제스트(ingest_gas_task)·ARIMA 예측·알람 발송·누락 감지·보존 정책 (Celery)
 ├── dashboard/              # 관제 대시보드 위젯·레이아웃
 ├── safety/                 # 안전 체크리스트 및 VR 교육
 ├── manager/                # 보고서 및 관리 기능
 ├── core/                   # 공통 모델·유틸리티
+│   └── management/commands/seed.py   # 통합 시드 데이터 생성 (--flush / --section)
 │
 ├── fastapi_app/            # 가짜 데이터 생성 서버 (FastAPI)
 │   ├── main.py             # FastAPI 앱 + 데이터 루프
 │   ├── fake_data.py        # 가스·전력·위치 더미 데이터 생성 함수
-│   ├── routers/            # gas / power 라우터
-│   ├── ai_engine/          # AI 분석 엔진
+│   ├── routers/            # gas / power 라우터 (Phase 5 placeholder, 미구현)
+│   ├── ai_engine/          # AI 모델 학습·검증·시나리오 생성용 (라이브 파이프라인 미연동)
 │   │   ├── common/         # 공통 모듈 (Z-Score, ARIMA, IForest, Change Point)
-│   │   ├── gas/            # 가스 이상 탐지·예측
-│   │   ├── power/          # 전력 이상 탐지·예측
+│   │   ├── gas/            # 가스 이상 탐지·예측 (학습 스크립트용)
+│   │   ├── power/          # 전력 이상 탐지·예측 (학습 스크립트용)
 │   │   └── generator/      # 시나리오 기반 데이터 생성기
 │   ├── adapters/           # ORM ↔ 데이터 변환
 │   └── sender.py           # Django REST API 비동기 POST 클라이언트 (httpx)
@@ -185,7 +188,7 @@ ICMP2/
 
 ### 2. 전력 채널 모니터링
 
-- 24개 채널 (PWR-001, PWR-002 각 12채널) 실시간 전류·전압·전력 수신
+- 34개 채널 (PWR-001 16채널 / PWR-002 8채널 / PWR-003 10채널) 실시간 전류·전압·전력 수신
 - 정격 대비 부하율로 위험 판단: 75% 이상 → 위험, 50~75% → 경고
 - 통신 오류(-1) 및 OFF 상태 자동 감지
 
@@ -224,8 +227,8 @@ ICMP2/
 
 ### 6. AI 이상 탐지 · 예측 경보
 
-- **Isolation Forest:** 가스·전력 센서의 다변량 이상값 실시간 탐지
-- **ARIMA:** 가스·전력 시계열 기반 단기 예측 → 임계 도달 예상 시 예측 경보 발생
+- **Isolation Forest:** 가스 센서 9채널의 다변량 이상값 실시간 탐지 (전력 IF는 현재 비활성 — Phase D 결정)
+- **ARIMA:** 가스·전력 시계열 기반 단기 예측 → 임계 도달 예상 시 예측 경보 발생 (forecast 전용 큐)
 - **Z-Score / 슬라이딩 윈도우 / Change Point Detection:** 보조 이상 징후 판단
 - AI 탐지 결과는 `AlarmEvent`(`severity: anomaly / predictive_warning`)로 생성
 
@@ -233,10 +236,11 @@ ICMP2/
 
 | 태스크 | 큐 | 주기 |
 |---|---|---|
+| 가스 데이터 인제스트 (`ingest_gas_task`) | default | FastAPI 발행 (60초) |
 | 알람 이벤트 발송 (Slack / Discord / WebSocket) | default | 이벤트 트리거 시 |
-| AI ARIMA 예측 | forecast | 이벤트 트리거 시 |
+| AI ARIMA 예측 (가스 / 전력) | forecast | 데이터 수신 시 |
 | 누락 장비 감지 | default | 60초 |
-| 시설 이벤트 처리 | events | Pub/Sub 구독 |
+| 시설 이벤트 처리 (IndexGrid 재생성·캐시 무효화) | events | Floor/FloorGrid 변경 시 |
 | 데이터 보존 정책 실행 | default | 매일 03:00 |
 
 ### 8. 알림 발송 (Slack / Discord)
@@ -267,12 +271,13 @@ ICMP2/
 [FastAPI]
   가스 데이터 생성 (60초)
       │
-      │ POST /monitoring/api/gas-readings/
-      │ Body: {device_uid, co, h2s, co2, o2, no2, so2, o3, nh3, voc}
+      │ Celery send_task('alerts.tasks.ingest_gas_task')  ← Redis 브로커 직접 큐잉
+      │ Payload: {device_uid, measured_at, co, h2s, co2, o2, no2, so2, o3, nh3, voc}
       ▼
-[Django - monitoring/views.py::ingest_gas()]
+[Celery Worker - alerts/tasks.py::ingest_gas_task]
+  monitoring/services.py::process_gas_ingest() 실행
   GasReading DB 저장
-  check_gas_thresholds() 호출
+  임계값 비교 (check_gas_thresholds)
       │
       ├─ 임계값 초과 → AlarmEvent 생성 (5분 중복 방지)
       │   └─ Celery 태스크 → Slack/Discord/WebSocket 발송
@@ -291,14 +296,11 @@ ICMP2/
 
 ---
 
-[FastAPI]
-  AI 분석 파이프라인 (Isolation Forest + ARIMA)
-      │
-      │ POST /monitoring/api/gas-readings/ (AI 결과 포함)
-      ▼
-[Django]
-  AI 이상 탐지 결과 → AlarmEvent(anomaly / predictive_warning) 생성
-      └─ Celery forecast 큐 → ARIMA 재학습·예측 업데이트
+[Celery Worker - process_gas_ingest()] (이어서)
+  STEP F: Isolation Forest 이상 탐지 (동기, monitoring/ai/gas_if.py)
+      └─ 이상 시 AlarmEvent(severity=anomaly) 생성
+  STEP G: forecast_gas_task.delay() → Celery forecast 큐
+      └─ ARIMA 예측 → 임계 도달 예상 시 AlarmEvent(severity=predictive_warning) 생성
 
 ---
 
@@ -324,13 +326,14 @@ ICMP2/
 
 ## WebSocket 채널
 
-층(floor) 단위로, 역할별로 3개 채널이 분리됩니다.
+층(floor) 단위 채널 3개와 전역 알람 채널 1개로 분리됩니다.
 
 | 채널 그룹 | URL 패턴 | 전달 데이터 |
 |---|---|---|
 | `floor_{id}_sensor` | `ws/floor/<floor_id>/sensor/` | 가스·전력 수치, 위험 수준 |
 | `floor_{id}_worker` | `ws/floor/<floor_id>/worker/` | 작업자 위치, 안전 상태 |
 | `floor_{id}_geofence` | `ws/floor/<floor_id>/geofence/` | 지오펜스 생성·변경·삭제 |
+| `alerts` / `system_alerts` | `ws/alerts/` | 전역 알람 팝업 (system_alerts는 관리자 전용) |
 
 ---
 
@@ -340,7 +343,7 @@ ICMP2/
 
 ```
 GET    /monitoring/api/devices/                        장비 목록 (device_type 필터)
-POST   /monitoring/api/gas-readings/                   가스 데이터 수신 (FastAPI → Django)
+POST   /monitoring/api/gas-readings/                   가스 데이터 직접 수신 (FastAPI는 Celery 큐 사용)
 POST   /monitoring/api/power-readings/                 전력 데이터 수신 (FastAPI → Django)
 POST   /monitoring/api/node-readings/                  노드 데이터 수신 (FastAPI → Django)
 GET    /monitoring/api/threshold-policies/             임계값 정책 목록
@@ -380,10 +383,11 @@ GET    /accounts/profile/                              현재 사용자 프로�
 ### FastAPI ↔ Django 데이터 계약
 
 ```json
-// 가스 데이터
-POST /monitoring/api/gas-readings/
+// 가스 데이터 — HTTP가 아닌 Celery 태스크 페이로드로 전달
+// celery.send_task('alerts.tasks.ingest_gas_task', args=[payload])
 {
   "device_uid": "GAS-001",
+  "measured_at": "2026-06-11T09:00:00+09:00",
   "co": 18.4,
   "h2s": 2.1,
   "o2": 20.5,
@@ -454,8 +458,8 @@ pip install -r requirements.txt
 # DB 마이그레이션
 python manage.py migrate
 
-# (선택) 초기 데이터 로드
-python manage.py loaddata facilities_data.json
+# (선택) 초기 시드 데이터 생성
+python manage.py seed              # 전체 시드 (--flush: DB 초기화 후, --section: 부분 시드)
 ```
 
 서버 5개를 **각각 별도 터미널**에서 실행합니다.
@@ -470,8 +474,9 @@ python manage.py runserver
 # 터미널 3 — FastAPI (가짜 데이터 + AI 분석)
 uvicorn fastapi_app.main:app --host 0.0.0.0 --port 8001 --reload
 
-# 터미널 4 — Celery Worker
-celery -A config worker --loglevel=info
+# 터미널 4 — Celery Worker (default + forecast + events 큐 통합 처리)
+celery -A config worker -Q celery,forecast,events --loglevel=info
+# Docker Compose에서는 큐별로 worker 3개 분리 실행 (celery / celery-forecast / celery-events)
 
 # 터미널 5 — Celery Beat (스케줄러)
 celery -A config beat --loglevel=info
@@ -510,7 +515,10 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 
 ### FastAPI → Django 전송 주소
 
-[fastapi_app/sender.py](fastapi_app/sender.py)에서 Django 주소를 확인합니다 (기본: `http://localhost:8000`).
+[fastapi_app/sender.py](fastapi_app/sender.py)는 환경 변수 2개를 사용합니다.
+
+- `DJANGO_BASE` (기본: `http://localhost:8000`) — 전력·위치·노드 HTTP POST 대상
+- `REDIS_URL` (기본: `redis://localhost:6379/0`) — 가스 데이터 Celery 큐잉용 브로커
 
 ---
 
@@ -527,9 +535,11 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 - 시설 → 건물 → 층 계층 구조
 - `Geofence`: 원형·다각형 위험 구역 정의
 - `WorkerLocation`: 실시간 작업자 좌표
-- `geofence_checker.py`: 레이 캐스팅 + 거리 공식 기반 판단 로직
+- `services/geofence_checker.py`: 레이 캐스팅 + 거리 공식 기반 판단 로직
+- `services/`: 그리드 생성·검증·좌표↔인덱스 변환·포인트 스내핑 등 그리드 서비스 모듈
+- `repositories/`: IndexGrid 읽기/쓰기 분리
 - `consumers.py`: WebSocket Consumer 3개 (worker / sensor / geofence)
-- `events/`: Redis Pub/Sub 기반 이벤트 핸들러 (Celery `events` 큐)
+- `signals.py` + `tasks.py`: Floor/FloorGrid 변경 시 signal에서 직접 큐잉되는 Celery 태스크 (`events` 큐) — IndexGrid 재생성, 캐시 무효화
 
 ### `monitoring` — 센서 데이터
 
@@ -555,7 +565,7 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 - `NotificationTemplate`: 채널별 알림 템플릿
 - `TaskLog`: Celery 태스크 실행 상태 추적 (PENDING → STARTED → SUCCESS/FAILURE/RETRY)
 - `services.py`: 임계값·전력·AI 알람 생성, 5분 중복 방지 로직
-- `tasks.py`: Celery 알람 발송 (Slack / Discord / WebSocket), 누락 감지, 데이터 보존
+- `tasks.py`: 가스 인제스트(`ingest_gas_task`), ARIMA 예측(`forecast_gas_task` / `forecast_power_task`), 알람 발송 (Slack / Discord / WebSocket), 누락 감지, 데이터 보존
 
 ### `dashboard` — 관제 화면
 
@@ -581,17 +591,16 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 - 공지사항(`Notice`), 알람 발송 이력(`AlarmSendHistory`), 알람 정책(`AlarmPolicy`), 데이터 보존 정책(`DataRetentionPolicy`)
 - `AlarmSendHistory` 발송 채널: 관제 실시간 알림 / Slack / Discord
 
-### `fastapi_app` — 데이터 생성기 + AI 엔진
+### `fastapi_app` — 가짜 데이터 생성기 (+ AI 모델 학습·시나리오 생성용 ai_engine)
 
-- `main.py`: 5초 주기 데이터 루프
-- `routers/`: gas / power 수신 엔드포인트
-- `ai_engine/`: AI 분석 파이프라인
-  - `gas/`: Isolation Forest + ARIMA (가스 이상 탐지·예측)
-  - `power/`: Isolation Forest + ARIMA (전력 이상 탐지·예측)
+- `main.py`: 60초 주기 데이터 루프 — 가스/전력/위치 더미 데이터를 생성해 Django로 전송
+- `routers/`: gas / power 라우터 (Phase 5 placeholder, 현재 미구현)
+- `ai_engine/`: 라이브 파이프라인과는 별도 — 모델 학습/검증, 시나리오 데이터 생성용
+  - `gas/`, `power/`: Isolation Forest + ARIMA 학습 스크립트 (`train_*_models.py`)에서 사용하는 모듈
   - `common/`: Z-Score, 슬라이딩 윈도우, Change Point Detection, 공통 데이터 타입
   - `generator/`: 시나리오 기반 데이터 생성기 (정상/경고/위험 전이 확률 제어)
 - `adapters/`: ORM ↔ AI 엔진 데이터 변환
-- `sender.py`: Django REST API 비동기 POST 클라이언트 (httpx)
+- `sender.py`: 데이터 전송 클라이언트 — 가스는 Celery `send_task()` 직접 큐잉 (Redis), 전력·위치·노드는 httpx 비동기 POST
 
 **데이터 생성 확률 분포:**
 - 가스: 85% 정상 / 10% 경고 / 5% 위험

@@ -151,7 +151,8 @@ def regenerate_index_grid_for_floor(floor) -> int:
     """Floor의 IndexGrid를 완전 재생성 (delete → bulk_create).
 
     Floor.width/length 또는 FloorGrid.cell_size 변경 시 호출.
-    Writer의 delete_by_floor와 bulk_create 각각이 FloorGridChanged 이벤트를 발행한다.
+    Writer의 delete_by_floor와 bulk_create 각각이 handle_floor_grid_changed
+    태스크를 큐잉해 캐시를 무효화한다.
     """
     from ..models import FloorGrid
     from ..repositories import IndexGridWriter

@@ -109,16 +109,16 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_ROUTES = {
     'alerts.tasks.forecast_gas_task':   {'queue': 'forecast'},
     'alerts.tasks.forecast_power_task': {'queue': 'forecast'},   # Phase D M1-8
-    # facilities 이벤트 subscriber는 전용 큐 + 단일 worker로 격리해
-    # 다중 subscriber 중복 dispatch를 인프라 레벨에서 차단한다.
-    'facilities.tasks.consume_facilities_events': {'queue': 'events'},
+    # facilities 이벤트 핸들러는 전용 큐 + 단일 worker로 격리해
+    # 다른 파이프라인(가스 인제스트 등)과 부하를 분리한다.
+    'facilities.tasks.handle_floor_grid_changed': {'queue': 'events'},
+    'facilities.tasks.handle_floor_dimensions_changed': {'queue': 'events'},
 }
 
 from celery.schedules import crontab  # noqa: E402
 
 # 7. MISSING 장비 감지 — 매 60초 주기 실행
-# 8. facilities 이벤트 구독 — 매 25초 주기
-# 9. 데이터 보관 주기 — 매일 새벽 3시 (dev 머지)
+# 8. 데이터 보관 주기 — 매일 새벽 3시 (dev 머지)
 CELERY_BEAT_SCHEDULE = {
     'check-missing-devices': {
         'task': 'alerts.tasks.check_missing_devices',
@@ -146,10 +146,6 @@ CACHES = {
 
 SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
 DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
-
-# Redis Pub/Sub 채널명 (확정 후 .env에서 교체)
-REDIS_PUBSUB_CHANNEL = os.getenv('REDIS_PUBSUB_CHANNEL', 'sensor_events')
-REDIS_PUBSUB_TIMEOUT = int(os.getenv('REDIS_PUBSUB_TIMEOUT', '30'))
 
 CHANNEL_LAYERS = {
     'default': {

@@ -1,11 +1,11 @@
-"""facilities 도메인 Django signal → 도메인 이벤트 bridge.
+"""facilities 도메인 Django signal → Celery 태스크 bridge.
 
 Floor.width/length 또는 FloorGrid.cell_size가 실제로 변경됐을 때만
-FloorDimensionsChanged 이벤트를 발행한다.
+handle_floor_dimensions_changed 태스크를 큐잉한다.
 
 pre_save 단계에서 이전 값을 instance에 임시 저장(`_dims_changed`)하고
 post_save에서 비교 결과를 활용한다. 무관 필드(예: floor_name) 변경에는
-이벤트를 발행하지 않아 IndexGrid 불필요 재생성을 차단한다.
+태스크를 큐잉하지 않아 IndexGrid 불필요 재생성을 차단한다.
 """
 import logging
 import threading
@@ -16,8 +16,8 @@ from django.db.models.signals import post_delete, post_save, pre_delete, pre_sav
 from django.dispatch import receiver
 
 from .cache import invalidate_floor
-from .events import FloorDimensionsChanged, publish
 from .models import Floor, FloorGrid
+from .tasks import handle_floor_dimensions_changed
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ def _floor_post_save(sender, instance, created, **kwargs):
         return
     floor_id = instance.id
     transaction.on_commit(
-        lambda: publish(FloorDimensionsChanged(floor_id=floor_id))
+        lambda: handle_floor_dimensions_changed.delay(floor_id=floor_id)
     )
 
 
@@ -73,7 +73,7 @@ def _floor_grid_post_save(sender, instance, created, **kwargs):
         return
     floor_id = instance.floor_id
     transaction.on_commit(
-        lambda: publish(FloorDimensionsChanged(floor_id=floor_id))
+        lambda: handle_floor_dimensions_changed.delay(floor_id=floor_id)
     )
 
 
