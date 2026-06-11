@@ -57,7 +57,7 @@
                 hline(t.danger, 'rgba(239,68,68,0.85)');
             }
 
-            // '현재' 정적 경계선 — 실측/예측 경계 (옅게)
+            // '현재' 정적 경계선 — 실측/예측 분기 인덱스 (옅게)
             const ni = chart.config._nowIndex;
             if (ni != null) {
                 const px = x.getPixelForValue(ni);
@@ -163,31 +163,22 @@
         // y축 — 임계치 기준 프레이밍: 정상/주의/위험 3구역이 항상 보이게
         const all = [];
         actual.concat(forecast).forEach(v => { if (v != null) all.push(v); });
-        if (hasCI) ciUp.forEach(v => { if (v != null) all.push(v); });
-        const dataMax = all.length ? Math.max(...all) : (t.danger || 100);
+        const dataMax = all.length ? Math.max(...all) : (t.warn || 100);
+        // 값 기준(가스별 상대) 프레이밍 — 정상값이면 초록 위주(+상단 주의 띠),
+        // 값이 임계에 가까워질수록 노랑·빨강 구역이 확대돼 현재 위험도를 반영.
+        // reverse(O2)는 저농도가 위험이라 max(정상상한) 기준을 유지.
+        const cap = (t.max || (t.danger || 100) * 1.5) * 1.1;
         const yMax = t.reverse
-            ? Math.max(t.max || 26, dataMax * 1.1)
-            : Math.max((t.danger || 0) * 1.2, dataMax * 1.12);
+            ? Math.max(t.max || 26, Math.min(dataMax * 1.1, cap))
+            : Math.max(dataMax * 1.25, (t.warn || t.danger || 100) * 1.4);
 
-        // 데이터셋 구성 (CI 밴드 → 측정 실선 → 예측 점선)
+        // 데이터셋 구성 (측정 실선 → 예측 점선) — 신뢰구간(CI) 밴드는 표시 안 함
         const HOVER_PT = {
             pointHoverBackgroundColor: '#3b82f6',
             pointHoverBorderColor: '#ffffff',
             pointHoverBorderWidth: 2,
         };
         const datasets = [];
-        if (hasCI) {
-            datasets.push({
-                label: 'CI상한', data: ciUp, order: 4,
-                borderColor: 'transparent', backgroundColor: 'rgba(245,158,11,0.10)',
-                pointRadius: 0, pointHoverRadius: 0, fill: '+1', tension: 0.3, spanGaps: true,
-            });
-            datasets.push({
-                label: 'CI하한', data: ciLo, order: 4,
-                borderColor: 'transparent', pointRadius: 0, pointHoverRadius: 0,
-                fill: false, tension: 0.3, spanGaps: true,
-            });
-        }
         datasets.push(Object.assign({
             label: '측정 농도', data: actual, order: 1,
             borderColor: '#e2e8f0', borderWidth: 1.6, tension: 0.25, fill: false,
@@ -195,6 +186,7 @@
         }, HOVER_PT));
         datasets.push(Object.assign({
             label: 'AI 예측', data: forecast, order: 2,
+            // 과거(실측)는 실선, nowIndex 이후 예측 구간은 점선
             borderColor: '#f59e0b', borderWidth: 1.8, borderDash: [5, 4],
             tension: 0.25, fill: false, pointRadius: 0, pointHoverRadius: 5,
         }, HOVER_PT));
@@ -242,12 +234,15 @@
                 },
             },
         };
-        // 플러그인용 메타 — 초기 렌더부터 반영되도록 config에 직접 부착
-        config._gasKey = gas;            // zoneBackgroundPlugin / 임계선
-        config._isForecast = true;       // forecastOverlayPlugin 게이트
-        config._nowIndex = nowIndex;
-
-        forecastCharts[gas] = new Chart(canvas, config);
+        // 플러그인용 메타 — Chart.js v4는 config를 Config 래퍼로 감싼다. 생성 '전'에
+        // config._X 를 넣으면 chart.config._config 로 들어가 플러그인(chart.config._X)에서
+        // 안 보여 zone·임계선이 그려지지 않는다. 반드시 생성 '후' chart.config 에 부착 + redraw.
+        const chart = new Chart(canvas, config);
+        chart.config._gasKey = gas;            // zoneBackgroundPlugin / 임계선
+        chart.config._isForecast = true;       // forecastOverlayPlugin 게이트
+        chart.config._nowIndex = nowIndex;     // '현재' 경계선 = 실측/예측 분기 인덱스
+        chart.update('none');
+        forecastCharts[gas] = chart;
 
         // '현재 농도' 배지 + 카드 테두리 — 현재 측정값 기준 3색
         const cur = N > 0 ? past[N - 1].v : null;

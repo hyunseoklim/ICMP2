@@ -35,20 +35,15 @@ const zoneBackgroundPlugin = {
         if (t.reverse) {
             const dangerY = clamp(t.danger);
             const warnY = clamp(t.warn);
-            const highY = t.high ? clamp(t.high) : area.top;
 
-            // 23.5 초과 주의 구역 (기준 미정)
-            if (t.high) {
-                ctx.fillStyle = 'rgba(245,158,11,0.15)';
-                ctx.fillRect(area.left, area.top, area.right - area.left, highY - area.top);
-            }
-            // 정상 구역
-            ctx.fillStyle = 'rgba(16,185,129,0.05)';
-            ctx.fillRect(area.left, highY, area.right - area.left, warnY - highY);
-            // 주의 구역
+            // 정상 구역 (꼭대기 ~ warn) — 산소 과다(>23.5%)도 정상으로 표시(상단 초록만).
+            // 과거 t.high 기반 '산소 과다 주의' 띠는 제거(정책: 과다는 위험으로 안 봄).
+            ctx.fillStyle = 'rgba(16,185,129,0.13)';
+            ctx.fillRect(area.left, area.top, area.right - area.left, warnY - area.top);
+            // 주의 구역 (warn ~ danger)
             ctx.fillStyle = 'rgba(245,158,11,0.2)';
             ctx.fillRect(area.left, warnY, area.right - area.left, dangerY - warnY);
-            // 위험 구역
+            // 위험 구역 (danger ~ 하단)
             ctx.fillStyle = 'rgba(239,68,68,0.25)';
             ctx.fillRect(area.left, dangerY, area.right - area.left, area.bottom - dangerY);
         } else {
@@ -58,7 +53,7 @@ const zoneBackgroundPlugin = {
             ctx.fillRect(area.left, area.top, area.right - area.left, dangerY - area.top);
             ctx.fillStyle = 'rgba(245,158,11,0.2)';
             ctx.fillRect(area.left, dangerY, area.right - area.left, warnY - dangerY);
-            ctx.fillStyle = 'rgba(16,185,129,0.05)';
+            ctx.fillStyle = 'rgba(16,185,129,0.13)';
             ctx.fillRect(area.left, warnY, area.right - area.left, area.bottom - warnY);
         }
     }

@@ -33,6 +33,9 @@ let selectedChannels  = new Set();
 const powerZonePlugin = {
     id: 'powerZoneBackground',
     beforeDraw(chart) {
+        // 전역 등록 플러그인이라 게이트 없으면 가스 등 다른 차트에도 전력 임계치(부하율 50/75)를
+        // 칠한다. 전력 차트만 config._powerZone=true 를 달아 여기서만 그리도록 제한.
+        if (!chart.config._powerZone) return;
     const { ctx, chartArea: area, scales: { y } } = chart;
         if (!area || !y) return;   // ← !y 추가
 
@@ -177,6 +180,7 @@ function createPowerChart(ch) {
 
     const chart = new Chart(ctx, {
         type: 'bar',
+        _powerZone: true,   // powerZoneBackground 플러그인 동작 게이트 (전력 차트 전용)
         data: {
             labels: [ch.channel_name || ch.channel_code],
             datasets: [{

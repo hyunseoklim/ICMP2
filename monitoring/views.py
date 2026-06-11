@@ -132,7 +132,9 @@ def ingest_node(request):
 
 # ── 'AI 예측' 탭 조회 상수·헬퍼 ────────────────────────────
 
-FORECAST_PAST_POINTS = 60   # 'AI 예측' 차트에 표시할 과거 실측 개수
+FORECAST_PAST_POINTS = 600  # 'AI 예측' 차트에 표시할 과거 실측 개수
+                            # 스토리 모드는 2초/틱 × ~625틱 ≈ 21분 → 전체 아크(상승·피크·회복)를
+                            # 한 화면에 담기 위해 60(=마지막 2분)에서 확대.
 GAS_CHANNEL_CODES = ["co", "h2s", "co2", "o2", "no2", "so2", "o3", "nh3", "voc"]
 
 @api_view(['GET'])

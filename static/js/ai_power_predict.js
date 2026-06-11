@@ -55,19 +55,38 @@
     }
     window.computePowerThresholds = computePowerThresholds;
 
-    // ── 첫 활성 power 채널 선택 (자리표시 — 향후 '가장 위험' 채널) ──
+    // ── 최근 데이터가 있는 power 채널 선택 ──
+    // 과거: channels[0](DB 삽입순 = slave01 압연기A)을 고정 선택 → 스토리 데이터가
+    // 들어오는 slave61(충전스테이션A)이 아닌 무데이터 채널이 노출됐다.
+    // 개선: 장비별 channel-latest reading 중 measured_at이 가장 최신인 채널을 선택.
     async function pickNearbyPowerChannel() {
         const dev_res = await DeviceAPI.getList({ device_type: 'power', is_active: true });
         const devices = dev_res.data.results || dev_res.data || [];
         if (!devices.length) return null;
         devices.sort((a, b) => a.device_uid.localeCompare(b.device_uid));
-        const device = devices[0];
 
+        // 모든 장비의 채널별 최신 reading 중 가장 최신인 (device, channel_code) 탐색
+        let best = null; // { device, channelCode, ts }
+        for (const device of devices) {
+            let latest = [];
+            try {
+                const lp = await DeviceAPI.getLatestPower(device.id);
+                latest = lp.data || [];
+            } catch (e) { /* 무데이터 장비 — 건너뜀 */ }
+            for (const r of latest) {
+                const ts = r.measured_at ? new Date(r.measured_at).getTime() : 0;
+                if (!best || ts > best.ts) best = { device, channelCode: r.channel_code, ts };
+            }
+        }
+
+        const device = best ? best.device : devices[0];
         const ch_res = await ChannelAPI.getList({ device: device.id, is_active: true });
         const channels = ch_res.data.results || ch_res.data || [];
         if (!channels.length) return null;
-        // 첫 활성 채널 — 향후 부하율 기반 정렬로 교체 가능
-        return { device, channel: channels[0] };
+        // 최신 데이터 채널 매칭 — 없으면 첫 채널로 폴백
+        const channel = (best && channels.find(c => c.channel_code === best.channelCode))
+                        || channels[0];
+        return { device, channel };
     }
 
     // ── 예측 호라이즌 → 라벨 ──
@@ -104,6 +123,14 @@
         setText('aipw-current', cur != null ? `${cur.toFixed(1)} ${unit}` : '—');
         setText('aipw-max', maxF != null ? `${maxF.toFixed(1)} ${unit}` : '—');
         setText('aipw-max-label', horizonLabel(fmean.length, intervalSec));
+
+        // 부하율(%) — 채널 단위 지표(캐러셀 페이지와 무관). power 센서 현재값 / 정격.
+        // power_detail의 calcLoadRate(power_w / rated_w * 100)와 동일 정의.
+        const pwr = sensors.find(x => x.sensor_type === 'power');
+        const pwrPast = pwr && Array.isArray(pwr.past) ? pwr.past : [];
+        const curW = pwrPast.length ? pwrPast[pwrPast.length - 1].v : null;
+        const loadPct = (curW != null && ratedW) ? (curW / ratedW * 100) : null;
+        setText('aipw-load', loadPct != null ? `${loadPct.toFixed(1)}%` : '—');
 
         renderDots();
         renderChart(s.sensor_type, s);

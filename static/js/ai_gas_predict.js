@@ -150,9 +150,11 @@
                 },
             },
         };
-        config._gasKey = gas;   // zoneBackgroundPlugin 재사용 (정상/주의/위험 배경)
-
         chart = new Chart(canvas, config);
+        // Chart.js v4: 생성 후 chart.config 에 부착해야 zoneBackgroundPlugin이 읽음
+        // (생성 전 config._gasKey 는 chart.config._config 로 들어가 플러그인에서 안 보임)
+        chart.config._gasKey = gas;   // zoneBackgroundPlugin 재사용 (정상/주의/위험 배경)
+        chart.update('none');
     }
 
     // ── 데이터 로드 ───────────────────────────────────────────────────

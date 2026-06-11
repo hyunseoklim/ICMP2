@@ -113,13 +113,15 @@
                 ctx.fillRect(area.left, dHi, W, wHi - dHi);
                 ctx.fillRect(area.left, wLo, W, dLo - wLo);
             } else {
-                // 단방향: 상단 위험 + 그 아래 주의 (정상은 fill 없음)
+                // 단방향: 상단 위험 + 주의 + 하단 정상(초록) — 3색 표시
                 const dangerY = t.danger != null ? clamp(t.danger) : area.top;
                 const warnY = t.warn != null ? clamp(t.warn) : area.top;
                 ctx.fillStyle = DANGER_FILL;
                 ctx.fillRect(area.left, area.top, W, dangerY - area.top);
                 ctx.fillStyle = WARN_FILL;
                 ctx.fillRect(area.left, dangerY, W, warnY - dangerY);
+                ctx.fillStyle = 'rgba(16,185,129,0.13)';   // 정상(초록)
+                ctx.fillRect(area.left, warnY, W, area.bottom - warnY);
             }
         },
     };
@@ -389,14 +391,13 @@
                 },
             },
         };
-        config._isForecast = true;
-        config._nowIndex = nowIndex;
-        // plugin에서 sensor별 임계 lookup이 어려우니 직접 sensor 임계 객체 부착
-        config._thresholds = t;
-
-        // 외부 툴팁은 Chart.js v4의 config 래퍼 통과 문제를 피하기 위해
-        // chart 인스턴스 자체에 메타 부착 (config가 아닌 인스턴스 프로퍼티).
+        // Chart.js v4는 config를 Config 래퍼로 감싸므로 생성 '전' config._X 는
+        // chart.config._config 로 들어가 plugin(chart.config._X)에서 안 보인다.
+        // 외부 툴팁/메타와 동일하게, 생성 '후' chart.config 에 부착 + redraw 한다.
         const chart = new Chart(canvas, config);
+        chart.config._isForecast = true;
+        chart.config._nowIndex = nowIndex;
+        chart.config._thresholds = t;   // sensor별 임계 객체 직접 부착
         chart._tooltipMeta = {
             times, unit, intervalSec,
             etaText: fmtEtaMinutes(s.danger_eta_step, intervalSec),
@@ -405,6 +406,7 @@
             sensorType,
             nowIndex,
         };
+        chart.update('none');
         forecastCharts[sensorType] = chart;
 
         // '현재 값' 배지 + 카드 테두리
@@ -419,25 +421,145 @@
         if (card) card.className = `power-chart-card forecast-card power-chart-card--${lvl}`;
     }
 
-    // ── 카드 골격 생성 (최초 1회) — 3 카드 ──
+    // ── 부하율(%) 예측 차트 렌더 — power 센서값/정격×100 으로 유도 ──
+    // 가스 미러: 흰 실선(측정)+주황 점선(예측), 값 기준(상대) 프레이밍, CI 없음.
+    function renderLoadChart(s, intervalSec, rated_w) {
+        const canvas = document.getElementById('pfc-chart-load');
+        if (!canvas) return;
+        const rated = rated_w || 1000;
+        const t = {
+            warn:   window.POWER_LOAD_WARN   ?? 50,
+            danger: window.POWER_LOAD_DANGER ?? 75,
+        };
+
+        const pastRaw  = Array.isArray(s.past) ? s.past : [];
+        const fmeanRaw = Array.isArray(s.forecast_mean) ? s.forecast_mean : [];
+        const toLoad = w => (w == null ? null : w / rated * 100);
+        const past  = pastRaw.map(p => ({ t: p.t, v: toLoad(p.v) }));
+        const fmean = fmeanRaw.map(toLoad);
+        const N = past.length, H = fmean.length, total = N + H;
+        if (total === 0) return;
+        const nowIndex = N > 0 ? N - 1 : 0;
+
+        const baseMs = N > 0 ? new Date(past[N - 1].t).getTime() : Date.now();
+        const times = [];
+        for (let i = 0; i < total; i++) {
+            times.push(i < N ? new Date(past[i].t)
+                             : new Date(baseMs + (i - nowIndex) * intervalSec * 1000));
+        }
+
+        const actual = [], forecast = [];
+        for (let i = 0; i < total; i++) {
+            actual.push(i < N ? past[i].v : null);
+            if (i < nowIndex) forecast.push(null);
+            else if (i === nowIndex) forecast.push(N > 0 ? past[nowIndex].v : null);
+            else forecast.push(fmean[i - N] != null ? fmean[i - N] : null);
+        }
+
+        // 값 기준(상대) 프레이밍 — 정상이면 초록 위주, 임계 근접 시 노랑·빨강 확대
+        const all = [];
+        actual.concat(forecast).forEach(v => { if (v != null) all.push(v); });
+        const dataMax = all.length ? Math.max(...all) : t.warn;
+        const yMin = 0;
+        const yMax = Math.max(dataMax * 1.25, t.warn * 1.4);
+
+        const HOVER = {
+            pointHoverBackgroundColor: '#22d3ee',
+            pointHoverBorderColor: '#ffffff', pointHoverBorderWidth: 2,
+        };
+        const datasets = [
+            Object.assign({
+                label: '측정', data: actual, order: 1,
+                borderColor: '#e2e8f0', borderWidth: 1.6, tension: 0.25, fill: false,
+                pointRadius: 0, pointHoverRadius: 5,
+            }, HOVER),
+            Object.assign({
+                label: 'AI 예측', data: forecast, order: 2,
+                borderColor: '#f59e0b', borderWidth: 1.8, borderDash: [5, 4],
+                tension: 0.25, fill: false, pointRadius: 0, pointHoverRadius: 5,
+            }, HOVER),
+        ];
+
+        if (forecastCharts.load) forecastCharts.load.destroy();
+
+        const fmeanClean = fmean.filter(v => v != null);
+        const forecastMax = fmeanClean.length ? Math.max(...fmeanClean) : null;
+
+        const config = {
+            type: 'line',
+            data: { labels: times.map((_, i) => i), datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                animation: { duration: 250 },
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false, external: externalTooltipHandler },
+                },
+                scales: {
+                    x: {
+                        display: true, grid: { display: false },
+                        ticks: {
+                            color: '#4b5563', font: { size: 9 }, maxTicksLimit: 6, autoSkip: true,
+                            callback: function (val) {
+                                const i = typeof val === 'number' ? val : Number(this.getLabelForValue(val));
+                                return Number.isFinite(i) && times[i] ? fmtHM(times[i]) : '';
+                            },
+                        },
+                        border: { color: 'rgba(255,255,255,0.1)' },
+                    },
+                    y: {
+                        min: yMin, max: yMax,
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#4b5563', font: { size: 9 }, maxTicksLimit: 6 },
+                        border: { color: 'rgba(255,255,255,0.1)' },
+                    },
+                },
+            },
+        };
+        // Chart.js v4 config 래퍼 문제: 생성 후 chart.config 에 부착해야 plugin이 읽음.
+        const chart = new Chart(canvas, config);
+        chart.config._isForecast = true;
+        chart.config._nowIndex = nowIndex;
+        chart.config._thresholds = t;
+        chart._tooltipMeta = {
+            times, unit: '%', intervalSec,
+            etaText: fmtEtaMinutes(s.danger_eta_step, intervalSec),
+            maxForecast: forecastMax, normalRatio: null,
+            sensorType: 'load', nowIndex,
+        };
+        chart.update('none');
+        forecastCharts.load = chart;
+
+        // '현재 부하율' 배지 + 카드 테두리
+        const cur = N > 0 ? past[N - 1].v : null;
+        const lvl = cur == null ? 'normal'
+                  : cur >= t.danger ? 'danger' : cur >= t.warn ? 'warning' : 'normal';
+        const badge = document.getElementById('pfc-badge-load');
+        if (badge) {
+            badge.textContent = `현재 부하율 : ${cur != null ? cur.toFixed(1) : '—'} %`;
+            badge.className = `pfc-current-badge pfc-current-badge--${lvl}`;
+        }
+        const card = document.getElementById('pfc-card-load');
+        if (card) card.className = `power-chart-card forecast-card power-chart-card--${lvl}`;
+    }
+
+    // ── 카드 골격 생성 (최초 1회) — 부하율 1 카드 ──
     function initAiForecastGrid() {
         if (aiGridInitialized) return;
         const grid = document.getElementById('power-ai-forecast-grid');
         if (!grid || typeof POWER_META === 'undefined') return;
 
-        grid.innerHTML = POWER_ORDER.map(st => {
-            const m = POWER_META[st] || {};
-            return `
-            <div class="power-chart-card forecast-card" id="pfc-card-${st}" data-sensor="${st}">
+        grid.innerHTML = `
+            <div class="power-chart-card forecast-card" id="pfc-card-load" data-sensor="load">
                 <div class="power-chart-card__header">
-                    <span class="power-chart-card__name">• ${m.formula || ''}(${m.name || st})</span>
-                    <span class="pfc-current-badge" id="pfc-badge-${st}">현재 : —</span>
+                    <span class="power-chart-card__name">• 부하율(%)</span>
+                    <span class="pfc-current-badge" id="pfc-badge-load">현재 부하율 : —</span>
                 </div>
                 <div class="power-chart-card__canvas-wrap">
-                    <canvas id="pfc-chart-${st}"></canvas>
+                    <canvas id="pfc-chart-load"></canvas>
                 </div>
             </div>`;
-        }).join('');
 
         aiGridInitialized = true;
         if (!pollTimer) pollTimer = setInterval(loadForecast, POLL_MS);
@@ -491,9 +613,8 @@
 
             const byType = {};
             (data.sensors || []).forEach(s => { byType[s.sensor_type] = s; });
-            POWER_ORDER.forEach(st => {
-                if (byType[st]) renderSensorChart(st, byType[st], intervalSec, ratedW);
-            });
+            // 부하율(%) 단일 카드 — power 센서에서 유도
+            if (byType.power) renderLoadChart(byType.power, intervalSec, ratedW);
         } catch (e) {
             console.error('전력 AI 예측 로드 실패:', e);
         }
