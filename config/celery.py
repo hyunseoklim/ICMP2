@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 def _load_ai_models(**kwargs):
     """각 Celery worker 프로세스 시작 시 AI 모델을 1회 로드한다.
 
+    events 워커는 알림 발송만 하므로 AI 모델 로드를 건너뛴다.
+
     prefork worker는 자식 프로세스마다 본 시그널이 발생하므로 모델은
     프로세스당 1회만 메모리에 적재된다. 로드 실패가 worker 기동이나
     인제스트 파이프라인을 막지 않도록 예외는 로깅만 한다.
@@ -35,6 +37,9 @@ def _load_ai_models(**kwargs):
           forecast 큐 worker에서 사용. default 큐 worker도 호출되나 무해
           (lazy 호출이라 첫 사용 시까지 비용 0).
     """
+    if os.environ.get('CELERY_IS_EVENTS_WORKER') == 'true':
+        return
+
     try:
         from monitoring.ai.gas_if import load_models
         load_models()
@@ -110,6 +115,25 @@ def on_task_prerun(task_id, task, **kwargs):
         )
     except Exception as exc:
         logger.warning("TaskLog STARTED 갱신 실패: %s", exc)
+
+
+@task_postrun.connect
+def _push_metrics_to_gateway(task_id, task, state, **kwargs):
+    """task 완료 후 이 worker의 메트릭을 Pushgateway로 전송."""
+    url = os.environ.get('PUSHGATEWAY_URL')
+    if not url or task.name not in _TRACKED_TASKS:
+        return
+    try:
+        import socket
+        from prometheus_client import REGISTRY, push_to_gateway
+        push_to_gateway(
+            url,
+            job='celery',
+            grouping_key={'instance': socket.gethostname()},
+            registry=REGISTRY,
+        )
+    except Exception as exc:
+        logger.warning("Pushgateway push 실패 (%s): %s", task.name, exc)
 
 
 @task_postrun.connect

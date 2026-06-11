@@ -15,6 +15,7 @@ from django.db.models import ProtectedError
 from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
 
+from .cache import invalidate_floor
 from .models import Floor, FloorGrid
 from .tasks import handle_floor_dimensions_changed
 
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 _FLOOR_DIMS = ("width", "length")
 _FLOOR_GRID_DIMS = ("cell_size",)
+_FLOOR_IMAGE_FIELDS = ("plan_image",)
 
 
 def _detect_changes(sender, instance, tracked_fields) -> bool:
@@ -41,12 +43,15 @@ def _detect_changes(sender, instance, tracked_fields) -> bool:
 @receiver(pre_save, sender=Floor)
 def _floor_pre_save(sender, instance, **kwargs):
     instance._dims_changed = _detect_changes(sender, instance, _FLOOR_DIMS)
+    instance._image_changed = _detect_changes(sender, instance, _FLOOR_IMAGE_FIELDS)
 
 
 @receiver(post_save, sender=Floor)
 def _floor_post_save(sender, instance, created, **kwargs):
     if created:
         return
+    if getattr(instance, "_image_changed", False):
+        transaction.on_commit(lambda: invalidate_floor(instance.id))
     if not getattr(instance, "_dims_changed", False):
         return
     floor_id = instance.id
