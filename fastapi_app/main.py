@@ -4,6 +4,12 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+# 앱 로그를 stdout으로 — 미설정 시 root 기본(WARNING)이라 INFO 로그가 안 보였다.
+# LOG_LEVEL env로 조정 가능(기본 INFO). uvicorn 자체 로거와 별개로 동작.
+logging.basicConfig(
+    level=getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -31,6 +37,9 @@ _clients: list[WebSocket] = []
 _devices: list[dict] = []
 # Django에서 가져온 위치 노드 목록 [{node_code, x, y}, ...]
 _nodes: list[dict] = []
+
+# 실행 중인 스토리 재생 태스크 핸들 — /story/restart 에서 취소·재시작에 사용.
+_story_task: "asyncio.Task | None" = None
 
 
 async def _broadcast(message: dict) -> None:
@@ -130,11 +139,13 @@ async def lifespan(app: FastAPI):
 
     # 켜진 생성기만 태스크 생성 (둘 다 켜면 동시 실행)
     logger.info("생성기 플래그 — ENABLE_LOAD=%s ENABLE_STORY=%s", ENABLE_LOAD, ENABLE_STORY)
+    global _story_task
     tasks = []
     if ENABLE_LOAD:
         tasks.append(asyncio.create_task(_data_loop()))
     if ENABLE_STORY:
-        tasks.append(asyncio.create_task(_story_loop()))
+        _story_task = asyncio.create_task(_story_loop())
+        tasks.append(_story_task)
     if not tasks:
         logger.warning("생성기 비활성 — ENABLE_LOAD/ENABLE_STORY 모두 false")
     yield
@@ -154,6 +165,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.post("/story/restart")
+async def restart_story():
+    """실행 중인 스토리 루프를 취소하고 처음(STORY_START)부터 다시 재생한다.
+
+    재배포·pod 재시작 없이 호출만으로 스토리를 재실행하기 위한 제어 endpoint.
+    기존 태스크가 unwind되는 중 새 루프와 잠깐 동시 송신하는 것을 막기 위해
+    cancel 후 await로 종료를 기다린 뒤 새 태스크를 만든다.
+    """
+    global _story_task
+    if _story_task and not _story_task.done():
+        _story_task.cancel()
+        try:
+            await _story_task
+        except asyncio.CancelledError:
+            pass
+    _story_task = asyncio.create_task(_story_loop())
+    return {"status": "restarted"}
 
 
 @app.websocket("/ws")
