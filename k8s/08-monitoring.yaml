@@ -890,18 +890,35 @@ data:
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 1h
-      receiver: discord
+      receiver: all
     receivers:
-      - name: discord
+      - name: all
         discord_configs:
           - webhook_url: __DISCORD_WEBHOOK_URL__
             title: '[{{ .Status | toUpper }}] {{ .CommonLabels.service }} 시스템 알림'
             message: |
-              {{ range .Alerts }}
-              **{{ .Annotations.summary }}**
+              {{ range .Alerts -}}
+              {{ if eq .Status "resolved" }}✅ {{ end }}**{{ .Annotations.summary }}**{{ if eq .Status "resolved" }} 정상화{{ end }}
+              {{ if eq .Status "firing" -}}
               {{ .Annotations.description }}
               심각도: {{ .Labels.severity }}
-              시각: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+              {{ end -}}
+              발생: {{ .StartsAt.Local.Format "2006-01-02 15:04:05" }}
+              {{ if eq .Status "resolved" }}해결: {{ .EndsAt.Local.Format "2006-01-02 15:04:05" }}{{ end -}}
+              {{ end }}
+        slack_configs:
+          - api_url: __SLACK_WEBHOOK_URL__
+            send_resolved: true
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.service }} 시스템 알림'
+            text: |
+              {{ range .Alerts -}}
+              {{ if eq .Status "resolved" }}✅ {{ end }}*{{ .Annotations.summary }}*{{ if eq .Status "resolved" }} 정상화{{ end }}
+              {{ if eq .Status "firing" -}}
+              {{ .Annotations.description }}
+              심각도: {{ .Labels.severity }}
+              {{ end -}}
+              발생: {{ .StartsAt.Local.Format "2006-01-02 15:04:05" }}
+              {{ if eq .Status "resolved" }}해결: {{ .EndsAt.Local.Format "2006-01-02 15:04:05" }}{{ end -}}
               {{ end }}
 
 ---
@@ -926,10 +943,12 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              WEBHOOK="${ALERTMANAGER_DISCORD_WEBHOOK_URL:-}"
-              if [ -n "$WEBHOOK" ]; then
-                sed "s|__DISCORD_WEBHOOK_URL__|${WEBHOOK}|g" \
-                  /template/alertmanager.yml > /config/alertmanager.yml
+              DISCORD="${ALERTMANAGER_DISCORD_WEBHOOK_URL:-}"
+              SLACK="${ALERTMANAGER_SLACK_WEBHOOK_URL:-}"
+              if [ -n "$DISCORD" ]; then
+                sed "s|__DISCORD_WEBHOOK_URL__|${DISCORD}|g" /template/alertmanager.yml \
+                  | sed "s|__SLACK_WEBHOOK_URL__|${SLACK}|g" \
+                  > /config/alertmanager.yml
               else
                 cat > /config/alertmanager.yml << 'EOF'
               global:
@@ -951,6 +970,11 @@ spec:
                 secretKeyRef:
                   name: icmp2-secret
                   key: ALERTMANAGER_DISCORD_WEBHOOK_URL
+            - name: ALERTMANAGER_SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: icmp2-secret
+                  key: SLACK_WEBHOOK_URL
           volumeMounts:
             - name: config-template
               mountPath: /template
@@ -961,6 +985,9 @@ spec:
           image: prom/alertmanager:latest
           args:
             - '--config.file=/etc/alertmanager/alertmanager.yml'
+          env:
+            - name: TZ
+              value: "Asia/Seoul"
           ports:
             - containerPort: 9093
           resources:
@@ -1025,6 +1052,10 @@ data:
       - job_name: postgres
         static_configs:
           - targets: ['postgres-exporter:9187']
+      - job_name: pushgateway
+        static_configs:
+          - targets: ['pushgateway:9091']
+        honor_labels: true
   alert_rules.yml: |
     groups:
       - name: django-alerts
@@ -1186,6 +1217,49 @@ spec:
   ports:
     - port: 9090
       targetPort: 9090
+
+---
+# ── Prometheus Pushgateway ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pushgateway
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pushgateway
+  template:
+    metadata:
+      labels:
+        app: pushgateway
+    spec:
+      containers:
+        - name: pushgateway
+          image: prom/pushgateway:latest
+          ports:
+            - containerPort: 9091
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pushgateway
+  namespace: icmp2
+spec:
+  selector:
+    app: pushgateway
+  ports:
+    - port: 9091
+      targetPort: 9091
 
 ---
 # ── Grafana ───────────────────────────────────────────────────────────────────

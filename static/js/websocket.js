@@ -8,7 +8,8 @@ const SafetyWS = {
     reconnectDelay: 3000,
 
     connect() {
-        this.socket = new WebSocket('ws://127.0.0.1:8001/ws');
+        const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        this.socket = new WebSocket(`${wsProtocol}//${location.host}/ws`);
 
         this.socket.onopen = () => {
             console.log('WebSocket 연결됨');
