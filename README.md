@@ -15,8 +15,9 @@
 7. [WebSocket 채널](#websocket-채널)
 8. [API 엔드포인트](#api-엔드포인트)
 9. [설치 및 실행](#설치-및-실행)
-10. [환경 설정](#환경-설정)
-11. [앱별 설명](#앱별-설명)
+10. [테스트](#테스트)
+11. [환경 설정](#환경-설정)
+12. [앱별 설명](#앱별-설명)
 
 ---
 
@@ -57,6 +58,7 @@ ruptures            Change Point Detection
 Prometheus          메트릭 수집 (django-prometheus + FastAPI instrumentator)
 Grafana             메트릭 대시보드
 Alertmanager        Prometheus 알림 라우팅
+Pushgateway         단명(short-lived) Celery worker 메트릭 수집 (K8s)
 Leaflet.js          공장 도면 기반 지도 + 지오펜스 렌더링
 Chart.js            가스·전력 실시간 시계열 차트
 DRF 3.16.0          REST API 프레임워크
@@ -100,6 +102,7 @@ DRF 3.16.0          REST API 프레임워크
 ┌──────────────────────────────────────────────────────────────┐
 │            모니터링 스택                                        │
 │  Prometheus (:9090) ← Django / FastAPI / Redis / PostgreSQL  │
+│                     ← Pushgateway (Celery worker 메트릭, K8s)  │
 │  Alertmanager (:9093) ← Prometheus 알림 라우팅                  │
 │  Grafana (:3000) ← 메트릭 대시보드                               │
 └──────────────────────────────────────────────────────────────┘
@@ -153,8 +156,13 @@ ICMP2/
 ├── k8s/                    # Kubernetes 매니페스트
 │
 ├── static/
+│   ├── css/
+│   │   ├── facility/       # 시설·지도 화면 스타일
+│   │   └── map/
 │   └── js/
 │       ├── map/            # Leaflet 지도 관련 JS
+│       ├── admin/          # 관리자 화면 JS
+│       ├── common/         # 공통 유틸
 │       └── websocket.js
 │
 ├── templates/              # Django HTML 템플릿
@@ -176,15 +184,15 @@ ICMP2/
 ### 1. 실시간 가스 센서 모니터링
 
 - 9종 가스 (CO, H₂S, CO₂, O₂, NO₂, SO₂, O₃, NH₃, VOC) 60초 주기 수신
-- 임계값 초과 시 자동 알람 생성
-- O₂는 역방향 판단 (낮을수록 위험: 16% 미만 → 위험, 18% 미만 → 경고)
+- 임계값 초과 시 자동 알람 생성 (`ThresholdPolicy`(DB) 우선, 없으면 `DEFAULT_THRESHOLDS` 폴백)
+- O₂는 역방향 판단 (낮을수록 위험: 16% 미만 → 위험, 16~18% → 경고, 23.5% 초과 → 경고·기준 미정 임시 처리)
 
 | 가스 | 경고 임계값 | 위험 임계값 |
 |---|---|---|
 | CO | 25 ppm | 200 ppm |
 | H₂S | 10 ppm | 15 ppm |
 | CO₂ | 1,000 ppm | 5,000 ppm |
-| O₂ | < 18% | < 16% |
+| O₂ | 16~18% 또는 23.5% 초과 | < 16% |
 
 ### 2. 전력 채널 모니터링
 
@@ -261,7 +269,8 @@ ICMP2/
 - Redis 큐 적체 메트릭 (`redis-exporter`)
 - PostgreSQL 메트릭 (`postgres-exporter`)
 - 커스텀 메트릭: 알람 이벤트 건수, AI 예측 처리 시간, Celery 태스크 완료 건수
-- Alertmanager를 통한 임계 알림 라우팅
+- Celery worker 메트릭: 단명 worker 프로세스라 직접 스크랩 대신 태스크 완료 시 **Pushgateway**로 push (`PUSHGATEWAY_URL` 설정 시 동작 — 현재 K8s 환경에만 배포)
+- Alertmanager를 통한 임계 알림 라우팅 (시스템 장애 → Discord)
 
 ---
 
@@ -484,6 +493,16 @@ celery -A config beat --loglevel=info
 
 ---
 
+## 테스트
+
+핵심 알람 파이프라인 로직(임계값 판단, AlarmEvent 생성/중복방지/자동종료, 이벤트 상태 전이, Celery TaskLog 추적)에 대한 회귀 테스트가 `alerts`, `monitoring` 앱에 있습니다.
+
+```bash
+docker compose exec django python manage.py test alerts monitoring
+```
+
+---
+
 ## 환경 설정
 
 ### Redis 연결
@@ -508,10 +527,14 @@ CHANNEL_LAYERS = {
 ### 알림 웹훅
 
 ```bash
-# .env
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+# .env — 애플리케이션 알람 이벤트 발송
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...      # 알람 이벤트 발송 (AlarmEvent → Slack)
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...     # 알람 이벤트 발송 (AlarmEvent → Discord)
 ```
+
+> **Alertmanager 시스템 장애 알림**(Django/FastAPI 다운 등)은 위 앱 알람과 별개입니다.
+> - Docker Compose: [alertmanager/alertmanager.yml](alertmanager/alertmanager.yml)의 `discord_configs` webhook으로 설정
+> - Kubernetes: `ALERTMANAGER_DISCORD_WEBHOOK_URL` 시크릿을 init container가 주입 ([k8s/08-monitoring.yaml](k8s/08-monitoring.yaml))
 
 ### FastAPI → Django 전송 주소
 
