@@ -20,6 +20,21 @@ def handle_floor_grid_changed(floor_id: int) -> None:
     invalidate_floor(floor_id)
 
 
+@shared_task
+def deactivate_stale_geofences() -> int:
+    """STALE 가스센서의 자동 지오펜스를 비활성화한다 (celery beat 주기 호출).
+
+    데이터 수신이 끊긴 가스센서의 danger/warning 지오펜스가 지도에 영구히
+    남는 문제를 막는다. 실제 판단·비활성화·broadcast는 geofence_service에 위임.
+    """
+    from .services.geofence_service import deactivate_stale_geofences as _sweep
+
+    n = _sweep()
+    if n:
+        logger.info("deactivate_stale_geofences: %s개 비활성화", n)
+    return n
+
+
 @shared_task(bind=True, max_retries=3, default_retry_delay=10)
 def handle_floor_dimensions_changed(self, floor_id: int) -> None:
     """Floor.width/length 또는 FloorGrid.cell_size 변경 후 IndexGrid를 재생성한다."""

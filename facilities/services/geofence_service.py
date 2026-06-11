@@ -16,6 +16,7 @@ facilities/services/geofence_service.py
 """
 
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +121,52 @@ def update_geofence_from_gas(reading) -> None:
         if update_fields:
             geofence.save(update_fields=update_fields)
     _broadcast_geofence(geofence, msg_type='delta')  # ← 추가
+
+def deactivate_stale_geofences() -> int:
+    """
+    자동 생성 지오펜스 중, 원본 가스센서의 최신 GasReading이 STALE_THRESHOLD를
+    초과(또는 reading 자체가 없음)한 것을 비활성화하고 delta broadcast 한다.
+
+    배경:
+      update_geofence_from_gas()는 '정상' reading이 도착해야만 비활성화한다.
+      데이터 수신이 끊기면(스토리 종료·장비 단절·다른 센서로만 데이터 유입) 해당
+      센서의 reading 자체가 오지 않아 danger/warning 지오펜스가 영구히 남는다.
+      이 sweep이 그 갭을 메운다 (celery beat 주기 호출).
+
+    링크 방식:
+      자동 지오펜스 name='[자동] {device_name}', description에 'device_id={id}' 포함.
+      description에서 device_id를 파싱해 GasReading 최신 수신 시각을 확인한다.
+
+    Returns: 비활성화한 지오펜스 수
+    """
+    from django.utils import timezone
+    from facilities.models import Geofence
+    from monitoring.models import GasReading
+    from monitoring.services import STALE_THRESHOLD
+
+    cutoff = timezone.now() - STALE_THRESHOLD
+    count = 0
+
+    autos = Geofence.objects.filter(name__startswith='[자동] ', is_active=True)
+    for g in autos:
+        m = re.search(r'device_id=(\d+)', g.description or '')
+        if not m:
+            continue
+        device_id = int(m.group(1))
+        last = (GasReading.objects
+                .filter(device_id=device_id)
+                .order_by('-measured_at')
+                .values_list('measured_at', flat=True)
+                .first())
+        if last is None or last < cutoff:
+            g.is_active = False
+            g.save(update_fields=['is_active'])
+            _broadcast_geofence(g, msg_type='delta')
+            count += 1
+            logger.info('[geofence_sweep] 비활성화 id=%s name=%s (last=%s)',
+                        g.id, g.name, last)
+    return count
+
 
 def _broadcast_geofence(geofence, msg_type='delta') -> None:
     """

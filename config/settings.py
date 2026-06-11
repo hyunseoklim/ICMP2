@@ -128,6 +128,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'alerts.tasks.run_data_retention',
         'schedule': crontab(hour=3, minute=0),
     },
+
+    # 9. STALE 가스센서 자동 지오펜스 비활성화 — 30초 주기
+    #    데이터 수신이 끊긴 센서의 danger 지오펜스가 지도에 영구히 남는 문제 해소.
+    'deactivate-stale-geofences': {
+        'task': 'facilities.tasks.deactivate_stale_geofences',
+        'schedule': 30.0,
+    },
 }
 
 # Phase 2 — AI 예측(STEP G) 튜닝 파라미터. 검증·운영 중 무재학습 조정용.
