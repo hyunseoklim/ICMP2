@@ -1,4 +1,6 @@
 import logging
+import os
+import socket
 import time
 
 import requests
@@ -32,6 +34,23 @@ CELERY_TASK_COUNTER = Counter(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _push_metrics():
+    """현재 worker 프로세스의 메트릭을 Pushgateway로 전송."""
+    url = os.environ.get('PUSHGATEWAY_URL')
+    if not url:
+        return
+    try:
+        from prometheus_client import REGISTRY, push_to_gateway
+        push_to_gateway(
+            url,
+            job='celery',
+            grouping_key={'instance': socket.gethostname()},
+            registry=REGISTRY,
+        )
+    except Exception as exc:
+        logger.warning("Pushgateway push 실패: %s", exc)
 
 # 3. RiskCriteria.color_type → Slack emoji / Discord embed color 매핑
 _COLOR_EMOJI = {
@@ -522,9 +541,11 @@ def ingest_gas_task(self, payload: dict):
         process_gas_ingest(device_uid, payload)
         AI_INGEST_DURATION.observe(time.time() - _t)
         CELERY_TASK_COUNTER.labels(task_name='ingest_gas', status='success').inc()
+        _push_metrics()
         logger.debug("ingest_gas_task 완료 — device=%s", device_uid)
     except Exception as exc:
         CELERY_TASK_COUNTER.labels(task_name='ingest_gas', status='failure').inc()
+        _push_metrics()
         logger.error("ingest_gas_task 실패 — device=%s: %s", device_uid, exc)
         raise self.retry(exc=exc)
 
@@ -566,9 +587,11 @@ def forecast_gas_task(device_uid: str, payload: dict):
             save_forecast_snapshots(device, results)         # 등급 + 곡선(튜플) → 스냅샷 upsert
             trigger_forecast_alarms(device, policy_results)  # CONFIRMED 시 predictive_warning 알람
         CELERY_TASK_COUNTER.labels(task_name='forecast_gas', status='success').inc()
+        _push_metrics()
         logger.debug("forecast_gas_task 완료 — device=%s", device_uid)
     except Exception as exc:
         CELERY_TASK_COUNTER.labels(task_name='forecast_gas', status='failure').inc()
+        _push_metrics()
         logger.error("forecast_gas_task 실패 — device=%s: %s", device_uid, exc)
         # 재시도하지 않음 — 다음 reading에서 복구
 
@@ -618,11 +641,13 @@ def forecast_power_task(device_uid: str, channel_code: str, payload: dict):
         save_forecast_snapshots(device, results, channel=channel)
         trigger_forecast_alarms(device, policy_results, channel=channel)
         CELERY_TASK_COUNTER.labels(task_name='forecast_power', status='success').inc()
+        _push_metrics()
         logger.debug(
             "forecast_power_task 완료 — device=%s ch=%s", device_uid, channel_code,
         )
     except Exception as exc:
         CELERY_TASK_COUNTER.labels(task_name='forecast_power', status='failure').inc()
+        _push_metrics()
         logger.error(
             "forecast_power_task 실패 — device=%s ch=%s: %s",
             device_uid, channel_code, exc,

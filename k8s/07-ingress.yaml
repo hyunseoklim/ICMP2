@@ -6,6 +6,7 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
 spec:
   ingressClassName: nginx
   rules:
@@ -19,6 +20,13 @@ spec:
                 name: grafana
                 port:
                   number: 3000
+          - path: /ws
+            pathType: Exact
+            backend:
+              service:
+                name: fastapi
+                port:
+                  number: 8001
           - path: /api/sensor
             pathType: Prefix
             backend:

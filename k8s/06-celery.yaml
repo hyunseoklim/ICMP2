@@ -32,7 +32,7 @@ spec:
               memory: "1Gi"
           livenessProbe:
             exec:
-              command: ["celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
+              command: ["sh", "-c", "celery -A config inspect ping -d celery@$HOSTNAME"]
             initialDelaySeconds: 30
             periodSeconds: 60
             timeoutSeconds: 10
@@ -73,7 +73,7 @@ spec:
               memory: "1Gi"
           livenessProbe:
             exec:
-              command: ["celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
+              command: ["sh", "-c", "celery -A config inspect ping -d celery@$HOSTNAME"]
             initialDelaySeconds: 30
             periodSeconds: 60
             timeoutSeconds: 10
@@ -117,7 +117,7 @@ spec:
               memory: "256Mi"
           livenessProbe:
             exec:
-              command: ["celery", "-A", "config", "inspect", "ping", "-d", "celery@$HOSTNAME"]
+              command: ["sh", "-c", "celery -A config inspect ping -d celery@$HOSTNAME"]
             initialDelaySeconds: 30
             periodSeconds: 60
             timeoutSeconds: 10
