@@ -128,6 +128,36 @@ def ingest_node(request):
     return Response({'status': 'ok'})
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def story_purge(request):
+    """POST /monitoring/api/story/purge/ — 스토리 재시작 시 대상 장비의 누적
+    시계열·예측 스냅샷을 삭제해 차트에 직전 회차 추세가 잔류하는 것을 막는다.
+
+    FastAPI /story/restart 가 새 루프 시작 '직전' 호출한다. 대상 장비 UID는
+    스토리 정의를 소유한 FastAPI(fake_data2)가 body로 넘긴다 — Django는
+    스토리 구성을 알 필요 없이 범용 purge만 수행한다.
+    """
+    device_uids = request.data.get('device_uids') or []
+    if not isinstance(device_uids, list) or not device_uids:
+        return Response({'error': 'device_uids (비어있지 않은 list) 필요'}, status=400)
+
+    devices = Device.objects.filter(device_uid__in=device_uids)
+    gas_n = GasReading.objects.filter(device__in=devices).delete()[0]
+    pwr_n = PowerReading.objects.filter(device__in=devices).delete()[0]
+    fc_n  = ForecastSnapshot.objects.filter(device__in=devices).delete()[0]
+
+    return Response({
+        'status': 'purged',
+        'devices': list(devices.values_list('device_uid', flat=True)),
+        'deleted': {
+            'gas_readings': gas_n,
+            'power_readings': pwr_n,
+            'forecast_snapshots': fc_n,
+        },
+    })
+
+
 # ── API ViewSets (DRF JSON 데이터) ─────────────────────────
 
 # ── 'AI 예측' 탭 조회 상수·헬퍼 ────────────────────────────

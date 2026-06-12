@@ -17,6 +17,8 @@
     'use strict';
 
     const POLL_MS = 60000;
+    const STALE_FACTOR = 3;    // 최신 실측이 케이던스×3보다 오래되면 stale 판정
+    const STALE_MIN_SEC = 30;  // 케이던스가 짧아도 최소 30초 유예 (네트워크 jitter)
 
     let aiGridInitialized = false;
     let forecastCharts = {};   // gas → Chart 인스턴스
@@ -244,16 +246,44 @@
         chart.update('none');
         forecastCharts[gas] = chart;
 
-        // '현재 농도' 배지 + 카드 테두리 — 현재 측정값 기준 3색
+        // '현재 농도' 배지 + 카드 테두리 — 현재 측정값 기준 3색.
+        // 데이터가 멈추면(스토리 종료 등) 마지막 값이 동결돼 현재값처럼 보이므로,
+        // 최신 실측이 케이던스의 STALE_FACTOR배(최소 STALE_MIN_SEC)보다 오래되면
+        // '데이터 없음'으로 표시해 거짓 현재값 노출을 막는다. 폴링(60초)마다 재판정.
         const cur = N > 0 ? past[N - 1].v : null;
-        const lvl = levelForValue(gas, cur);
+        const lastMs = N > 0 ? new Date(past[N - 1].t).getTime() : 0;
+        const staleMs = Math.max(intervalSec * STALE_FACTOR, STALE_MIN_SEC) * 1000;
+        const isStale = N > 0 && (Date.now() - lastMs) > staleMs;
+        const lvl = isStale ? 'stale' : levelForValue(gas, cur);
         const badge = document.getElementById(`fc-badge-${gas}`);
         if (badge) {
-            badge.textContent = `현재 농도 : ${cur != null ? cur.toFixed(2) : '—'} ${unit}`;
+            badge.textContent = isStale
+                ? '데이터 없음'
+                : `현재 농도 : ${cur != null ? cur.toFixed(2) : '—'} ${unit}`;
             badge.className = `fc-current-badge fc-current-badge--${lvl}`;
         }
         const card = document.getElementById(`fc-card-${gas}`);
         if (card) card.className = `gas-chart-card forecast-card gas-chart-card--${lvl}`;
+    }
+
+    // 스토리 재시작(story_reset) 시 즉시 차트·배지 초기화 — 폴링(60초)을
+    // 기다리지 않고 직전 회차 추세를 화면에서 비운다. purge로 DB가 비었으므로
+    // 곧이은 loadForecast는 새 데이터가 쌓이기 전까지 빈 상태를 유지한다.
+    function clearForecastCharts() {
+        Object.keys(forecastCharts).forEach(gas => {
+            forecastCharts[gas].destroy();
+            delete forecastCharts[gas];
+        });
+        if (typeof GAS_META === 'undefined') return;
+        Object.keys(GAS_META).forEach(gas => {
+            const badge = document.getElementById(`fc-badge-${gas}`);
+            if (badge) {
+                badge.textContent = '현재 농도 : —';
+                badge.className = 'fc-current-badge';
+            }
+            const card = document.getElementById(`fc-card-${gas}`);
+            if (card) card.className = 'gas-chart-card forecast-card';
+        });
     }
 
     // ══════════════════════════════════════════════════════
@@ -323,5 +353,13 @@
         document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
             btn.addEventListener('click', () => onTabClick(btn.dataset.tab));
         });
+
+        // 스토리 재시작 → 예측 차트 즉시 비우고, AI 탭이 보이면 새로 로드
+        if (window.SafetyWS) {
+            SafetyWS.on('story_reset', function () {
+                clearForecastCharts();
+                loadForecast();
+            });
+        }
     });
 })();

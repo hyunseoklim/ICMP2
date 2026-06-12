@@ -487,6 +487,28 @@ window.initGasWidget = async function () {
                 }
                 loadSensorSummary(device);
             });
+
+            // 스토리 재시작 → 실시간 막대/테이블/액션바 즉시 초기화.
+            // purge로 DB가 비어 loadLatestGas는 404(updateGasCharts 미호출)이므로
+            // 막대 차트는 자동으로 안 비워진다 — 여기서 명시적으로 0/—로 되돌린다.
+            // (새 데이터는 곧 도착하는 gas_update가 다시 채운다.)
+            SafetyWS.on('story_reset', function () {
+                Object.keys(GAS_META).forEach(gas => {
+                    if (gasCharts[gas]) {
+                        gasCharts[gas].data.datasets[0].data = [0];
+                        gasCharts[gas].update();
+                    }
+                    const card = document.getElementById(`card-${gas}`);
+                    if (card) card.className = 'gas-chart-card';
+                    const badge = document.getElementById(`badge-${gas}`);
+                    if (badge) {
+                        badge.textContent = '—';
+                        badge.className = 'gas-chart-card__badge level-badge';
+                    }
+                });
+                renderGasTable(null);
+                updateAlertBar(null, null, null, null, '정상');
+            });
         }
 
     } catch (e) {

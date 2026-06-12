@@ -249,6 +249,7 @@
 .gas-chart-card--danger  { border-color: var(--danger-border) !important; }
 .gas-chart-card--warning { border-color: var(--warning-border) !important; }
 .gas-chart-card--normal  { border-color: var(--border); }
+.gas-chart-card--stale   { border-color: var(--border); opacity: 0.55; }
 
 .gas-chart-card__header {
     display: flex;
@@ -308,6 +309,8 @@
 .fc-current-badge--danger  { background: var(--danger-bg);  color: var(--danger);  border: 1px solid var(--danger-border); }
 .fc-current-badge--warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
 .fc-current-badge--normal  { background: var(--normal-bg);  color: var(--normal);  border: 1px solid var(--normal-border); }
+/* 데이터 단절(stale) — 마지막 값이 동결됐을 때 '데이터 없음'을 muted로 표시 */
+.fc-current-badge--stale   { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
 
 /* ── 긴급 액션바 ─────────────────────────────────────────── */
 .alert-bar {

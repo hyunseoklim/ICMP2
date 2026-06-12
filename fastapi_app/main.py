@@ -18,7 +18,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from fastapi_app.fake_data import generate_sensor_data, generate_all_location_data, generate_all_power_data, generate_node_readings
 from fastapi_app import fake_data2
-from fastapi_app.sender import fetch_gas_devices, queue_gas_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading
+from fastapi_app.sender import fetch_gas_devices, queue_gas_reading, post_power_reading, post_location_reading, fetch_location_nodes, post_node_reading, purge_story_data
 
 # 데이터 생성 독립 플래그 (둘 다 켜면 동시 실행) — env로 토글, 재빌드 불필요.
 #   ENABLE_LOAD  : fake_data(랜덤 부하) 생성기
@@ -174,6 +174,11 @@ async def restart_story():
     재배포·pod 재시작 없이 호출만으로 스토리를 재실행하기 위한 제어 endpoint.
     기존 태스크가 unwind되는 중 새 루프와 잠깐 동시 송신하는 것을 막기 위해
     cancel 후 await로 종료를 기다린 뒤 새 태스크를 만든다.
+
+    잔류 데이터는 DB(Postgres)에 있으므로 앱 재시작만으론 지워지지 않는다.
+    새 루프 시작 '전' 대상 장비의 누적 시계열·예측을 purge하고, 연결된
+    클라이언트엔 story_reset을 브로드캐스트해 폴링(60초) 대기 없이 즉시 화면을
+    비운다. 순서가 중요 — purge가 새 데이터보다 먼저여야 새 회차가 지워지지 않는다.
     """
     global _story_task
     if _story_task and not _story_task.done():
@@ -182,6 +187,10 @@ async def restart_story():
             await _story_task
         except asyncio.CancelledError:
             pass
+
+    await purge_story_data([fake_data2.GAS_DEVICE_UID, fake_data2.POWER_DEVICE_UID])
+    await _broadcast({"type": "story_reset"})
+
     _story_task = asyncio.create_task(_story_loop())
     return {"status": "restarted"}
 

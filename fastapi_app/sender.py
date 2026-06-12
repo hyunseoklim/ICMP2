@@ -31,6 +31,24 @@ async def fetch_gas_devices() -> list[dict]:
             return []
 
 
+async def purge_story_data(device_uids: list[str]) -> None:
+    """스토리 재시작 직전 대상 장비의 누적 시계열·예측을 Django에서 삭제.
+
+    차트는 DB 최신 N개를 폴링해 그리므로, DB를 비우지 않으면 새 회차에도
+    직전 추세가 잔류한다(앱 프로세스 재시작과 무관 — 데이터는 DB에 있음).
+    """
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            res = await client.post(
+                f"{DJANGO_BASE}/monitoring/api/story/purge/",
+                json={"device_uids": device_uids},
+            )
+            res.raise_for_status()
+            logger.info("스토리 데이터 purge 성공: %s", res.json().get("deleted"))
+        except Exception as e:
+            logger.error("스토리 데이터 purge 실패: %s", e)
+
+
 async def queue_gas_reading(data: dict) -> None:
     payload = {
         "device_uid":  data["device_uid"],
