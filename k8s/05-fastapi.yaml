@@ -31,7 +31,9 @@ spec:
             - name: ENABLE_LOAD
               value: "false"      # fake_data(랜덤 부하)
             - name: STORY_TICK_SECONDS
-              value: "0.5"        # 스토리 틱 간격(초). 작을수록 빠름
+              value: "2.0"        # 스토리 틱 간격(초). 작을수록 빠름.
+                                  # 2.0 = 풀 스토리 ~21분 → AI예측 그래프가 60s 폴링으로
+                                  # ~20회 갱신되어 진화가 가시적으로 드러남(관람/검증용)
           readinessProbe:
             httpGet:
               path: /docs
