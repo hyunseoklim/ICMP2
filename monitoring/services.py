@@ -86,6 +86,9 @@ def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> N
     from monitoring.ai.power_if import predict_power_anomaly
     from alerts.services import trigger_if_anomaly_alarms_power
     if_result = predict_power_anomaly(reading)
+    # 시나리오 판단 수집(item 3) — IF 매-틱 판단을 로그로 노출(정상 포함). 알람은 이상만 남김.
+    logger.info("[STEP F][IF][power] device=%s channel=%s measured_at=%s result=%s",
+                device.device_uid, channel.channel_code, reading.measured_at.isoformat(), if_result)
     trigger_if_anomaly_alarms_power(device, channel, if_result)
 
     # STEP G — ARIMA 사전 경고 (forecast 전용 큐 위임 — gas D2 아키텍처)
@@ -173,6 +176,9 @@ def process_gas_ingest(device_uid: str, payload: dict) -> None:
     from monitoring.ai.gas_if import predict_gas_anomaly
     from alerts.services import trigger_if_anomaly_alarms
     if_result = predict_gas_anomaly(reading)
+    # 시나리오 판단 수집(item 3) — IF 매-틱 판단을 로그로 노출(정상 포함). 알람은 이상만 남김.
+    logger.info("[STEP F][IF][gas] device=%s measured_at=%s result=%s",
+                device.device_uid, reading.measured_at.isoformat(), if_result)
     trigger_if_anomaly_alarms(device, if_result)
 
     # STEP G — ARIMA 예측 (사전 경고) — forecast 전용 큐로 위임 (아키텍처 D2)
