@@ -617,7 +617,7 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...     # 알람 이벤트 
 - 공지사항(`Notice`), 알람 발송 이력(`AlarmSendHistory`), 알람 정책(`AlarmPolicy`), 데이터 보존 정책(`DataRetentionPolicy`)
 - `AlarmSendHistory` 발송 채널: 관제 실시간 알림 / Slack / Discord
 
-### `fastapi_app` — 가짜 데이터 생성기 (+ AI 모델 학습·시나리오 생성용 ai_engine)
+### `fastapi_app/fake_data.py` — 가짜 데이터 생성기 (확률적 스파이크 적용한 데이터 생성)
 
 - `main.py`: 60초 주기 데이터 루프 — 가스/전력/위치 더미 데이터를 생성해 Django로 전송
 - `routers/`: gas / power 라우터 (Phase 5 placeholder, 현재 미구현)
@@ -632,3 +632,25 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...     # 알람 이벤트 
 - 가스: 85% 정상 / 10% 경고 / 5% 위험
 - 전력: 60% 정상 / 15% 경고 / 10% 위험 / 10% OFF / 5% 통신오류
 - 위치: 이전 좌표 ±2m 범위 랜덤 워크
+
+### `fastapi_app/fake_data2.py' — AI 통합 검증 스토리 데이터 생성기.
+
+본 모듈은 "어느 공장의 어느 오전"(08:45~09:30) 시나리오를 재생하기 위한 데이터를 생성한다. 
+
+스토리 전제 조건 
+    1. 1 tick = STORY_STEP 논리분(밀도 5). STORY_START(08:00)~STORY_END(10:05).
+    2. measured_at = 실제 now (가상시각 ❌ — is_stale·중복방지 정합 보존).
+       "논리분 m"은 값 계산용 인덱스일 뿐 타임스탬프가 아니다.
+    3. CO2 = 완만 상승(+9.47/분) → 09:12 warn(1000) 사전경고 → 09:20 정점 ~1076
+       → 완만 회복 하강(~-10/분) → 10:05 ~620(정상). 기울기를 CP 게이트(50ppm)
+       미발화로 제한 + 미세 노이즈로 ARIMA 적합 안정화 → 전 구간 정규 예측.
+    4. 키프레임만 정의하고 사이는 선형 보간.
+
+대상:
+    - 가스 : GAS-001 (배치 10,5)
+    - 전력 : PWR-001 / slave61 충전스테이션 A (rated 1000W, active, 배치 10,20)
+    - 작업자: worker_id 1~5 (fake_data.py와 동일)
+
+시간은 약 21분. 시간을 줄이려면 05-fastapi.yaml의 34줄의 value 값을  변경
+
+
