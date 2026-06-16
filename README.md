@@ -530,6 +530,9 @@ CHANNEL_LAYERS = {
 # .env — 애플리케이션 알람 이벤트 발송
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...      # 알람 이벤트 발송 (AlarmEvent → Slack)
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...     # 알람 이벤트 발송 (AlarmEvent → Discord)
+# 알림 확인 초대 링크 
+"디스코드 서버 초대 링크": https://discord.gg/NnbCTaGbKvv
+"Slack" : https://join.slack.com/t/icmp2/shared_invite/zt-3yebkguky-57BhmlTnb0udZoHMBG75eA
 ```
 
 > **Alertmanager 시스템 장애 알림**(Django/FastAPI 다운 등)은 위 앱 알람과 별개입니다.
