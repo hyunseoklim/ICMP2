@@ -493,6 +493,126 @@ celery -A config beat --loglevel=info
 
 ---
 
+## 실행 매뉴얼
+
+빈 상태에서 `git clone`만 받은 사람이 처음부터 끝까지 따라 할 수 있는 실행 절차입니다.
+**방법 A(Docker Compose)** 가 가장 간단하며, **방법 B(Kubernetes/minikube)** 는 ingress·HPA 등
+운영에 가까운 환경을 재현합니다. 둘 다 마지막에 `fastapi_app/fake_data2.py`의
+통합 검증 **스토리**(1회 ≈ 21분)를 재생합니다.
+
+> 스토리 속도는 [k8s/05-fastapi.yaml](k8s/05-fastapi.yaml#L34) 34번째 줄 `STORY_TICK_SECONDS`
+> `value`를 **낮추면**(예: `"0.5"`) 빨라집니다(값이 작을수록 빠름).
+> 호스트에 Python·`pip install`은 불필요합니다 — 의존성은 이미지 빌드 시 컨테이너 안에 설치됩니다.
+
+---
+
+### 방법 A · Docker Compose
+
+#### ① 준비 — 받기 · 빌드 · 기동
+
+```bash
+# 코드 받기
+git clone <repo-url> && cd ICMP2 && git checkout dev
+
+# .env 생성 후 빈 값 채우기 (DJANGO_SECRET_KEY·DB_PASSWORD는 반드시 입력)
+cp .env.example .env
+
+# 전체 스택 빌드 + 기동 (최초 빌드는 수 분 소요)
+docker compose up -d --build
+
+# 기동 확인 — django가 (healthy) 되면 준비 완료
+docker compose ps
+```
+
+#### ② 실행 — 시드 · 스토리
+
+```bash
+# 초기 시드 (필수 — 장비·층·계정 생성. 없으면 데이터가 버려지고 로그인 불가)
+docker compose exec django python manage.py seed     # --flush: DB 초기화 후 재시드
+
+# 스토리 시작
+curl -X POST http://localhost:8001/story/restart     # → {"status":"restarted"}
+```
+
+#### ③ 화면 확인
+
+| 화면 | 주소 | 로그인 |
+|---|---|---|
+| 메인 관제 | http://localhost:8000 | `admin` / `admin1234!` (seed 계정) |
+| Grafana | http://localhost:3000 | `admin` / `admin` (Grafana 기본) |
+
+---
+
+### 방법 B · Kubernetes (minikube)
+
+**사전 요구사항:** Docker Desktop(실행 중) · kubectl · minikube
+
+#### ① 준비 — 받기 · 클러스터 · 빌드 · 배포
+
+```bash
+# 코드 받기
+git clone <repo-url> && cd ICMP2 && git checkout dev
+
+# minikube 기동 + ingress (icmp2.local 라우팅에 필수)
+minikube start --cpus=4 --memory=8g
+minikube addons enable ingress
+
+# 네임스페이스 컨텍스트 (이후 -n icmp2 생략)
+kubectl config set-context --current --namespace=icmp2
+
+# 이미지 2종 빌드 (minikube 데몬에 직접 — IfNotPresent라 로컬 이미지 사용)
+eval $(minikube -p minikube docker-env)
+docker build -t icmp2-django:latest  -f Dockerfile .
+docker build -t icmp2-fastapi:latest -f Dockerfile.fastapi .
+
+# 전체 배포 (00-namespace 포함 전부)
+kubectl apply -f k8s/
+
+# 기동 대기 (postgres 준비 전 django CrashLoopBackOff은 자동 복구되므로 통과까지 대기)
+for d in django fastapi celery-default celery-beat celery-events celery-forecast; do
+  kubectl rollout status deploy/$d
+done
+```
+
+#### ② 실행 — 시드 · 도메인 · 스토리
+
+```bash
+# 초기 시드 (필수)
+kubectl exec deploy/django -- python manage.py seed    # --flush: DB 초기화 후 재시드
+
+# hosts에 한 줄 추가:  127.0.0.1   icmp2.local
+#   Linux/WSL/macOS: /etc/hosts   |   Windows: C:\Windows\System32\drivers\etc\hosts (관리자)
+# 새 터미널에서:  minikube tunnel   (sudo 비밀번호 입력 — 브라우저 접속에 필요)
+
+# 스토리 (두 터미널)
+kubectl port-forward deploy/fastapi 8001:8001          # 터미널 ①
+curl -X POST http://localhost:8001/story/restart       # 터미널 ②
+```
+
+#### ③ 화면 확인
+
+| 화면 | 주소 | 로그인 |
+|---|---|---|
+| 메인 관제 | http://icmp2.local | `admin` / `admin1234!` (seed 계정) |
+| Grafana | http://icmp2.local/grafana | `admin` / `admin` (Grafana 기본) |
+
+---
+
+### (선택) 검증
+
+```bash
+# 방법 A
+docker compose logs celery        | grep "가스 IF 모델 로드"           # IF 모델 로드
+docker compose logs fastapi       | grep "STORY 모드"                 # 스토리 진행
+
+# 방법 B
+kubectl logs deploy/celery-default | grep "가스 IF 모델 로드"           # IF 모델 로드
+kubectl logs deploy/celery-beat    | grep deactivate-stale-geofences   # geofence sweep
+kubectl logs deploy/fastapi        | grep "STORY 모드"                 # 스토리 진행
+```
+
+---
+
 ## 테스트
 
 핵심 알람 파이프라인 로직(임계값 판단, AlarmEvent 생성/중복방지/자동종료, 이벤트 상태 전이, Celery TaskLog 추적)에 대한 회귀 테스트가 `alerts`, `monitoring` 앱에 있습니다.
