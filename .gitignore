@@ -22,7 +22,7 @@ db.sqlite3-journal
 *.bak
 *.png
 *.md
-*.pdf
+
 dump.rdb
 dump.json
 staticfiles/
