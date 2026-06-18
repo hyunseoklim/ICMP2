@@ -16,6 +16,9 @@ from monitoring.views import (
     ThresholdPolicyViewSet,
     InspectionLogViewSet,
     ActionLogViewSet,
+    # API Functions
+    app_config,
+    story_purge,
 )
 
 # ── API Router ─────────────────────────────────────────────
@@ -39,4 +42,6 @@ urlpatterns = [
 
     # API URL
     path("api/", include(router.urls)),
+    path("api/app-config/", app_config, name="app-config"),
+    path("api/story/purge/", story_purge, name="story-purge"),
 ]

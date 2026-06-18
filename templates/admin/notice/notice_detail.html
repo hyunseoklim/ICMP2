@@ -26,15 +26,17 @@
   <!-- 제목 영역 -->
   <div class="px-8 pt-7 pb-5 border-b border-slate-100">
     <div class="flex items-start justify-between gap-4">
-      <h3 class="text-xl font-bold text-slate-900 leading-snug">설비 정기 점검 일정 안내</h3>
+      <h3 class="text-xl font-bold text-slate-900 leading-snug">{{ notice.title }}</h3>
       <div class="flex items-center gap-2 flex-shrink-0">
-        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">운영 공지</span>
+        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">{{ notice.category }}</span>
+        {% if notice.attachments.count %}
         <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-          <i data-lucide="paperclip" class="w-3 h-3"></i>첨부파일 2개 포함
+          <i data-lucide="paperclip" class="w-3 h-3"></i>첨부파일 {{ notice.attachments.count }}개 포함
         </span>
+        {% endif %}
       </div>
     </div>
-    <p class="text-xs text-slate-500 mt-2">작성자 박관리 &nbsp;|&nbsp; 조회수 128</p>
+    <p class="text-xs text-slate-500 mt-2">작성자 {{ notice.author.name|default:"(알 수 없음)" }} &nbsp;|&nbsp; 조회수 {{ notice.view_count }}</p>
   </div>
 
   <!-- 본문 + 우측 패널 -->
@@ -42,73 +44,92 @@
 
     <!-- 본문 -->
     <div class="flex-1 px-8 py-7 min-h-[360px]">
-      <div class="text-sm text-slate-700 leading-relaxed space-y-3">
-        <p>설비 점검 일정과 작업자 확인 사항을 아래와 같이 안내드립니다.</p>
-        <ol class="list-decimal list-inside space-y-1.5 pl-1">
-          <li>4월 15일 22시부터 4월 24시까지 정기 점검이 진행됩니다.</li>
-          <li>점검 시간 중 일부 설비는 임시적으로 사용이 제한될 수 있습니다.</li>
-          <li>작업 전 담당자는 점검 대상 설비와 우회 경로를 반드시 확인해 주세요.</li>
-          <li>점검 완료 후 이상 여부를 확인한 뒤 정상 운영을 재개합니다.</li>
-        </ol>
-        <p class="pt-1">문의 사항은 설비 운영팀으로 전달해 주세요.</p>
-      </div>
+      <div class="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{{ notice.content }}</div>
     </div>
 
     <!-- 우측 패널 -->
     <div class="w-72 flex-shrink-0 px-6 py-7 space-y-6">
 
       <!-- 첨부파일 -->
+      {% if notice.attachments.exists %}
       <div>
         <p class="text-xs font-semibold text-slate-700 mb-3">첨부파일</p>
         <div class="space-y-2">
-          <!-- 파일 1 -->
+          {% for att in notice.attachments.all %}
+          {% with ext=att.get_ext %}
+          {% if ext == 'jpg' or ext == 'jpeg' or ext == 'png' or ext == 'gif' or ext == 'webp' or ext == 'bmp' or ext == 'svg' %}
+          <div class="rounded-lg border border-slate-200 overflow-hidden">
+            <img src="{{ att.file.url }}" alt="{{ att.original_name }}"
+              style="width:100%;object-fit:cover;max-height:180px;background:#f1f5f9;display:block;">
+            <div class="flex items-center gap-2 px-3 py-2 bg-slate-50 border-t border-slate-200">
+              <div class="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 bg-violet-100">
+                <i data-lucide="image" class="w-3 h-3 text-violet-500"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-medium text-slate-700 truncate">{{ att.original_name }}</p>
+                <p class="text-[11px] text-slate-400">{{ ext|upper }} · {{ att.get_size_display }}</p>
+              </div>
+              <a href="{% url 'notice_attachment_download' att.pk %}"
+                class="flex-shrink-0 p-1.5 text-slate-500 hover:bg-slate-200 rounded transition-colors" title="다운로드">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              </a>
+            </div>
+          </div>
+          {% else %}
           <div class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50">
-            <div class="w-7 h-7 rounded bg-red-100 flex items-center justify-center flex-shrink-0">
-              <i data-lucide="file-text" class="w-3.5 h-3.5 text-red-500"></i>
+            <div class="w-7 h-7 rounded flex items-center justify-center flex-shrink-0
+              {% if ext == 'pdf' %}bg-red-100{% elif ext == 'xlsx' or ext == 'xls' or ext == 'csv' %}bg-emerald-100{% elif ext == 'hwp' or ext == 'docx' or ext == 'doc' %}bg-blue-100{% elif ext == 'pptx' or ext == 'ppt' %}bg-orange-100{% else %}bg-slate-100{% endif %}">
+              {% if ext == 'pdf' %}
+                <i data-lucide="file-text" class="w-3.5 h-3.5 text-red-500"></i>
+              {% elif ext == 'xlsx' or ext == 'xls' or ext == 'csv' %}
+                <i data-lucide="table-2" class="w-3.5 h-3.5 text-emerald-600"></i>
+              {% elif ext == 'hwp' or ext == 'docx' or ext == 'doc' %}
+                <i data-lucide="file" class="w-3.5 h-3.5 text-blue-500"></i>
+              {% elif ext == 'pptx' or ext == 'ppt' %}
+                <i data-lucide="presentation" class="w-3.5 h-3.5 text-orange-500"></i>
+              {% else %}
+                <i data-lucide="file" class="w-3.5 h-3.5 text-slate-500"></i>
+              {% endif %}
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-xs font-medium text-slate-700 truncate">정기점검_안내문.pdf</p>
-              <p class="text-[11px] text-slate-400 mt-0.5">PDF · 1.8MB</p>
+              <p class="text-xs font-medium text-slate-700 truncate">{{ att.original_name }}</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">{{ ext|upper }} · {{ att.get_size_display }}</p>
             </div>
-            <button type="button"
+            <a href="{% url 'notice_attachment_download' att.pk %}"
               class="flex-shrink-0 px-2.5 py-1 text-[11px] font-medium text-slate-600 border border-slate-200 rounded bg-white hover:bg-slate-100 transition-colors">
               다운로드
-            </button>
+            </a>
           </div>
-          <!-- 파일 2 -->
-          <div class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-slate-50">
-            <div class="w-7 h-7 rounded bg-emerald-100 flex items-center justify-center flex-shrink-0">
-              <i data-lucide="table-2" class="w-3.5 h-3.5 text-emerald-600"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-xs font-medium text-slate-700 truncate">점검대상_설비목록.xlsx</p>
-              <p class="text-[11px] text-slate-400 mt-0.5">XLSX · 420KB</p>
-            </div>
-            <button type="button"
-              class="flex-shrink-0 px-2.5 py-1 text-[11px] font-medium text-slate-600 border border-slate-200 rounded bg-white hover:bg-slate-100 transition-colors">
-              다운로드
-            </button>
-          </div>
+          {% endif %}
+          {% endwith %}
+          {% endfor %}
         </div>
       </div>
+      {% endif %}
 
       <!-- 메타 정보 -->
       <div class="space-y-2 text-xs">
         <div class="flex justify-between">
           <span class="text-slate-400">작성자</span>
-          <span class="text-slate-700 font-medium">박관리</span>
+          <span class="text-slate-700 font-medium">{{ notice.author.name|default:"(알 수 없음)" }}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-400">등록일</span>
-          <span class="text-slate-600">2026-04-12</span>
+          <span class="text-slate-600">{{ notice.created_at|date:"Y-m-d" }}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-400">수정일</span>
-          <span class="text-slate-600">2026-04-12</span>
+          <span class="text-slate-600">{{ notice.updated_at|date:"Y-m-d" }}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-400">조회수</span>
-          <span class="text-slate-600">128</span>
+          <span class="text-slate-600">{{ notice.view_count }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">노출 여부</span>
+          <span class="{% if notice.is_exposed %}text-emerald-600{% else %}text-slate-400{% endif %}">
+            {% if notice.is_exposed %}노출{% else %}숨김{% endif %}
+          </span>
         </div>
       </div>
 
@@ -118,13 +139,19 @@
 
 <!-- 이전글 / 다음글 -->
 <div class="bg-white rounded-lg border border-slate-200 mb-4 divide-y divide-slate-100">
-  <div class="flex items-center px-6 py-3.5 hover:bg-slate-50 transition-colors cursor-pointer">
+  <div class="flex items-center px-6 py-3.5 {% if prev_notice %}hover:bg-slate-50 cursor-pointer{% else %}opacity-40{% endif %} transition-colors"
+    {% if prev_notice %}onclick="location.href='{% url 'notice_detail' prev_notice.pk %}'"{% endif %}>
     <span class="text-xs text-slate-400 w-14 flex-shrink-0">이전글</span>
-    <span class="text-sm text-slate-700 flex-1 truncate">변전 설비 사용량 보고서 게시</span>
+    <span class="text-sm text-slate-700 flex-1 truncate">
+      {% if prev_notice %}{{ prev_notice.title }}{% else %}이전 글이 없습니다.{% endif %}
+    </span>
   </div>
-  <div class="flex items-center px-6 py-3.5 hover:bg-slate-50 transition-colors cursor-pointer">
+  <div class="flex items-center px-6 py-3.5 {% if next_notice %}hover:bg-slate-50 cursor-pointer{% else %}opacity-40{% endif %} transition-colors"
+    {% if next_notice %}onclick="location.href='{% url 'notice_detail' next_notice.pk %}'"{% endif %}>
     <span class="text-xs text-slate-400 w-14 flex-shrink-0">다음글</span>
-    <span class="text-sm text-slate-700 flex-1 truncate">계단 작업 시 안전수칙 안내</span>
+    <span class="text-sm text-slate-700 flex-1 truncate">
+      {% if next_notice %}{{ next_notice.title }}{% else %}다음 글이 없습니다.{% endif %}
+    </span>
   </div>
 </div>
 
@@ -132,13 +159,13 @@
 <div class="flex justify-end gap-2">
   <a href="{% url 'notice_list' %}"
     class="px-5 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">목록</a>
-  <a href="{% url 'notice_edit' %}"
+  <a href="{% url 'notice_edit' notice.pk %}"
     class="px-5 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">수정</a>
   <button type="button" id="delete-btn"
     class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">삭제</button>
 </div>
 
-<!-- 삭제 확인 (z-[60]) -->
+<!-- 삭제 확인 -->
 <div id="delete-confirm-modal" class="hidden fixed inset-0 flex items-center justify-center z-[60]">
   <div class="absolute inset-0 bg-black/40" id="delete-confirm-overlay"></div>
   <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
@@ -156,7 +183,7 @@
   </div>
 </div>
 
-<!-- 삭제 완료 (z-[65]) -->
+<!-- 삭제 완료 -->
 <div id="success-modal" class="hidden fixed inset-0 flex items-center justify-center z-[65]">
   <div class="absolute inset-0 bg-black/40"></div>
   <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
@@ -171,25 +198,35 @@
 
 <script>
 (function() {
+  var DELETE_URL = '{% url "notice_delete" notice.pk %}';
+  var LIST_URL   = '{% url "notice_list" %}';
+  var CSRF       = '{{ csrf_token }}';
+
   document.getElementById('delete-btn').addEventListener('click', function() {
     document.getElementById('delete-confirm-modal').classList.remove('hidden');
   });
-
   document.getElementById('delete-cancel-btn').addEventListener('click', function() {
     document.getElementById('delete-confirm-modal').classList.add('hidden');
   });
-
   document.getElementById('delete-confirm-overlay').addEventListener('click', function() {
     document.getElementById('delete-confirm-modal').classList.add('hidden');
   });
 
   document.getElementById('delete-ok-btn').addEventListener('click', function() {
-    document.getElementById('delete-confirm-modal').classList.add('hidden');
-    document.getElementById('success-modal').classList.remove('hidden');
+    fetch(DELETE_URL, {
+      method:  'POST',
+      headers: { 'X-CSRFToken': CSRF },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.success) return;
+      document.getElementById('delete-confirm-modal').classList.add('hidden');
+      document.getElementById('success-modal').classList.remove('hidden');
+    });
   });
 
   document.getElementById('success-close-btn').addEventListener('click', function() {
-    window.location.href = '{% url "notice_list" %}';
+    window.location.href = LIST_URL;
   });
 })();
 </script>

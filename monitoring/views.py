@@ -13,6 +13,7 @@ from monitoring.models import (
     GasReading,
     PowerStatusReading,
     PowerReading,
+    NodeReading,
     ThresholdPolicy,
     InspectionLog,
     ActionLog,
@@ -27,8 +28,10 @@ from monitoring.serializers import (
     ThresholdPolicySerializer,
     InspectionLogSerializer,
     ActionLogSerializer,
+    ForecastSnapshotSerializer,
 )
 from monitoring.collector import update_last_seen
+from alerts.models import ForecastSnapshot
 
 
 # ── Template Views (HTML 렌더링) ───────────────────────────
@@ -55,135 +58,145 @@ class PowerSystemManageView(TemplateView):
 def ingest_gas(request):
     """
     POST /ingest/gas/
-    FastAPI 가짜 데이터 생성기 → Django DB 저장
+    FastAPI 가짜 데이터 생성기 → Django DB 저장 (Redis 미사용 시 fallback)
     """
     device_uid = request.data.get('device_uid')
-    device = Device.objects.filter(device_uid=device_uid).first()
-    if not device:
+    if not Device.objects.filter(device_uid=device_uid).exists():
         return Response({'error': f'장비 없음: {device_uid}'}, status=404)
 
-    reading = GasReading.objects.create(
-        device=device,
-        co=request.data.get('co', 0),
-        h2s=request.data.get('h2s', 0),
-        co2=request.data.get('co2', 0),
-        o2=request.data.get('o2', 0),
-        no2=request.data.get('no2', 0),
-        so2=request.data.get('so2', 0),
-        o3=request.data.get('o3', 0),
-        nh3=request.data.get('nh3', 0),
-        voc=request.data.get('voc', 0),
-        measured_at=timezone.now(),
-    )
-    update_last_seen(device)
-
-    from alerts.services import check_gas_thresholds
-    check_gas_thresholds(device, reading)
-
-    # ─── sensor WebSocket broadcast ───────────────────────
-    try:
-        from facilities.models import SensorLocation
-        from asgiref.sync import async_to_sync
-        from channels.layers import get_channel_layer
-        from monitoring.services import calc_danger_level
-
-        sensor = SensorLocation.objects.filter(
-            device_id = device.id,
-            is_active = True,
-        ).first()
-
-        if sensor:
-            level_kr = calc_danger_level(reading)
-            status = {
-                '위험': 'danger',
-                '주의': 'warning',
-                '정상': 'normal',
-            }.get(level_kr, 'normal')
-
-            payload = {
-                'id':          sensor.id,
-                'device_id':   device.id,
-                'sensor_type': sensor.sensor_type,
-                'x':           float(sensor.x),
-                'y':           float(sensor.y),
-                'device_name': sensor.device_name,
-                'is_active':   sensor.is_active,
-                'status':      status,
-                'latest_value': {
-                    'co':  reading.co,
-                    'h2s': reading.h2s,
-                    'co2': reading.co2,
-                    'o2':  reading.o2,
-                    'no2': reading.no2,
-                    'so2': reading.so2,
-                    'o3':  reading.o3,
-                    'nh3': reading.nh3,
-                    'voc': reading.voc,
-                },
-            }
-
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f'floor_{sensor.floor_id}_sensor',
-                {
-                    'type':     'sensor.update',
-                    'msg_type': 'delta',
-                    'data':     [payload],
-                },
-            )
-    except Exception as e:
-        print(f'[sensor_ws] broadcast 실패: {e}')
-    # ─── sensor WebSocket broadcast 끝 ────────────────────
-        # ─── geofence 자동 생성/갱신/삭제 ───────────────────────
-    # 가스 위험도(danger/warning/safe) 기반으로 geofence 자동 처리
-    # safe: 기존 geofence 비활성화 / danger,warning: 생성 또는 갱신
-    try:
-        from facilities.services.geofence_service import update_geofence_from_gas
-        update_geofence_from_gas(reading)
-    except Exception as e:
-        print(f'[geofence] 업데이트 실패: {e}')
-    # ─── geofence 끝 ─────────────────────────────────────
-
+    from monitoring.services import process_gas_ingest
+    process_gas_ingest(device_uid, dict(request.data))
     return Response({'status': 'ok'})
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def ingest_power(request):
+    """POST /monitoring/api/power-readings/ — process_power_ingest 위임.
+
+    Phase D M1-7 (2026-05-23): HTTP·Celery 공용 진입점으로 위임 (gas 패턴).
+    PowerReading INSERT + STEP B (load_rate 알람) + STEP G (forecast 큐) 위임.
     """
-    POST /ingest/power/
-    FastAPI 가짜 데이터 생성기 → Django DB 저장
-    """
+    from alerts.tasks import CELERY_TASK_COUNTER
+
     device_uid   = request.data.get('device_uid')
     channel_code = request.data.get('channel_code')
 
-    device = Device.objects.filter(device_uid=device_uid).first()
-    if not device:
+    if not Device.objects.filter(device_uid=device_uid).exists():
         return Response({'error': f'장비 없음: {device_uid}'}, status=404)
-
-    channel = DeviceChannel.objects.filter(
-        device=device, channel_code=channel_code
-    ).first()
-    if not channel:
+    if not DeviceChannel.objects.filter(
+        device__device_uid=device_uid, channel_code=channel_code,
+    ).exists():
         return Response({'error': f'채널 없음: {channel_code}'}, status=404)
 
-    PowerReading.objects.create(
-        device=device,
-        channel=channel,
-        current_a=request.data.get('current_a', 0),
-        voltage_v=request.data.get('voltage_v', 0),
-        power_w=request.data.get('power_w', 0),
-        measured_at=timezone.now(),
-    )
-    update_last_seen(device)
+    from monitoring.services import process_power_ingest
+    try:
+        process_power_ingest(device_uid, channel_code, dict(request.data))
+        CELERY_TASK_COUNTER.labels(task_name='ingest_power', status='success').inc()
+    except Exception as exc:
+        CELERY_TASK_COUNTER.labels(task_name='ingest_power', status='failure').inc()
+        raise
+    return Response({'status': 'ok'})
 
-    from alerts.services import check_power_thresholds
-    check_power_thresholds(device, channel, float(request.data.get('power_w', 0)))
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def ingest_node(request):
+    """
+    POST /monitoring/api/node-readings/
+    FastAPI 노드 수신 시뮬레이션 → Django DB 저장
+    """
+    from facilities.models import LocationNode
+
+    node_code = request.data.get('node_code')
+    node = LocationNode.objects.filter(node_code=node_code).first()
+    if not node:
+        return Response({'error': f'노드 없음: {node_code}'}, status=404)
+
+    NodeReading.objects.create(
+        node=node,
+        x=request.data.get('x'),
+        y=request.data.get('y'),
+        received_at=timezone.now(),
+    )
+
+    # 1:1 연결된 Device(loc) 의 last_seen_at 동기 갱신
+    # — 노드 관리 페이지의 "마지막 데이터 수신" 표시 및 MISSING 알람 활성화의 기반
+    if node.device_id:
+        update_last_seen(node.device)
 
     return Response({'status': 'ok'})
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def story_purge(request):
+    """POST /monitoring/api/story/purge/ — 스토리 재시작 시 대상 장비의 누적
+    시계열·예측 스냅샷을 삭제해 차트에 직전 회차 추세가 잔류하는 것을 막는다.
+
+    FastAPI /story/restart 가 새 루프 시작 '직전' 호출한다. 대상 장비 UID는
+    스토리 정의를 소유한 FastAPI(fake_data2)가 body로 넘긴다 — Django는
+    스토리 구성을 알 필요 없이 범용 purge만 수행한다.
+    """
+    device_uids = request.data.get('device_uids') or []
+    if not isinstance(device_uids, list) or not device_uids:
+        return Response({'error': 'device_uids (비어있지 않은 list) 필요'}, status=400)
+
+    devices = Device.objects.filter(device_uid__in=device_uids)
+    gas_n = GasReading.objects.filter(device__in=devices).delete()[0]
+    pwr_n = PowerReading.objects.filter(device__in=devices).delete()[0]
+    fc_n  = ForecastSnapshot.objects.filter(device__in=devices).delete()[0]
+
+    return Response({
+        'status': 'purged',
+        'devices': list(devices.values_list('device_uid', flat=True)),
+        'deleted': {
+            'gas_readings': gas_n,
+            'power_readings': pwr_n,
+            'forecast_snapshots': fc_n,
+        },
+    })
+
+
 # ── API ViewSets (DRF JSON 데이터) ─────────────────────────
+
+# ── 'AI 예측' 탭 조회 상수·헬퍼 ────────────────────────────
+
+FORECAST_PAST_POINTS = 600  # 'AI 예측' 차트에 표시할 과거 실측 개수
+                            # 스토리 모드는 2초/틱 × ~625틱 ≈ 21분 → 전체 아크(상승·피크·회복)를
+                            # 한 화면에 담기 위해 60(=마지막 2분)에서 확대.
+GAS_CHANNEL_CODES = ["co", "h2s", "co2", "o2", "no2", "so2", "o3", "nh3", "voc"]
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def app_config(request):
+    """GET /monitoring/api/app-config/ — 프론트엔드에 필요한 Django settings 값을 반환."""
+    from django.conf import settings
+    return Response({
+        'DEFAULT_POWER_RATED_W': settings.DEFAULT_POWER_RATED_W,
+    })
+
+
+# Phase D M2-1 — 전력 'AI 예측' 탭의 sensor 순서 (PowerReading 컬럼명 매핑)
+POWER_SENSOR_TYPES = ["voltage", "current", "power"]
+_POWER_SENSOR_TO_FIELD = {
+    "voltage": "voltage_v",
+    "current": "current_a",
+    "power":   "power_w",
+}
+
+
+def _median_interval(readings, default=60):
+    """연속 측정 간격(초)의 중앙값 — ETA 스텝→분 환산용. 2개 미만이면 default."""
+    if len(readings) < 2:
+        return default
+    deltas = sorted(
+        (readings[i].measured_at - readings[i - 1].measured_at).total_seconds()
+        for i in range(1, len(readings))
+    )
+    mid = deltas[len(deltas) // 2]
+    return int(mid) if mid > 0 else default
+
 
 class DeviceViewSet(viewsets.ModelViewSet):
     """
@@ -236,21 +249,6 @@ class DeviceViewSet(viewsets.ModelViewSet):
         serializer = PowerReadingSerializer(latest.values(), many=True)
         return Response(serializer.data)
     
-    # @action(detail=True, methods=["get"])
-    # def latest_power(self, request, pk=None):
-    #     """GET /api/devices/{id}/latest_power/ - 해당 장비의 채널별 최신 전력값"""
-    #     device = self.get_object()
-        
-    #     # [수정] DB 단에서 채널별로 가장 최신의 데이터 1개씩만 쿼리해 옵니다. (PostgreSQL 전용)
-    #     # 만약 SQLite나 MySQL을 쓴다면 방식이 달라져야 함!!
-    #     latest_readings = PowerReading.objects.filter(device=device) \
-    #         .select_related("channel") \
-    #         .order_by("channel", "-measured_at") \
-    #         .distinct("channel")
-            
-    #     serializer = PowerReadingSerializer(latest_readings, many=True)
-    #     return Response(serializer.data)
-
     @action(detail=True, methods=["get"])
     def status_logs(self, request, pk=None):
         """GET /api/devices/{id}/status_logs/ - 해당 장비의 상태 이력"""
@@ -267,6 +265,52 @@ class DeviceViewSet(viewsets.ModelViewSet):
         serializer = InspectionLogSerializer(logs, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=["get"])
+    def forecast(self, request, pk=None):
+        """GET /api/devices/{id}/forecast/ - 'AI 예측' 탭용 채널별 예측 데이터.
+
+        가스 9채널별로 (1) 과거 실측 시계열과 (2) ForecastSnapshot의 예측
+        곡선·2축 등급을 결합해 반환한다. 예측 곡선은 STEP G(forecast worker)
+        가 채운다 — 워밍업/예측불가 구간은 forecast_mean이 null.
+        """
+        device   = self.get_object()
+        readings = list(
+            GasReading.objects.filter(device=device)
+            .order_by("-measured_at")[:FORECAST_PAST_POINTS]
+        )
+        readings.reverse()  # 과거 → 현재 순
+
+        snapshots = {
+            snap.sensor_type: snap
+            for snap in ForecastSnapshot.objects.filter(device=device)
+        }
+
+        channels = []
+        for ch in GAS_CHANNEL_CODES:
+            snap = snapshots.get(ch)
+            ch_data = (
+                ForecastSnapshotSerializer(snap).data if snap is not None
+                else {
+                    "sensor_type": ch, "updated_at": None,
+                    "headline_severity": None, "headline_confidence": "UNKNOWN",
+                    "caution_confidence": "UNKNOWN", "danger_confidence": "UNKNOWN",
+                    "caution_eta_step": None, "danger_eta_step": None,
+                    "path": "unknown", "forecast_steps": 0, "reason": "예측 미생성",
+                    "forecast_mean": None, "ci_lower": None, "ci_upper": None,
+                }
+            )
+            ch_data["past"] = [
+                {"t": r.measured_at.isoformat(), "v": getattr(r, ch, None)}
+                for r in readings
+            ]
+            channels.append(ch_data)
+
+        return Response({
+            "device_uid":       device.device_uid,
+            "interval_seconds": _median_interval(readings),
+            "channels":         channels,
+        })
+
 
 class DeviceChannelViewSet(viewsets.ModelViewSet):
     """채널 CRUD API"""
@@ -274,6 +318,72 @@ class DeviceChannelViewSet(viewsets.ModelViewSet):
     serializer_class = DeviceChannelSerializer
     filter_backends  = [DjangoFilterBackend]
     filterset_fields = ["device", "status", "is_active", "channel_code"]
+
+    @action(detail=True, methods=["get"])
+    def forecast(self, request, pk=None):
+        """GET /api/channels/{id}/forecast/ — 전력 'AI 예측' 탭용 sensor별 예측.
+
+        Phase D M2-1 (2026-05-23) — gas의 DeviceViewSet.forecast()와 동일 패턴,
+        단 channel 단위로 분리 (power 데이터 모델 부합).
+
+        전력 3 sensor(voltage·current·power)별로:
+            (1) 과거 실측 시계열 (PowerReading의 voltage_v / current_a / power_w)
+            (2) ForecastSnapshot의 예측 곡선·2축 등급 (channel별 row)
+        을 결합해 반환한다. 예측 곡선은 STEP G(forecast worker)가 채운다 —
+        워밍업/예측불가 구간은 forecast_mean이 null.
+        """
+        channel = self.get_object()
+        device  = channel.device
+
+        readings = list(
+            PowerReading.objects.filter(device=device, channel=channel)
+            .order_by("-measured_at")[:FORECAST_PAST_POINTS]
+        )
+        readings.reverse()  # 과거 → 현재 순
+
+        snapshots = {
+            snap.sensor_type: snap
+            for snap in ForecastSnapshot.objects.filter(device=device, channel=channel)
+        }
+
+        sensors = []
+        for sensor_type in POWER_SENSOR_TYPES:
+            snap = snapshots.get(sensor_type)
+            sensor_data = (
+                ForecastSnapshotSerializer(snap).data if snap is not None
+                else {
+                    "sensor_type":         sensor_type,
+                    "channel_code":        channel.channel_code,
+                    "updated_at":          None,
+                    "headline_severity":   None,
+                    "headline_confidence": "UNKNOWN",
+                    "caution_confidence":  "UNKNOWN",
+                    "danger_confidence":   "UNKNOWN",
+                    "caution_eta_step":    None,
+                    "danger_eta_step":     None,
+                    "path":                "unknown",
+                    "forecast_steps":      0,
+                    "reason":              "예측 미생성",
+                    "forecast_mean":       None,
+                    "ci_lower":            None,
+                    "ci_upper":            None,
+                }
+            )
+            field_name = _POWER_SENSOR_TO_FIELD[sensor_type]
+            sensor_data["past"] = [
+                {"t": r.measured_at.isoformat(), "v": getattr(r, field_name, None)}
+                for r in readings
+            ]
+            sensors.append(sensor_data)
+
+        return Response({
+            "device_uid":       device.device_uid,
+            "channel_code":     channel.channel_code,
+            "channel_name":     channel.channel_name,
+            "rated_power_w":    channel.rated_power_w,
+            "interval_seconds": _median_interval(readings),
+            "sensors":          sensors,
+        })
 
 
 class DeviceStatusLogViewSet(viewsets.ReadOnlyModelViewSet):

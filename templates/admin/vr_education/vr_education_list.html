@@ -1,5 +1,4 @@
 {% extends 'admin/base_manage.html' %}
-
 {% block title %}VR 교육 관리 | 산재 예방 통합 관제 시스템{% endblock %}
 
 {% block breadcrumb %}
@@ -9,12 +8,13 @@
 {% endblock %}
 
 {% block page_header %}
-<div class="mb-6 flex items-start justify-between">
+<div class="mb-4 flex items-start justify-between">
   <div>
     <h2 class="text-2xl font-bold text-slate-900 mb-1">VR 교육 관리</h2>
     <p class="text-sm text-slate-500">단일 VR 교육 콘텐츠를 수정하고 운영 상태를 관리합니다.</p>
   </div>
-  <button onclick="openEditModal()" class="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+  <button onclick="openEditModal()"
+    class="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors">
     영상 교체
   </button>
 </div>
@@ -23,47 +23,59 @@
 {% block content %}
 {% include 'admin/_safety_tabs.html' with active_tab='vr' %}
 
-<!-- ===== 요약 정보 영역 (읽기 전용) ===== -->
-<section class="bg-white rounded-xl border border-slate-200 p-6 mb-4">
-  <div class="grid grid-cols-4 gap-4">
-    <div>
-      <label class="block text-xs font-medium text-slate-700 mb-1.5">교육명</label>
-      <input type="text" value="밀폐공간 작업 전 안전 확인" readonly
-             class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
+<!-- ===== 요약 정보 + 액션 버튼 ===== -->
+<section class="bg-white rounded-xl border border-slate-200 p-5 mb-4">
+  <div class="flex items-end gap-4">
+    <div class="flex-1 grid grid-cols-4 gap-4">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">교육명</label>
+        <p id="sum-title" class="text-sm font-semibold text-slate-900">{{ edu.title }}</p>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">적용 대상</label>
+        <p class="text-sm text-slate-700">{{ edu.target }}</p>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">사용 상태</label>
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+          {% if edu.is_active %}bg-emerald-50 text-emerald-700{% else %}bg-slate-100 text-slate-500{% endif %}">
+          {% if edu.is_active %}사용{% else %}미사용{% endif %}
+        </span>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">최종 수정</label>
+        <p id="sum-updated" class="text-sm text-slate-700">{{ edu.updated_at|date:"Y-m-d" }}</p>
+      </div>
     </div>
-    <div>
-      <label class="block text-xs font-medium text-slate-700 mb-1.5">적용 대상</label>
-      <input type="text" value="가스 센서" readonly
-             class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
-    </div>
-    <div>
-      <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 상태</label>
-      <input type="text" value="사용" readonly
-             class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
-    </div>
-    <div>
-      <label class="block text-xs font-medium text-slate-700 mb-1.5">최종 수정</label>
-      <input type="text" value="2026-04-14" readonly
-             class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
+    <div class="flex gap-2 flex-shrink-0">
+      <button onclick="openEditModal('video')"
+        class="px-4 py-2 border border-slate-200 text-sm text-slate-700 rounded-md hover:bg-slate-50 transition-colors">
+        영상 교체
+      </button>
+      <button onclick="openEditModal('info')"
+        class="px-4 py-2 border border-blue-200 text-sm text-blue-600 font-medium rounded-md hover:bg-blue-50 transition-colors">
+        수정
+      </button>
     </div>
   </div>
 </section>
 
-<!-- ===== 메인 콘텐츠: 2단 레이아웃 ===== -->
+<!-- ===== 메인 콘텐츠 2단 ===== -->
 <div class="grid grid-cols-12 gap-4">
 
-  <!-- ============ 좌측: VR 교육 영상 ============ -->
+  <!-- ===== 좌측: VR 교육 영상 ===== -->
   <section class="col-span-7 bg-white rounded-xl border border-slate-200 p-6">
     <h3 class="text-lg font-bold text-slate-900 mb-1">VR 교육 영상</h3>
     <p class="text-xs text-slate-500 mb-4">운영 중인 단일 VR 교육 영상을 확인하고 교체합니다.</p>
 
-    <!-- 미리보기 박스 -->
-    <div class="relative bg-blue-50 rounded-xl border border-blue-100" style="aspect-ratio: 16/9;">
-      <!-- 시간 배지 -->
-      <div class="absolute top-4 right-4 px-3 py-1 bg-slate-900 text-white text-xs font-medium rounded-md">
-        08:24
+    <!-- 미리보기 -->
+    <div class="relative bg-blue-50 rounded-xl border border-blue-100 overflow-hidden" style="aspect-ratio: 16/9;">
+      {% if edu.thumbnail %}
+        <img src="{{ edu.thumbnail.url }}" alt="썸네일" class="w-full h-full object-cover">
+      {% endif %}
+      <div id="duration-badge" class="absolute top-4 right-4 px-3 py-1 bg-slate-900 text-white text-xs font-medium rounded-md">
+        {{ edu.duration_badge }}
       </div>
-      <!-- 플레이 아이콘 (선택적) -->
       <div class="absolute inset-0 flex items-center justify-center">
         <div class="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-sm">
           <i data-lucide="play" class="w-7 h-7 text-blue-600 ml-1"></i>
@@ -71,233 +83,298 @@
       </div>
     </div>
 
-    <!-- 하단 문구 -->
     <div class="mt-5 pt-5 border-t border-slate-100">
-      <h4 class="text-sm font-bold text-slate-900 mb-1">밀폐공간 작업 전 안전 확인</h4>
+      <h4 id="preview-title" class="text-sm font-bold text-slate-900 mb-1">{{ edu.title }}</h4>
       <p class="text-xs text-slate-500">현재 작업자 앱에서 노출 중인 VR 교육 콘텐츠입니다.</p>
     </div>
   </section>
 
-
-  <!-- ============ 우측: 교육 정보 ============ -->
+  <!-- ===== 우측: 교육 정보 ===== -->
   <section class="col-span-5 bg-white rounded-xl border border-slate-200 p-6">
     <h3 class="text-lg font-bold text-slate-900 mb-1">교육 정보</h3>
     <p class="text-xs text-slate-500 mb-5">현재 운영 중인 VR 교육의 기본 정보를 확인합니다.</p>
 
-    <!-- 교육명 -->
     <div class="mb-4">
       <label class="block text-xs font-medium text-slate-700 mb-1.5">교육명</label>
-      <input type="text" value="밀폐공간 작업 전 안전 확인" readonly
-             class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
+      <input type="text" value="{{ edu.title }}" readonly
+        class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
     </div>
 
-    <!-- 적용 대상 / 사용 상태 -->
     <div class="grid grid-cols-2 gap-3 mb-4">
       <div>
         <label class="block text-xs font-medium text-slate-700 mb-1.5">적용 대상</label>
-        <input type="text" value="가스 센서" readonly
-               class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
+        <input type="text" value="{{ edu.target }}" readonly
+          class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 상태</label>
-        <input type="text" value="사용" readonly
-               class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
+        <input type="text" value="{% if edu.is_active %}사용{% else %}미사용{% endif %}" readonly
+          class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
       </div>
     </div>
 
-    <!-- 재생 시간 / 최종 수정 -->
     <div class="grid grid-cols-2 gap-3 mb-4">
       <div>
         <label class="block text-xs font-medium text-slate-700 mb-1.5">재생 시간</label>
-        <input type="text" value="08분 24초" readonly
-               class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
+        <input id="duration-display" type="text" value="{{ edu.duration_display }}" readonly
+          class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-700 mb-1.5">최종 수정</label>
-        <input type="text" value="2026-04-14" readonly
-               class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
+        <input type="text" value="{{ edu.updated_at|date:'Y-m-d' }}" readonly
+          class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700" />
       </div>
     </div>
 
-    <!-- 교육 설명 -->
     <div class="mb-5">
       <label class="block text-xs font-medium text-slate-700 mb-1.5">교육 설명</label>
       <textarea rows="4" readonly
-                class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 resize-none">밀폐공간 진입 전 작업자가 반드시 확인해야 할 안전 절차와 비상 대응을 설명합니다.</textarea>
+        class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 resize-none">{{ edu.description }}</textarea>
     </div>
 
-    <!-- 운영 메모 -->
     <div class="bg-slate-50 border border-slate-100 rounded-lg p-4">
       <h4 class="text-sm font-bold text-slate-900 mb-1">운영 메모</h4>
-      <p class="text-xs text-slate-600">콘텐츠는 1건만 운영합니다. 수정 시 기존 콘텐츠를 교체합니다.</p>
+      <p class="text-xs text-slate-600">{{ edu.memo }}</p>
     </div>
   </section>
 </div>
 
+<!-- ===== 운영 안내 ===== -->
+<section class="mt-4 bg-blue-50 border border-blue-100 rounded-xl p-5">
+  <div class="flex items-start gap-3">
+    <i data-lucide="info" class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0"></i>
+    <div>
+      <p class="text-sm font-semibold text-blue-800 mb-1">운영 안내</p>
+      <p class="text-xs text-blue-700">
+        현재 시스템은 단일 VR 교육 영상을 운영합니다.
+        영상 교체 시 기존 콘텐츠는 새 영상으로 즉시 교체되며 작업자 앱에 반영됩니다.
+        <span class="font-medium">[수정 시작]</span> 또는 <span class="font-medium">[영상 교체]</span> 버튼을 통해 콘텐츠를 업데이트하세요.
+      </p>
+    </div>
+  </div>
+</section>
 
-<!-- ============================================== -->
+{% endblock %}
+
+{% block modal %}
+{{ block.super }}
+
 <!-- ===== VR 교육 수정 모달 ===== -->
-<!-- ============================================== -->
 <div id="editModal" class="fixed inset-0 bg-black/40 z-50 hidden items-center justify-center">
   <div class="bg-white rounded-xl w-full max-w-3xl mx-4 shadow-xl">
 
-    <!-- 1. 팝업 타이틀 영역 -->
     <div class="px-8 pt-7 pb-4 border-b border-slate-100">
       <h3 class="text-xl font-bold text-slate-900 mb-1">VR 교육 수정</h3>
       <p class="text-xs text-slate-500">단일 VR 교육 콘텐츠를 교체하거나 정보를 수정합니다.</p>
     </div>
 
-    <!-- 2 + 3. 미디어 교체 영역 + 교육 정보 입력 영역 -->
-    <div class="px-8 py-6">
-      <div class="grid grid-cols-2 gap-6">
+    <form id="editForm" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="file" id="inp-video"     name="video"     accept="video/*" class="hidden">
+      <input type="file" id="inp-thumbnail" name="thumbnail" accept="image/*" class="hidden">
 
-        <!-- 좌측: 미디어 교체 -->
-        <div>
-          <!-- 미리보기 박스 -->
-          <div class="bg-blue-50 border border-blue-100 rounded-lg mb-3" style="aspect-ratio: 16/10;"></div>
+      <div class="px-8 py-6">
+        <div class="grid grid-cols-2 gap-6">
 
-          <!-- 액션 버튼 -->
-          <div class="flex gap-2 mb-4">
-            <button onclick="onThumbReplace()" class="flex-1 px-4 py-2.5 border border-slate-200 bg-white text-sm text-slate-700 rounded-md hover:bg-slate-50">
-              썸네일 교체
-            </button>
-            <button onclick="onVideoUpload()" class="flex-1 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-              영상 업로드
-            </button>
-          </div>
-
-          <!-- 4. 교체 안내 -->
-          <div class="bg-slate-50 border border-slate-100 rounded-lg p-4">
-            <h4 class="text-sm font-bold text-slate-900 mb-1">교체 안내</h4>
-            <p class="text-xs text-slate-600">저장 시 기존 VR 교육 콘텐츠를 새 영상으로 교체합니다.</p>
-          </div>
-        </div>
-
-        <!-- 우측: 교육 정보 입력 -->
-        <div>
-          <!-- 교육명 -->
-          <div class="mb-4">
-            <label class="block text-xs font-medium text-slate-700 mb-1.5">교육명</label>
-            <input id="e_title" type="text" value="밀폐공간 작업 전 안전 확인"
-                   class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
-          </div>
-
-          <!-- 재생 시간 (자동 계산, readonly) -->
-          <div class="mb-4">
-            <label class="block text-xs font-medium text-slate-700 mb-1.5">재생 시간</label>
-            <input type="text" value="업로드 후 자동 계산" readonly
-                   class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-500" />
-          </div>
-
-          <!-- 교육 설명 -->
+          <!-- 좌측: 미디어 교체 -->
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1.5">교육 설명</label>
-            <textarea id="e_desc" rows="5"
-                      class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 resize-none">밀폐공간 진입 전 작업자가 반드시 확인해야 할 안전 절차와 비상 대응을 설명합니다.</textarea>
+            <div id="modal-preview"
+              class="bg-blue-50 border border-blue-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden"
+              style="aspect-ratio: 16/10;">
+              {% if edu.thumbnail %}
+                <img src="{{ edu.thumbnail.url }}" alt="썸네일" class="w-full h-full object-cover">
+              {% else %}
+                <i data-lucide="film" class="w-10 h-10 text-blue-300"></i>
+              {% endif %}
+            </div>
+
+            <div class="flex gap-2 mb-4">
+              <button type="button" onclick="document.getElementById('inp-thumbnail').click()"
+                class="flex-1 px-4 py-2.5 border border-slate-200 bg-white text-sm text-slate-700 rounded-md hover:bg-slate-50 transition-colors">
+                썸네일 교체
+              </button>
+              <button type="button" onclick="document.getElementById('inp-video').click()"
+                class="flex-1 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors">
+                영상 업로드
+              </button>
+            </div>
+
+            <!-- 파일 선택 상태 표시 -->
+            <div id="file-status" class="hidden text-xs text-slate-500 mb-3 space-y-1"></div>
+
+            <div class="bg-slate-50 border border-slate-100 rounded-lg p-4">
+              <h4 class="text-sm font-bold text-slate-900 mb-1">교체 안내</h4>
+              <p class="text-xs text-slate-600">저장 시 기존 VR 교육 콘텐츠를 새 영상으로 교체합니다.</p>
+            </div>
+          </div>
+
+          <!-- 우측: 교육 정보 입력 -->
+          <div>
+            <div class="mb-4">
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">교육명</label>
+              <input id="e_title" name="title" type="text" value="{{ edu.title }}"
+                class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">재생 시간</label>
+              <input id="modal-duration" type="text" value="업로드 후 자동 계산" readonly
+                class="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-400" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1.5">교육 설명</label>
+              <textarea id="e_desc" name="description" rows="7"
+                class="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none">{{ edu.description }}</textarea>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 5. 하단 버튼: 취소 / 저장 -->
-    <div class="flex items-center justify-end gap-2 px-8 py-5 border-t border-slate-100">
-      <button onclick="closeEditModal()" class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">
-        취소
-      </button>
-      <button onclick="confirmSave()" class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-        저장
-      </button>
-    </div>
+      <div class="flex items-center justify-end gap-2 px-8 py-5 border-t border-slate-100">
+        <button type="button" onclick="closeEditModal()"
+          class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+          취소
+        </button>
+        <button type="button" onclick="confirmSave()"
+          class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors">
+          저장
+        </button>
+      </div>
+    </form>
   </div>
 </div>
-
 
 <!-- ===== 저장 재확인 팝업 ===== -->
 <div id="confirmSaveModal" class="fixed inset-0 bg-black/50 z-[60] hidden items-center justify-center">
-  <div class="bg-white rounded-xl w-full max-w-sm mx-4 shadow-xl">
-    <div class="px-6 py-7">
-      <p class="text-center text-sm text-slate-700">VR 교육 콘텐츠를 교체하시겠습니까?</p>
+  <div class="bg-white rounded-xl shadow-xl w-80 p-8 flex flex-col items-center">
+    <div class="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+      <i data-lucide="pencil" class="w-7 h-7 text-blue-500"></i>
     </div>
-    <div class="flex items-center justify-center gap-2 px-6 pb-6">
-      <button onclick="closeConfirmSave()" class="px-7 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">
-        취소
-      </button>
-      <button onclick="completeSave()" class="px-7 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-        확인
-      </button>
+    <p class="text-sm font-semibold text-slate-800 mb-1">수정하시겠습니까?</p>
+    <p class="text-xs text-slate-500 text-center mb-6">VR 교육 콘텐츠를 저장합니다.</p>
+    <div class="flex gap-2 w-full">
+      <button onclick="closeConfirmSave()"
+        class="flex-1 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
+      <button onclick="completeSave()"
+        class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
     </div>
   </div>
 </div>
-
 
 <!-- ===== 저장 완료 팝업 ===== -->
 <div id="completeSaveModal" class="fixed inset-0 bg-black/50 z-[70] hidden items-center justify-center">
-  <div class="bg-white rounded-xl w-full max-w-sm mx-4 shadow-xl">
-    <div class="px-6 py-7">
-      <p class="text-center text-sm text-slate-700">교체되었습니다.</p>
+  <div class="bg-white rounded-xl shadow-xl w-80 p-8 flex flex-col items-center">
+    <div class="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
+      <i data-lucide="check-circle-2" class="w-8 h-8 text-emerald-500"></i>
     </div>
-    <div class="flex items-center justify-center px-6 pb-6">
-      <button onclick="closeCompleteSave()" class="px-10 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-        확인
-      </button>
-    </div>
+    <p class="text-xs text-slate-500 text-center mb-6">저장되었습니다.</p>
+    <button onclick="closeCompleteSave()"
+      class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">확인</button>
   </div>
 </div>
 
+{% endblock %}
 
-<!-- ===== JavaScript ===== -->
+{% block extra_script %}
+{{ block.super }}
 <script>
-  // ----- 수정 모달 -----
-  function openEditModal() {
-    const m = document.getElementById('editModal');
-    m.classList.remove('hidden');
-    m.classList.add('flex');
-  }
-  function closeEditModal() {
-    const m = document.getElementById('editModal');
-    m.classList.add('hidden');
-    m.classList.remove('flex');
-  }
+const SAVE_URL = '{% url "vr_education_save" %}';
+const CSRF     = '{{ csrf_token }}';
 
-  // ----- 저장 (재확인 → 완료) -----
-  function confirmSave() {
-    const m = document.getElementById('confirmSaveModal');
-    m.classList.remove('hidden');
-    m.classList.add('flex');
+/* ── 파일 선택 피드백 ── */
+function updateFileStatus() {
+  const videoFile = document.getElementById('inp-video').files[0];
+  const thumbFile = document.getElementById('inp-thumbnail').files[0];
+  const statusEl  = document.getElementById('file-status');
+  const lines     = [];
+  if (videoFile) lines.push(`📹 ${videoFile.name}`);
+  if (thumbFile) lines.push(`🖼 ${thumbFile.name}`);
+  if (lines.length) {
+    statusEl.innerHTML = lines.map(l => `<p>${l}</p>`).join('');
+    statusEl.classList.remove('hidden');
+  } else {
+    statusEl.classList.add('hidden');
   }
-  function closeConfirmSave() {
-    const m = document.getElementById('confirmSaveModal');
-    m.classList.add('hidden');
-    m.classList.remove('flex');
+}
+
+document.getElementById('inp-video').addEventListener('change', function() {
+  updateFileStatus();
+});
+document.getElementById('inp-thumbnail').addEventListener('change', function() {
+  const file = this.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const preview = document.getElementById('modal-preview');
+      preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+    };
+    reader.readAsDataURL(file);
   }
-  function completeSave() {
-    closeConfirmSave();
+  updateFileStatus();
+});
+
+/* ── 모달 열기 ── */
+function openEditModal(focus) {
+  const m = document.getElementById('editModal');
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+  if (focus === 'video') {
+    setTimeout(() => document.getElementById('inp-video').click(), 100);
+  }
+}
+function closeEditModal() {
+  const m = document.getElementById('editModal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+}
+
+/* ── 저장 흐름 ── */
+function confirmSave() {
+  const title = document.getElementById('e_title').value.trim();
+  if (!title) { alert('교육명을 입력해주세요.'); return; }
+  document.getElementById('confirmSaveModal').classList.remove('hidden');
+  document.getElementById('confirmSaveModal').classList.add('flex');
+}
+function closeConfirmSave() {
+  document.getElementById('confirmSaveModal').classList.add('hidden');
+  document.getElementById('confirmSaveModal').classList.remove('flex');
+}
+
+function completeSave() {
+  closeConfirmSave();
+  const fd = new FormData(document.getElementById('editForm'));
+  fetch(SAVE_URL, {
+    method:  'POST',
+    headers: { 'X-CSRFToken': CSRF },
+    body:    fd,
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.success) { alert('저장에 실패했습니다.'); return; }
+    /* 화면 실시간 반영 */
+    document.getElementById('sum-title').textContent     = data.title;
+    document.getElementById('sum-updated').textContent   = data.updated_at;
+    document.getElementById('preview-title').textContent = data.title;
+    if (data.duration_badge)   document.getElementById('duration-badge').textContent   = data.duration_badge;
+    if (data.duration_display) document.getElementById('duration-display').value       = data.duration_display;
+    if (data.duration_display) document.getElementById('modal-duration').value         = data.duration_display;
     closeEditModal();
-    const m = document.getElementById('completeSaveModal');
-    m.classList.remove('hidden');
-    m.classList.add('flex');
-  }
-  function closeCompleteSave() {
-    const m = document.getElementById('completeSaveModal');
-    m.classList.add('hidden');
-    m.classList.remove('flex');
-  }
-
-  // ----- 업로드 액션 (실제 구현 시 파일 선택) -----
-  function onThumbReplace() {
-    alert('썸네일 교체 — 실제 구현 시 이미지 파일 선택 창이 열립니다.');
-  }
-  function onVideoUpload() {
-    alert('영상 업로드 — 실제 구현 시 영상 파일 선택 창이 열립니다.');
-  }
-
-  // ----- ESC 키로 모달 닫기 -----
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      closeEditModal();
-      closeConfirmSave();
-      closeCompleteSave();
-    }
+    document.getElementById('completeSaveModal').classList.remove('hidden');
+    document.getElementById('completeSaveModal').classList.add('flex');
   });
+}
+function closeCompleteSave() {
+  document.getElementById('completeSaveModal').classList.add('hidden');
+  document.getElementById('completeSaveModal').classList.remove('flex');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeEditModal();
+    closeConfirmSave();
+    closeCompleteSave();
+  }
+});
 </script>
 {% endblock %}

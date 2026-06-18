@@ -4,8 +4,9 @@ from django.db import models
 class Device(models.Model):
 
     class DeviceType(models.TextChoices):
-        GAS = "gas", "유해가스 센서"
+        GAS   = "gas",   "유해가스 센서"
         POWER = "power", "스마트 파워 디바이스"
+        LOC   = "loc",   "위치 노드"
 
     class Status(models.TextChoices):
         ACTIVE = "active", "정상"
@@ -132,13 +133,18 @@ class GasReading(models.Model):
     voc = models.FloatField(null=True, blank=True, help_text="휘발성유기화합물 ppm")
     measured_at = models.DateTimeField(help_text="센서 측정 시각", db_index=True)
     received_at = models.DateTimeField(auto_now_add=True, help_text="서버 수신 시각")
+    quality_flag = models.CharField(
+        max_length=20, default='ok',
+        help_text="ok / missing / comm_err / partial",
+    )
+    raw_payload = models.JSONField(null=True, blank=True, help_text="원본 수신 payload")
 
     class Meta:
         db_table            = "gas_readings"
         ordering            = ["-measured_at"]
         verbose_name        = "유해가스 측정값"
         verbose_name_plural = "유해가스 측정값 목록"
-        # 복합 인덱스 (특정 장비의 시간대별 조회 성능 향상)
+        unique_together = [('device', 'measured_at')]
         indexes = [
             models.Index(fields=['device', 'measured_at']),
         ]
@@ -173,13 +179,24 @@ class PowerReading(models.Model):
     channel     = models.ForeignKey(DeviceChannel, on_delete=models.PROTECT, related_name="power_readings")
     
     # 3개의 모델을 하나로 합침
-    current_a   = models.IntegerField(default=-1, help_text="전류 A, -1=통신불능")
-    voltage_v   = models.IntegerField(default=-1, help_text="전압 V, -1=통신불능")
-    power_w     = models.IntegerField(default=-1, help_text="전력 W, -1=통신불능")
+    # Phase C-5: IntegerField → FloatField (Finding-3 부분 마이그레이션).
+    # 사유: 시뮬레이션·송수신은 float 0.1 정밀도 보존하나 IntegerField가
+    # truncation 발생 (저전력 그룹 current_a 0.0~0.1A → 0 손실).
+    # 마이그레이션 시 raw_payload(jsonb)에서 float 원본 복원.
+    current_a   = models.FloatField(default=-1.0, help_text="전류 A, -1=통신불능")
+    voltage_v   = models.FloatField(default=-1.0, help_text="전압 V, -1=통신불능")
+    power_w     = models.FloatField(default=-1.0, help_text="전력 W, -1=통신불능")
     
+    temperature_c = models.FloatField(null=True, blank=True, help_text="온도 ℃")
+
     # db_index=True 추가 완료
     measured_at = models.DateTimeField(db_index=True)
     received_at = models.DateTimeField(auto_now_add=True)
+    quality_flag = models.CharField(
+        max_length=20, default='ok',
+        help_text="ok / missing / comm_err / partial",
+    )
+    raw_payload = models.JSONField(null=True, blank=True, help_text="원본 수신 payload")
 
     class Meta:
         db_table            = "power_readings"
@@ -194,26 +211,56 @@ class PowerReading(models.Model):
         return f"{self.device.device_uid} {self.channel.channel_code} @ {self.measured_at}"
 
 
+# ── NodeReading ────────────────────────────────────────────
+
+class NodeReading(models.Model):
+    """위치 노드 수신 로그 - 노드가 수신한 좌표 데이터"""
+    node        = models.ForeignKey("facilities.LocationNode", on_delete=models.PROTECT, related_name="readings")
+    x           = models.FloatField(null=True, blank=True, help_text="수신 X 좌표")
+    y           = models.FloatField(null=True, blank=True, help_text="수신 Y 좌표")
+    received_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table            = "node_readings"
+        ordering            = ["-received_at"]
+        verbose_name        = "위치 노드 수신 로그"
+        verbose_name_plural = "위치 노드 수신 로그 목록"
+        indexes = [
+            models.Index(fields=['node', 'received_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.node.node_name} @ {self.received_at}"
+
+
 # ── ThresholdPolicy ────────────────────────────────────────
 
 class ThresholdPolicy(models.Model):
 
     class ActionType(models.TextChoices):
-        ALERT    = "alert",    "알림"
+        NOTIFY   = "notify",   "알림"
         SHUTDOWN = "shutdown", "장비 차단"
 
-    metric_code = models.CharField(max_length=50, unique=True)
+    metric_code = models.CharField(max_length=50)
+    category    = models.CharField(max_length=50, default='TH_GAS')
+    unit        = models.CharField(max_length=20, blank=True, default='')
+    condition   = models.CharField(max_length=10, default='이상')
+    scope       = models.CharField(max_length=200, blank=True, default='')
+    description = models.TextField(blank=True, default='')
     normal_min  = models.FloatField(null=True, blank=True)
     normal_max  = models.FloatField(null=True, blank=True)
     warning_min = models.FloatField(null=True, blank=True)
     warning_max = models.FloatField(null=True, blank=True)
     danger_min  = models.FloatField(null=True, blank=True)
     danger_max  = models.FloatField(null=True, blank=True)
-    action_type = models.CharField(max_length=20, choices=ActionType.choices, default=ActionType.ALERT)
+    action_type = models.CharField(max_length=20, choices=ActionType.choices, default=ActionType.NOTIFY)
     is_active   = models.BooleanField(default=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+    updated_by  = models.CharField(max_length=100, blank=True, default='')
 
     class Meta:
         db_table            = "threshold_policies"
+        unique_together     = ('metric_code', 'category')
         verbose_name        = "임계치 정책"
         verbose_name_plural = "임계치 정책 목록"
 

@@ -2,7 +2,6 @@
 
 {% block title %}조직 관리 | 산재 예방 통합 관제 시스템{% endblock %}
 
-{# 사이드바에서 '계정/권한 관리' 메뉴 강조 (조직 관리는 사용자 관리 하위) #}
 {% block breadcrumb %}
 <div class="text-xs text-slate-500 mb-3">
   사용자 관리 / <span class="text-slate-700">조직 관리</span>
@@ -17,10 +16,8 @@
 {% endblock %}
 
 {% block content %}
-{# 사용자 관리 영역 탭 (사용자 / 조직 / 직위) #}
 {% include 'admin/_user_management_tabs.html' with active_tab='org' %}
 
-<!-- 2단 레이아웃 -->
 <div class="grid grid-cols-12 gap-4">
 
   <!-- ===== 좌측: 조직도 카드 ===== -->
@@ -30,140 +27,50 @@
 
     <!-- 부서명 검색 -->
     <div class="relative mb-3">
-      <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-      <input type="text" placeholder="부서명 검색"
+      <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+      <input type="text" id="dept-search" placeholder="부서명 검색"
         class="w-full pl-9 pr-9 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
-      <button class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+      <button id="dept-search-clear" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 hidden">
         <i data-lucide="x" class="w-4 h-4"></i>
       </button>
     </div>
 
-    <!-- TIP 영역 -->
+    <!-- TIP -->
     <div class="flex items-center gap-2 mb-4 px-3 py-2 bg-blue-50 rounded-lg">
       <span class="text-xs font-semibold text-blue-600 px-1.5 py-0.5 bg-white rounded">TIP</span>
       <span class="text-xs text-slate-600">부서를 선택하면 우측에서 상세 정보와 구성원을 확인할 수 있습니다.</span>
     </div>
 
     <!-- 조직 트리 -->
-    <div class="border border-slate-200 rounded-lg p-3 max-h-[520px] overflow-y-auto custom-scroll">
+    <div class="border border-slate-200 rounded-lg p-3 max-h-[520px] overflow-y-auto">
       <!-- 회사 -->
-      <div class="flex items-center justify-between px-2 py-2 rounded-md hover:bg-slate-50 group">
-        <label class="flex items-center gap-2 cursor-pointer flex-1">
-          <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-          <i data-lucide="building-2" class="w-4 h-4 text-slate-500"></i>
-          <span class="text-sm font-medium text-slate-800">(주)가람이앤지</span>
-        </label>
-        <button class="px-2.5 py-1 text-xs border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">
-          + 추가
-        </button>
+      <div class="flex items-center px-2 py-2 rounded-md hover:bg-slate-50">
+        <i data-lucide="building-2" class="w-4 h-4 text-slate-500 shrink-0"></i>
+        <span class="text-sm font-medium text-slate-800 ml-2">(주)가람이앤지</span>
       </div>
 
-      <!-- 부서 리스트 (들여쓰기) -->
-      <div class="ml-4 mt-1 space-y-0.5">
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">경영지원팀</span>
-          </label>
+      <!-- 부서 목록 -->
+      <div class="ml-4 mt-1 space-y-0.5" id="dept-tree">
+        {% for dept in departments %}
+        <div class="dept-item flex items-center justify-between px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer"
+             data-dept-id="{{ dept.id }}" data-dept-name="{{ dept.name }}">
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <i data-lucide="users" class="w-4 h-4 text-slate-400 shrink-0"></i>
+            <span class="text-sm text-slate-700 truncate">{{ dept.name }}</span>
+          </div>
+          <span class="text-xs text-slate-400 ml-2 shrink-0">{{ dept.member_count }}명</span>
         </div>
-
-        <!-- 일반 부서들 -->
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">영업팀</span>
-          </label>
-        </div>
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">사업기획팀</span>
-          </label>
-        </div>
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">기술연구소</span>
-          </label>
-        </div>
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">개발팀</span>
-          </label>
-        </div>
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">관제운영팀</span>
-          </label>
-        </div>
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">시스템운영팀</span>
-          </label>
-        </div>
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">안전관리팀</span>
-          </label>
-        </div>
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">품질관리팀</span>
-          </label>
-        </div>
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">설치공사팀</span>
-          </label>
-        </div>
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">유지보수팀</span>
-          </label>
-        </div>
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">고객지원팀</span>
-          </label>
-        </div>
-
-        <div class="px-3 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="users" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-700">기술지원팀</span>
-          </label>
-        </div>
+        {% empty %}
+        <div class="px-3 py-4 text-center text-sm text-slate-400">등록된 부서가 없습니다.</div>
+        {% endfor %}
       </div>
 
-      <!-- 조직 없음 (6번) -->
+      <!-- 조직 없음 -->
       <div class="border-t border-slate-100 mt-3 pt-3">
-        <div class="flex items-center justify-between px-2 py-2 hover:bg-slate-50 rounded-md cursor-pointer">
-          <label class="flex items-center gap-2 cursor-pointer flex-1">
-            <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-            <i data-lucide="user-x" class="w-4 h-4 text-slate-400"></i>
-            <span class="text-sm text-slate-600">조직 없음</span>
-          </label>
+        <div class="dept-item flex items-center gap-2 px-2 py-2 hover:bg-slate-50 rounded-md cursor-pointer"
+             data-dept-id="0" data-dept-name="조직 없음">
+          <i data-lucide="user-x" class="w-4 h-4 text-slate-400 shrink-0"></i>
+          <span class="text-sm text-slate-600">조직 없음</span>
         </div>
       </div>
     </div>
@@ -175,60 +82,58 @@
     <!-- 부서 정보 카드 -->
     <section class="bg-white rounded-xl border border-slate-200 p-6">
       <h3 class="text-base font-bold text-slate-900 mb-4">부서 정보</h3>
-      <div class="grid grid-cols-2 gap-y-3 gap-x-8">
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">부서명</span>
-          <span class="text-sm font-medium text-slate-800">경영지원팀</span>
-        </div>
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">최근 수정일</span>
-          <span class="text-sm font-medium text-slate-800">2025-03-11 11:04:00</span>
-        </div>
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">부서 코드</span>
-          <span class="text-sm font-medium text-slate-800">001</span>
-        </div>
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">최근 수정자</span>
-          <span class="text-sm font-medium text-slate-800">홍길동</span>
-        </div>
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">생성일</span>
-          <span class="text-sm font-medium text-slate-800">2024-08-01 09:30:00</span>
+      <div id="dept-info-placeholder" class="py-4 text-center text-sm text-slate-400">
+        좌측에서 부서를 선택하면 정보가 표시됩니다.
+      </div>
+      <div id="dept-info-content" class="hidden">
+        <div class="grid grid-cols-2 gap-y-3 gap-x-8">
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-slate-500 w-24 shrink-0">부서명</span>
+            <span id="info-name" class="text-sm font-medium text-slate-800">-</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-slate-500 w-24 shrink-0">최근 수정일</span>
+            <span id="info-updated-at" class="text-sm font-medium text-slate-800">-</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-slate-500 w-24 shrink-0">부서 코드</span>
+            <span id="info-code" class="text-sm font-medium text-slate-800">-</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-slate-500 w-24 shrink-0">최근 수정자</span>
+            <span id="info-updated-by" class="text-sm font-medium text-slate-800">-</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-sm text-slate-500 w-24 shrink-0">생성일</span>
+            <span id="info-created-at" class="text-sm font-medium text-slate-800">-</span>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- 구성원 정보 카드 -->
     <section class="bg-white rounded-xl border border-slate-200 p-6">
-      <!-- 헤더: 제목 + 추가 + 검색 -->
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
           <h3 class="text-base font-bold text-slate-900">구성원 정보</h3>
-          <a href="{% url 'org_member_select' %}"
+          <button id="btn-add-member"
             class="px-2.5 py-1 text-xs border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50 flex items-center gap-1">
-            <i data-lucide="plus" class="w-3 h-3"></i>
-            추가
-          </a>
-
-
-
-
+            <i data-lucide="plus" class="w-3 h-3"></i>추가
+          </button>
         </div>
         <div class="relative w-64">
-          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-          <input type="text" placeholder="이름, ID 검색"
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+          <input type="text" id="member-search" placeholder="이름, ID 검색"
             class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
         </div>
       </div>
 
-      <!-- 구성원 테이블 -->
       <div class="border border-slate-200 rounded-lg overflow-hidden">
         <table class="w-full">
           <thead class="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th class="px-4 py-3 text-left">
-                <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
+              <th class="px-4 py-3 text-left w-10">
+                <input type="checkbox" id="member-check-all" class="w-4 h-4 rounded border-slate-300" />
               </th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">사용자명</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">아이디</th>
@@ -236,121 +141,34 @@
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">계정 상태</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100">
-            <!-- 조직장 (default 최상단) -->
-            <tr class="hover:bg-slate-50">
-              <td class="px-4 py-3">
-                <input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" />
-              </td>
-              <td class="px-4 py-3">
-                <div class="flex items-center gap-2">
-                  <span class="text-sm font-medium text-slate-800">홍길동</span>
-                  <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-600 rounded">조직장</span>
-                </div>
-              </td>
-              <td class="px-4 py-3 text-sm text-slate-600">super.admin</td>
-              <td class="px-4 py-3 text-sm text-slate-600">대표이사</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">사용</span>
-              </td>
-            </tr>
-            <tr class="hover:bg-slate-50">
-              <td class="px-4 py-3">
-                <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-              </td>
-              <td class="px-4 py-3 text-sm font-medium text-slate-800">김한국</td>
-              <td class="px-4 py-3 text-sm text-slate-600">hankook</td>
-              <td class="px-4 py-3 text-sm text-slate-600">이사</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded">잠금</span>
-              </td>
-            </tr>
-            <tr class="hover:bg-slate-50">
-              <td class="px-4 py-3">
-                <input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" />
-              </td>
-              <td class="px-4 py-3 text-sm font-medium text-slate-800">박현장</td>
-              <td class="px-4 py-3 text-sm text-slate-600">field_mgr_01</td>
-              <td class="px-4 py-3 text-sm text-slate-600">차장</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded">비활성</span>
-              </td>
-            </tr>
-            <tr class="hover:bg-slate-50">
-              <td class="px-4 py-3">
-                <input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" />
-              </td>
-              <td class="px-4 py-3 text-sm font-medium text-slate-800">이작업</td>
-              <td class="px-4 py-3 text-sm text-slate-600">worker_lee</td>
-              <td class="px-4 py-3 text-sm text-slate-600">사원</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded">잠금</span>
-              </td>
-            </tr>
-            <tr class="hover:bg-slate-50">
-              <td class="px-4 py-3">
-                <input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" />
-              </td>
-              <td class="px-4 py-3 text-sm font-medium text-slate-800">정운영</td>
-              <td class="px-4 py-3 text-sm text-slate-600">ops_jung</td>
-              <td class="px-4 py-3 text-sm text-slate-600">대리</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded">잠금</span>
-              </td>
-            </tr>
-            <tr class="hover:bg-slate-50">
-              <td class="px-4 py-3">
-                <input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" />
-              </td>
-              <td class="px-4 py-3 text-sm font-medium text-slate-800">최점검</td>
-              <td class="px-4 py-3 text-sm text-slate-600">worker_choi</td>
-              <td class="px-4 py-3 text-sm text-slate-600">조장</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded">잠금</span>
+          <tbody id="member-tbody" class="divide-y divide-slate-100">
+            <tr>
+              <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-400">
+                좌측에서 부서를 선택하면 구성원이 표시됩니다.
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- 페이지네이션 -->
       <div class="flex items-center justify-between mt-4">
-        <span class="text-xs text-slate-500">1 - 10 / 128</span>
-        <div class="flex items-center gap-1">
-          <button
-            class="w-8 h-8 border border-slate-200 rounded-md text-slate-500 hover:bg-slate-50 flex items-center justify-center">
-            <i data-lucide="chevron-left" class="w-4 h-4"></i>
-          </button>
-          <button class="w-8 h-8 bg-slate-900 text-white rounded-md text-sm font-medium">1</button>
-          <button class="w-8 h-8 border border-slate-200 rounded-md text-sm text-slate-600 hover:bg-slate-50">2</button>
-          <button class="w-8 h-8 border border-slate-200 rounded-md text-sm text-slate-600 hover:bg-slate-50">3</button>
-          <button class="w-8 h-8 border border-slate-200 rounded-md text-sm text-slate-600 hover:bg-slate-50">4</button>
-          <button class="w-8 h-8 border border-slate-200 rounded-md text-sm text-slate-600 hover:bg-slate-50">5</button>
-          <button
-            class="w-8 h-8 border border-slate-200 rounded-md text-slate-500 hover:bg-slate-50 flex items-center justify-center">
-            <i data-lucide="chevron-right" class="w-4 h-4"></i>
-          </button>
-        </div>
-        <div></div>
+        <span id="member-page-info" class="text-xs text-slate-500"></span>
+        <div id="member-pagination" class="flex items-center gap-1"></div>
+        <div class="w-12"></div>
       </div>
 
-      <!-- 액션 버튼 영역 -->
       <div class="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
-        <span class="text-xs text-slate-500 mr-2">5명 선택</span>
-
-
-        <a href="{% url 'org_dept_move' %}"
-          class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+        <span id="member-selected-count" class="text-xs text-slate-500 mr-2 hidden">0명 선택</span>
+        <button id="btn-dept-move" disabled
+          class="px-4 py-2 bg-slate-100 text-slate-400 text-sm font-medium rounded-md cursor-not-allowed transition-colors">
           부서 이동
-        </a>
-        <a href="{% url 'org_confirm' %}"
-          class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+        </button>
+        <button id="btn-exclude" disabled
+          class="px-4 py-2 bg-slate-100 text-slate-400 text-sm font-medium rounded-md cursor-not-allowed transition-colors">
           소속 제외
-        </a>
-
-
-
-        <button class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+        </button>
+        <button id="btn-appoint" disabled
+          class="px-4 py-2 bg-slate-100 text-slate-400 text-sm font-medium rounded-md cursor-not-allowed transition-colors">
           조직장 임명
         </button>
       </div>
@@ -359,10 +177,790 @@
 </div>
 {% endblock %}
 
+{% block modal %}
+{{ block.super }}
+
+{# ── 구성원 선택 팝업 ── #}
+<div id="member-select-modal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl flex flex-col max-h-[90vh]">
+
+    <div class="px-8 pt-7 pb-4 border-b border-slate-100 shrink-0">
+      <h3 class="text-xl font-bold text-slate-900 mb-1">구성원 선택</h3>
+      <p class="text-sm text-slate-500">조직에 추가할 구성원을 선택하고 반영합니다.</p>
+    </div>
+
+    <div class="px-8 py-4 flex-1 overflow-hidden">
+      <div class="grid grid-cols-3 gap-3 h-72">
+
+        {# 1. 조직 목록 #}
+        <div class="bg-slate-50 rounded-lg border border-slate-200 p-4 overflow-y-auto">
+          <h4 class="text-sm font-semibold text-slate-800 mb-3">조직 목록</h4>
+          <div id="modal-company-btn"
+               class="text-xs font-medium text-blue-600 mb-2 px-1 py-1 cursor-pointer hover:underline">
+            (주)가람이앤지
+          </div>
+          <div class="space-y-0.5" id="modal-dept-list">
+            {% for dept in departments %}
+            <div class="modal-dept-btn px-3 py-2 hover:bg-white rounded-md text-sm text-slate-700 cursor-pointer transition-colors"
+                 data-dept-id="{{ dept.id }}" data-dept-name="{{ dept.name }}">
+              {{ dept.name }} ({{ dept.member_count }})
+            </div>
+            {% endfor %}
+          </div>
+          <div class="mt-3 pt-3 border-t border-slate-200">
+            <div class="modal-dept-btn px-1 py-1 text-xs text-blue-600 cursor-pointer hover:underline"
+                 data-dept-id="0" data-dept-name="조직없음">조직없음</div>
+          </div>
+        </div>
+
+        {# 2. 구성원 목록 #}
+        <div class="bg-slate-50 rounded-lg border border-slate-200 p-4 overflow-y-auto">
+          <h4 class="text-sm font-semibold text-slate-800 mb-3">구성원 목록</h4>
+          <div id="modal-member-list" class="space-y-1.5">
+            <p class="text-xs text-slate-400 text-center pt-6">조직을 선택하면<br>구성원이 표시됩니다.</p>
+          </div>
+        </div>
+
+        {# 3. 선택된 구성원 #}
+        <div class="bg-slate-50 rounded-lg border border-slate-200 p-4 overflow-y-auto">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-semibold text-slate-800">선택된 구성원</h4>
+            <button id="modal-clear-all"
+              class="text-xs text-slate-500 px-2 py-1 border border-slate-200 rounded-md hover:bg-white">모두 해제</button>
+          </div>
+          <div id="modal-selected-list" class="space-y-1.5">
+            <p id="modal-selected-empty" class="text-xs text-slate-400 text-center pt-6">선택된 구성원이<br>없습니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between px-8 py-5 border-t border-slate-100 shrink-0">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" id="modal-keep-prev" class="w-4 h-4 rounded border-slate-300" />
+        <span class="text-sm text-slate-600">이전 소속 부서 유지(겸직)</span>
+      </label>
+      <div class="flex items-center gap-2">
+        <button id="modal-cancel-btn"
+          class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+        <button id="modal-confirm-btn"
+          class="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── 추가 확인 팝업 ── #}
+<div id="member-add-confirm" class="fixed inset-0 bg-slate-900/40 z-[60] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+    <h4 class="text-base font-bold text-slate-900 mb-2">구성원 추가 확인</h4>
+    <p id="confirm-msg" class="text-sm text-slate-600 mb-6"></p>
+    <div class="flex items-center justify-end gap-2">
+      <button id="confirm-cancel" class="px-4 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button id="confirm-ok" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">확인</button>
+    </div>
+  </div>
+</div>
+
+{# 구성원 추가 폼 #}
+<form id="member-add-form" method="post" action="{% url 'org_add_members' %}" class="hidden">
+  {% csrf_token %}
+  <input type="hidden" name="dept_id" id="form-dept-id" />
+  <input type="hidden" name="keep_prev" id="form-keep-prev" value="0" />
+  <div id="form-user-inputs"></div>
+</form>
+
+{# ── 부서 이동 팝업 ── #}
+<div id="dept-move-modal" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[85vh]">
+
+    <div class="px-8 pt-7 pb-4 border-b border-slate-100 shrink-0">
+      <h3 class="text-xl font-bold text-slate-900 mb-1">부서 선택</h3>
+      <p class="text-sm text-slate-500">이동할 부서를 선택하고 저장합니다.</p>
+    </div>
+
+    <div class="px-8 py-4 flex-1 overflow-hidden">
+      <div class="grid grid-cols-2 gap-3 h-72">
+
+        {# 조직 목록 #}
+        <div class="bg-slate-50 rounded-lg border border-slate-200 p-4 overflow-y-auto">
+          <h4 class="text-sm font-semibold text-slate-800 mb-3">조직 목록</h4>
+          <div class="mb-2 px-1 text-xs font-medium text-slate-500">(주)가람이앤지</div>
+          <div class="space-y-0.5" id="move-dept-list">
+            {% for dept in departments %}
+            <label class="move-dept-item flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer hover:bg-white transition-colors"
+                   data-dept-id="{{ dept.id }}" data-dept-name="{{ dept.name }}">
+              <input type="checkbox" class="move-dept-check w-4 h-4 rounded border-slate-300" value="{{ dept.id }}" />
+              <span class="text-sm text-slate-700">{{ dept.name }} ({{ dept.member_count }})</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        {# 선택 부서 #}
+        <div class="bg-slate-50 rounded-lg border border-slate-200 p-4 overflow-y-auto">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-semibold text-slate-800">선택 부서</h4>
+            <button id="move-clear-all"
+              class="text-xs text-slate-500 px-2 py-1 border border-slate-200 rounded-md hover:bg-white">모두 해제</button>
+          </div>
+          <div id="move-selected-list" class="space-y-1.5">
+            <p id="move-selected-empty" class="text-xs text-slate-400 text-center pt-6">선택된 부서가 없습니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between px-8 py-5 border-t border-slate-100 shrink-0">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" id="move-keep-prev" class="w-4 h-4 rounded border-slate-300" />
+        <span class="text-sm text-slate-600">이전 소속 부서 유지(겸직)</span>
+      </label>
+      <div class="flex items-center gap-2">
+        <button id="move-cancel-btn"
+          class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+        <button id="move-confirm-btn" disabled
+          class="px-5 py-2 bg-slate-200 text-slate-400 text-sm font-medium rounded-md cursor-not-allowed transition-colors">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# 부서 이동 폼 #}
+<form id="dept-move-form" method="post" action="{% url 'org_add_members' %}" class="hidden">
+  {% csrf_token %}
+  <input type="hidden" name="dept_id"    id="move-form-dept-id" />
+  <input type="hidden" name="keep_prev"  id="move-form-keep-prev" value="0" />
+  <div id="move-form-user-inputs"></div>
+</form>
+
+{# ── 소속 제외 확인 팝업 ── #}
+<div id="exclude-confirm-modal" class="fixed inset-0 bg-slate-900/40 z-[60] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center shrink-0">
+        <i data-lucide="user-minus" class="w-5 h-5 text-red-500"></i>
+      </div>
+      <div>
+        <h4 class="text-base font-bold text-slate-900">소속 제외</h4>
+        <p id="exclude-confirm-msg" class="text-sm text-slate-500 mt-0.5"></p>
+      </div>
+    </div>
+    <p class="text-sm text-slate-600 mb-6">제외된 구성원은 '조직 없음'으로 이동됩니다.</p>
+    <div class="flex items-center justify-end gap-2">
+      <button id="exclude-cancel-btn"
+        class="px-4 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button id="exclude-ok-btn"
+        class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700">제외</button>
+    </div>
+  </div>
+</div>
+
+{# 소속 제외 폼 #}
+<form id="exclude-form" method="post" action="{% url 'org_exclude_members' %}" class="hidden">
+  {% csrf_token %}
+  <div id="exclude-form-user-inputs"></div>
+</form>
+
+{# ── 조직장 임명 확인 팝업 ── #}
+<div id="appoint-confirm-modal" class="fixed inset-0 bg-slate-900/40 z-[60] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center shrink-0">
+        <i data-lucide="crown" class="w-5 h-5 text-amber-500"></i>
+      </div>
+      <div>
+        <h4 class="text-base font-bold text-slate-900">조직장 임명</h4>
+        <p id="appoint-confirm-msg" class="text-sm text-slate-500 mt-0.5"></p>
+      </div>
+    </div>
+    <p class="text-sm text-slate-600 mb-6">기존 조직장이 있는 경우 변경됩니다.</p>
+    <div class="flex items-center justify-end gap-2">
+      <button id="appoint-cancel-btn"
+        class="px-4 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button id="appoint-ok-btn"
+        class="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-md hover:bg-amber-600">임명</button>
+    </div>
+  </div>
+</div>
+
+{# 조직장 임명 폼 #}
+<form id="appoint-form" method="post" action="{% url 'org_appoint_leader' %}" class="hidden">
+  {% csrf_token %}
+  <input type="hidden" name="user_id" id="appoint-form-user-id" />
+  <input type="hidden" name="dept_id" id="appoint-form-dept-id" />
+</form>
+
+{# ── 조직장 해제 확인 팝업 ── #}
+<div id="revoke-confirm-modal" class="fixed inset-0 bg-slate-900/40 z-[60] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center shrink-0">
+        <i data-lucide="crown" class="w-5 h-5 text-red-400"></i>
+      </div>
+      <div>
+        <h4 class="text-base font-bold text-slate-900">조직장 해제</h4>
+        <p id="revoke-confirm-msg" class="text-sm text-slate-500 mt-0.5"></p>
+      </div>
+    </div>
+    <p class="text-sm text-slate-600 mb-6">해제 후 해당 부서의 조직장이 공석이 됩니다.</p>
+    <div class="flex items-center justify-end gap-2">
+      <button id="revoke-cancel-btn"
+        class="px-4 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+      <button id="revoke-ok-btn"
+        class="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-md hover:bg-red-600">해제</button>
+    </div>
+  </div>
+</div>
+
+{# 조직장 해제 폼 #}
+<form id="revoke-form" method="post" action="{% url 'org_revoke_leader' %}" class="hidden">
+  {% csrf_token %}
+  <input type="hidden" name="dept_id" id="revoke-form-dept-id" />
+</form>
+
+{% endblock %}
+
 {% block extra_script %}
 {{ block.super }}
 <script>
-  // 조직 관리 화면 전용 스크립트 영역
-  // (조직도 트리 토글, 부서 선택 등 추후 추가)
+  let currentDeptId  = null;
+  let currentLeaderId = null;
+  let currentPage    = 1;
+  let currentSearch  = '';
+  let searchTimer;
+
+  // ── 부서 트리 클릭 ───────────────────────────────────────────────
+  document.querySelectorAll('.dept-item').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.dept-item').forEach(d => {
+        d.classList.remove('bg-blue-50', 'text-blue-700');
+      });
+      el.classList.add('bg-blue-50');
+      currentDeptId = parseInt(el.dataset.deptId);
+      currentPage   = 1;
+      currentSearch = '';
+      document.getElementById('member-search').value = '';
+      loadDept(currentDeptId, 1, '');
+    });
+  });
+
+  // ── API 호출 ─────────────────────────────────────────────────────
+  function loadDept(deptId, page, q) {
+    fetch(`/manager/organizations/${deptId}/api/?page=${page}&q=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(data => {
+        renderDeptInfo(data.dept);
+        renderMembers(data);
+      });
+  }
+
+  // ── 부서 정보 렌더링 ─────────────────────────────────────────────
+  function renderDeptInfo(dept) {
+    document.getElementById('dept-info-placeholder').classList.add('hidden');
+    document.getElementById('dept-info-content').classList.remove('hidden');
+    document.getElementById('info-name').textContent       = dept.name;
+    document.getElementById('info-code').textContent       = dept.code || '-';
+    document.getElementById('info-updated-at').textContent = dept.updated_at || '-';
+    document.getElementById('info-updated-by').textContent = dept.updated_by || '-';
+    document.getElementById('info-created-at').textContent = dept.created_at || '-';
+    currentLeaderId = dept.leader_id || null;
+  }
+
+  // ── 구성원 목록 렌더링 ───────────────────────────────────────────
+  function renderMembers(data) {
+    const tbody = document.getElementById('member-tbody');
+    tbody.innerHTML = '';
+
+    if (!data.members.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-10 text-center text-sm text-slate-400">구성원이 없습니다.</td></tr>`;
+      document.getElementById('member-page-info').textContent = '';
+      document.getElementById('member-pagination').innerHTML  = '';
+      updateActionButtons();
+      return;
+    }
+
+    data.members.forEach((m, idx) => {
+      const isLeader  = m.is_leader;
+      const leaderTag = isLeader
+        ? `<span class="ml-1 px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded">조직장</span>`
+        : '';
+      const statusBadge = m.is_active
+        ? `<span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">사용</span>`
+        : `<span class="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded">비활성</span>`;
+
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-3"><input type="checkbox" class="member-check w-4 h-4 rounded border-slate-300" value="${m.id}" /></td>
+          <td class="px-4 py-3">
+            <div class="flex items-center">
+              <span class="text-sm font-medium text-slate-800">${m.name}</span>${leaderTag}
+            </div>
+          </td>
+          <td class="px-4 py-3 text-sm text-slate-600">${m.username}</td>
+          <td class="px-4 py-3 text-sm text-slate-600">${m.position}</td>
+          <td class="px-4 py-3">${statusBadge}</td>
+        </tr>`);
+    });
+
+    document.getElementById('member-page-info').textContent =
+      `${data.start_index} - ${data.end_index} / ${data.total}`;
+    renderPagination(data);
+
+    document.querySelectorAll('.member-check').forEach(cb =>
+      cb.addEventListener('change', updateActionButtons)
+    );
+    document.getElementById('member-check-all').checked = false;
+    updateActionButtons();
+  }
+
+  // ── 페이지네이션 렌더링 ──────────────────────────────────────────
+  function renderPagination(data) {
+    const wrap = document.getElementById('member-pagination');
+    wrap.innerHTML = '';
+    const makeBtn = (content, page, active, isIcon) => {
+      const b = document.createElement('button');
+      b.className = `w-8 h-8 flex items-center justify-center rounded text-xs font-medium transition-colors
+        ${active ? 'bg-slate-900 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'}`;
+      if (isIcon) b.innerHTML = `<i data-lucide="${content}" class="w-4 h-4"></i>`;
+      else b.textContent = content;
+      b.addEventListener('click', () => {
+        currentPage = page;
+        loadDept(currentDeptId, page, currentSearch);
+      });
+      return b;
+    };
+    wrap.appendChild(makeBtn('chevron-left', Math.max(1, data.page - 1), false, true));
+    for (let i = 1; i <= data.num_pages; i++) {
+      wrap.appendChild(makeBtn(i, i, i === data.page, false));
+    }
+    wrap.appendChild(makeBtn('chevron-right', Math.min(data.num_pages, data.page + 1), false, true));
+    lucide.createIcons();
+  }
+
+  // ── 전체 선택 ────────────────────────────────────────────────────
+  document.getElementById('member-check-all').addEventListener('change', e => {
+    document.querySelectorAll('.member-check').forEach(cb => cb.checked = e.target.checked);
+    updateActionButtons();
+  });
+
+  // ── 액션 버튼 활성화 ─────────────────────────────────────────────
+  function updateActionButtons() {
+    const count = document.querySelectorAll('.member-check:checked').length;
+    const any   = count > 0;
+
+    ['btn-dept-move', 'btn-exclude'].forEach(id => {
+      const b = document.getElementById(id);
+      b.disabled = !any;
+      b.className = `px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+        any ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+            : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`;
+    });
+
+    const appoint     = document.getElementById('btn-appoint');
+    const canAppt     = count === 1 && currentDeptId !== null && currentDeptId !== 0;
+    const selectedId  = canAppt ? parseInt(document.querySelector('.member-check:checked').value) : null;
+    const isRevoking  = canAppt && currentLeaderId !== null && selectedId === currentLeaderId;
+
+    appoint.disabled = !canAppt;
+    appoint.dataset.mode = isRevoking ? 'revoke' : 'appoint';
+    appoint.textContent  = isRevoking ? '조직장 해제' : '조직장 임명';
+    appoint.className = `px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+      !canAppt    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+      : isRevoking ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 cursor-pointer'
+                   : 'bg-amber-500 text-white hover:bg-amber-600 cursor-pointer'}`;
+
+    const countEl = document.getElementById('member-selected-count');
+    countEl.textContent = `${count}명 선택`;
+    countEl.classList.toggle('hidden', !any);
+  }
+
+  // ── 구성원 검색 (디바운스) ───────────────────────────────────────
+  document.getElementById('member-search').addEventListener('input', e => {
+    clearTimeout(searchTimer);
+    currentSearch = e.target.value;
+    searchTimer = setTimeout(() => {
+      if (currentDeptId !== null) loadDept(currentDeptId, 1, currentSearch);
+    }, 300);
+  });
+
+  // ── 부서 트리 검색 ───────────────────────────────────────────────
+  const deptSearchInput = document.getElementById('dept-search');
+  const deptSearchClear = document.getElementById('dept-search-clear');
+
+  deptSearchInput.addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    deptSearchClear.classList.toggle('hidden', !q);
+    document.querySelectorAll('#dept-tree .dept-item').forEach(el => {
+      el.style.display = el.dataset.deptName.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+
+  deptSearchClear.addEventListener('click', () => {
+    deptSearchInput.value = '';
+    deptSearchClear.classList.add('hidden');
+    document.querySelectorAll('#dept-tree .dept-item').forEach(el => el.style.display = '');
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // 부서 이동 팝업
+  // ═══════════════════════════════════════════════════════════════
+  const deptMoveModal = document.getElementById('dept-move-modal');
+  let moveUserIds = [];
+
+  // ── 모달 열기 ────────────────────────────────────────────────────
+  document.getElementById('btn-dept-move').addEventListener('click', () => {
+    moveUserIds = [...document.querySelectorAll('.member-check:checked')].map(cb => parseInt(cb.value));
+    if (!moveUserIds.length) return;
+
+    // 체크박스·선택 목록 초기화
+    document.querySelectorAll('.move-dept-check').forEach(cb => { cb.checked = false; });
+    document.querySelectorAll('.move-dept-item').forEach(item => {
+      item.classList.remove('bg-blue-50');
+      const deptId = parseInt(item.dataset.deptId);
+      const isCurrent = deptId === currentDeptId;
+      item.classList.toggle('opacity-40', isCurrent);
+      item.classList.toggle('cursor-not-allowed', isCurrent);
+      item.querySelector('input').disabled = isCurrent;
+    });
+    renderMoveSelected();
+    document.getElementById('move-keep-prev').checked = false;
+    updateMoveConfirm();
+
+    deptMoveModal.classList.remove('hidden');
+    deptMoveModal.classList.add('flex');
+  });
+
+  document.getElementById('move-cancel-btn').addEventListener('click', () => {
+    deptMoveModal.classList.add('hidden');
+    deptMoveModal.classList.remove('flex');
+  });
+
+  // ── 부서 체크박스 ────────────────────────────────────────────────
+  document.querySelectorAll('.move-dept-check').forEach(cb => {
+    cb.addEventListener('change', () => {
+      cb.closest('.move-dept-item').classList.toggle('bg-blue-50', cb.checked);
+      renderMoveSelected();
+      updateMoveConfirm();
+    });
+  });
+
+  function renderMoveSelected() {
+    const list    = document.getElementById('move-selected-list');
+    const checked = [...document.querySelectorAll('.move-dept-check:checked')];
+    list.innerHTML = '';
+    if (!checked.length) {
+      list.innerHTML = '<p class="text-xs text-slate-400 text-center pt-6">선택된 부서가 없습니다.</p>';
+      return;
+    }
+    checked.forEach(cb => {
+      const name = cb.closest('.move-dept-item').dataset.deptName;
+      list.insertAdjacentHTML('beforeend',
+        `<div class="px-3 py-2 bg-white rounded-md border border-slate-200 text-sm text-slate-700">
+           (주)가람이앤지 &gt; ${name}
+         </div>`);
+    });
+  }
+
+  function updateMoveConfirm() {
+    const hasAny = document.querySelectorAll('.move-dept-check:checked').length > 0;
+    const btn    = document.getElementById('move-confirm-btn');
+    btn.disabled = !hasAny;
+    btn.className = `px-5 py-2 text-sm font-medium rounded-md transition-colors ${
+      hasAny ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+             : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`;
+  }
+
+  // ── 모두 해제 ────────────────────────────────────────────────────
+  document.getElementById('move-clear-all').addEventListener('click', () => {
+    document.querySelectorAll('.move-dept-check').forEach(cb => {
+      if (!cb.disabled) {
+        cb.checked = false;
+        cb.closest('.move-dept-item').classList.remove('bg-blue-50');
+      }
+    });
+    renderMoveSelected();
+    updateMoveConfirm();
+  });
+
+  // ── 확인 → 저장 ──────────────────────────────────────────────────
+  document.getElementById('move-confirm-btn').addEventListener('click', () => {
+    const checked = [...document.querySelectorAll('.move-dept-check:checked')];
+    if (!checked.length) return;
+    const targetDeptId = checked[0].value;   // 첫 번째 선택 부서로 이동
+
+    const form       = document.getElementById('dept-move-form');
+    const userInputs = document.getElementById('move-form-user-inputs');
+    document.getElementById('move-form-dept-id').value   = targetDeptId;
+    document.getElementById('move-form-keep-prev').value =
+      document.getElementById('move-keep-prev').checked ? '1' : '0';
+    userInputs.innerHTML = '';
+    moveUserIds.forEach(id => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'user_ids'; inp.value = id;
+      userInputs.appendChild(inp);
+    });
+    form.submit();
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // 구성원 선택 팝업
+  // ═══════════════════════════════════════════════════════════════
+  const memberSelectModal  = document.getElementById('member-select-modal');
+  const memberAddConfirm   = document.getElementById('member-add-confirm');
+  let   selectedMembers    = new Map();   // id → {name, position}
+  let   targetDeptId       = null;
+  let   targetDeptMemberIds = new Set();  // 이미 해당 부서 소속인 user id
+
+  // ── 모달 열기 ────────────────────────────────────────────────────
+  document.getElementById('btn-add-member').addEventListener('click', () => {
+    if (!currentDeptId) { alert('먼저 부서를 선택하세요.'); return; }
+    targetDeptId = currentDeptId;
+    selectedMembers.clear();
+    targetDeptMemberIds.clear();
+
+    // 현재 메인 테이블에서 이미 소속된 구성원 id 수집
+    document.querySelectorAll('.member-check').forEach(cb =>
+      targetDeptMemberIds.add(parseInt(cb.value))
+    );
+
+    // 초기화
+    document.getElementById('modal-member-list').innerHTML =
+      '<p class="text-xs text-slate-400 text-center pt-6">조직을 선택하면<br>구성원이 표시됩니다.</p>';
+    renderModalSelected();
+    document.getElementById('modal-keep-prev').checked = false;
+    document.querySelectorAll('.modal-dept-btn').forEach(d =>
+      d.classList.remove('bg-blue-50', 'border-blue-300', 'text-blue-700')
+    );
+
+    memberSelectModal.classList.remove('hidden');
+    memberSelectModal.classList.add('flex');
+  });
+
+  // ── 모달 닫기 ────────────────────────────────────────────────────
+  function closeMemberSelectModal() {
+    memberSelectModal.classList.add('hidden');
+    memberSelectModal.classList.remove('flex');
+  }
+  document.getElementById('modal-cancel-btn').addEventListener('click', closeMemberSelectModal);
+
+  // ── 팝업 내 부서 클릭 ────────────────────────────────────────────
+  document.querySelectorAll('.modal-dept-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.modal-dept-btn').forEach(d =>
+        d.classList.remove('bg-blue-50', 'font-medium', 'text-blue-700')
+      );
+      btn.classList.add('bg-blue-50', 'font-medium');
+      loadModalMembers(parseInt(btn.dataset.deptId));
+    });
+  });
+
+  // ── 회사 행 클릭 → 전체 구성원 ──────────────────────────────────
+  document.getElementById('modal-company-btn').addEventListener('click', () => {
+    document.querySelectorAll('.modal-dept-btn').forEach(d =>
+      d.classList.remove('bg-blue-50', 'font-medium', 'text-blue-700')
+    );
+    document.getElementById('modal-member-list').innerHTML =
+      '<p class="text-xs text-slate-400 text-center pt-4">로딩 중...</p>';
+    fetch('/manager/organizations/all/api/')
+      .then(r => r.json())
+      .then(data => renderModalMembers(data.members));
+  });
+
+  // ── 팝업 구성원 로드 ────────────────────────────────────────────
+  function loadModalMembers(deptId) {
+    document.getElementById('modal-member-list').innerHTML =
+      '<p class="text-xs text-slate-400 text-center pt-4">로딩 중...</p>';
+    fetch(`/manager/organizations/${deptId}/api/?per_page=200`)
+      .then(r => r.json())
+      .then(data => renderModalMembers(data.members));
+  }
+
+  // ── 팝업 구성원 목록 렌더링 ─────────────────────────────────────
+  function renderModalMembers(members) {
+    const list = document.getElementById('modal-member-list');
+    list.innerHTML = '';
+    if (!members.length) {
+      list.innerHTML = '<p class="text-xs text-slate-400 text-center pt-6">구성원이 없습니다.</p>';
+      return;
+    }
+    members.forEach(m => {
+      const alreadyIn = targetDeptMemberIds.has(m.id);
+      const isSelected = selectedMembers.has(m.id);
+      const label = document.createElement('label');
+      label.className = `flex items-center gap-3 px-3 py-2 rounded-md border transition-colors ${
+        alreadyIn
+          ? 'bg-slate-100 border-transparent opacity-50 cursor-not-allowed'
+          : 'bg-white border-transparent hover:border-blue-200 cursor-pointer'
+      }`;
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'w-4 h-4 rounded border-slate-300 shrink-0';
+      cb.value = m.id;
+      cb.checked = isSelected;
+      cb.disabled = alreadyIn;
+      if (!alreadyIn) {
+        cb.addEventListener('change', () => {
+          if (cb.checked) selectedMembers.set(m.id, {name: m.name, position: m.position});
+          else            selectedMembers.delete(m.id);
+          renderModalSelected();
+        });
+      }
+      label.appendChild(cb);
+      label.insertAdjacentHTML('beforeend',
+        `<div><div class="text-sm font-medium text-slate-800">${m.name}</div>
+         <div class="text-xs text-slate-500">${m.position}</div></div>`);
+      list.appendChild(label);
+    });
+  }
+
+  // ── 선택된 구성원 렌더링 ─────────────────────────────────────────
+  function renderModalSelected() {
+    const list  = document.getElementById('modal-selected-list');
+    const empty = document.getElementById('modal-selected-empty');
+    list.innerHTML = '';
+    if (selectedMembers.size === 0) {
+      list.innerHTML =
+        '<p id="modal-selected-empty" class="text-xs text-slate-400 text-center pt-6">선택된 구성원이<br>없습니다.</p>';
+      return;
+    }
+    selectedMembers.forEach((m, id) => {
+      list.insertAdjacentHTML('beforeend',
+        `<div class="px-3 py-2 bg-white rounded-md border border-slate-200">
+           <div class="text-sm font-medium text-slate-800">${m.name}</div>
+           <div class="text-xs text-slate-500">${m.position}</div>
+         </div>`);
+    });
+  }
+
+  // ── 모두 해제 ────────────────────────────────────────────────────
+  document.getElementById('modal-clear-all').addEventListener('click', () => {
+    selectedMembers.clear();
+    renderModalSelected();
+    document.querySelectorAll('#modal-member-list input[type="checkbox"]').forEach(cb => {
+      if (!cb.disabled) cb.checked = false;
+    });
+  });
+
+  // ── 확인 버튼 → 확인 팝업 ───────────────────────────────────────
+  document.getElementById('modal-confirm-btn').addEventListener('click', () => {
+    if (selectedMembers.size === 0) { alert('추가할 구성원을 선택하세요.'); return; }
+    const deptName = document.querySelector(`.dept-item[data-dept-id="${targetDeptId}"]`)
+                       ?.dataset.deptName || '선택된 부서';
+    document.getElementById('confirm-msg').textContent =
+      `선택한 ${selectedMembers.size}명을 ${deptName}에 추가하시겠습니까?`;
+    memberAddConfirm.classList.remove('hidden');
+    memberAddConfirm.classList.add('flex');
+  });
+
+  document.getElementById('confirm-cancel').addEventListener('click', () => {
+    memberAddConfirm.classList.add('hidden');
+    memberAddConfirm.classList.remove('flex');
+  });
+
+  // ── 최종 저장 ────────────────────────────────────────────────────
+  document.getElementById('confirm-ok').addEventListener('click', () => {
+    const form       = document.getElementById('member-add-form');
+    const userInputs = document.getElementById('form-user-inputs');
+    document.getElementById('form-dept-id').value    = targetDeptId;
+    document.getElementById('form-keep-prev').value  =
+      document.getElementById('modal-keep-prev').checked ? '1' : '0';
+    userInputs.innerHTML = '';
+    selectedMembers.forEach((_, id) => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'user_ids'; inp.value = id;
+      userInputs.appendChild(inp);
+    });
+    form.submit();
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // 소속 제외
+  // ═══════════════════════════════════════════════════════════════
+  const excludeModal = document.getElementById('exclude-confirm-modal');
+  let excludeUserIds = [];
+
+  document.getElementById('btn-exclude').addEventListener('click', () => {
+    excludeUserIds = [...document.querySelectorAll('.member-check:checked')].map(cb => parseInt(cb.value));
+    if (!excludeUserIds.length) return;
+    const deptName = document.querySelector(`.dept-item.bg-blue-50`)?.dataset.deptName || '현재 부서';
+    document.getElementById('exclude-confirm-msg').textContent =
+      `선택한 ${excludeUserIds.length}명을 ${deptName}에서 제외합니다.`;
+    excludeModal.classList.remove('hidden');
+    excludeModal.classList.add('flex');
+    lucide.createIcons();
+  });
+
+  document.getElementById('exclude-cancel-btn').addEventListener('click', () => {
+    excludeModal.classList.add('hidden');
+    excludeModal.classList.remove('flex');
+  });
+
+  document.getElementById('exclude-ok-btn').addEventListener('click', () => {
+    const form = document.getElementById('exclude-form');
+    const inputs = document.getElementById('exclude-form-user-inputs');
+    inputs.innerHTML = '';
+    excludeUserIds.forEach(id => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'user_ids'; inp.value = id;
+      inputs.appendChild(inp);
+    });
+    form.submit();
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // 조직장 임명
+  // ═══════════════════════════════════════════════════════════════
+  const appointModal = document.getElementById('appoint-confirm-modal');
+  const revokeModal  = document.getElementById('revoke-confirm-modal');
+  let appointUserId  = null;
+  let appointUserName = '';
+
+  document.getElementById('btn-appoint').addEventListener('click', () => {
+    const checked = [...document.querySelectorAll('.member-check:checked')];
+    if (checked.length !== 1 || currentDeptId === null || currentDeptId === 0) return;
+
+    const btn = document.getElementById('btn-appoint');
+    appointUserId  = parseInt(checked[0].value);
+    const row = checked[0].closest('tr');
+    appointUserName = row.querySelector('td:nth-child(2) .text-sm')?.textContent?.trim() || '';
+    const deptName = document.querySelector(`.dept-item.bg-blue-50`)?.dataset.deptName || '현재 부서';
+
+    if (btn.dataset.mode === 'revoke') {
+      // 해제 모달
+      document.getElementById('revoke-confirm-msg').textContent =
+        `${appointUserName}의 ${deptName} 조직장 직위를 해제합니다.`;
+      revokeModal.classList.remove('hidden');
+      revokeModal.classList.add('flex');
+    } else {
+      // 임명 모달
+      document.getElementById('appoint-confirm-msg').textContent =
+        `${appointUserName}을(를) ${deptName}의 조직장으로 임명합니다.`;
+      appointModal.classList.remove('hidden');
+      appointModal.classList.add('flex');
+    }
+    lucide.createIcons();
+  });
+
+  document.getElementById('appoint-cancel-btn').addEventListener('click', () => {
+    appointModal.classList.add('hidden');
+    appointModal.classList.remove('flex');
+  });
+
+  document.getElementById('appoint-ok-btn').addEventListener('click', () => {
+    document.getElementById('appoint-form-user-id').value = appointUserId;
+    document.getElementById('appoint-form-dept-id').value = currentDeptId;
+    document.getElementById('appoint-form').submit();
+  });
+
+  document.getElementById('revoke-cancel-btn').addEventListener('click', () => {
+    revokeModal.classList.add('hidden');
+    revokeModal.classList.remove('flex');
+  });
+
+  document.getElementById('revoke-ok-btn').addEventListener('click', () => {
+    document.getElementById('revoke-form-dept-id').value = currentDeptId;
+    document.getElementById('revoke-form').submit();
+  });
 </script>
 {% endblock %}

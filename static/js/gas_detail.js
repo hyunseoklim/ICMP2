@@ -1,19 +1,9 @@
 /**
  * gas_detail.js — 유해가스 위젯 및 세부 페이지
- * GAS_META, LEVEL_CLASS는 monitoring.js에서 전역 정의
+ * GAS_META, LEVEL_CLASS, GAS_THRESHOLDS는 monitoring.js에서 전역 정의
+ * GAS_THRESHOLDS: 페이지 로드 시 기본값(monitoring.js)으로 초기화되고,
+ *                 initGasWidget() 진입 시 DB에서 갱신됨 (loadThresholdsFromDB)
  */
-
-const GAS_THRESHOLDS = {
-    co: { warn: 25, danger: 200, max: 300, reverse: false },
-    h2s: { warn: 10, danger: 15, max: 25, reverse: false },
-    co2: { warn: 1000, danger: 5000, max: 6000, reverse: false },
-    o2: { warn: 18, danger: 16, max: 25, reverse: true, high: 23.5 }, // 23.5 초과 주의
-    no2: { warn: 3, danger: 5, max: 10, reverse: false },
-    so2: { warn: 2, danger: 5, max: 10, reverse: false },
-    o3: { warn: 0.06, danger: 0.12, max: 0.2, reverse: false },
-    nh3: { warn: 25, danger: 35, max: 50, reverse: false },
-    voc: { warn: 0.5, danger: 1.0, max: 1.5, reverse: false },
-};
 
 const LEVEL_COLOR = {
     danger: 'rgba(239,68,68,0.85)',
@@ -45,20 +35,15 @@ const zoneBackgroundPlugin = {
         if (t.reverse) {
             const dangerY = clamp(t.danger);
             const warnY = clamp(t.warn);
-            const highY = t.high ? clamp(t.high) : area.top;
 
-            // 23.5 초과 주의 구역 (기준 미정)
-            if (t.high) {
-                ctx.fillStyle = 'rgba(245,158,11,0.15)';
-                ctx.fillRect(area.left, area.top, area.right - area.left, highY - area.top);
-            }
-            // 정상 구역
-            ctx.fillStyle = 'rgba(16,185,129,0.05)';
-            ctx.fillRect(area.left, highY, area.right - area.left, warnY - highY);
-            // 주의 구역
+            // 정상 구역 (꼭대기 ~ warn) — 산소 과다(>23.5%)도 정상으로 표시(상단 초록만).
+            // 과거 t.high 기반 '산소 과다 주의' 띠는 제거(정책: 과다는 위험으로 안 봄).
+            ctx.fillStyle = 'rgba(16,185,129,0.13)';
+            ctx.fillRect(area.left, area.top, area.right - area.left, warnY - area.top);
+            // 주의 구역 (warn ~ danger)
             ctx.fillStyle = 'rgba(245,158,11,0.2)';
             ctx.fillRect(area.left, warnY, area.right - area.left, dangerY - warnY);
-            // 위험 구역
+            // 위험 구역 (danger ~ 하단)
             ctx.fillStyle = 'rgba(239,68,68,0.25)';
             ctx.fillRect(area.left, dangerY, area.right - area.left, area.bottom - dangerY);
         } else {
@@ -68,7 +53,7 @@ const zoneBackgroundPlugin = {
             ctx.fillRect(area.left, area.top, area.right - area.left, dangerY - area.top);
             ctx.fillStyle = 'rgba(245,158,11,0.2)';
             ctx.fillRect(area.left, dangerY, area.right - area.left, warnY - dangerY);
-            ctx.fillStyle = 'rgba(16,185,129,0.05)';
+            ctx.fillStyle = 'rgba(16,185,129,0.13)';
             ctx.fillRect(area.left, warnY, area.right - area.left, area.bottom - warnY);
         }
     }
@@ -392,7 +377,9 @@ async function loadLatestGas(deviceId) {
         renderGasTable(data);
 
         const device = gasSensors[gasCurrentIndex];
-        const gasLevels = data._gasLevels || calcPerGasLevels(data);
+        const gasLevels = (data.gas_levels && Object.keys(data.gas_levels).length > 0)
+            ? data.gas_levels
+            : calcPerGasLevels(data);
         const level = data.danger_level;
 
         if (device && (level === '위험' || level === '주의')) {
@@ -455,6 +442,8 @@ function updateGasNav() {
 // 초기화
 // ══════════════════════════════════════════════════════════
 window.initGasWidget = async function () {
+    // DB 임계치 먼저 로드 → 차트 렌더링에 반영
+    await window.loadThresholdsFromDB?.();
     initGasChartGrid();
 
     try {
@@ -497,6 +486,28 @@ window.initGasWidget = async function () {
                     loadLatestGas(device.id);
                 }
                 loadSensorSummary(device);
+            });
+
+            // 스토리 재시작 → 실시간 막대/테이블/액션바 즉시 초기화.
+            // purge로 DB가 비어 loadLatestGas는 404(updateGasCharts 미호출)이므로
+            // 막대 차트는 자동으로 안 비워진다 — 여기서 명시적으로 0/—로 되돌린다.
+            // (새 데이터는 곧 도착하는 gas_update가 다시 채운다.)
+            SafetyWS.on('story_reset', function () {
+                Object.keys(GAS_META).forEach(gas => {
+                    if (gasCharts[gas]) {
+                        gasCharts[gas].data.datasets[0].data = [0];
+                        gasCharts[gas].update();
+                    }
+                    const card = document.getElementById(`card-${gas}`);
+                    if (card) card.className = 'gas-chart-card';
+                    const badge = document.getElementById(`badge-${gas}`);
+                    if (badge) {
+                        badge.textContent = '—';
+                        badge.className = 'gas-chart-card__badge level-badge';
+                    }
+                });
+                renderGasTable(null);
+                updateAlertBar(null, null, null, null, '정상');
             });
         }
 

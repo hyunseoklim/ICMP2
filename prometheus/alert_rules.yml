@@ -1,0 +1,110 @@
+groups:
+  - name: django-alerts
+    rules:
+      # k6 실측: 20명 p95=624ms → 경고, 50명 p95=2.06s → 심각
+      - alert: DjangoHighP95Warning
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(django_http_requests_latency_seconds_by_view_method_bucket[1m])) by (le)
+          ) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+          service: django
+        annotations:
+          summary: "Django p95 응답 지연 경고"
+          description: "Django p95 응답시간이 0.5초를 초과했습니다. (20명 부하 수준)"
+
+      - alert: DjangoHighP95Critical
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(django_http_requests_latency_seconds_by_view_method_bucket[1m])) by (le)
+          ) > 1.5
+        for: 3m
+        labels:
+          severity: critical
+          service: django
+        annotations:
+          summary: "Django p95 응답 지연 심각"
+          description: "Django p95 응답시간이 1.5초를 초과했습니다. (50명 부하 수준)"
+
+      - alert: DjangoHighErrorRate
+        expr: |
+          (
+            sum(rate(django_http_responses_total_by_status_view_method_total{status=~"5.."}[5m]))
+          )
+          /
+          clamp_min(sum(rate(django_http_responses_total_by_status_view_method_total[5m])), 1e-9)
+          > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: django
+        annotations:
+          summary: "Django 5xx 에러율 급증"
+          description: "Django 5xx 에러율이 5%를 초과했습니다."
+
+      - alert: DjangoDown
+        expr: up{job="django"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: django
+        annotations:
+          summary: "Django 서버 다운"
+          description: "Django 서버에 연결할 수 없습니다."
+
+      # ICMP2 커스텀: AI ARIMA 예측이 너무 오래 걸릴 때
+      - alert: AIForecastSlow
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(icmp2_ai_forecast_duration_seconds_bucket[5m])) by (le, task_type)
+          ) > 10
+        for: 3m
+        labels:
+          severity: warning
+          service: django
+        annotations:
+          summary: "AI 예측 처리 지연"
+          description: "ARIMA 예측 p95가 10초를 초과했습니다."
+
+  - name: fastapi-alerts
+    rules:
+      - alert: FastAPIHighP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(http_request_duration_seconds_bucket{app_name="fastapi"}[1m])) by (le)
+          ) > 1.0
+        for: 2m
+        labels:
+          severity: warning
+          service: fastapi
+        annotations:
+          summary: "FastAPI p95 응답 지연 경고"
+          description: "FastAPI p95 응답시간이 1.0초를 초과했습니다."
+
+      - alert: FastAPIDown
+        expr: up{job="fastapi"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: fastapi
+        annotations:
+          summary: "FastAPI 서버 다운"
+          description: "FastAPI 서버에 연결할 수 없습니다."
+
+  - name: infrastructure-alerts
+    rules:
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis 서버 다운"
+          description: "Redis 서버에 연결할 수 없습니다."

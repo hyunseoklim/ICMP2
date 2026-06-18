@@ -1,5 +1,228 @@
+import logging
 from datetime import timedelta
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+
+# ══════════════════════════════════════════════════════════
+# 전력 수신 처리 파이프라인 (HTTP 뷰 & Celery 공용) — Phase D M1-6
+# ══════════════════════════════════════════════════════════
+
+def process_power_ingest(device_uid: str, channel_code: str, payload: dict) -> None:
+    """전력 센서 데이터 1건 처리. HTTP·Celery 공용.
+
+    gas의 process_gas_ingest 대칭. 단 STEP F (IF)는 Phase D 결정 (a)
+    비활성 — STEP G (ARIMA 예측)만 진입. STEP F 활성화 결정 시
+    monitoring/ai/power_if.py docstring 참조.
+
+    Args:
+        device_uid: 'PWR-001' 등.
+        channel_code: 'slave01' 등.
+        payload: {'current_a', 'voltage_v', 'power_w', 'measured_at'?}
+
+    Flow:
+        1. PowerReading INSERT (FloatField — Phase C-5 마이그레이션)
+        2. STEP B — check_power_thresholds (Django load_rate 즉시 알람)
+        3. STEP G — forecast_power_task.delay (forecast 큐 위임)
+    """
+    from monitoring.models import Device, DeviceChannel, PowerReading
+    from monitoring.collector import update_last_seen
+
+    device = Device.objects.filter(device_uid=device_uid).first()
+    if not device:
+        return
+    if not device.is_active or device.status != 'active':
+        return
+    channel = DeviceChannel.objects.filter(
+        device=device, channel_code=channel_code,
+    ).first()
+    if not channel:
+        return
+    if not channel.is_active or channel.status != 'active':
+        return
+
+    current_a = payload.get('current_a', -1.0)
+    voltage_v = payload.get('voltage_v', -1.0)
+    power_w   = payload.get('power_w',   -1.0)
+
+    fields = [current_a, voltage_v, power_w]
+    if all(v in (-1, -1.0) for v in fields):
+        quality_flag = 'comm_err'
+    elif any(v in (-1, -1.0) for v in fields):
+        quality_flag = 'partial'
+    else:
+        quality_flag = 'ok'
+
+    measured_at_raw = payload.get('measured_at')
+    if measured_at_raw:
+        from django.utils.dateparse import parse_datetime
+        from django.utils.timezone import make_aware, is_aware
+        parsed = parse_datetime(str(measured_at_raw))
+        if parsed is None:
+            measured_at = timezone.now()
+        elif not is_aware(parsed):
+            measured_at = make_aware(parsed)
+        else:
+            measured_at = parsed
+    else:
+        measured_at = timezone.now()
+
+    reading = PowerReading.objects.create(
+        device=device, channel=channel,
+        current_a=current_a, voltage_v=voltage_v, power_w=power_w,
+        measured_at=measured_at, quality_flag=quality_flag,
+        raw_payload=dict(payload),
+    )
+    update_last_seen(device)
+
+    # STEP B — 즉시 임계 알람 (Django load_rate 정책)
+    from alerts.services import check_power_thresholds
+    check_power_thresholds(device, channel, float(power_w))
+
+    # STEP F — Isolation Forest 전력 3채널 조합 이상 탐지 (AI 엔진)
+    # Phase D 비활성 해제 — 전압 안정+전류/전력 조합 이상을 Threshold가 못 잡는
+    # 구간에서 포착. 모델 미가용·추론 실패 시 predict가 None → 알람 단계 자연 skip.
+    from monitoring.ai.power_if import predict_power_anomaly
+    from alerts.services import trigger_if_anomaly_alarms_power
+    if_result = predict_power_anomaly(reading)
+    # 시나리오 판단 수집(item 3) — IF 매-틱 판단을 로그로 노출(정상 포함). 알람은 이상만 남김.
+    logger.info("[STEP F][IF][power] device=%s channel=%s measured_at=%s result=%s",
+                device.device_uid, channel.channel_code, reading.measured_at.isoformat(), if_result)
+    trigger_if_anomaly_alarms_power(device, channel, if_result)
+
+    # STEP G — ARIMA 사전 경고 (forecast 전용 큐 위임 — gas D2 아키텍처)
+    from alerts.tasks import forecast_power_task
+    forecast_power_task.delay(device_uid, channel_code, dict(payload))
+
+
+# ══════════════════════════════════════════════════════════
+# 가스 수신 처리 파이프라인 (HTTP 뷰 & Celery 공용)
+# ══════════════════════════════════════════════════════════
+
+from monitoring.constants import GAS_FIELDS
+
+
+def process_gas_ingest(device_uid: str, payload: dict) -> None:
+    """
+    가스 센서 데이터 1건 처리.
+    HTTP ingest 뷰와 Celery Redis 소비자 양쪽에서 호출한다.
+
+    payload 예시:
+        {"device_uid": "GAS-001", "measured_at": "...", "co": 5.2, ...}
+    """
+    from monitoring.models import Device, GasReading
+    from monitoring.collector import update_last_seen
+
+    device = Device.objects.filter(device_uid=device_uid).first()
+    if not device:
+        return
+    if not device.is_active or device.status != 'active':
+        return
+
+    values = {f: payload.get(f) for f in GAS_FIELDS}
+    missing_count = sum(1 for v in values.values() if v is None)
+    if missing_count == len(GAS_FIELDS):
+        quality_flag = 'missing'
+    elif missing_count > 0:
+        quality_flag = 'partial'
+    else:
+        quality_flag = 'ok'
+
+    measured_at_raw = payload.get('measured_at')
+    if measured_at_raw:
+        from django.utils.dateparse import parse_datetime
+        from django.utils.timezone import make_aware, is_aware
+        parsed = parse_datetime(str(measured_at_raw))
+        if parsed is None:
+            measured_at = timezone.now()
+        elif not is_aware(parsed):
+            measured_at = make_aware(parsed)
+        else:
+            measured_at = parsed
+    else:
+        measured_at = timezone.now()
+
+    reading = GasReading.objects.create(
+        device=device,
+        **values,
+        measured_at=measured_at,
+        quality_flag=quality_flag,
+        raw_payload=dict(payload),
+    )
+    update_last_seen(device)
+
+    # STEP C — Sliding Window 버퍼 갱신
+    from monitoring.anomaly.window import push as window_push
+    window_push(device.device_uid, reading)
+
+    # STEP B — 임계치 초과 판단
+    from alerts.services import check_gas_thresholds
+    check_gas_thresholds(device, reading)
+
+    # STEP D — Z-score 통계 이상 탐지
+    from monitoring.anomaly.zscore import analyze as zscore_analyze
+    from alerts.services import trigger_anomaly_alarms
+    zscore_results = zscore_analyze(device.device_uid, reading)
+    trigger_anomaly_alarms(device, zscore_results)
+
+    # STEP E — Change Point 탐지
+    from monitoring.anomaly.changepoint import detect as cp_detect
+    from alerts.services import trigger_changepoint_alarms
+    cp_results = cp_detect(device.device_uid, reading)
+    trigger_changepoint_alarms(device, cp_results)
+
+    # STEP F — Isolation Forest 9채널 분포 이상 탐지 (AI 엔진)
+    from monitoring.ai.gas_if import predict_gas_anomaly
+    from alerts.services import trigger_if_anomaly_alarms
+    if_result = predict_gas_anomaly(reading)
+    # 시나리오 판단 수집(item 3) — IF 매-틱 판단을 로그로 노출(정상 포함). 알람은 이상만 남김.
+    logger.info("[STEP F][IF][gas] device=%s measured_at=%s result=%s",
+                device.device_uid, reading.measured_at.isoformat(), if_result)
+    trigger_if_anomaly_alarms(device, if_result)
+
+    # STEP G — ARIMA 예측 (사전 경고) — forecast 전용 큐로 위임 (아키텍처 D2)
+    from alerts.tasks import forecast_gas_task
+    forecast_gas_task.delay(device_uid, dict(payload))
+
+    # WebSocket 브로드캐스트
+    try:
+        from facilities.models import SensorLocation
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        sensor = SensorLocation.objects.filter(
+            device_id=device.id, is_active=True
+        ).first()
+
+        if sensor:
+            level_kr = calc_danger_level(reading)
+            status = {'위험': 'danger', '주의': 'warning', '정상': 'normal'}.get(level_kr, 'normal')
+            ws_payload = {
+                'id': sensor.id,
+                'device_id': device.id,
+                'sensor_type': sensor.sensor_type,
+                'x': float(sensor.x),
+                'y': float(sensor.y),
+                'device_name': sensor.device_name,
+                'is_active': sensor.is_active,
+                'status': status,
+                'latest_value': {f: getattr(reading, f) for f in GAS_FIELDS},
+            }
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f'floor_{sensor.floor_id}_sensor',
+                {'type': 'sensor.update', 'msg_type': 'delta', 'data': [ws_payload]},
+            )
+    except Exception as e:
+        logger.warning('[sensor_ws] broadcast 실패: %s', e)
+
+    # Geofence 자동 갱신
+    try:
+        from facilities.services.geofence_service import update_geofence_from_gas
+        update_geofence_from_gas(reading)
+    except Exception as e:
+        logger.warning('[geofence] 업데이트 실패: %s', e)
 
 # ──────────────────────────────────────────────────────────
 # 가스 위험도 상수
@@ -41,16 +264,24 @@ STALE_THRESHOLD = timedelta(minutes=2)
 # 가스 위험도 로직
 # ══════════════════════════════════════════════════════════
 
-def get_thresholds() -> dict:
+def get_thresholds(scope: str = '실시간 관제') -> dict:
     """
     임계치 정책 조회
-    - DB의 ThresholdPolicy 우선 사용
-    - DB에 데이터 없으면 PDF 기본값(DEFAULT_THRESHOLDS) 사용
+    - scope 파라미터로 반영 범위 필터링
+      · '실시간 관제' (기본값): 실시간 위험도 계산·차트 표시용
+      · '알림'               : AlarmEvent 생성 판단용
+      · scope='' 인 정책은 범위 미지정으로 간주 → 전체 적용 (폴백)
+    - DB에 해당 scope 데이터 없으면 PDF 기본값(DEFAULT_THRESHOLDS) 사용
     - O2는 역방향 처리이므로 반환값에서 제외
     """
     from monitoring.models import ThresholdPolicy
+    from django.db.models import Q
 
-    policies = ThresholdPolicy.objects.filter(is_active=True)
+    policies = ThresholdPolicy.objects.filter(
+        is_active=True,
+    ).filter(
+        Q(scope__contains=scope) | Q(scope='')  # scope 미지정 정책은 전체 적용
+    )
     if not policies.exists():
         return DEFAULT_THRESHOLDS
 
@@ -61,6 +292,45 @@ def get_thresholds() -> dict:
         and p.warning_max is not None
         and p.danger_max  is not None
     }
+
+
+def calc_power_channel_level(reading) -> str:
+    """PowerReading 1건의 위험 등급을 반환.
+
+    반환값: 'error' / 'off' / 'danger' / 'warning' / 'normal'
+    - error : 통신 불능 (current_a, voltage_v, power_w 모두 -1)
+    - off   : 전원 차단 (세 값 모두 0)
+    - 그 외 : DB ThresholdPolicy(load_rate)의 경고/위험 % 기준으로 판단
+              DB 미등록 시 기본값 50 % / 75 % 사용
+    """
+    ca = reading.current_a
+    vv = reading.voltage_v
+    pw = reading.power_w
+
+    if ca == -1 and vv == -1 and pw == -1:
+        return 'error'
+    if ca == 0 and vv == 0 and pw == 0:
+        return 'off'
+    if pw is None or pw <= 0:
+        return 'normal'
+
+    from monitoring.models import ThresholdPolicy
+    policy = ThresholdPolicy.objects.filter(
+        category='TH_POWER',
+        metric_code='load_rate',
+        is_active=True,
+    ).first()
+    warn_pct   = float(policy.warning_max) if policy and policy.warning_max is not None else 50.0
+    danger_pct = float(policy.danger_max)  if policy and policy.danger_max  is not None else 75.0
+
+    rated_w  = float(reading.channel.rated_power_w or 1000)
+    load_pct = (float(pw) / rated_w) * 100
+
+    if load_pct >= danger_pct:
+        return 'danger'
+    if load_pct >= warn_pct:
+        return 'warning'
+    return 'normal'
 
 
 def calc_danger_level(reading) -> str:
@@ -103,10 +373,14 @@ def calc_danger_level(reading) -> str:
     return level
 
 
-def check_threshold_exceeded(reading) -> list:
+def check_threshold_exceeded(reading, scope: str = '실시간 관제') -> list:
     """
     임계치 초과한 가스 목록 반환
     alerts 앱에서 AlarmEvent 생성할 때 어떤 가스가 초과했는지 확인용
+
+    scope 파라미터:
+      - '실시간 관제' (기본값): 실시간 위험도 계산용
+      - '알림'               : 알람 이벤트 생성 판단용 (alerts/services.py에서 호출)
 
     반환 예시:
     [
@@ -126,7 +400,7 @@ def check_threshold_exceeded(reading) -> list:
             # 23.5% 초과: 기준 미정, 임시 주의 처리 (디코나이 확인 후 수정 예정)
             exceeded.append({"gas": "o2", "value": reading.o2, "level": "주의"})
 
-    thresholds = get_thresholds()
+    thresholds = get_thresholds(scope)
 
     for gas, (warn, danger) in thresholds.items():
         if gas == "o2":
@@ -156,7 +430,7 @@ def is_stale(ts) -> bool:
     return timezone.now() - ts > STALE_THRESHOLD
 
 
-def get_channel_status(reading) -> str:
+def check_channel_status(reading) -> str:
     """
     단일 채널의 상태 반환 (통합 PowerReading 기준)
 
@@ -238,7 +512,7 @@ def get_channel_summary(device_uid: str) -> list:
             channel=channel
         ).order_by("-measured_at").first()
 
-        status = get_channel_status(reading)
+        status = check_channel_status(reading)
 
         result.append({
             "channel":          channel.channel_code,

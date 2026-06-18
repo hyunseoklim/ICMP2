@@ -30,102 +30,154 @@
 {% block content %}
 
 <!-- Filter -->
-<div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
-  <div class="flex gap-4 items-end">
-    <div class="flex-1">
-      <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 유형</label>
-      <div class="relative">
-        <button type="button" id="f-dtype-toggle" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          <span id="f-dtype-label" class="text-slate-700">전체</span>
-          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="f-dtype-chevron"></i>
-        </button>
-        <div id="f-dtype-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-hidden">
-          <button class="f-dtype-opt w-full px-3 py-2 text-sm text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value=""><i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>전체</button>
-          <button class="f-dtype-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="유해가스 센서">유해가스 센서</button>
-          <button class="f-dtype-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="스마트 전력 시스템">스마트 전력 시스템</button>
-          <button class="f-dtype-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="위치 노드">위치 노드</button>
+<form id="filter-form" method="get" action="{% url 'retention_list' %}">
+  <input type="hidden" name="sort" id="hidden-sort" value="{{ sort }}">
+  <div class="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+    <div class="flex gap-4 items-end">
+
+      <!-- 장비 유형 -->
+      <div class="flex-1">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 유형</label>
+        <div class="relative" id="dtype-wrap">
+          <button type="button" id="f-dtype-toggle"
+            class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+            <span id="f-dtype-label" class="{% if device_type %}text-slate-800{% else %}text-slate-500{% endif %}">
+              {% if device_type %}{% for v,l in DEVICE_TYPE_CHOICES %}{% if v == device_type %}{{ l }}{% endif %}{% endfor %}{% else %}전체{% endif %}
+            </span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="f-dtype-chevron"></i>
+          </button>
+          <div id="f-dtype-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-hidden">
+            <button type="button" class="f-dtype-opt w-full px-3 py-2 text-sm text-left {% if not device_type %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="">
+              {% if not device_type %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}전체
+            </button>
+            {% for v, l in DEVICE_TYPE_CHOICES %}
+            <button type="button" class="f-dtype-opt w-full px-3 py-2 text-sm text-left {% if v == device_type %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="{{ v }}">
+              {% if v == device_type %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}{{ l }}
+            </button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="device_type" id="hidden-device-type" value="{{ device_type }}">
         </div>
       </div>
-    </div>
-    <div class="flex-1">
-      <label class="block text-xs font-medium text-slate-700 mb-1.5">데이터 구분</label>
-      <div class="relative">
-        <button type="button" id="f-dcat-toggle" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          <span id="f-dcat-label" class="text-slate-700">전체</span>
-          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="f-dcat-chevron"></i>
-        </button>
-        <div id="f-dcat-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-hidden">
-          <button class="f-dcat-opt w-full px-3 py-2 text-sm text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value=""><i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>전체</button>
-          <button class="f-dcat-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="원천 로그">원천 로그</button>
-          <button class="f-dcat-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="이상 이력">이상 이력</button>
-          <button class="f-dcat-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="집계 이력">집계 이력</button>
-          <button class="f-dcat-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="위치 이력">위치 이력</button>
+
+      <!-- 데이터 구분 -->
+      <div class="flex-1">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">데이터 구분</label>
+        <div class="relative" id="dcat-wrap">
+          <button type="button" id="f-dcat-toggle"
+            class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+            <span id="f-dcat-label" class="{% if data_category %}text-slate-800{% else %}text-slate-500{% endif %}">
+              {% if data_category %}{% for v,l in DATA_CATEGORY_CHOICES %}{% if v == data_category %}{{ l }}{% endif %}{% endfor %}{% else %}전체{% endif %}
+            </span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="f-dcat-chevron"></i>
+          </button>
+          <div id="f-dcat-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-hidden">
+            <button type="button" class="f-dcat-opt w-full px-3 py-2 text-sm text-left {% if not data_category %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="">
+              {% if not data_category %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}전체
+            </button>
+            {% for v, l in DATA_CATEGORY_CHOICES %}
+            <button type="button" class="f-dcat-opt w-full px-3 py-2 text-sm text-left {% if v == data_category %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="{{ v }}">
+              {% if v == data_category %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}{{ l }}
+            </button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="data_category" id="hidden-data-category" value="{{ data_category }}">
         </div>
       </div>
-    </div>
-    <div class="flex-1">
-      <label class="block text-xs font-medium text-slate-700 mb-1.5">삭제 주기</label>
-      <div class="relative">
-        <button type="button" id="f-dsch-toggle" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          <span id="f-dsch-label" class="text-slate-700">전체</span>
-          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="f-dsch-chevron"></i>
-        </button>
-        <div id="f-dsch-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-hidden">
-          <button class="f-dsch-opt w-full px-3 py-2 text-sm text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value=""><i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>전체</button>
-          <button class="f-dsch-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="매일">매일</button>
-          <button class="f-dsch-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="매월 1일">매월 1일</button>
-          <button class="f-dsch-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="매월 15일">매월 15일</button>
-          <button class="f-dsch-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="매월 말일">매월 말일</button>
-          <button class="f-dsch-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="분기말">분기말</button>
+
+      <!-- 삭제 주기 -->
+      <div class="flex-1">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">삭제 주기</label>
+        <div class="relative" id="dsch-wrap">
+          <button type="button" id="f-dsch-toggle"
+            class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+            <span id="f-dsch-label" class="{% if delete_schedule %}text-slate-800{% else %}text-slate-500{% endif %}">
+              {% if delete_schedule %}{% for v,l in DELETE_SCHEDULE_CHOICES %}{% if v == delete_schedule %}{{ l }}{% endif %}{% endfor %}{% else %}전체{% endif %}
+            </span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="f-dsch-chevron"></i>
+          </button>
+          <div id="f-dsch-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-hidden">
+            <button type="button" class="f-dsch-opt w-full px-3 py-2 text-sm text-left {% if not delete_schedule %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="">
+              {% if not delete_schedule %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}전체
+            </button>
+            {% for v, l in DELETE_SCHEDULE_CHOICES %}
+            <button type="button" class="f-dsch-opt w-full px-3 py-2 text-sm text-left {% if v == delete_schedule %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="{{ v }}">
+              {% if v == delete_schedule %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}{{ l }}
+            </button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="delete_schedule" id="hidden-delete-schedule" value="{{ delete_schedule }}">
         </div>
       </div>
-    </div>
-    <div class="flex-1">
-      <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부</label>
-      <div class="relative">
-        <button type="button" id="f-dact-toggle" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          <span id="f-dact-label" class="text-slate-700">전체</span>
-          <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="f-dact-chevron"></i>
-        </button>
-        <div id="f-dact-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-hidden">
-          <button class="f-dact-opt w-full px-3 py-2 text-sm text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value=""><i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>전체</button>
-          <button class="f-dact-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="사용">사용</button>
-          <button class="f-dact-opt w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="미사용">미사용</button>
+
+      <!-- 사용 여부 -->
+      <div class="flex-1">
+        <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부</label>
+        <div class="relative" id="dact-wrap">
+          <button type="button" id="f-dact-toggle"
+            class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-left flex items-center justify-between hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
+            <span id="f-dact-label" class="{% if is_active_f %}text-slate-800{% else %}text-slate-500{% endif %}">
+              {% if is_active_f == '1' %}사용{% elif is_active_f == '0' %}미사용{% else %}전체{% endif %}
+            </span>
+            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" id="f-dact-chevron"></i>
+          </button>
+          <div id="f-dact-menu" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 overflow-hidden">
+            <button type="button" class="f-dact-opt w-full px-3 py-2 text-sm text-left {% if not is_active_f %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="">
+              {% if not is_active_f %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}전체
+            </button>
+            <button type="button" class="f-dact-opt w-full px-3 py-2 text-sm text-left {% if is_active_f == '1' %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="1">
+              {% if is_active_f == '1' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}사용
+            </button>
+            <button type="button" class="f-dact-opt w-full px-3 py-2 text-sm text-left {% if is_active_f == '0' %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="0">
+              {% if is_active_f == '0' %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}미사용
+            </button>
+          </div>
+          <input type="hidden" name="is_active" id="hidden-is-active" value="{{ is_active_f }}">
         </div>
       </div>
-    </div>
-    <div class="flex gap-2">
-      <button type="button" id="filter-reset" class="px-5 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">초기화</button>
-      <button type="button" id="filter-search" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">검색</button>
+
+      <div class="flex gap-2">
+        <button type="button" id="filter-reset"
+          class="px-5 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">초기화</button>
+        <button type="submit"
+          class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">검색</button>
+      </div>
     </div>
   </div>
-</div>
+</form>
 
 <!-- List -->
 <div class="bg-white rounded-lg border border-slate-200">
   <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <div>
-        <span class="text-sm font-semibold text-slate-800">전체 <span id="total-count" class="text-blue-600">6</span>건</span>
-        <span class="text-xs text-slate-400 ml-2">표출된 데이터에 한해 데이터의 보관 기준 정보를 확인할 수 있습니다.</span>
-      </div>
+      <span class="text-sm font-semibold text-slate-800">전체 <span class="text-blue-600">{{ total }}</span>건</span>
+      <span class="text-xs text-slate-400">표출된 데이터에 한해 데이터의 보관 기준 정보를 확인할 수 있습니다.</span>
       <span id="selected-label" class="hidden text-xs font-medium text-slate-600"></span>
       <button type="button" id="delete-btn" disabled
         class="px-3 py-1.5 text-xs font-medium rounded-md border transition-colors bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed">삭제</button>
     </div>
-    <div class="relative">
-      <button type="button" id="sort-toggle" class="flex items-center gap-1.5 text-xs text-slate-600 border border-slate-200 rounded-md px-3 py-1.5 bg-white hover:border-slate-300 transition-colors">
-        <span id="sort-label">장비 유형 오름차순</span>
+    <!-- Sort -->
+    <div class="relative" id="sort-wrap">
+      <button type="button" id="sort-toggle"
+        class="flex items-center gap-1.5 text-xs text-slate-600 border border-slate-200 rounded-md px-3 py-1.5 bg-white hover:border-slate-300 transition-colors">
+        <span id="sort-label">
+          {% if sort == 'dtype-desc' %}장비 유형 내림차순
+          {% elif sort == 'date-desc' %}최근 수정일 최신순
+          {% elif sort == 'date-asc' %}최근 수정일 오래된순
+          {% else %}장비 유형 오름차순{% endif %}
+        </span>
         <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400" id="sort-chevron"></i>
       </button>
       <div id="sort-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-40 w-52">
-        <button class="sort-opt w-full px-3 py-2 text-xs text-left bg-blue-50 text-slate-900 flex items-center gap-2" data-value="dtype-asc" data-label="장비 유형 오름차순"><i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>장비 유형 오름차순</button>
-        <button class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="dtype-desc" data-label="장비 유형 내림차순">장비 유형 내림차순</button>
-        <button class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="date-desc" data-label="최근 수정일 최신순">최근 수정일 최신순</button>
-        <button class="sort-opt w-full px-3 py-2 text-xs text-left text-slate-700 hover:bg-slate-50 pl-8" data-value="date-asc" data-label="최근 수정일 오래된순">최근 수정일 오래된순</button>
+        {% for val, lbl in sort_options %}
+        <button type="button" class="sort-opt w-full px-3 py-2 text-xs text-left {% if sort == val %}bg-blue-50 text-slate-900 flex items-center gap-2{% else %}text-slate-700 hover:bg-slate-50 pl-8{% endif %}" data-value="{{ val }}">
+          {% if sort == val %}<i data-lucide="check" class="w-3.5 h-3.5 text-blue-600 flex-shrink-0"></i>{% endif %}{{ lbl }}
+        </button>
+        {% endfor %}
       </div>
     </div>
   </div>
+
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
       <thead>
@@ -143,24 +195,82 @@
           <th class="px-4 py-3 text-center text-xs font-medium text-slate-500 whitespace-nowrap">담당자</th>
         </tr>
       </thead>
-      <tbody id="retention-tbody"></tbody>
+      <tbody>
+        {% for r in page_obj %}
+        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer row-item"
+          data-id="{{ r.pk }}"
+          data-update-url="{% url 'retention_update' r.pk %}"
+          data-device-type="{{ r.device_type }}"
+          data-data-category="{{ r.data_category }}"
+          data-origin="{{ r.origin_days }}"
+          data-history="{{ r.history_days }}"
+          data-schedule="{{ r.delete_schedule }}"
+          data-active="{% if r.is_active %}1{% else %}0{% endif %}"
+          data-memo="{{ r.memo|escapejs }}">
+          <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
+            <input type="checkbox" class="row-check w-3.5 h-3.5 rounded border-slate-300 accent-blue-600" data-id="{{ r.pk }}">
+          </td>
+          <td class="px-4 py-3 text-xs font-medium text-slate-700 whitespace-nowrap">{{ r.get_device_type_display }}</td>
+          <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{{ r.get_data_category_display }}</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-center whitespace-nowrap">{{ r.origin_days }}일</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-center whitespace-nowrap">{{ r.history_days }}일</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-center whitespace-nowrap">{{ r.get_delete_schedule_display }}</td>
+          <td class="px-4 py-3 text-center">
+            {% if r.is_active %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700">사용</span>
+            {% else %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500">미사용</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-xs text-slate-500 text-center whitespace-nowrap">{{ r.updated_at|date:"Y-m-d" }}</td>
+          <td class="px-4 py-3 text-xs text-slate-600 text-center whitespace-nowrap">{{ r.manager_name }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="px-4 py-12 text-center text-sm text-slate-400">조회된 데이터가 없습니다.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
   </div>
+
+  <!-- Pagination -->
   <div class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-    <span class="text-xs text-slate-500" id="pagination-info">1 - 6 / 6</span>
+    <span class="text-xs text-slate-500">
+      {% if total > 0 %}{{ page_obj.start_index }} - {{ page_obj.end_index }} / {{ total }}{% else %}0건{% endif %}
+    </span>
     <div class="flex items-center gap-1">
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
-      <button class="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-medium">1</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">2</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">3</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">4</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">5</button>
-      <button class="w-7 h-7 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+      {% if page_obj.has_previous %}
+      <a href="?device_type={{ device_type }}&data_category={{ data_category }}&delete_schedule={{ delete_schedule }}&is_active={{ is_active_f }}&sort={{ sort }}&page={{ page_obj.previous_page_number }}"
+        class="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+      </a>
+      {% else %}
+      <span class="w-7 h-7 flex items-center justify-center rounded text-slate-300"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></span>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
+        {% if num == page_obj.number %}
+        <span class="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white text-xs font-medium">{{ num }}</span>
+        {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+        <a href="?device_type={{ device_type }}&data_category={{ data_category }}&delete_schedule={{ delete_schedule }}&is_active={{ is_active_f }}&sort={{ sort }}&page={{ num }}"
+          class="w-7 h-7 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors text-xs">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+      <a href="?device_type={{ device_type }}&data_category={{ data_category }}&delete_schedule={{ delete_schedule }}&is_active={{ is_active_f }}&sort={{ sort }}&page={{ page_obj.next_page_number }}"
+        class="w-7 h-7 flex items-center justify-center rounded text-slate-500 hover:bg-slate-100 transition-colors">
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </a>
+      {% else %}
+      <span class="w-7 h-7 flex items-center justify-center rounded text-slate-300"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></span>
+      {% endif %}
     </div>
   </div>
 </div>
 
-<!-- 삭제 확인 (z-[60]) -->
+<!-- 삭제 확인 모달 -->
 <div id="delete-confirm-modal" class="hidden fixed inset-0 flex items-center justify-center z-[60]">
   <div class="absolute inset-0 bg-black/40" id="delete-confirm-overlay"></div>
   <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
@@ -176,7 +286,7 @@
   </div>
 </div>
 
-<!-- 등록 확인 (z-[60]) -->
+<!-- 등록 확인 모달 (z-[60]) -->
 <div id="register-confirm-modal" class="hidden fixed inset-0 flex items-center justify-center z-[60]">
   <div class="absolute inset-0 bg-black/40" id="reg-confirm-overlay"></div>
   <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
@@ -192,7 +302,7 @@
   </div>
 </div>
 
-<!-- 수정 확인 (z-[60]) -->
+<!-- 수정 확인 모달 (z-[60]) -->
 <div id="edit-confirm-modal" class="hidden fixed inset-0 flex items-center justify-center z-[60]">
   <div class="absolute inset-0 bg-black/40" id="edit-confirm-overlay"></div>
   <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
@@ -200,7 +310,7 @@
       <i data-lucide="pencil" class="w-7 h-7 text-blue-500"></i>
     </div>
     <p class="text-sm font-semibold text-slate-800 mb-1">수정하시겠습니까?</p>
-    <p class="text-xs text-slate-500 text-center mb-6">해당 기준을 등록하시겠습니까?</p>
+    <p class="text-xs text-slate-500 text-center mb-6">해당 보관 주기 설정을 수정하시겠습니까?</p>
     <div class="flex gap-2 w-full">
       <button type="button" id="edit-confirm-cancel" class="flex-1 py-2.5 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
       <button type="button" id="edit-confirm-ok" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">확인</button>
@@ -208,20 +318,21 @@
   </div>
 </div>
 
-<!-- 성공 (z-[65]) -->
+<!-- 성공 모달 -->
 <div id="ret-success-modal" class="hidden fixed inset-0 flex items-center justify-center z-[65]">
   <div class="absolute inset-0 bg-black/40"></div>
   <div class="relative bg-white rounded-xl shadow-2xl w-80 p-8 flex flex-col items-center z-10">
     <div class="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4">
       <i data-lucide="check-circle-2" class="w-8 h-8 text-emerald-500"></i>
     </div>
-    <p class="text-sm font-semibold text-slate-800 mb-1" id="success-title">완료</p>
+    <p class="text-sm font-semibold text-slate-800 mb-1">완료</p>
     <p class="text-xs text-slate-500 text-center mb-6" id="success-desc"></p>
-    <button type="button" id="success-close-btn" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">확인</button>
+    <button type="button" id="success-close-btn"
+      class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-md transition-colors">확인</button>
   </div>
 </div>
 
-<!-- 등록/수정 팝업 (z-50) -->
+<!-- 등록/수정 팝업 -->
 <div id="ret-form-modal" class="hidden fixed inset-0 flex items-center justify-center z-50">
   <div class="absolute inset-0 bg-black/40" id="ret-form-overlay"></div>
   <div class="relative bg-white rounded-xl shadow-2xl w-[560px] z-10" style="max-height:85vh;overflow-y:auto;">
@@ -236,9 +347,7 @@
           <label class="block text-xs font-medium text-slate-700 mb-1.5">장비 유형 <span class="text-red-500">*</span></label>
           <select id="form-dtype" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
             <option value="">장비 유형 선택</option>
-            <option value="유해가스 센서">유해가스 센서</option>
-            <option value="스마트 전력 시스템">스마트 전력 시스템</option>
-            <option value="위치 노드">위치 노드</option>
+            {% for v, l in DEVICE_TYPE_CHOICES %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
           </select>
           <p id="err-dtype" class="hidden text-xs text-red-500 mt-1">장비 유형을 선택해 주세요.</p>
         </div>
@@ -247,10 +356,7 @@
           <label class="block text-xs font-medium text-slate-700 mb-1.5">데이터 구분 <span class="text-red-500">*</span></label>
           <select id="form-dcat" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
             <option value="">데이터 구분 선택</option>
-            <option value="원천 로그">원천 로그</option>
-            <option value="이상 이력">이상 이력</option>
-            <option value="집계 이력">집계 이력</option>
-            <option value="위치 이력">위치 이력</option>
+            {% for v, l in DATA_CATEGORY_CHOICES %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
           </select>
           <p id="err-dcat" class="hidden text-xs text-red-500 mt-1">데이터 구분을 선택해 주세요.</p>
         </div>
@@ -258,32 +364,28 @@
         <div>
           <label class="block text-xs font-medium text-slate-700 mb-1.5">원천 데이터 보관 기간 <span class="text-red-500">*</span></label>
           <div class="flex items-center gap-2">
-            <input type="number" id="form-origin" min="1" placeholder="예: 365"
+            <input type="text" id="form-origin" placeholder="예: 365"
               class="flex-1 px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
             <span class="text-sm text-slate-500 flex-shrink-0">일</span>
           </div>
-          <p id="err-origin" class="hidden text-xs text-red-500 mt-1">원천 데이터 보관 기간을 입력해 주세요.</p>
+          <p id="err-origin" class="hidden text-xs text-red-500 mt-1"></p>
         </div>
         <!-- 이력 데이터 보관 기간 -->
         <div>
           <label class="block text-xs font-medium text-slate-700 mb-1.5">이력 데이터 보관 기간 <span class="text-red-500">*</span></label>
           <div class="flex items-center gap-2">
-            <input type="number" id="form-history" min="1" placeholder="예: 730"
+            <input type="text" id="form-history" placeholder="예: 730"
               class="flex-1 px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
             <span class="text-sm text-slate-500 flex-shrink-0">일</span>
           </div>
-          <p id="err-history" class="hidden text-xs text-red-500 mt-1">이력 데이터 보관 기간을 입력해 주세요.</p>
+          <p id="err-history" class="hidden text-xs text-red-500 mt-1"></p>
         </div>
         <!-- 삭제 주기 -->
         <div>
           <label class="block text-xs font-medium text-slate-700 mb-1.5">삭제 주기 <span class="text-red-500">*</span></label>
           <select id="form-dsch" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
             <option value="">삭제 주기 선택</option>
-            <option value="매일">매일</option>
-            <option value="매월 1일">매월 1일</option>
-            <option value="매월 15일">매월 15일</option>
-            <option value="매월 말일">매월 말일</option>
-            <option value="분기말">분기말</option>
+            {% for v, l in DELETE_SCHEDULE_CHOICES %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
           </select>
           <p id="err-dsch" class="hidden text-xs text-red-500 mt-1">삭제 주기를 선택해 주세요.</p>
         </div>
@@ -292,13 +394,13 @@
           <label class="block text-xs font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-red-500">*</span></label>
           <select id="form-active" class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
             <option value="">선택</option>
-            <option value="사용">사용</option>
-            <option value="미사용">미사용</option>
+            <option value="1">사용</option>
+            <option value="0">미사용</option>
           </select>
           <p id="err-active" class="hidden text-xs text-red-500 mt-1">사용 여부를 선택해 주세요.</p>
         </div>
       </div>
-      <!-- 설정 메모 (full width) -->
+      <!-- 설정 메모 -->
       <div>
         <label class="block text-xs font-medium text-slate-700 mb-1.5">설정 메모</label>
         <textarea id="form-memo" maxlength="200" rows="4" placeholder="보관 정책 변경 사유를 입력하세요"
@@ -318,57 +420,109 @@
 
 <script>
 (function() {
-  var ROWS = [
-    { id:1, deviceType:'유해가스 센서', dataType:'원천 로그', origin:365, history:730, schedule:'매월 1일', active:true, modDate:'2026-04-14', manager:'김민진' },
-    { id:2, deviceType:'유해가스 센서', dataType:'이상 이력', origin:730, history:1095, schedule:'매월 1일', active:true, modDate:'2026-04-14', manager:'김민진' },
-    { id:3, deviceType:'스마트 전력 시스템', dataType:'원천 로그', origin:180, history:365, schedule:'매월 15일', active:true, modDate:'2026-04-12', manager:'이은영' },
-    { id:4, deviceType:'스마트 전력 시스템', dataType:'집계 이력', origin:365, history:730, schedule:'분기말', active:true, modDate:'2026-04-11', manager:'박관채' },
-    { id:5, deviceType:'위치 노드', dataType:'위치 이력', origin:90, history:180, schedule:'매월 1일', active:false, modDate:'2026-04-10', manager:'최은영' },
-    { id:6, deviceType:'위치 노드', dataType:'원천 로그', origin:60, history:120, schedule:'매월 1일', active:true, modDate:'2026-04-09', manager:'최은영' },
-  ];
-
-  var currentRows = ROWS.slice();
-  var checkedIds = {};
   var editId = null;
-  var snapshot = {};
+  var editSnapshot = {};
+  var checkedIds = {};
 
-  /* ── 테이블 렌더링 ── */
-  function renderRows(rows) {
-    var tbody = document.getElementById('retention-tbody');
-    tbody.innerHTML = '';
-    rows.forEach(function(row) {
-      var tr = document.createElement('tr');
-      tr.className = 'border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer';
-      var badge = row.active
-        ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700">사용</span>'
-        : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500">미사용</span>';
-      tr.innerHTML = [
-        '<td class="px-4 py-3 text-center" onclick="event.stopPropagation()"><input type="checkbox" class="row-check w-3.5 h-3.5 rounded border-slate-300 accent-blue-600" data-id="'+row.id+'"></td>',
-        '<td class="px-4 py-3 text-xs font-medium text-slate-700 whitespace-nowrap">'+row.deviceType+'</td>',
-        '<td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">'+row.dataType+'</td>',
-        '<td class="px-4 py-3 text-xs text-slate-600 text-center whitespace-nowrap">'+row.origin+'일</td>',
-        '<td class="px-4 py-3 text-xs text-slate-600 text-center whitespace-nowrap">'+row.history+'일</td>',
-        '<td class="px-4 py-3 text-xs text-slate-600 text-center whitespace-nowrap">'+row.schedule+'</td>',
-        '<td class="px-4 py-3 text-center">'+badge+'</td>',
-        '<td class="px-4 py-3 text-xs text-slate-500 text-center whitespace-nowrap">'+row.modDate+'</td>',
-        '<td class="px-4 py-3 text-xs text-slate-600 text-center whitespace-nowrap">'+row.manager+'</td>',
-      ].join('');
-      tr.addEventListener('click', function() { openEditModal(row); });
-      var cb = tr.querySelector('.row-check');
-      if (checkedIds[row.id]) cb.checked = true;
-      cb.addEventListener('change', function() {
-        checkedIds[row.id] = this.checked;
-        updateCheckState();
-      });
-      tbody.appendChild(tr);
+  var CREATE_URL = '{% url "retention_create" %}';
+  var DELETE_URL = '{% url "retention_delete" %}';
+  var CSRF = '{{ csrf_token }}';
+  var editUpdateUrl = null;
+
+  /* ── 필터 드롭다운 ── */
+  var ALL_MENUS = ['f-dtype-menu','f-dcat-menu','f-dsch-menu','f-dact-menu','sort-menu'];
+  function closeAllMenus() {
+    ALL_MENUS.forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.classList.add('hidden');
     });
-    document.getElementById('total-count').textContent = rows.length;
-    document.getElementById('pagination-info').textContent = '1 - ' + rows.length + ' / ' + rows.length;
-    updateCheckState();
-    lucide.createIcons();
+    ['f-dtype-chevron','f-dcat-chevron','f-dsch-chevron','f-dact-chevron','sort-chevron'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.style.transform = '';
+    });
   }
 
-  /* ── 체크 상태 ── */
+  function bindFilterDropdown(toggleId, menuId, chevId, optClass, hiddenId, labelId) {
+    var toggle = document.getElementById(toggleId);
+    var menu   = document.getElementById(menuId);
+    var chev   = document.getElementById(chevId);
+    var label  = document.getElementById(labelId);
+    if (!toggle) return;
+    toggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var open = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!open) { menu.classList.remove('hidden'); if(chev) chev.style.transform = 'rotate(180deg)'; }
+    });
+    menu.addEventListener('click', function(e) { e.stopPropagation(); });
+    menu.querySelectorAll('.' + optClass).forEach(function(opt) {
+      opt.addEventListener('click', function() {
+        var val = this.dataset.value;
+        document.getElementById(hiddenId).value = val;
+        /* 라벨 업데이트 */
+        if (label) {
+          label.textContent = val ? this.textContent.trim() : '전체';
+          label.className = val ? 'text-slate-800' : 'text-slate-500';
+        }
+        /* active 스타일 업데이트 */
+        menu.querySelectorAll('.' + optClass).forEach(function(o) {
+          var isSelected = o.dataset.value === val;
+          o.className = o.className
+            .replace(/bg-blue-50|text-slate-900|flex items-center gap-2|text-slate-700|hover:bg-slate-50|pl-8/g, '').trim();
+          if (isSelected) {
+            o.className += ' bg-blue-50 text-slate-900 flex items-center gap-2';
+            var ic = o.querySelector('i[data-lucide="check"]');
+            if (!ic) {
+              ic = document.createElement('i');
+              ic.setAttribute('data-lucide', 'check');
+              ic.className = 'w-3.5 h-3.5 text-blue-600 flex-shrink-0';
+              o.prepend(ic);
+              lucide.createIcons({ nodes: [ic] });
+            }
+          } else {
+            o.className += ' text-slate-700 hover:bg-slate-50 pl-8';
+            var ic = o.querySelector('i[data-lucide="check"]');
+            if (ic) ic.remove();
+          }
+        });
+        closeAllMenus();
+      });
+    });
+  }
+
+  bindFilterDropdown('f-dtype-toggle','f-dtype-menu','f-dtype-chevron','f-dtype-opt','hidden-device-type','f-dtype-label');
+  bindFilterDropdown('f-dcat-toggle','f-dcat-menu','f-dcat-chevron','f-dcat-opt','hidden-data-category','f-dcat-label');
+  bindFilterDropdown('f-dsch-toggle','f-dsch-menu','f-dsch-chevron','f-dsch-opt','hidden-delete-schedule','f-dsch-label');
+  bindFilterDropdown('f-dact-toggle','f-dact-menu','f-dact-chevron','f-dact-opt','hidden-is-active','f-dact-label');
+
+  /* 정렬 드롭다운 */
+  var sortToggle = document.getElementById('sort-toggle');
+  var sortMenu   = document.getElementById('sort-menu');
+  var sortChev   = document.getElementById('sort-chevron');
+  sortToggle?.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var open = !sortMenu.classList.contains('hidden');
+    closeAllMenus();
+    if (!open) { sortMenu.classList.remove('hidden'); sortChev.style.transform = 'rotate(180deg)'; }
+  });
+  sortMenu?.addEventListener('click', function(e) { e.stopPropagation(); });
+  document.querySelectorAll('.sort-opt').forEach(function(opt) {
+    opt.addEventListener('click', function() {
+      document.getElementById('hidden-sort').value = this.dataset.value;
+      document.getElementById('filter-form').submit();
+    });
+  });
+
+  /* 초기화 */
+  document.getElementById('filter-reset')?.addEventListener('click', function() {
+    ['hidden-device-type','hidden-data-category','hidden-delete-schedule','hidden-is-active'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('hidden-sort').value = 'dtype-asc';
+    document.getElementById('filter-form').submit();
+  });
+
+  document.addEventListener('click', closeAllMenus);
+
+  /* ── 체크박스 ── */
   function updateCheckState() {
     var count = Object.keys(checkedIds).filter(function(k){ return checkedIds[k]; }).length;
     var lbl = document.getElementById('selected-label');
@@ -387,98 +541,114 @@
     allChk.indeterminate = count > 0 && count < allCbs.length;
   }
 
-  document.getElementById('check-all').addEventListener('change', function() {
+  document.getElementById('check-all')?.addEventListener('change', function() {
     var v = this.checked;
-    document.querySelectorAll('.row-check').forEach(function(cb){ cb.checked = v; checkedIds[cb.dataset.id] = v; });
+    document.querySelectorAll('.row-check').forEach(function(cb) { cb.checked = v; checkedIds[cb.dataset.id] = v; });
     updateCheckState();
   });
 
+  document.querySelectorAll('.row-check').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      checkedIds[this.dataset.id] = this.checked;
+      updateCheckState();
+    });
+  });
+
   /* ── 삭제 흐름 ── */
-  document.getElementById('delete-btn').addEventListener('click', function() {
+  document.getElementById('delete-btn')?.addEventListener('click', function() {
     if (this.disabled) return;
     var count = Object.keys(checkedIds).filter(function(k){ return checkedIds[k]; }).length;
     document.getElementById('delete-confirm-desc').textContent = count + '건을 삭제하시겠습니까?';
     document.getElementById('delete-confirm-modal').classList.remove('hidden');
   });
-  document.getElementById('delete-cancel-btn').addEventListener('click', function() { document.getElementById('delete-confirm-modal').classList.add('hidden'); });
-  document.getElementById('delete-confirm-overlay').addEventListener('click', function() { document.getElementById('delete-confirm-modal').classList.add('hidden'); });
-  document.getElementById('delete-ok-btn').addEventListener('click', function() {
-    var toDelete = Object.keys(checkedIds).filter(function(k){ return checkedIds[k]; }).map(Number);
-    currentRows = currentRows.filter(function(r){ return toDelete.indexOf(r.id) === -1; });
-    checkedIds = {};
+  document.getElementById('delete-cancel-btn')?.addEventListener('click', function() {
     document.getElementById('delete-confirm-modal').classList.add('hidden');
-    renderRows(currentRows);
-    showSuccess('삭제되었습니다.');
+  });
+  document.getElementById('delete-confirm-overlay')?.addEventListener('click', function() {
+    document.getElementById('delete-confirm-modal').classList.add('hidden');
+  });
+  document.getElementById('delete-ok-btn')?.addEventListener('click', function() {
+    var ids = Object.keys(checkedIds).filter(function(k){ return checkedIds[k]; });
+    fetch(DELETE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ ids: ids }),
+    }).then(function(r){ return r.json(); }).then(function(d) {
+      document.getElementById('delete-confirm-modal').classList.add('hidden');
+      if (d.ok) {
+        showSuccess('삭제되었습니다.', true);
+      }
+    });
   });
 
-  /* ── 성공 ── */
-  function showSuccess(desc) {
-    document.getElementById('success-desc').textContent = desc;
+  /* ── 성공 모달 ── */
+  function showSuccess(msg, reload) {
+    document.getElementById('success-desc').textContent = msg;
     document.getElementById('ret-success-modal').classList.remove('hidden');
+    document.getElementById('success-close-btn').onclick = function() {
+      document.getElementById('ret-success-modal').classList.add('hidden');
+      if (reload) window.location.reload();
+    };
   }
-  document.getElementById('success-close-btn').addEventListener('click', function() { document.getElementById('ret-success-modal').classList.add('hidden'); });
 
   /* ── 폼 유틸 ── */
-  function getFormState() {
+  function getFormData() {
     return {
-      dtype: document.getElementById('form-dtype').value,
-      dcat: document.getElementById('form-dcat').value,
-      origin: document.getElementById('form-origin').value.trim(),
-      history: document.getElementById('form-history').value.trim(),
-      dsch: document.getElementById('form-dsch').value,
-      active: document.getElementById('form-active').value,
-      memo: document.getElementById('form-memo').value.trim(),
+      device_type:     document.getElementById('form-dtype').value,
+      data_category:   document.getElementById('form-dcat').value,
+      origin_days:     document.getElementById('form-origin').value.trim(),
+      history_days:    document.getElementById('form-history').value.trim(),
+      delete_schedule: document.getElementById('form-dsch').value,
+      is_active:       document.getElementById('form-active').value,
+      memo:            document.getElementById('form-memo').value.trim(),
     };
   }
 
   function clearErrors() {
     ['dtype','dcat','origin','history','dsch','active'].forEach(function(f) {
-      document.getElementById('err-'+f).classList.add('hidden');
+      var el = document.getElementById('err-'+f); if (el) { el.textContent=''; el.classList.add('hidden'); }
     });
   }
 
   function validateForm() {
-    clearErrors();
-    var s = getFormState();
-    var valid = true;
+    clearErrors(); var ok = true;
+    var d = getFormData();
 
-    if (!s.dtype) { document.getElementById('err-dtype').classList.remove('hidden'); valid = false; }
-    if (!s.dcat)  { document.getElementById('err-dcat').classList.remove('hidden'); valid = false; }
+    if (!d.device_type)   { showErr('dtype', '장비 유형을 선택해 주세요.');   ok = false; }
+    if (!d.data_category) { showErr('dcat',  '데이터 구분을 선택해 주세요.'); ok = false; }
 
-    var originEl = document.getElementById('err-origin');
-    var originN = parseFloat(s.origin);
-    if (!s.origin) {
-      originEl.textContent = '원천 데이터 보관 기간을 입력해 주세요.';
-      originEl.classList.remove('hidden'); valid = false;
-    } else if (isNaN(originN) || originN < 1 || Math.floor(originN) !== originN) {
-      originEl.textContent = '원천 데이터 보관 기간은 숫자로 입력해 주세요.';
-      originEl.classList.remove('hidden'); valid = false;
+    var o = parseInt(d.origin_days, 10);
+    if (!d.origin_days) {
+      showErr('origin', '원천 데이터 보관 기간을 입력해 주세요.'); ok = false;
+    } else if (isNaN(o) || o < 1 || String(o) !== d.origin_days.trim()) {
+      showErr('origin', '원천 데이터 보관 기간은 숫자로 입력해 주세요.'); ok = false;
     }
 
-    var historyEl = document.getElementById('err-history');
-    var historyN = parseFloat(s.history);
-    if (!s.history) {
-      historyEl.textContent = '이력 데이터 보관 기간을 입력해 주세요.';
-      historyEl.classList.remove('hidden'); valid = false;
-    } else if (isNaN(historyN) || historyN < 1 || Math.floor(historyN) !== historyN) {
-      historyEl.textContent = '이력 데이터 보관 기간은 숫자로 입력해 주세요.';
-      historyEl.classList.remove('hidden'); valid = false;
-    } else if (!isNaN(originN) && originN >= 1 && historyN < originN) {
-      historyEl.textContent = '이력 데이터 보관 기간은 원천 데이터 보관 기간 이상으로 입력해 주세요.';
-      historyEl.classList.remove('hidden'); valid = false;
+    var h = parseInt(d.history_days, 10);
+    if (!d.history_days) {
+      showErr('history', '이력 데이터 보관 기간을 입력해 주세요.'); ok = false;
+    } else if (isNaN(h) || h < 1 || String(h) !== d.history_days.trim()) {
+      showErr('history', '이력 데이터 보관 기간은 숫자로 입력해 주세요.'); ok = false;
+    } else if (!isNaN(o) && o >= 1 && h < o) {
+      showErr('history', '이력 데이터 보관 기간은 원천 데이터 보관 기간 이상으로 입력해 주세요.'); ok = false;
     }
 
-    if (!s.dsch)   { document.getElementById('err-dsch').classList.remove('hidden'); valid = false; }
-    if (!s.active) { document.getElementById('err-active').classList.remove('hidden'); valid = false; }
+    if (!d.delete_schedule) { showErr('dsch',   '삭제 주기를 선택해 주세요.');  ok = false; }
+    if (!d.is_active)       { showErr('active', '사용 여부를 선택해 주세요.'); ok = false; }
 
-    return valid;
+    return ok;
   }
 
-  /* ── 수정 버튼 활성화 (edit mode only) ── */
-  function checkEditChanged() {
+  function showErr(field, msg) {
+    var el = document.getElementById('err-'+field);
+    if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+  }
+
+  /* 수정 모드 변경 감지 */
+  function checkChanged() {
     if (editId === null) return;
-    var s = getFormState();
-    var changed = Object.keys(s).some(function(k){ return s[k] !== snapshot[k]; });
+    var d = getFormData();
+    var changed = Object.keys(d).some(function(k){ return String(d[k]) !== String(editSnapshot[k]); });
     var btn = document.getElementById('ret-form-submit');
     btn.disabled = !changed;
     btn.className = changed
@@ -488,180 +658,106 @@
 
   ['form-dtype','form-dcat','form-origin','form-history','form-dsch','form-active','form-memo'].forEach(function(id) {
     var el = document.getElementById(id);
-    if (el) { el.addEventListener('input', checkEditChanged); el.addEventListener('change', checkEditChanged); }
+    if (el) { el.addEventListener('input', checkChanged); el.addEventListener('change', checkChanged); }
   });
 
-  /* ── 설정 메모 카운터 ── */
-  document.getElementById('form-memo').addEventListener('input', function() {
+  document.getElementById('form-memo')?.addEventListener('input', function() {
     document.getElementById('memo-count').textContent = this.value.length;
-    checkEditChanged();
   });
 
   /* ── 팝업 열기 ── */
-  document.getElementById('open-register-btn').addEventListener('click', function() {
-    editId = null;
-    clearErrors();
+  document.getElementById('open-register-btn')?.addEventListener('click', function() {
+    editId = null; clearErrors();
     document.getElementById('ret-form-title').textContent = '보관 주기 설정';
     document.getElementById('ret-form-subtitle').textContent = '데이터 보관 주기를 등록합니다.';
-    var submitBtn = document.getElementById('ret-form-submit');
-    submitBtn.textContent = '등록';
-    submitBtn.disabled = false;
-    submitBtn.className = 'px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors';
     ['form-dtype','form-dcat','form-origin','form-history','form-dsch','form-active','form-memo'].forEach(function(id){ document.getElementById(id).value = ''; });
     document.getElementById('memo-count').textContent = '0';
+    var btn = document.getElementById('ret-form-submit');
+    btn.textContent = '등록'; btn.disabled = false;
+    btn.className = 'px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors';
     document.getElementById('ret-form-modal').classList.remove('hidden');
   });
 
-  function openEditModal(row) {
-    editId = row.id;
-    clearErrors();
-    document.getElementById('ret-form-title').textContent = '보관 주기 수정';
-    document.getElementById('ret-form-subtitle').textContent = '데이터 보관 주기를 수정합니다.';
-    document.getElementById('form-dtype').value = row.deviceType;
-    document.getElementById('form-dcat').value = row.dataType;
-    document.getElementById('form-origin').value = row.origin;
-    document.getElementById('form-history').value = row.history;
-    document.getElementById('form-dsch').value = row.schedule;
-    document.getElementById('form-active').value = row.active ? '사용' : '미사용';
-    document.getElementById('form-memo').value = '';
-    document.getElementById('memo-count').textContent = '0';
-    snapshot = getFormState();
-    var submitBtn = document.getElementById('ret-form-submit');
-    submitBtn.textContent = '수정';
-    submitBtn.disabled = true;
-    submitBtn.className = 'px-5 py-2.5 bg-slate-300 text-white text-sm font-medium rounded-md cursor-not-allowed transition-colors';
-    document.getElementById('ret-form-modal').classList.remove('hidden');
-  }
+  document.querySelectorAll('.row-item').forEach(function(row) {
+    row.addEventListener('click', function() {
+      var d = this.dataset;
+      editId = parseInt(d.id, 10);
+      editUpdateUrl = d.updateUrl;
+      clearErrors();
+      document.getElementById('ret-form-title').textContent = '보관 주기 수정';
+      document.getElementById('ret-form-subtitle').textContent = '데이터 보관 주기를 수정합니다.';
+      document.getElementById('form-dtype').value   = d.deviceType;
+      document.getElementById('form-dcat').value    = d.dataCategory;
+      document.getElementById('form-origin').value  = d.origin;
+      document.getElementById('form-history').value = d.history;
+      document.getElementById('form-dsch').value    = d.schedule;
+      document.getElementById('form-active').value  = d.active;
+      document.getElementById('form-memo').value    = d.memo;
+      document.getElementById('memo-count').textContent = d.memo.length;
+      editSnapshot = getFormData();
+      var btn = document.getElementById('ret-form-submit');
+      btn.textContent = '수정'; btn.disabled = true;
+      btn.className = 'px-5 py-2.5 bg-slate-300 text-white text-sm font-medium rounded-md cursor-not-allowed transition-colors';
+      document.getElementById('ret-form-modal').classList.remove('hidden');
+    });
+  });
 
   function closeFormModal() { document.getElementById('ret-form-modal').classList.add('hidden'); }
-  document.getElementById('ret-form-cancel').addEventListener('click', closeFormModal);
-  document.getElementById('ret-form-overlay').addEventListener('click', closeFormModal);
+  document.getElementById('ret-form-cancel')?.addEventListener('click', closeFormModal);
+  document.getElementById('ret-form-overlay')?.addEventListener('click', closeFormModal);
 
-  /* ── [등록]/[수정] 클릭 ── */
-  document.getElementById('ret-form-submit').addEventListener('click', function() {
+  /* ── 등록/수정 제출 ── */
+  function doSubmit() {
+    var d = getFormData();
+    var url = editId !== null ? editUpdateUrl : CREATE_URL;
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify(d),
+    }).then(function(r){ return r.json(); }).then(function(res) {
+      if (res.ok) {
+        closeFormModal();
+        showSuccess(editId !== null ? '보관 주기가 수정되었습니다.' : '등록되었습니다.', true);
+      } else {
+        alert(res.error || '처리 중 오류가 발생했습니다.');
+      }
+    });
+  }
+
+  document.getElementById('ret-form-submit')?.addEventListener('click', function() {
     if (this.disabled) return;
     if (!validateForm()) return;
-
     if (editId !== null) {
-      /* 수정: 확인 팝업 */
       document.getElementById('edit-confirm-modal').classList.remove('hidden');
     } else {
-      /* 등록: 확인 팝업 */
       document.getElementById('register-confirm-modal').classList.remove('hidden');
     }
   });
 
   /* 등록 확인 팝업 */
-  document.getElementById('reg-confirm-cancel').addEventListener('click', function() {
+  document.getElementById('reg-confirm-cancel')?.addEventListener('click', function() {
     document.getElementById('register-confirm-modal').classList.add('hidden');
   });
-  document.getElementById('reg-confirm-overlay').addEventListener('click', function() {
+  document.getElementById('reg-confirm-overlay')?.addEventListener('click', function() {
     document.getElementById('register-confirm-modal').classList.add('hidden');
   });
-  document.getElementById('reg-confirm-ok').addEventListener('click', function() {
+  document.getElementById('reg-confirm-ok')?.addEventListener('click', function() {
     document.getElementById('register-confirm-modal').classList.add('hidden');
-    applyRegister();
+    doSubmit();
   });
 
   /* 수정 확인 팝업 */
-  document.getElementById('edit-confirm-cancel').addEventListener('click', function() {
+  document.getElementById('edit-confirm-cancel')?.addEventListener('click', function() {
     document.getElementById('edit-confirm-modal').classList.add('hidden');
   });
-  document.getElementById('edit-confirm-overlay').addEventListener('click', function() {
+  document.getElementById('edit-confirm-overlay')?.addEventListener('click', function() {
     document.getElementById('edit-confirm-modal').classList.add('hidden');
   });
-  document.getElementById('edit-confirm-ok').addEventListener('click', function() {
+  document.getElementById('edit-confirm-ok')?.addEventListener('click', function() {
     document.getElementById('edit-confirm-modal').classList.add('hidden');
-    applyEdit();
+    doSubmit();
   });
 
-  function pad2(n) { return String(n).padStart(2,'0'); }
-  function todayStr() { var d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
-
-  function applyRegister() {
-    var s = getFormState();
-    currentRows.push({
-      id: Date.now(),
-      deviceType: s.dtype, dataType: s.dcat,
-      origin: parseInt(s.origin,10), history: parseInt(s.history,10),
-      schedule: s.dsch, active: s.active === '사용',
-      modDate: todayStr(), manager: '관리자',
-    });
-    closeFormModal();
-    renderRows(currentRows);
-    showSuccess('등록되었습니다.');
-  }
-
-  function applyEdit() {
-    var s = getFormState();
-    currentRows.forEach(function(r) {
-      if (r.id === editId) {
-        r.deviceType = s.dtype; r.dataType = s.dcat;
-        r.origin = parseInt(s.origin,10); r.history = parseInt(s.history,10);
-        r.schedule = s.dsch; r.active = s.active === '사용';
-        r.modDate = todayStr();
-      }
-    });
-    closeFormModal();
-    renderRows(currentRows);
-    showSuccess('보관 주기가 수정되었습니다.');
-  }
-
-  /* ── 필터 드롭다운 ── */
-  var ALL_MENUS = ['f-dtype-menu','f-dcat-menu','f-dsch-menu','f-dact-menu','sort-menu'];
-  var ALL_CHEVS  = ['f-dtype-chevron','f-dcat-chevron','f-dsch-chevron','f-dact-chevron','sort-chevron'];
-
-  function closeAllMenus() {
-    ALL_MENUS.forEach(function(id){ var el=document.getElementById(id);if(el)el.classList.add('hidden'); });
-    ALL_CHEVS.forEach(function(id){ var el=document.getElementById(id);if(el)el.style.transform=''; });
-  }
-
-  function initDropdown(toggleId, menuId, chevId, optClass, labelId) {
-    var toggle = document.getElementById(toggleId);
-    var menu   = document.getElementById(menuId);
-    var chev   = document.getElementById(chevId);
-    var label  = document.getElementById(labelId);
-    if (!toggle) return;
-    toggle.addEventListener('click', function(e) {
-      e.stopPropagation();
-      var open = !menu.classList.contains('hidden');
-      closeAllMenus();
-      if (!open) { menu.classList.remove('hidden'); if(chev) chev.style.transform='rotate(180deg)'; }
-    });
-    document.querySelectorAll('.'+optClass).forEach(function(opt) {
-      opt.addEventListener('click', function(e) {
-        e.stopPropagation();
-        document.querySelectorAll('.'+optClass).forEach(function(o) {
-          o.classList.remove('bg-blue-50','text-slate-900'); o.classList.add('text-slate-700');
-          var ic=o.querySelector('i');if(ic)ic.style.display='none';
-        });
-        this.classList.add('bg-blue-50','text-slate-900'); this.classList.remove('text-slate-700');
-        var ic=this.querySelector('i');if(ic)ic.style.display='';
-        if(label) label.textContent = this.dataset.value || '전체';
-        closeAllMenus();
-      });
-    });
-  }
-
-  initDropdown('f-dtype-toggle','f-dtype-menu','f-dtype-chevron','f-dtype-opt','f-dtype-label');
-  initDropdown('f-dcat-toggle','f-dcat-menu','f-dcat-chevron','f-dcat-opt','f-dcat-label');
-  initDropdown('f-dsch-toggle','f-dsch-menu','f-dsch-chevron','f-dsch-opt','f-dsch-label');
-  initDropdown('f-dact-toggle','f-dact-menu','f-dact-chevron','f-dact-opt','f-dact-label');
-  initDropdown('sort-toggle','sort-menu','sort-chevron','sort-opt','sort-label');
-
-  document.getElementById('filter-reset').addEventListener('click', function() {
-    [['f-dtype-opt','f-dtype-label'],['f-dcat-opt','f-dcat-label'],
-     ['f-dsch-opt','f-dsch-label'],['f-dact-opt','f-dact-label']].forEach(function(pair) {
-      document.querySelectorAll('.'+pair[0]).forEach(function(o,i) {
-        if(i===0){ o.classList.add('bg-blue-50','text-slate-900'); o.classList.remove('text-slate-700'); var ic=o.querySelector('i');if(ic)ic.style.display=''; }
-        else{ o.classList.remove('bg-blue-50','text-slate-900'); o.classList.add('text-slate-700'); var ic=o.querySelector('i');if(ic)ic.style.display='none'; }
-      });
-      var lbl=document.getElementById(pair[1]); if(lbl) lbl.textContent='전체';
-    });
-  });
-
-  document.addEventListener('click', closeAllMenus);
-  renderRows(currentRows);
   lucide.createIcons();
 })();
 </script>

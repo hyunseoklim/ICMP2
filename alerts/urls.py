@@ -13,4 +13,6 @@ urlpatterns = [
     path('history/', views.action_history, name='action_history'),
     path('', include(router.urls)),
     path('api/recent/', views.recent_alarms, name='recent_alarms'),
+    path('api/tasks/', views.task_list, name='task_list'),
+    path('api/tasks/<str:task_id>/', views.task_status, name='task_status'),
 ]

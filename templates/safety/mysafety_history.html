@@ -321,6 +321,63 @@
 {% endblock %}
 
 {% block page_content %}
+{% if is_print %}
+<div style="padding:24px;font-family:sans-serif;background:#fff;color:#111;">
+  <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">안전 확인 이력</h2>
+  <p style="font-size:12px;color:#666;margin-bottom:24px;">{{ print_start }} ~ {{ print_end }}</p>
+  {% for pw in print_workers %}
+  <h3 style="font-size:15px;font-weight:700;margin:24px 0 4px;border-bottom:2px solid #333;padding-bottom:4px;">{{ pw.worker.worker_name }}</h3>
+  {% for pm in pw.months %}
+  <h4 style="font-size:13px;font-weight:700;margin:12px 0 6px;">{{ pm.label }}</h4>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+    <thead>
+      <tr>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;color:#ef4444;">일</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;">월</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;">화</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;">수</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;">목</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;">금</th>
+        <th style="border:1px solid #ddd;padding:6px;font-size:11px;background:#f5f5f5;color:#3b82f6;">토</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for week in pm.weeks %}
+      <tr>
+        {% for cell in week %}
+          {% if not cell.day %}
+            <td style="border:1px solid #ddd;height:70px;background:#fafafa;"></td>
+          {% elif cell.date < print_start or cell.date > print_end %}
+            <td style="border:1px solid #ddd;padding:6px 8px;height:70px;vertical-align:top;background:#f0f0f0;opacity:0.4;">
+              <span style="font-size:11px;font-weight:600;{% if forloop.counter == 1 %}color:#ef4444;{% elif forloop.counter == 7 %}color:#3b82f6;{% endif %}">{{ cell.day }}</span>
+            </td>
+          {% else %}
+            <td style="border:1px solid #ddd;padding:6px 8px;height:70px;vertical-align:top;">
+              <span style="font-size:11px;font-weight:600;display:block;margin-bottom:4px;{% if cell.date == today %}color:#3b82f6;{% elif forloop.counter == 1 %}color:#ef4444;{% elif forloop.counter == 7 %}color:#3b82f6;{% endif %}">{{ cell.day }}</span>
+              {% if cell.checklist is not None %}
+              <div style="display:flex;flex-direction:column;gap:2px;font-size:9px;color:#333;">
+                <div style="display:flex;align-items:center;gap:3px;">
+                  {% if cell.checklist %}<span style="color:#22c55e;font-size:11px;">✓</span>{% else %}<span style="color:#ef4444;font-size:11px;">✗</span>{% endif %}
+                  <span>안전 체크리스트</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:3px;">
+                  {% if cell.vr %}<span style="color:#22c55e;font-size:11px;">✓</span>{% else %}<span style="color:#ef4444;font-size:11px;">✗</span>{% endif %}
+                  <span>VR 교육</span>
+                </div>
+              </div>
+              {% endif %}
+            </td>
+          {% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+  {% endfor %}
+</div>
+<script>window.addEventListener('load', function(){ window.print(); });</script>
+{% else %}
 <div class="hist-page">
   <h2 class="hist-page-title">안전 확인 이력</h2>
 
@@ -330,7 +387,7 @@
 
   <div class="hist-tabs">
     <button class="hist-tab-btn active" data-htab="mine">나의 안전 확인</button>
-    {% if request.user.is_staff %}
+    {% if request.user.user_type == "admin" %}
       <button class="hist-tab-btn" data-htab="all">전체 이력 현황</button>
     {% endif %}
   </div>
@@ -377,13 +434,13 @@
                     {{ cell.day }}
                     {% if cell.date == today %} ●{% endif %}
                   </span>
-                  {% if cell.checklist is not None %}
+                  {% if cell.date and cell.date <= today %}
                   <div class="cal-indicators">
                     <div class="cal-indicator">
                       {% if cell.checklist %}
                         <svg class="ind-ok" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
                       {% else %}
-                        <svg class="ind-fail" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                        <svg class="ind-none" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>
                       {% endif %}
                       <span>안전 체크리스트</span>
                     </div>
@@ -391,7 +448,7 @@
                       {% if cell.vr %}
                         <svg class="ind-ok" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
                       {% else %}
-                        <svg class="ind-fail" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                        <svg class="ind-none" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>
                       {% endif %}
                       <span>VR 교육</span>
                     </div>
@@ -433,7 +490,7 @@
             <select class="admin-dept-select" id="dept-select">
               <option value="">소속 부서</option>
               {% for dept in departments %}
-                <option value="{{ dept }}" {% if dept_q == dept %}selected{% endif %}>{{ dept }}</option>
+                <option value="{{ dept.id }}" {% if dept_q == dept.id|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
               {% endfor %}
             </select>
           </div>
@@ -553,6 +610,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block script %}
@@ -677,31 +735,6 @@ document.getElementById("dp-cancel").addEventListener("click", () => {
   document.getElementById("dp-overlay").classList.remove("open");
 });
 
-document.getElementById("dp-confirm").addEventListener("click", () => {
-  if (!dpStartDate || !dpEndDate) { alert("시작 날짜와 종료 날짜를 모두 선택해주세요."); return; }
-  dpConfirmedStart = dpStartDate;
-  dpConfirmedEnd = dpEndDate;
-  document.getElementById("dp-overlay").classList.remove("open");
-
-  const start = fmtDate(dpConfirmedStart);
-  const end = fmtDate(dpConfirmedEnd);
-
-  if (dpMode === "download") {
-    window.location.href = `{% url 'mysafety_history_download' %}?start=${start}&end=${end}`;
-  } else {
-    window.open(`?year={{ year }}&month={{ month }}&print=1&start=${start}&end=${end}`, "_blank");
-    setTimeout(() => window.print(), 500);
-  }
-});
-
-document.getElementById("download-btn").addEventListener("click", () => openDp("download"));
-document.getElementById("print-btn").addEventListener("click", () => openDp("print"));
-
-document.getElementById("dp-overlay").addEventListener("click", function(e) {
-  if (e.target === this) this.classList.remove("open");
-});
-
-// ── dp-confirm (단일 핸들러) ──
 let dpAdminWorkerIds = [];
 
 document.getElementById("dp-confirm").addEventListener("click", () => {
@@ -710,16 +743,26 @@ document.getElementById("dp-confirm").addEventListener("click", () => {
   dpConfirmedEnd = dpEndDate;
   document.getElementById("dp-overlay").classList.remove("open");
   const start = fmtDate(dpConfirmedStart);
-  const end = fmtDate(dpConfirmedEnd);
+  const end   = fmtDate(dpConfirmedEnd);
 
   if (dpMode === "admin-download") {
     const ids = dpAdminWorkerIds.join(",");
     window.location.href = `{% url 'mysafety_history_download' %}?start=${start}&end=${end}&workers=${ids}`;
+  } else if (dpMode === "admin-print") {
+    const ids = dpAdminWorkerIds.join(",");
+    window.open(`?print=1&start=${start}&end=${end}&workers=${ids}`, "_blank");
   } else if (dpMode === "download") {
     window.location.href = `{% url 'mysafety_history_download' %}?start=${start}&end=${end}`;
   } else {
-    setTimeout(() => window.print(), 300);
+    window.open(`?print=1&start=${start}&end=${end}`, "_blank");
   }
+});
+
+document.getElementById("download-btn").addEventListener("click", () => openDp("download"));
+document.getElementById("print-btn").addEventListener("click", () => openDp("print"));
+
+document.getElementById("dp-overlay").addEventListener("click", function(e) {
+  if (e.target === this) this.classList.remove("open");
 });
 
 // ── 전체 이력 현황 탭 ──
@@ -863,8 +906,15 @@ if (adminDlBtn) adminDlBtn.addEventListener("click", () => {
   document.getElementById("dp-overlay").classList.add("open");
 });
 if (adminPrintBtn) adminPrintBtn.addEventListener("click", () => {
-  if (!document.querySelectorAll(".worker-cb:checked").length) return;
-  window.print();
+  const checked = [...document.querySelectorAll(".worker-cb:checked")].map(cb => cb.value);
+  if (!checked.length) return;
+  dpMode = "admin-print";
+  dpAdminWorkerIds = checked;
+  dpStartDate = null; dpEndDate = null;
+  dpLeftYear = {{ year }}; dpLeftMonth = {{ month }};
+  document.getElementById("dp-title").textContent = "출력 날짜 지정";
+  renderDp();
+  document.getElementById("dp-overlay").classList.add("open");
 });
 </script>
 {% endblock %}

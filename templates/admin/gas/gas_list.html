@@ -63,32 +63,12 @@
             data-value="">
             <i data-lucide="check" class="w-3.5 h-3.5 text-blue-600"></i>전체
           </button>
-          {% for sensor in sensors %}
+          {% for sensor in all_sensors %}
           <button type="button"
             class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
-            data-value="{{ sensor.sensor_id }}">{{ sensor.sensor_id }}</button>
+            data-value="{{ sensor.device_uid }}">{{ sensor.device_uid }}</button>
           {% empty %}
-          <button type="button"
-            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
-            data-value="GAS-001">GAS-001</button>
-          <button type="button"
-            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
-            data-value="GAS-002">GAS-002</button>
-          <button type="button"
-            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
-            data-value="GAS-003">GAS-003</button>
-          <button type="button"
-            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
-            data-value="GAS-004">GAS-004</button>
-          <button type="button"
-            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
-            data-value="GAS-005">GAS-005</button>
-          <button type="button"
-            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
-            data-value="GAS-006">GAS-006</button>
-          <button type="button"
-            class="sid-option w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 pl-8"
-            data-value="GAS-007">GAS-007</button>
+          <p class="px-3 py-2 text-xs text-slate-400">등록된 센서가 없습니다.</p>
           {% endfor %}
         </div>
       </div>
@@ -175,7 +155,7 @@
     <div class="relative" id="sort-dropdown-wrap">
       <button type="button" id="sort-toggle"
         class="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors">
-        <span id="sort-label">노드 ID 오름차순</span>
+        <span id="sort-label">센서 ID 오름차순</span>
         <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
       </button>
       <div id="sort-menu"
@@ -216,23 +196,27 @@
       <tbody id="gas-tbody">
         {% for s in sensors %}
         <tr
-          class="border-t border-slate-100 hover:bg-slate-50 transition-colors sensor-row {% if s.connection == 'disconnected' or s.inspection_status == 'required' %}bg-red-50/30{% endif %}"
-          data-sensor-id="{{ s.sensor_id }}" data-device-type="{{ s.device_type|default:'GAS' }}"
-          data-device-code="{{ s.device_code|default:'' }}" data-mac="{{ s.mac|default:'' }}"
-          data-install-date="{{ s.install_date|date:'Y.m.d'|default:'' }}" data-dept="{{ s.department_id|default:'' }}"
-          data-manager="{{ s.manager_id|default:'' }}" data-ip="{{ s.ip|default:'' }}"
-          data-port="{{ s.port|default:'' }}" data-status="{{ s.status|default:'' }}"
-          data-conn-verified="{% if s.connection == 'normal' %}true{% else %}false{% endif %}"
-          data-conn-date="{{ s.last_received_at|date:'Y.m.d H:i:s'|default:'' }}" data-note="{{ s.note|default:'' }}">
+          class="border-t border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer sensor-row {% if s.status == 'fault' %}bg-red-50/30{% endif %}"
+          data-id="{{ s.id }}"
+          data-sensor-id="{{ s.device_uid }}" data-device-type="GAS"
+          data-device-code="{{ s.device_code|default:s.device_uid }}"
+          data-device-name="{{ s.device_name }}" data-mac="{{ s.mac_addr }}"
+          data-dept="{{ s.department_id|default:'' }}" data-dept-name="{{ s.department.name|default:'' }}"
+          data-manager="{{ s.manager_id|default:'' }}" data-manager-name="{{ s.manager.name|default:'' }}"
+          data-building="{{ s.building.building_name|default:'' }}" data-floor="{{ s.floor.floor_name|default:'' }}"
+          data-ip="{{ s.ip_address|default:'' }}"
+          data-port="{{ s.port|default:'' }}" data-status="{% if s.is_active %}active{% else %}inactive{% endif %}"
+          data-conn-verified="{% if s.status == 'active' %}true{% else %}false{% endif %}"
+          data-conn-date="{{ s.last_seen_at|date:'Y.m.d H:i:s'|default:'' }}" data-note="{{ s.note_body|default:'' }}">
           <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300"
               value="{{ s.id }}" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">{{ s.sensor_id }}</td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">{{ s.device_uid }}</td>
           <td class="px-4 py-3 w-28">
-            {% if s.connection == 'normal' %}
+            {% if s.status == 'active' %}
             <span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600">
               <span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상
             </span>
-            {% elif s.connection == 'disconnected' %}
+            {% elif s.status == 'fault' %}
             <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-500">
               <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>연결 끊김
             </span>
@@ -240,96 +224,30 @@
             <span class="text-slate-400 text-xs">-</span>
             {% endif %}
           </td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">{{ s.last_received_at|default:"-" }}</td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-44">{{ s.last_seen_at|date:"Y-m-d H:i:s"|default:"-" }}</td>
           <td class="px-4 py-3 w-28">
-            {% if s.inspection_status == 'completed' %}
+            {% if s.computed_inspection_status == 'completed' %}
             <span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span>
-            {% elif s.inspection_status == 'required' %}
-            <span class="px-2 py-0.5 text-xs font-medium rounded bg-red-50 text-red-500">점검 필요</span>
-            {% elif s.inspection_status == 'scheduled' %}
+            {% elif s.computed_inspection_status == 'scheduled' %}
             <span class="px-2 py-0.5 text-xs font-medium rounded bg-yellow-50 text-yellow-600">점검 예정</span>
+            {% elif s.computed_inspection_status == 'required' %}
+            <span class="px-2 py-0.5 text-xs font-medium rounded bg-red-50 text-red-500">점검 필요</span>
             {% else %}
             <span class="text-slate-400 text-xs">-</span>
             {% endif %}
           </td>
           <td class="px-4 py-3 w-24">
-            {% if s.status == 'active' %}
+            {% if s.is_active %}
             <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span>
             {% else %}
             <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-500">미사용</span>
             {% endif %}
           </td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">{{ s.last_inspected_at|default:"-" }}</td>
+          <td class="px-4 py-3 text-slate-600 text-xs w-32">{{ s.last_inspected_at|date:'Y-m-d'|default:'-' }}</td>
         </tr>
         {% empty %}
-        <tr class="border-t border-slate-100 bg-blue-50/40 cursor-pointer sensor-row"
-          data-sensor-id="GAS-001" data-device-type="GAS" data-device-code="001"
-          data-mac="00:1A:7D:DA:71:13" data-install-date="2026.03.28"
-          data-dept="maint" data-manager="u1"
-          data-ip="192.168.0.101" data-port="8080"
-          data-status="active" data-conn-verified="false"
-          data-conn-date="2026.04.12 09:42:18" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" checked /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-001</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-500"><span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>연결 끊김</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:42:18</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-red-50 text-red-500">점검 필요</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-11</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-002" data-device-type="GAS" data-device-code="002" data-mac="00:1A:7D:DA:71:14" data-install-date="2026.03.01" data-dept="maint" data-manager="u2" data-ip="192.168.0.102" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:41:05" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-002</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:41:05</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-09</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-003" data-device-type="GAS" data-device-code="003" data-mac="00:1A:7D:DA:71:15" data-install-date="2026.02.15" data-dept="safety" data-manager="u2" data-ip="192.168.0.103" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:40:31" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-003</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:40:31</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-yellow-50 text-yellow-600">점검 예정</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-07</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-004" data-device-type="GAS" data-device-code="004" data-mac="00:1A:7D:DA:71:16" data-install-date="2026.02.01" data-dept="maint" data-manager="u3" data-ip="192.168.0.104" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:39:42" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-004</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:39:42</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-05</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-005" data-device-type="GAS" data-device-code="005" data-mac="00:1A:7D:DA:71:17" data-install-date="2026.01.20" data-dept="prod" data-manager="u3" data-ip="192.168.0.105" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:38:07" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-005</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:38:07</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-03</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-006" data-device-type="GAS" data-device-code="006" data-mac="00:1A:7D:DA:71:18" data-install-date="2026.01.10" data-dept="env" data-manager="u4" data-ip="192.168.0.106" data-port="8080" data-status="active" data-conn-verified="true" data-conn-date="2026.04.12 09:37:54" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-006</td>
-          <td class="px-4 py-3 w-28"><span class="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block"></span>정상</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-44">2026.04.12 09:37:54</td>
-          <td class="px-4 py-3 w-28"><span class="px-2 py-0.5 text-xs font-medium rounded bg-green-50 text-green-600">점검 완료</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs w-32">2026-04-01</td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer sensor-row" data-sensor-id="GAS-007" data-device-type="GAS" data-device-code="007" data-mac="" data-install-date="" data-dept="" data-manager="" data-ip="" data-port="" data-status="inactive" data-conn-verified="false" data-conn-date="" data-note="">
-          <td class="px-4 py-3 w-10"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 font-mono text-xs text-slate-800 font-medium w-32">GAS-007</td>
-          <td class="px-4 py-3 w-28"><span class="text-slate-400 text-xs">-</span></td>
-          <td class="px-4 py-3 text-slate-400 text-xs w-44">-</td>
-          <td class="px-4 py-3 w-28"><span class="text-slate-400 text-xs">-</span></td>
-          <td class="px-4 py-3 w-24"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-500">미사용</span></td>
-          <td class="px-4 py-3 text-slate-400 text-xs w-32">-</td>
+        <tr>
+          <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-400">등록된 장비가 없습니다.</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -385,46 +303,66 @@
     <div class="w-16"></div>
   </div>
 </div>
-{% endblock %}
 
-{% block modal %}
-{% include "admin/users/logout_complete.html" %}
-{% include "admin/gas/gas_utils.html" %}
-{% include "admin/gas/gas_success.html" %}
-{% include "admin/gas/gas_register.html" %}
-{% include "admin/gas/gas_detail.html" %}
-{% include "admin/gas/gas_inspect_register.html" %}
-{% include "admin/gas/gas_action_register.html" %}
-{% endblock %}
+<div id="gas-delete-confirm-modal" class="hidden fixed inset-0 bg-slate-900/40 z-50 items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-sm px-8 py-7">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+        <i data-lucide="trash-2" class="w-5 h-5 text-red-600"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">장비 삭제</h3>
+        <p class="text-xs text-slate-500 mt-0.5">선택한 장비를 삭제합니다.</p>
+      </div>
+    </div>
+    <p class="text-sm text-slate-700 mb-6">
+      선택한 <span id="delete-confirm-count" class="font-semibold text-red-600">0</span>개의 장비를 삭제하시겠습니까?<br>
+      <span class="text-xs text-slate-400">삭제된 데이터는 복구할 수 없습니다.</span>
+    </p>
+    <div class="flex items-center justify-end gap-2">
+      <button type="button" id="delete-confirm-cancel"
+        class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+        취소
+      </button>
+      <button type="button" id="delete-confirm-ok"
+        class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">
+        삭제
+      </button>
+    </div>
+  </div>
+</div>
 
-{% block extra_script %}
-{{ block.super }}
 <script>
   document.getElementById('gas-tbody')?.addEventListener('click', function(e) {
     var row = e.target.closest('.sensor-row');
     if (!row || e.target.tagName === 'INPUT') return;
-    window.openDetailModal(row.dataset);
+    var data = Object.assign({}, row.dataset);
+    data.id = row.dataset.id || '';
+    window.openDetailModal(data);
   });
+
+  function closeAllMenus() {
+    ['sid-menu', 'st-menu', 'cn-menu', 'sort-menu'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
+    ['sid-chevron', 'st-chevron', 'cn-chevron'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.classList.remove('rotate-180');
+    });
+  }
+
   function makeDropdown({ wrapId, toggleId, menuId, chevronId, optionClass, hiddenInputId, labelId }) {
     var wrap = document.getElementById(wrapId);
     var toggle = document.getElementById(toggleId);
     var menu = document.getElementById(menuId);
     var chevron = document.getElementById(chevronId);
-
-    function open() {
-      menu.classList.remove('hidden');
-      chevron?.classList.add('rotate-180');
-    }
-    function close() {
-      menu.classList.add('hidden');
-      chevron?.classList.remove('rotate-180');
-    }
-
+    function open() { menu.classList.remove('hidden'); chevron?.classList.add('rotate-180'); }
+    function close() { menu.classList.add('hidden'); chevron?.classList.remove('rotate-180'); }
     toggle?.addEventListener('click', function (e) {
       e.stopPropagation();
-      menu.classList.contains('hidden') ? open() : close();
+      var isOpen = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!isOpen) open();
     });
-
     menu?.querySelectorAll('.' + optionClass).forEach(function (btn) {
       btn.addEventListener('click', function () {
         var val = btn.dataset.value;
@@ -458,17 +396,13 @@
         close();
       });
     });
-
-    document.addEventListener('click', function (e) {
-      if (!wrap?.contains(e.target)) close();
-    });
   }
 
   makeDropdown({ wrapId: 'sid-dropdown-wrap', toggleId: 'sid-toggle', menuId: 'sid-menu', chevronId: 'sid-chevron', optionClass: 'sid-option', hiddenInputId: 'hidden-sensor-id', labelId: 'sid-label' });
   makeDropdown({ wrapId: 'st-dropdown-wrap', toggleId: 'st-toggle', menuId: 'st-menu', chevronId: 'st-chevron', optionClass: 'st-option', hiddenInputId: 'hidden-status', labelId: 'st-label' });
   makeDropdown({ wrapId: 'cn-dropdown-wrap', toggleId: 'cn-toggle', menuId: 'cn-menu', chevronId: 'cn-chevron', optionClass: 'cn-option', hiddenInputId: 'hidden-connection', labelId: 'cn-label' });
 
-  (function restoreFilterLabels() {
+  (function() {
     var params = new URLSearchParams(window.location.search);
     var sidVal = params.get('sensor_id');
     if (sidVal) { var b = document.querySelector('.sid-option[data-value="' + sidVal + '"]'); if (b) b.click(); }
@@ -478,41 +412,47 @@
     if (cnVal) { var b = document.querySelector('.cn-option[data-value="' + cnVal + '"]'); if (b) b.click(); }
   })();
 
-  (function initSortDropdown() {
+  (function() {
     var wrap = document.getElementById('sort-dropdown-wrap');
     var toggle = document.getElementById('sort-toggle');
     var menu = document.getElementById('sort-menu');
-
     toggle?.addEventListener('click', function (e) {
       e.stopPropagation();
-      menu.classList.toggle('hidden');
+      var isOpen = !menu.classList.contains('hidden');
+      closeAllMenus();
+      if (!isOpen) menu.classList.remove('hidden');
     });
-
+    var currentSort = new URLSearchParams(window.location.search).get('sort') || 'sensor_id';
     document.querySelectorAll('.sort-option').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      if (btn.dataset.value === currentSort) {
         document.getElementById('sort-label').textContent = btn.textContent.trim();
-        document.querySelectorAll('.sort-option').forEach(function (b) {
-          b.classList.remove('bg-blue-50', 'text-blue-700');
-          b.classList.add('text-slate-700', 'hover:bg-slate-50');
-          b.querySelector('i')?.remove();
-        });
-        btn.classList.add('bg-blue-50', 'text-blue-700');
-        btn.classList.remove('text-slate-700', 'hover:bg-slate-50');
+        btn.classList.add('bg-blue-50', 'text-blue-700', 'flex', 'items-center', 'gap-2');
+        btn.classList.remove('text-slate-700', 'hover:bg-slate-50', 'pl-9');
+        if (!btn.querySelector('i')) {
+          var icon = document.createElement('i');
+          icon.setAttribute('data-lucide', 'check');
+          icon.className = 'w-3.5 h-3.5';
+          btn.prepend(icon);
+          if (window.lucide) lucide.createIcons();
+        }
+      } else {
+        btn.classList.remove('bg-blue-50', 'text-blue-700', 'flex', 'items-center', 'gap-2');
+        btn.classList.add('text-slate-700', 'hover:bg-slate-50', 'pl-9');
+        btn.querySelector('i')?.remove();
+      }
+      btn.addEventListener('click', function () {
         menu.classList.add('hidden');
         var params = new URLSearchParams(window.location.search);
         params.set('sort', btn.dataset.value);
         window.location.href = window.location.pathname + '?' + params.toString();
       });
     });
-
-    document.addEventListener('click', function (e) {
-      if (!wrap?.contains(e.target)) menu?.classList.add('hidden');
-    });
   })();
+
+  document.addEventListener('click', closeAllMenus);
 
   var checkAll = document.getElementById('check-all');
   var deleteBtn = document.getElementById('gas-delete-btn');
-
   function updateDeleteBtn() {
     var anyChecked = [...document.querySelectorAll('.row-check')].some(function (cb) { return cb.checked; });
     deleteBtn.disabled = !anyChecked;
@@ -529,18 +469,85 @@
     }
   }
 
+  function updateRowHighlight(cb) {
+    var row = cb.closest('tr');
+    if (!row) return;
+    if (cb.checked) {
+      row.classList.add('bg-blue-50');
+      row.classList.remove('hover:bg-slate-50');
+    } else {
+      row.classList.remove('bg-blue-50');
+      row.classList.add('hover:bg-slate-50');
+    }
+  }
   checkAll?.addEventListener('change', function (e) {
-    document.querySelectorAll('.row-check').forEach(function (cb) { cb.checked = e.target.checked; });
+    document.querySelectorAll('.row-check').forEach(function (cb) {
+      cb.checked = e.target.checked;
+      updateRowHighlight(cb);
+    });
     updateDeleteBtn();
   });
   document.addEventListener('change', function (e) {
-    if (e.target.classList.contains('row-check')) updateDeleteBtn();
+    if (e.target.classList.contains('row-check')) {
+      updateRowHighlight(e.target);
+      updateDeleteBtn();
+    }
   });
-
   document.getElementById('filter-reset-btn')?.addEventListener('click', function () {
     window.location.href = window.location.pathname;
   });
-
   updateDeleteBtn();
+
+  document.getElementById('gas-delete-btn')?.addEventListener('click', function () {
+    if (this.disabled) return;
+    var checked = [...document.querySelectorAll('.row-check:checked')];
+    if (!checked.length) return;
+    var modal = document.getElementById('gas-delete-confirm-modal');
+    var countEl = document.getElementById('delete-confirm-count');
+    if (!modal || !countEl) return;
+    countEl.textContent = checked.length;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    lucide.createIcons();
+  });
+  document.getElementById('delete-confirm-cancel')?.addEventListener('click', function () {
+    var modal = document.getElementById('gas-delete-confirm-modal');
+    modal?.classList.add('hidden');
+    modal?.classList.remove('flex');
+  });
+  document.getElementById('delete-confirm-ok')?.addEventListener('click', function () {
+    var ids = [...document.querySelectorAll('.row-check:checked')].map(function (cb) { return cb.value; });
+    var fd = new FormData();
+    ids.forEach(function (id) { fd.append('ids', id); });
+    fetch('{% url "gas_bulk_delete" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': GAS.getCsrfToken() },
+      body: fd,
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var modal = document.getElementById('gas-delete-confirm-modal');
+      modal?.classList.add('hidden');
+      modal?.classList.remove('flex');
+      if (data.ok) { window.location.reload(); }
+      else { alert(data.error || '삭제에 실패했습니다.'); }
+    });
+  });
 </script>
+{% endblock %}
+
+{% block modal %}
+{% include "admin/users/logout_complete.html" %}
+{% include "admin/gas/gas_utils.html" %}
+{% include "admin/gas/gas_success.html" %}
+{% include "admin/gas/gas_error.html" %}
+{% include "admin/gas/gas_register.html" %}
+{% include "admin/gas/gas_detail.html" %}
+{% include "admin/gas/gas_inspect_register.html" %}
+{% include "admin/gas/gas_action_register.html" %}
+
+{% endblock %}
+
+{% block extra_script %}
+{{ block.super }}
 {% endblock %}

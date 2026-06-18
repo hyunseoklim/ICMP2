@@ -4,64 +4,76 @@
 <div class="flex">
 
   {# ===== ① + ② 좌측 사이드바 ===== #}
-  <aside class="w-16 bg-white border-r border-slate-200 flex flex-col items-center py-4 fixed h-screen z-20">
+  <aside class="group w-16 hover:w-56 bg-white border-r border-slate-200 flex flex-col py-4 fixed h-screen z-20 transition-all duration-200 overflow-hidden shadow-sm">
     {# ① 브랜드 로고 #}
-    <div class="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center mb-6">
-      <div class="w-5 h-5 bg-white rounded-sm"></div>
+    <div class="flex items-center px-3 mb-6 shrink-0">
+      <div class="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center shrink-0">
+        <div class="w-5 h-5 bg-white rounded-sm"></div>
+      </div>
+      <span class="ml-2 text-sm font-bold text-slate-900 whitespace-nowrap">에어위드</span>
     </div>
 
     {# ② SNB 1Depth 아이콘 메뉴 #}
-    <nav class="flex flex-col gap-2">
-      {# active_menu 변수로 현재 메뉴 강조 #}
+    <nav class="flex flex-col gap-1 px-2">
       <a href="/manager/" title="계정/권한 관리"
-        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
+        class="flex items-center gap-3 h-10 px-2 rounded-lg whitespace-nowrap transition-colors
                {% if active_menu == 'account' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
-        <i data-lucide="users" class="w-5 h-5"></i>
+        <i data-lucide="users" class="w-5 h-5 shrink-0"></i>
+        <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">계정/권한 관리</span>
       </a>
       <a href="{% url 'menu_manage' %}" title="메뉴 관리"
-        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
+        class="flex items-center gap-3 h-10 px-2 rounded-lg whitespace-nowrap transition-colors
                {% if active_menu == 'menu_manage' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
-        <i data-lucide="layout-list" class="w-5 h-5"></i>
+        <i data-lucide="layout-list" class="w-5 h-5 shrink-0"></i>
+        <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">메뉴 관리</span>
       </a>
       <a href="{% url 'facility_list' %}" title="설비/장비 관리"
-        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
+        class="flex items-center gap-3 h-10 px-2 rounded-lg whitespace-nowrap transition-colors
                {% if active_menu == 'facility' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
-        <i data-lucide="wrench" class="w-5 h-5"></i>
+        <i data-lucide="wrench" class="w-5 h-5 shrink-0"></i>
+        <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">설비/장비 관리</span>
       </a>
       <a href="{% url 'map_editor' %}" title="지도 편집 관리"
-        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
+        class="flex items-center gap-3 h-10 px-2 rounded-lg whitespace-nowrap transition-colors
                {% if active_menu == 'map_editor' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
-        <i data-lucide="map" class="w-5 h-5"></i>
+        <i data-lucide="map" class="w-5 h-5 shrink-0"></i>
+        <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">지도 편집 관리</span>
       </a>
       <a href="{% url 'code_list' %}" title="기준정보 관리"
-        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
+        class="flex items-center gap-3 h-10 px-2 rounded-lg whitespace-nowrap transition-colors
                {% if active_menu == 'reference' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
-        <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+        <i data-lucide="clipboard-list" class="w-5 h-5 shrink-0"></i>
+        <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">기준정보 관리</span>
       </a>
       <a href="{% url 'gas_data_list' %}" title="데이터 관리"
-        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
+        class="flex items-center gap-3 h-10 px-2 rounded-lg whitespace-nowrap transition-colors
                {% if active_menu == 'data' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
-        <i data-lucide="database" class="w-5 h-5"></i>
+        <i data-lucide="database" class="w-5 h-5 shrink-0"></i>
+        <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">데이터 관리</span>
       </a>
-      <a href="{% url 'notice_list' %}" title="공지사항 등록/관리"
-        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
+      <a href="{% url 'notice_list' %}" title="공지사항 관리"
+        class="flex items-center gap-3 h-10 px-2 rounded-lg whitespace-nowrap transition-colors
                {% if active_menu == 'notice' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
-        <i data-lucide="bell" class="w-5 h-5"></i>
+        <i data-lucide="bell" class="w-5 h-5 shrink-0"></i>
+        <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">공지사항 관리</span>
       </a>
       <a href="{% url 'alarm_policy_list' %}" title="알림/이벤트 관리"
-        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
+        class="flex items-center gap-3 h-10 px-2 rounded-lg whitespace-nowrap transition-colors
                {% if active_menu == 'alarm' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
-        <i data-lucide="layout-grid" class="w-5 h-5"></i>
+        <i data-lucide="layout-grid" class="w-5 h-5 shrink-0"></i>
+        <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">알림/이벤트 관리</span>
       </a>
       <a href="{% url 'safety_checklist_list' %}" title="안전 확인 관리"
-        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
+        class="flex items-center gap-3 h-10 px-2 rounded-lg whitespace-nowrap transition-colors
                {% if active_menu == 'safety' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
-        <i data-lucide="shield-check" class="w-5 h-5"></i>
+        <i data-lucide="shield-check" class="w-5 h-5 shrink-0"></i>
+        <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">안전 확인 관리</span>
       </a>
       <a href="{% url 'system_log_list' %}" title="로그 및 연동 관리"
-        class="w-10 h-10 rounded-lg flex items-center justify-center transition-colors
+        class="flex items-center gap-3 h-10 px-2 rounded-lg whitespace-nowrap transition-colors
                {% if active_menu == 'log' %}bg-blue-50 text-blue-600{% else %}text-slate-400 hover:bg-slate-100 hover:text-slate-700{% endif %}">
-        <i data-lucide="scroll-text" class="w-5 h-5"></i>
+        <i data-lucide="scroll-text" class="w-5 h-5 shrink-0"></i>
+        <span class="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200">로그 및 연동 관리</span>
       </a>
     </nav>
   </aside>
@@ -96,7 +108,7 @@
             {% if user.is_authenticated %}{{ user.email|default:"-" }}{% else %}-{% endif %}
           </div>
         </div>
-        <a href="#" title="홈"
+        <a href="{% url 'user_list' %}" title="홈"
           class="w-9 h-9 border border-slate-200 rounded-md flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors">
           <i data-lucide="home" class="w-4 h-4"></i>
         </a>
@@ -110,6 +122,19 @@
 
     {# ===== 메인 컨텐츠 영역 ===== #}
     <main class="px-8 py-6">
+      {% if messages %}
+        <div class="mb-4 space-y-2">
+          {% for msg in messages %}
+            <div class="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium
+              {% if msg.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
+              {% elif msg.tags == 'success' %}bg-green-50 text-green-700 border border-green-200
+              {% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}">
+              {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
       {# ⑦ 브레드크럼 (각 페이지에서 정의) #}
       {% block breadcrumb %}{% endblock %}
 

@@ -134,3 +134,35 @@ def sync_worker_status(worker, loc) -> str:
         worker.save(update_fields=['safety_status'])
 
     return new_safety
+
+
+def deactivate_stale_workers() -> int:
+    """위치 수신이 STALE_THRESHOLD를 초과(또는 없음)한 on_duty 작업자를 off_duty로 정리한다.
+
+    데이터가 끊긴 작업자가 지도/현황에 '근무 중'(+위험)으로 유령처럼 남는 것을 막는다.
+    지오펜스 sweep과 동일 패턴 — 조회 경로(dummy GET)는 off_duty를 제외하므로 자동 정상화.
+    current_state=off_duty + safety_status=safe 로 리셋한다.
+
+    시각 비교는 기계 로직이므로 aware UTC(timezone.now())를 쓴다 — core/timeutils는
+    사람용 KST 표시 전용이라 여기 부적합. (monitoring STALE 판정·geofence sweep과 동일)
+
+    Returns: 정리한 작업자 수
+    """
+    from django.utils import timezone
+    from facilities.models import Worker, WorkerLocation
+    from monitoring.services import STALE_THRESHOLD
+
+    cutoff = timezone.now() - STALE_THRESHOLD
+    count = 0
+    for w in Worker.objects.exclude(current_state='off_duty'):
+        last = (WorkerLocation.objects
+                .filter(worker=w)
+                .order_by('-measured_at')
+                .values_list('measured_at', flat=True)
+                .first())
+        if last is None or last < cutoff:
+            w.current_state = 'off_duty'
+            w.safety_status = 'safe'
+            w.save(update_fields=['current_state', 'safety_status'])
+            count += 1
+    return count

@@ -78,7 +78,7 @@
                             <td>{{ worker.department.name|default:"—" }}</td>
                             <td class="mono text-muted">
                                 {% if worker.updated_at %}
-                                    {{ worker.updated_at|date:"Y-01-15 H:i:s" }}
+                                    {{ worker.updated_at|date:"Y-m-d H:i:s" }}
                                 {% else %}—{% endif %}
                             </td>
                             <td>

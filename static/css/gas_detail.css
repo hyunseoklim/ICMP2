@@ -249,6 +249,7 @@
 .gas-chart-card--danger  { border-color: var(--danger-border) !important; }
 .gas-chart-card--warning { border-color: var(--warning-border) !important; }
 .gas-chart-card--normal  { border-color: var(--border); }
+.gas-chart-card--stale   { border-color: var(--border); opacity: 0.55; }
 
 .gas-chart-card__header {
     display: flex;
@@ -283,6 +284,33 @@
     color: var(--text-muted);
     font-size: 13px;
 }
+
+/* ── AI 예측 탭 — 범례 추가 항목 / 예측 카드 ─────────────── */
+/* 측정·예측 범례는 'AI 예측' 탭 활성 시에만 노출 */
+.legend-item--forecast { display: none; }
+.chart-legend.show-forecast .legend-item--forecast { display: flex; }
+
+.legend-line--solid { background: var(--text-primary); }
+.legend-line--forecast {
+    background: repeating-linear-gradient(
+        to right, var(--warning) 0 4px, transparent 4px 7px);
+}
+
+/* 예측 카드 — '현재 농도' 인사이트 배지 (위험 빨강 / 주의 노랑 / 정상 초록) */
+.fc-current-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 9999px;
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.fc-current-badge--danger  { background: var(--danger-bg);  color: var(--danger);  border: 1px solid var(--danger-border); }
+.fc-current-badge--warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+.fc-current-badge--normal  { background: var(--normal-bg);  color: var(--normal);  border: 1px solid var(--normal-border); }
+/* 데이터 단절(stale) — 마지막 값이 동결됐을 때 '데이터 없음'을 muted로 표시 */
+.fc-current-badge--stale   { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
 
 /* ── 긴급 액션바 ─────────────────────────────────────────── */
 .alert-bar {

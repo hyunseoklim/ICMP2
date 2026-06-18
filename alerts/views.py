@@ -3,13 +3,13 @@ from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from datetime import timedelta
-from django.db.models import Case, When, IntegerField
+from django.db.models import Case, When, IntegerField, Q
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .models import AlarmEvent, EventHistory
+from .models import AlarmEvent, EventHistory, RiskCriteria, TaskLog
 from .serializers import AlarmEventSerializer
 from .services import (
     get_event_list,
@@ -28,6 +28,9 @@ def event_list(request):
     status_filter = request.GET.get('status', '')
     events = get_event_list(status_filter)[:20]
     counts = get_status_counts()
+    risk_criteria = list(RiskCriteria.objects.filter(is_active=True).values(
+        'stage_code', 'stage_name', 'color_type', 'alert_emphasis'
+    ))
 
     return render(request, 'events/event_list.html', {
         'events':        events,
@@ -36,6 +39,7 @@ def event_list(request):
         'closed_count':  counts['closed'],
         'total_count':   sum(counts.values()),
         'status_filter': status_filter,
+        'risk_criteria': risk_criteria,
     })
 
 
@@ -44,6 +48,9 @@ def event_list(request):
 def event_detail(request, pk):
     event = get_object_or_404(get_base_qs(), pk=pk)
     histories = get_event_histories(event)
+    risk_criteria = list(RiskCriteria.objects.filter(is_active=True).values(
+        'stage_code', 'stage_name', 'color_type', 'alert_emphasis'
+    ))
 
     next_statuses = ALLOWED_TRANSITIONS.get(event.event_status, [])
     default_target = next_statuses[0] if next_statuses else ''
@@ -53,6 +60,7 @@ def event_detail(request, pk):
         'histories':      histories,
         'next_statuses':  next_statuses,
         'default_target': default_target,
+        'risk_criteria':  risk_criteria,
     })
 
 
@@ -118,7 +126,6 @@ def recent_alarms(request):
             if latest_location and latest_location.floor:
                 facility = latest_location.floor.building.facility
                 # 본인 이벤트 OR 해당 층 facility 이벤트
-                from django.db.models import Q
                 qs = qs.filter(
                     Q(worker=worker) | Q(facility=facility)
                 )
@@ -173,4 +180,62 @@ def action_history(request):
         'date_from':           date_from,
         'date_to':             date_to,
         'action_type_filter':  action_type_filter,
+    })
+
+
+# ─── Task 상태 조회 API ───────────────────────────────────────────────────────
+
+def _serialize_task_log(log):
+    return {
+        'task_id':      log.task_id,
+        'task_name':    log.task_name.split('.')[-1],  # 짧은 이름 (ingest_gas_task)
+        'task_name_full': log.task_name,
+        'status':       log.status,
+        'error':        log.error or None,
+        'created_at':   log.created_at.isoformat() if log.created_at else None,
+        'started_at':   log.started_at.isoformat() if log.started_at else None,
+        'completed_at': log.completed_at.isoformat() if log.completed_at else None,
+    }
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def task_status(request, task_id):
+    """task_id로 단건 조회.
+
+    GET /alerts/api/tasks/{task_id}/
+    """
+    try:
+        log = TaskLog.objects.get(task_id=task_id)
+    except TaskLog.DoesNotExist:
+        return Response({'error': '해당 task를 찾을 수 없습니다.'}, status=404)
+    return Response(_serialize_task_log(log))
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def task_list(request):
+    """최근 task 목록 조회. task_name·status 필터 지원.
+
+    GET /alerts/api/tasks/
+    GET /alerts/api/tasks/?task_name=ingest_gas_task
+    GET /alerts/api/tasks/?status=FAILURE
+    GET /alerts/api/tasks/?limit=50
+    """
+    qs = TaskLog.objects.all()
+
+    task_name = request.GET.get('task_name')
+    if task_name:
+        qs = qs.filter(task_name__icontains=task_name)
+
+    status = request.GET.get('status')
+    if status:
+        qs = qs.filter(status=status.upper())
+
+    limit = min(int(request.GET.get('limit', 20)), 100)
+    logs = qs[:limit]
+
+    return Response({
+        'count':   qs.count(),
+        'results': [_serialize_task_log(log) for log in logs],
     })

@@ -4,12 +4,40 @@ from django.utils import timezone
 from monitoring.models import ThresholdPolicy
 
 
+class RiskCriteria(models.Model):
+    class ColorType(models.TextChoices):
+        GREEN  = 'green',  '녹색'
+        YELLOW = 'yellow', '황색'
+        ORANGE = 'orange', '주황'
+        RED    = 'red',    '적색'
+        PURPLE = 'purple', '보라'
+        GRAY   = 'gray',   '회색'
+
+    stage_code     = models.CharField(max_length=50, unique=True)
+    stage_name     = models.CharField(max_length=100)
+    color_type     = models.CharField(max_length=20, choices=ColorType.choices, default=ColorType.GRAY)
+    alert_emphasis = models.CharField(max_length=100, blank=True, default='')
+    priority       = models.PositiveIntegerField(default=1)
+    is_active      = models.BooleanField(default=True)
+    description    = models.TextField(blank=True, default='')
+    updated_at     = models.DateTimeField(auto_now=True)
+    updated_by     = models.CharField(max_length=100, blank=True, default='')
+
+    class Meta:
+        db_table = 'risk_criteria'
+        ordering = ['priority']
+
+    def __str__(self):
+        return f"{self.stage_name} ({self.stage_code})"
+
+
 class AlarmRule(models.Model):
     class RuleType(models.TextChoices):
         THRESHOLD = "threshold", "임계치 초과"
         MISSING = "missing", "데이터 누락"
-        OFFLINE = "offline", "장비 오프라인"
         POWER = "power", "전력 이상"
+        AI = "ai", "AI 이상 탐지"
+        FORECAST = "forecast", "AI 예측 경보"
 
     class ActionType(models.TextChoices):
         NOTIFY = "notify", "알림"
@@ -43,6 +71,7 @@ class AlarmRule(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.CharField(max_length=100, blank=True, default='')
 
     class Meta:
         db_table = "alarm_rules"
@@ -54,9 +83,11 @@ class AlarmRule(models.Model):
 
 class AlarmEvent(models.Model):
     class Severity(models.TextChoices):
-        NORMAL = "normal", "정상"
-        WARNING = "warning", "주의"
-        DANGER = "danger", "위험"
+        NORMAL             = "normal",             "정상"
+        WARNING            = "warning",            "주의"
+        DANGER             = "danger",             "위험"
+        ANOMALY            = "anomaly",            "통계/AI 이상 탐지"
+        PREDICTIVE_WARNING = "predictive_warning", "AI 조기 예측 경보"
 
     class EventType(models.TextChoices):
         GAS = "gas", "유해가스"
@@ -120,7 +151,9 @@ class AlarmEvent(models.Model):
         db_index=True,
     )
 
-    occurred_at = models.DateTimeField(default=timezone.now, db_index=True)
+    occurred_at  = models.DateTimeField(default=timezone.now, db_index=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True, help_text="마지막 감지 시각 (이상 지속 시 갱신)")
+    current_value = models.FloatField(null=True, blank=True, help_text="마지막 감지 시 측정값 (대표값)")
 
     acknowledged_by = models.ForeignKey(
         "accounts.User",
@@ -179,48 +212,129 @@ class EventHistory(models.Model):
         return f"Event {self.alarm_event_id} [{self.action_type}] @ {self.action_at}"
 
 
-class Notification(models.Model):
-    class SendStatus(models.TextChoices):
-        PENDING = "pending", "대기"
-        SENT = "sent", "발송 완료"
-        FAILED = "failed", "발송 실패"
-
-    event = models.ForeignKey(
-        "alerts.AlarmEvent", on_delete=models.CASCADE, related_name="notifications"
-    )
-    receiver = models.ForeignKey(
-        "accounts.User", on_delete=models.CASCADE, related_name="notifications"
-    )
-    channel_type = models.CharField(max_length=20)
-    title = models.CharField(max_length=300)
-    message = models.TextField()
-    send_status = models.CharField(
-        max_length=20, choices=SendStatus.choices, default=SendStatus.PENDING
-    )
-    sent_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        db_table = "notifications"
-        ordering = ["-sent_at"]
-
-    def __str__(self):
-        return f"{self.receiver.username} [{self.channel_type}] {self.send_status}"
-
-
 class NotificationTemplate(models.Model):
-    class ChannelType(models.TextChoices):
-        EMAIL = "email", "이메일"
-        SMS = "sms", "문자"
-        PUSH = "push", "푸시 알림"
+    """채널별 알림 메시지 포맷 템플릿.
 
-    template_name = models.CharField(max_length=200)
-    channel_type = models.CharField(max_length=20, choices=ChannelType.choices)
-    title_template = models.CharField(max_length=300)
-    body_template = models.TextField()
-    is_active = models.BooleanField(default=True)
+    title_template / body_template에서 사용 가능한 변수:
+        {severity_emoji}  — RiskCriteria 색상 이모지 (🔴 🟠 🟡 🟢 🟣 ⚪)
+        {emphasis}        — RiskCriteria alert_emphasis + 공백 (예: "[위험] ")
+        {title}           — AlarmPolicy.alarm_title 또는 event.title
+        {content}         — AlarmPolicy.alarm_content 또는 event.message
+        {facility}        — 발생 시설명
+        {device}          — 발생 장비명
+        {occurred_at}     — 발생 시각 (KST, 'YYYY-MM-DD HH:MM:SS')
+        {targets}         — 수신 대상 (예: "관리자, 작업자")
+        {targets_line}    — " | 수신 대상: {targets}" 또는 빈 문자열
+    """
+
+    class ChannelType(models.TextChoices):
+        SLACK     = "slack",     "Slack"
+        DISCORD   = "discord",   "Discord"
+        WEBSOCKET = "websocket", "관제 실시간 알림"
+
+    template_name  = models.CharField(max_length=200)
+    channel_type   = models.CharField(max_length=20, choices=ChannelType.choices)
+    title_template = models.CharField(max_length=300, blank=True)
+    body_template  = models.TextField()
+    is_active      = models.BooleanField(default=True)
 
     class Meta:
         db_table = "notification_templates"
 
     def __str__(self):
         return f"{self.template_name} ({self.channel_type})"
+
+
+class ForecastSnapshot(models.Model):
+    """STEP G — 채널별 최신 AI 예측 결과 (채널당 1행 upsert).
+
+    'AI 예측' 탭/위젯이 조회하는 최신 예측 스냅샷. unique_together로
+    채널당 1행을 갱신하므로 행 수가 고정된다 — 디스크 무증가.
+    곡선 필드(forecast_mean·ci_*)는 v2(곡선 차트)용.
+
+    Phase D M1-1 (2026-05-23) — power 채널 지원 확장:
+        - channel FK 추가 (gas는 null=True로 호환성 유지)
+        - sensor_type max_length 10 → 20 (power 합성키 대비)
+        - unique_together (device, channel, sensor_type) — channel=NULL 그룹은
+          기존 gas 동작과 동일 (PostgreSQL NULL은 unique 비교에서 다르게 처리됨)
+    """
+
+    device = models.ForeignKey(
+        "monitoring.Device", on_delete=models.CASCADE, related_name="forecast_snapshots"
+    )
+    channel = models.ForeignKey(
+        "monitoring.DeviceChannel",
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name="forecast_snapshots",
+        help_text="전력 채널 (gas는 NULL)",
+    )
+    sensor_type = models.CharField(max_length=20, help_text="채널 종류 (gas: co/h2s/..., power: voltage/current/power)")
+    updated_at = models.DateTimeField(auto_now=True, help_text="갱신 시각 (예측 신선도 감시용)")
+
+    # 2축 등급 (ForecastPolicyResult — confidence는 enum name 저장)
+    headline_severity = models.CharField(
+        max_length=10, null=True, blank=True, help_text="danger / caution / None"
+    )
+    headline_confidence = models.CharField(
+        max_length=20,
+        help_text="NORMAL/TENTATIVE/CONFIRMED_WARNING/CONFIRMED_STRONG/UNKNOWN",
+    )
+    caution_confidence = models.CharField(max_length=20)
+    danger_confidence = models.CharField(max_length=20)
+    caution_eta_step = models.IntegerField(null=True, blank=True, help_text="주의 임계 도달 예측 스텝")
+    danger_eta_step = models.IntegerField(null=True, blank=True)
+    path = models.CharField(max_length=10, help_text="normal / degraded / unknown")
+    forecast_steps = models.IntegerField(default=0, help_text="예측 수평 H")
+    reason = models.TextField(blank=True)
+
+    # 곡선 (v2 — ARIMAResult 노출 시 채움)
+    forecast_mean = models.JSONField(null=True, blank=True)
+    ci_lower = models.JSONField(null=True, blank=True)
+    ci_upper = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        db_table = "forecast_snapshots"
+        unique_together = [("device", "channel", "sensor_type")]
+        ordering = ["device", "channel", "sensor_type"]
+
+    def __str__(self):
+        ch = f"/{self.channel.channel_code}" if self.channel_id else ""
+        return f"{self.device.device_uid}{ch} {self.sensor_type} → {self.headline_confidence}"
+
+
+class TaskLog(models.Model):
+    """Celery task 실행 상태 기록.
+
+    before_task_publish  → PENDING  생성
+    task_prerun          → STARTED  갱신
+    task_postrun(SUCCESS)→ SUCCESS  갱신
+    task_postrun(RETRY)  → RETRY    갱신
+    task_failure         → FAILURE  갱신 + error 메시지
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "대기"
+        STARTED = "STARTED", "처리 중"
+        SUCCESS = "SUCCESS", "성공"
+        FAILURE = "FAILURE", "실패"
+        RETRY   = "RETRY",   "재시도"
+
+    task_id      = models.CharField(max_length=255, unique=True, db_index=True)
+    task_name    = models.CharField(max_length=255, db_index=True)
+    status       = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    error        = models.TextField(blank=True)
+    created_at   = models.DateTimeField(auto_now_add=True, help_text="PENDING 기록 시각")
+    started_at   = models.DateTimeField(null=True, blank=True, help_text="worker 실행 시작 시각")
+    completed_at = models.DateTimeField(null=True, blank=True, help_text="완료(성공/실패) 시각")
+
+    class Meta:
+        db_table = "task_logs"
+        ordering = ["-created_at"]
+        verbose_name        = "태스크 로그"
+        verbose_name_plural = "태스크 로그 목록"
+
+    def __str__(self):
+        return f"[{self.status}] {self.task_name} ({self.task_id[:8]})"

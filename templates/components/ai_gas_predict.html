@@ -1,10 +1,39 @@
 {% load static %}
-<div class="widget ai-gas-widget">
+<div class="widget ai-gas-widget" id="ai-gas-widget">
     <div class="widget-header">
-        <h3>AI 예측 — 유해가스 위험</h3>
+        <h3>AI 예측 - 내 근처 유해가스 위험</h3>
         <a href="{% url 'monitoring_gas' %}" class="widget-more-link">+ 상세 보기</a>
     </div>
-    <div class="coming-soon-widget">
-        <p>🔧 AI 예측 기능은 4차에서 구현 예정입니다.</p>
+
+    <div class="ai-gas-widget__body">
+        <div class="ai-gas-widget__card">
+            <div class="ai-gas-widget__card-head">
+                <span class="ai-gas-widget__channel" id="aigw-channel">-</span>
+                <span class="ai-gas-widget__device" id="aigw-device">-</span>
+                <div class="ai-gas-widget__nav">
+                    <button type="button" class="ai-gas-widget__nav-btn" id="aigw-prev">&#8249;</button>
+                    <span class="ai-gas-widget__page" id="aigw-page">- / -</span>
+                    <button type="button" class="ai-gas-widget__nav-btn" id="aigw-next">&#8250;</button>
+                </div>
+            </div>
+
+            <div class="ai-gas-widget__metrics">
+                <div class="ai-gas-widget__metric">
+                    <span class="ai-gas-widget__metric-label">현재 농도</span>
+                    <span class="ai-gas-widget__metric-value" id="aigw-current">—</span>
+                </div>
+                <div class="ai-gas-widget__metric-divider"></div>
+                <div class="ai-gas-widget__metric">
+                    <span class="ai-gas-widget__metric-label" id="aigw-max-label">최대 예상 농도</span>
+                    <span class="ai-gas-widget__metric-value" id="aigw-max">—</span>
+                </div>
+            </div>
+
+            <div class="ai-gas-widget__chart">
+                <canvas id="aigw-chart"></canvas>
+            </div>
+
+            <div class="ai-gas-widget__dots" id="aigw-dots"></div>
+        </div>
     </div>
 </div>

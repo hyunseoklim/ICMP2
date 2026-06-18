@@ -1,3 +1,5 @@
+from django.db import transaction
+
 from ..models import IndexGrid
 
 
@@ -5,7 +7,7 @@ class IndexGridWriter:
     """
     IndexGrid 저장/삭제 전담.
     사용 시점: Floor 생성 시, 공간 변경 시.
-    실시간 처리와 분리.
+    커밋 성공 후 handle_floor_grid_changed 태스크를 큐잉한다.
     """
 
     def bulk_create(self, floor, cells: list[dict]) -> None:
@@ -17,9 +19,6 @@ class IndexGridWriter:
             floor: Floor 모델 인스턴스
             cells: FloorGridService.generate_all_cells() 반환값
                    [{"grid_index": 0, "col": 0, "row": 0}, ...]
-        # ignore_conflicts=True:
-        #   Floor 생성 중 중단됐다가 재시도해도 안전
-        #   멱등성 확보 — 운영 환경에서 필수
         """
         IndexGrid.objects.bulk_create(
             [
@@ -33,8 +32,9 @@ class IndexGridWriter:
             ],
             ignore_conflicts=True,
         )
+        floor_id = floor.id
+        transaction.on_commit(lambda: self._queue_grid_changed(floor_id))
 
-    
     def delete_by_floor(self, floor) -> int:
         """
         floor의 전체 IndexGrid 삭제.
@@ -43,4 +43,11 @@ class IndexGridWriter:
         반환: 삭제된 레코드 수
         """
         deleted_count, _ = IndexGrid.objects.filter(floor=floor).delete()
+        floor_id = floor.id
+        transaction.on_commit(lambda: self._queue_grid_changed(floor_id))
         return deleted_count
+
+    @staticmethod
+    def _queue_grid_changed(floor_id: int) -> None:
+        from ..tasks import handle_floor_grid_changed
+        handle_floor_grid_changed.delay(floor_id=floor_id)

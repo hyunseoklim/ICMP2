@@ -1,0 +1,1327 @@
+# ── Grafana Provisioning ConfigMaps ───────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning-datasources
+  namespace: icmp2
+data:
+  prometheus.yml: |
+    apiVersion: 1
+
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus:9090
+        isDefault: true
+        access: proxy
+        editable: false
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning-dashboards
+  namespace: icmp2
+data:
+  dashboard.yml: |
+    apiVersion: 1
+
+    providers:
+      - name: default
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        options:
+          path: /etc/grafana/provisioning/dashboards
+  main.json: |
+    {
+      "title": "ICMP2 모니터링",
+      "uid": "icmp2-main",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "15s",
+      "time": {
+        "from": "now-30m",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "서비스 상태",
+          "type": "stat",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 3
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "1": {
+                      "text": "UP",
+                      "color": "green"
+                    }
+                  }
+                },
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "DOWN",
+                      "color": "red"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "up{job=\"django\"}",
+              "legendFormat": "Django",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            },
+            {
+              "expr": "up{job=\"fastapi\"}",
+              "legendFormat": "FastAPI",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            },
+            {
+              "expr": "up{job=\"redis\"}",
+              "legendFormat": "Redis",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            },
+            {
+              "expr": "up{job=\"postgres\"}",
+              "legendFormat": "PostgreSQL",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "id": 2,
+          "title": "Django RPS (초당 요청 수)",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 0,
+            "y": 3,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(django_http_requests_total_by_view_transport_method_total[1m]))",
+              "legendFormat": "RPS",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "id": 3,
+          "title": "Django p95 응답시간",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 12,
+            "y": 3,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.5
+                  },
+                  {
+                    "color": "red",
+                    "value": 1.0
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(django_http_requests_latency_seconds_by_view_method_bucket[1m])) by (le))",
+              "legendFormat": "p95",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            },
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(django_http_requests_latency_seconds_by_view_method_bucket[1m])) by (le))",
+              "legendFormat": "p50",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "id": 4,
+          "title": "Django 5xx 에러율",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 0,
+            "y": 10,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.05
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "expr": "(sum(rate(django_http_responses_total_by_status_view_method_total{status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(django_http_responses_total_by_status_view_method_total[5m])), 1e-9)",
+              "legendFormat": "5xx 에러율",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "id": 5,
+          "title": "Celery Task 처리시간 (p95)",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 12,
+            "y": 10,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            }
+          },
+          "options": {
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(icmp2_ai_ingest_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "ingest p95",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            },
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(icmp2_ai_ingest_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "ingest p50",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "id": 6,
+          "title": "Celery 큐 적체",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 0,
+            "y": 17,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 20
+                  },
+                  {
+                    "color": "red",
+                    "value": 50
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "expr": "redis_key_size{key=\"celery\"}",
+              "legendFormat": "기본 큐",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            },
+            {
+              "expr": "redis_key_size{key=\"forecast\"}",
+              "legendFormat": "예측 큐",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            },
+            {
+              "expr": "redis_key_size{key=\"events\"}",
+              "legendFormat": "이벤트 큐",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "id": 7,
+          "title": "Celery 작업 실패율",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 12,
+            "y": 17,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "expr": "(sum(rate(icmp2_celery_tasks_total{status=\"failure\"}[5m])) or vector(0)) / clamp_min(sum(rate(icmp2_celery_tasks_total[5m])), 1e-9)",
+              "legendFormat": "실패율",
+              "refId": "A"
+            }
+          ],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "id": 8,
+          "title": "Redis 메모리 사용량",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 0,
+            "y": 24,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "expr": "redis_memory_used_bytes / 1024 / 1024",
+              "legendFormat": "사용 중 (MB)",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            },
+            {
+              "expr": "redis_memory_used_peak_bytes / 1024 / 1024",
+              "legendFormat": "최대 사용 (MB)",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "id": 9,
+          "title": "PostgreSQL 활성 연결 수",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 12,
+            "y": 24,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "none",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum(pg_stat_activity_count{state=\"active\"})",
+              "legendFormat": "활성 연결",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "id": 10,
+          "title": "알람 이벤트 발생 건수 (심각도별)",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 0,
+            "y": 32,
+            "w": 12,
+            "h": 7
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(icmp2_alarm_events_total[5m])) by (severity)",
+              "legendFormat": "{{severity}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops"
+            }
+          }
+        },
+        {
+          "id": 11,
+          "title": "AI ARIMA 예측 처리시간 (p95)",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 12,
+            "y": 32,
+            "w": 12,
+            "h": 7
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(icmp2_ai_forecast_duration_seconds_bucket[5m])) by (le, task_type))",
+              "legendFormat": "{{task_type}} p95",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(icmp2_ai_forecast_duration_seconds_bucket[5m])) by (le, task_type))",
+              "legendFormat": "{{task_type}} p50",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            }
+          }
+        },
+        {
+          "id": 12,
+          "title": "Celery Ingest 처리시간 (p95 / p50)",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 0,
+            "y": 40,
+            "w": 12,
+            "h": 7
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(icmp2_ai_ingest_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "ingest p95",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(icmp2_ai_ingest_duration_seconds_bucket[5m])) by (le))",
+              "legendFormat": "ingest p50",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            }
+          }
+        },
+        {
+          "id": 13,
+          "title": "Celery Task 성공/실패 건수",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 12,
+            "y": 40,
+            "w": 12,
+            "h": 7
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(icmp2_celery_tasks_total{status='success'}[5m])) by (task_name)",
+              "legendFormat": "{{task_name}} 성공",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(icmp2_celery_tasks_total{status='failure'}[5m])) by (task_name)",
+              "legendFormat": "{{task_name}} 실패",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops"
+            }
+          }
+        },
+        {
+          "id": 101,
+          "title": "센서 데이터 수신률 (건/분)",
+          "type": "timeseries",
+          "gridPos": {
+            "x": 12,
+            "y": 56,
+            "w": 12,
+            "h": 7
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "single"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(icmp2_celery_tasks_total{task_name=\"ingest_gas\"}[1m])) * 60",
+              "legendFormat": "가스 ingest",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            },
+            {
+              "expr": "sum(rate(icmp2_celery_tasks_total{task_name=\"ingest_power\"}[1m])) * 60",
+              "legendFormat": "전력 ingest",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+              }
+            }
+          ],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ],
+      "templating": {
+        "list": []
+      }
+    }
+
+---
+# ── Grafana PVC ───────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+  namespace: icmp2
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# ── Redis Exporter ────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-exporter
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-exporter
+  template:
+    metadata:
+      labels:
+        app: redis-exporter
+    spec:
+      containers:
+        - name: redis-exporter
+          image: oliver006/redis_exporter:latest
+          env:
+            - name: REDIS_ADDR
+              value: "redis://redis:6379"
+            - name: REDIS_EXPORTER_CHECK_KEYS
+              value: "celery,forecast,events"
+          ports:
+            - containerPort: 9121
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-exporter
+  namespace: icmp2
+spec:
+  selector:
+    app: redis-exporter
+  ports:
+    - port: 9121
+      targetPort: 9121
+
+---
+# ── Postgres Exporter ─────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-exporter
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-exporter
+  template:
+    metadata:
+      labels:
+        app: postgres-exporter
+    spec:
+      containers:
+        - name: postgres-exporter
+          image: prometheuscommunity/postgres-exporter:latest
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: icmp2-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: icmp2-secret
+                  key: DB_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: icmp2-config
+                  key: DB_NAME
+            - name: DATA_SOURCE_NAME
+              value: "postgresql://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)?sslmode=disable"
+          ports:
+            - containerPort: 9187
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-exporter
+  namespace: icmp2
+spec:
+  selector:
+    app: postgres-exporter
+  ports:
+    - port: 9187
+      targetPort: 9187
+
+---
+# ── Alertmanager ──────────────────────────────────────────────────────────────
+# webhook URL은 icmp2-secret의 ALERTMANAGER_DISCORD_WEBHOOK_URL을 init container가 주입
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config-template
+  namespace: icmp2
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'service']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+      receiver: all
+    receivers:
+      - name: all
+        discord_configs:
+          - webhook_url: __DISCORD_WEBHOOK_URL__
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.service }} 시스템 알림'
+            message: |
+              {{ range .Alerts -}}
+              {{ if eq .Status "resolved" }}✅ {{ end }}**{{ .Annotations.summary }}**{{ if eq .Status "resolved" }} 정상화{{ end }}
+              {{ if eq .Status "firing" -}}
+              {{ .Annotations.description }}
+              심각도: {{ .Labels.severity }}
+              {{ end -}}
+              발생: {{ .StartsAt.Local.Format "2006-01-02 15:04:05" }}
+              {{ if eq .Status "resolved" }}해결: {{ .EndsAt.Local.Format "2006-01-02 15:04:05" }}{{ end -}}
+              {{ end }}
+        slack_configs:
+          - api_url: __SLACK_WEBHOOK_URL__
+            send_resolved: true
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.service }} 시스템 알림'
+            text: |
+              {{ range .Alerts -}}
+              {{ if eq .Status "resolved" }}✅ {{ end }}*{{ .Annotations.summary }}*{{ if eq .Status "resolved" }} 정상화{{ end }}
+              {{ if eq .Status "firing" -}}
+              {{ .Annotations.description }}
+              심각도: {{ .Labels.severity }}
+              {{ end -}}
+              발생: {{ .StartsAt.Local.Format "2006-01-02 15:04:05" }}
+              {{ if eq .Status "resolved" }}해결: {{ .EndsAt.Local.Format "2006-01-02 15:04:05" }}{{ end -}}
+              {{ end }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      initContainers:
+        - name: init-config
+          image: alpine:3.19
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              DISCORD="${ALERTMANAGER_DISCORD_WEBHOOK_URL:-}"
+              SLACK="${ALERTMANAGER_SLACK_WEBHOOK_URL:-}"
+              if [ -n "$DISCORD" ]; then
+                sed "s|__DISCORD_WEBHOOK_URL__|${DISCORD}|g" /template/alertmanager.yml \
+                  | sed "s|__SLACK_WEBHOOK_URL__|${SLACK}|g" \
+                  > /config/alertmanager.yml
+              else
+                cat > /config/alertmanager.yml << 'EOF'
+              global:
+                resolve_timeout: 5m
+              route:
+                group_by: ['alertname', 'service']
+                group_wait: 30s
+                group_interval: 5m
+                repeat_interval: 1h
+                receiver: default
+              receivers:
+                - name: default
+              EOF
+              fi
+              echo "alertmanager config generated"
+          env:
+            - name: ALERTMANAGER_DISCORD_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: icmp2-secret
+                  key: ALERTMANAGER_DISCORD_WEBHOOK_URL
+            - name: ALERTMANAGER_SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: icmp2-secret
+                  key: SLACK_WEBHOOK_URL
+          volumeMounts:
+            - name: config-template
+              mountPath: /template
+            - name: config
+              mountPath: /config
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:latest
+          args:
+            - '--config.file=/etc/alertmanager/alertmanager.yml'
+          env:
+            - name: TZ
+              value: "Asia/Seoul"
+          ports:
+            - containerPort: 9093
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+      volumes:
+        - name: config-template
+          configMap:
+            name: alertmanager-config-template
+        - name: config
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: icmp2
+spec:
+  selector:
+    app: alertmanager
+  ports:
+    - port: 9093
+      targetPort: 9093
+
+---
+# ── Prometheus ────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: icmp2
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ['alertmanager:9093']
+    rule_files:
+      - /etc/prometheus/alert_rules.yml
+    scrape_configs:
+      - job_name: django
+        static_configs:
+          - targets: ['django:8000']
+        metrics_path: /metrics
+      - job_name: fastapi
+        static_configs:
+          - targets: ['fastapi:8001']
+        metrics_path: /metrics
+      - job_name: redis
+        static_configs:
+          - targets: ['redis-exporter:9121']
+      - job_name: postgres
+        static_configs:
+          - targets: ['postgres-exporter:9187']
+      - job_name: pushgateway
+        static_configs:
+          - targets: ['pushgateway:9091']
+        honor_labels: true
+  alert_rules.yml: |
+    groups:
+      - name: django-alerts
+        rules:
+          - alert: DjangoHighP95Warning
+            expr: |
+              histogram_quantile(
+                0.95,
+                sum(rate(django_http_requests_latency_seconds_by_view_method_bucket[1m])) by (le)
+              ) > 0.5
+            for: 2m
+            labels:
+              severity: warning
+              service: django
+            annotations:
+              summary: "Django p95 응답 지연 경고"
+              description: "Django p95 응답시간이 0.5초를 초과했습니다. (20명 부하 수준)"
+
+          - alert: DjangoHighP95Critical
+            expr: |
+              histogram_quantile(
+                0.95,
+                sum(rate(django_http_requests_latency_seconds_by_view_method_bucket[1m])) by (le)
+              ) > 1.5
+            for: 3m
+            labels:
+              severity: critical
+              service: django
+            annotations:
+              summary: "Django p95 응답 지연 심각"
+              description: "Django p95 응답시간이 1.5초를 초과했습니다. (50명 부하 수준)"
+
+          - alert: DjangoHighErrorRate
+            expr: |
+              (
+                sum(rate(django_http_responses_total_by_status_view_method_total{status=~"5.."}[5m]))
+              )
+              /
+              clamp_min(sum(rate(django_http_responses_total_by_status_view_method_total[5m])), 1e-9)
+              > 0.05
+            for: 2m
+            labels:
+              severity: critical
+              service: django
+            annotations:
+              summary: "Django 5xx 에러율 급증"
+              description: "Django 5xx 에러율이 5%를 초과했습니다."
+
+          - alert: DjangoDown
+            expr: up{job="django"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              service: django
+            annotations:
+              summary: "Django 서버 다운"
+              description: "Django 서버에 연결할 수 없습니다."
+
+          - alert: AIForecastSlow
+            expr: |
+              histogram_quantile(
+                0.95,
+                sum(rate(icmp2_ai_forecast_duration_seconds_bucket[5m])) by (le, task_type)
+              ) > 10
+            for: 3m
+            labels:
+              severity: warning
+              service: django
+            annotations:
+              summary: "AI 예측 처리 지연"
+              description: "ARIMA 예측 p95가 10초를 초과했습니다."
+
+      - name: fastapi-alerts
+        rules:
+          - alert: FastAPIHighP95
+            expr: |
+              histogram_quantile(
+                0.95,
+                sum(rate(http_request_duration_seconds_bucket{app_name="fastapi"}[1m])) by (le)
+              ) > 1.0
+            for: 2m
+            labels:
+              severity: warning
+              service: fastapi
+            annotations:
+              summary: "FastAPI p95 응답 지연 경고"
+              description: "FastAPI p95 응답시간이 1.0초를 초과했습니다."
+
+          - alert: FastAPIDown
+            expr: up{job="fastapi"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              service: fastapi
+            annotations:
+              summary: "FastAPI 서버 다운"
+              description: "FastAPI 서버에 연결할 수 없습니다."
+
+      - name: infrastructure-alerts
+        rules:
+          - alert: RedisDown
+            expr: up{job="redis"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              service: redis
+            annotations:
+              summary: "Redis 서버 다운"
+              description: "Redis 서버에 연결할 수 없습니다."
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:latest
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+          ports:
+            - containerPort: 9090
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: prometheus-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: icmp2
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+
+---
+# ── Prometheus Pushgateway ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pushgateway
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pushgateway
+  template:
+    metadata:
+      labels:
+        app: pushgateway
+    spec:
+      containers:
+        - name: pushgateway
+          image: prom/pushgateway:latest
+          ports:
+            - containerPort: 9091
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pushgateway
+  namespace: icmp2
+spec:
+  selector:
+    app: pushgateway
+  ports:
+    - port: 9091
+      targetPort: 9091
+
+---
+# ── Grafana ───────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: icmp2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SERVER_ROOT_URL
+              value: "http://icmp2.local/grafana/"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+            - name: grafana-datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: grafana-dashboards
+              mountPath: /etc/grafana/provisioning/dashboards
+      volumes:
+        - name: grafana-storage
+          persistentVolumeClaim:
+            claimName: grafana-pvc
+        - name: grafana-datasources
+          configMap:
+            name: grafana-provisioning-datasources
+        - name: grafana-dashboards
+          configMap:
+            name: grafana-provisioning-dashboards
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: icmp2
+spec:
+  selector:
+    app: grafana
+  ports:
+    - port: 3000
+      targetPort: 3000

@@ -8,7 +8,8 @@ const SafetyWS = {
     reconnectDelay: 3000,
 
     connect() {
-        this.socket = new WebSocket('ws://127.0.0.1:8001/ws');
+        const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        this.socket = new WebSocket(`${wsProtocol}//${location.host}/ws`);
 
         this.socket.onopen = () => {
             console.log('WebSocket 연결됨');
@@ -18,9 +19,7 @@ const SafetyWS = {
         this.socket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                if (this.handlers[data.type]) {
-                    this.handlers[data.type](data);
-                }
+                (this.handlers[data.type] || []).forEach(h => h(data));
             } catch (e) {
                 console.error('WS 메시지 파싱 실패:', e);
             }
@@ -36,8 +35,10 @@ const SafetyWS = {
         };
     },
 
+    // 타입당 핸들러를 누적(배열) — 같은 페이지의 여러 모듈이 동일 이벤트
+    // (예: story_reset)를 각자 구독할 수 있게 한다. 이전엔 마지막 등록만 남았음.
     on(type, handler) {
-        this.handlers[type] = handler;
+        (this.handlers[type] ||= []).push(handler);
     }
 };
 

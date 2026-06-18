@@ -67,7 +67,7 @@
   <!-- 목록 헤더 -->
   <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
     <div class="flex items-center gap-3">
-      <span class="text-sm font-semibold text-slate-900">전체 <span id="total-count" class="text-blue-600">128</span>건</span>
+      <span class="text-sm font-semibold text-slate-900">전체 <span id="total-count" class="text-blue-600">0</span>건</span>
       <span class="text-xs text-slate-400" id="selected-info">이벤트 상세 기준으로 등록된 알림 정책을 조회할 수 있습니다.</span>
       <span id="selected-count-badge" class="hidden text-xs text-blue-600 font-medium"></span>
     </div>
@@ -80,7 +80,7 @@
       <div class="relative">
         <button id="sort-btn"
           class="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition-colors">
-          <span id="sort-label">최근 수정일순</span>
+          <span id="sort-label">최근 수정일 최신순</span>
           <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
         </button>
         <div id="sort-dropdown"
@@ -123,7 +123,7 @@
 
   <!-- 페이지네이션 -->
   <div class="flex items-center justify-between px-6 py-4 border-t border-slate-100">
-    <span class="text-xs text-slate-500" id="page-info">1 - 10 / 128</span>
+    <span class="text-xs text-slate-500" id="page-info"></span>
     <div class="flex items-center gap-1" id="pagination"></div>
   </div>
 </div>
@@ -131,6 +131,7 @@
 {% endblock %}
 
 {% block modal %}
+{{ block.super }}
 <!-- 정책 등록 팝업 -->
 <div id="modal-policy-create" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scroll">
@@ -165,11 +166,15 @@
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">발송 채널 <span class="text-red-500">*</span></label>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
               <button type="button" data-group="channel" data-val="앱"
                 class="toggle-btn px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:border-blue-300 transition-all">앱</button>
               <button type="button" data-group="channel" data-val="관제 실시간 알림"
                 class="toggle-btn px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:border-blue-300 transition-all">관제 실시간 알림</button>
+              <button type="button" data-group="channel" data-val="Slack"
+                class="toggle-btn px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:border-blue-300 transition-all">Slack</button>
+              <button type="button" data-group="channel" data-val="Discord"
+                class="toggle-btn px-4 py-1.5 text-sm rounded-md border border-slate-200 text-slate-600 hover:border-blue-300 transition-all">Discord</button>
             </div>
           </div>
           <div>
@@ -224,8 +229,6 @@
                 <label class="block text-xs font-medium text-slate-700 mb-1.5">상태 <span class="text-red-500">*</span></label>
                 <select id="cond-dur-state" onchange="autoSummary()"
                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                  <option>위험</option>
-                  <option>주의</option>
                 </select>
               </div>
             </div>
@@ -253,10 +256,10 @@
                 <label class="block text-xs font-medium text-slate-700 mb-1.5">적용 대상 <span class="text-red-500">*</span></label>
                 <select id="cond-ins-target" onchange="autoSummary()"
                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                  <option>전체 구역</option>
                   <option>위험구역 A</option>
                   <option>위험구역 B</option>
                   <option>위험구역 C</option>
-                  <option>전체 구역</option>
                 </select>
               </div>
               <div>
@@ -299,7 +302,8 @@
       <div class="flex justify-end gap-2 mt-6">
         <button id="btn-policy-create-cancel"
           class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">취소</button>
-        <button class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">등록</button>
+        <button id="btn-policy-submit"
+          class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">등록</button>
       </div>
     </div>
   </div>
@@ -308,12 +312,11 @@
 <!-- 삭제 확인 팝업 -->
 <div id="modal-delete-confirm" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-7 text-center">
-    <div class="w-14 h-14 mx-auto mb-4 bg-slate-900 rounded-xl flex items-center justify-center">
-      <div class="w-6 h-6 bg-white rounded-md"></div>
+    <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+      <i data-lucide="trash-2" class="w-7 h-7 text-red-500"></i>
     </div>
-    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">
-      선택한 정책을 삭제하시겠습니까?
-    </p>
+    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-2">선택한 정책을 삭제하시겠습니까?</p>
+    <p class="text-xs text-slate-500 mb-6" id="delete-confirm-desc"></p>
     <div class="flex items-center gap-2 justify-center">
       <button onclick="closeModal('modal-delete-confirm')"
         class="px-6 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취 소</button>
@@ -326,14 +329,26 @@
 <!-- 삭제 완료 팝업 -->
 <div id="modal-delete-complete" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-7 text-center">
-    <div class="w-14 h-14 mx-auto mb-4 bg-slate-900 rounded-xl flex items-center justify-center">
-      <div class="w-6 h-6 bg-white rounded-md"></div>
+    <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-emerald-50 flex items-center justify-center">
+      <i data-lucide="check-circle-2" class="w-8 h-8 text-emerald-500"></i>
     </div>
-    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">
-      삭제되었습니다.
-    </p>
+    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">삭제되었습니다.</p>
     <div class="flex items-center gap-2 justify-center">
       <button onclick="closeModal('modal-delete-complete')"
+        class="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">확 인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 등록 완료 팝업 -->
+<div id="modal-create-complete" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-7 text-center">
+    <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-emerald-50 flex items-center justify-center">
+      <i data-lucide="check-circle-2" class="w-8 h-8 text-emerald-500"></i>
+    </div>
+    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">등록되었습니다.</p>
+    <div class="flex items-center gap-2 justify-center">
+      <button onclick="closeModal('modal-create-complete'); window.location.reload();"
         class="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">확 인</button>
     </div>
   </div>
@@ -341,19 +356,13 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
+{{ policies_data|json_script:"policies-data" }}
 <script>
-const ALL_POLICIES = [
-  { id:1,  name:'가스 경보(위협) 작업자 알림',       event:'가스 경보',                      channels:'앱, 관제 실시간 알림', targets:'관리자, 작업자', active:true,  condition:'전체 가스 센서 중 위험 상태를 1분 이상 유지한 장비가 발생하면 발송' },
-  { id:2,  name:'전력 이상(주의) 관리자 알림',        event:'전력 이상',                      channels:'앱',               targets:'관리자',       active:true,  condition:'전체 전력 설비 중 주의 상태로 전환된 장비가 발생하면 즉시 발송' },
-  { id:3,  name:'위험구역 진입(위험구역) 알림',       event:'위험구역 진입',                   channels:'관제 실시간 알림', targets:'관리자, 작업자', active:true,  condition:'구역 단계가 위험구역인 위험구역 A에 작업자가 진입하라면 즉시 발송' },
-  { id:4,  name:'PPE 미착용 알림',                   event:'PPE 미착용',                     channels:'앱',               targets:'작업자',       active:true,  condition:'작업자 위치 데이터 발생 후 5분 이내 PPE가 미착용 상태이면 발송' },
-  { id:5,  name:'작업 안전 체크리스트 미완료 알림',   event:'작업 안전 체크리스트 미완료',      channels:'관제 실시간 알림', targets:'관리자',       active:false, condition:'작업자 위치 데이터 발생 후 5분 이내 작업 안전 체크리스트가 미완료 상태이면 발송' },
-  { id:6,  name:'VR 교육 미이수 알림',               event:'VR 교육 미이수',                  channels:'관제 실시간 알림', targets:'관리자',       active:true,  condition:'작업자 위치 데이터 발생 후 5분 이내 VR 교육이 미이수 상태이면 발송' },
-  { id:7,  name:'가스 주의(주의) 알림',              event:'가스 경보',                       channels:'앱',               targets:'작업자',       active:true,  condition:'가스 센서 값이 주의 임계치 초과 시 즉시 발송' },
-  { id:8,  name:'전력 위험(위협) 관리자 알림',        event:'전력 이상',                      channels:'관제 실시간 알림', targets:'관리자',       active:false, condition:'전력 설비 중 위험 상태로 전환된 장비가 발생하면 즉시 발송' },
-  { id:9,  name:'작업자 미입실 알림',                event:'위험구역 진입',                   channels:'앱, 관제 실시간 알림', targets:'관리자',    active:true,  condition:'출근 후 30분 이내 현장 미입실 작업자 발생 시 발송' },
-  { id:10, name:'장비 점검 미완료 알림',             event:'작업 안전 체크리스트 미완료',       channels:'관제 실시간 알림', targets:'관리자',       active:true,  condition:'일일 점검 항목 미완료 장비 발생 시 발송' },
-];
+const CSRF         = '{{ csrf_token }}';
+const CREATE_URL   = '{% url "alarm_policy_create" %}';
+const BULK_DEL_URL = '{% url "alarm_policy_bulk_delete" %}';
+const ALL_POLICIES = JSON.parse(document.getElementById('policies-data').textContent);
 
 const PAGE_SIZE = 10;
 let currentPage = 1;
@@ -379,7 +388,7 @@ function renderTable() {
         <td class="px-4 py-3 text-sm text-slate-600">${p.channels}</td>
         <td class="px-4 py-3 text-sm text-slate-600">${p.targets}</td>
         <td class="px-4 py-3">
-          <span class="px-2.5 py-1 text-xs font-medium rounded-full ${p.active ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}">
+          <span class="px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap ${p.active ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}">
             ${p.active ? '사용' : '미사용'}
           </span>
         </td>
@@ -389,13 +398,21 @@ function renderTable() {
 
   document.getElementById('total-count').textContent = filteredData.length;
   document.getElementById('page-info').textContent =
-    `${start + 1} - ${Math.min(start + PAGE_SIZE, filteredData.length)} / ${filteredData.length}`;
+    filteredData.length === 0
+      ? '0 / 0'
+      : `${start + 1} - ${Math.min(start + PAGE_SIZE, filteredData.length)} / ${filteredData.length}`;
 
-  // 행 체크박스 이벤트
+  function updateRowHighlight(cb) {
+    const row = cb.closest('tr');
+    if (!row) return;
+    if (cb.checked) { row.classList.add('row-selected'); }
+    else { row.classList.remove('row-selected'); }
+  }
   document.querySelectorAll('.row-check').forEach(cb => {
     cb.addEventListener('change', function() {
       const id = parseInt(this.dataset.id);
       this.checked ? checkedIds.add(id) : checkedIds.delete(id);
+      updateRowHighlight(this);
       updateDeleteBtn();
       syncAllCheckbox();
     });
@@ -408,25 +425,31 @@ function renderTable() {
 function renderPagination() {
   const total = Math.ceil(filteredData.length / PAGE_SIZE);
   const container = document.getElementById('pagination');
+  if (total <= 1) { container.innerHTML = ''; return; }
+
+  let startPage = Math.max(1, currentPage - 2);
+  let endPage   = Math.min(total, startPage + 4);
+  if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+  const BTN_BASE   = 'w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors';
+  const BTN_ACTIVE = 'bg-blue-600 text-white';
+  const BTN_NORMAL = 'border border-slate-200 text-slate-700 hover:bg-slate-50';
+  const BTN_NAV    = 'border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed';
   const pages = [];
 
   pages.push(`<button onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}
-    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-    <i data-lucide="chevron-left" class="w-4 h-4"></i>
-  </button>`);
+    class="${BTN_BASE} ${BTN_NAV}">
+    <i data-lucide="chevron-left" class="w-4 h-4"></i></button>`);
 
-  for (let i = 1; i <= Math.min(total, 5); i++) {
+  for (let i = startPage; i <= endPage; i++) {
     pages.push(`<button onclick="goPage(${i})"
-      class="w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors
-             ${i === currentPage ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-700 hover:bg-slate-50'}">
-      ${i}
-    </button>`);
+      class="${BTN_BASE} ${i === currentPage ? BTN_ACTIVE : BTN_NORMAL}">
+      ${i}</button>`);
   }
 
   pages.push(`<button onclick="goPage(${currentPage + 1})" ${currentPage === total ? 'disabled' : ''}
-    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-    <i data-lucide="chevron-right" class="w-4 h-4"></i>
-  </button>`);
+    class="${BTN_BASE} ${BTN_NAV}">
+    <i data-lucide="chevron-right" class="w-4 h-4"></i></button>`);
 
   container.innerHTML = pages.join('');
   if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -439,11 +462,9 @@ function goPage(page) {
   renderTable();
 }
 
-// 전체 선택
 document.getElementById('check-all').addEventListener('change', function() {
   const start = (currentPage - 1) * PAGE_SIZE;
-  const pageData = filteredData.slice(start, start + PAGE_SIZE);
-  pageData.forEach(p => this.checked ? checkedIds.add(p.id) : checkedIds.delete(p.id));
+  filteredData.slice(start, start + PAGE_SIZE).forEach(p => this.checked ? checkedIds.add(p.id) : checkedIds.delete(p.id));
   renderTable();
   updateDeleteBtn();
 });
@@ -471,29 +492,39 @@ function updateDeleteBtn() {
   }
 }
 
-// 삭제 버튼
 document.getElementById('btn-delete').addEventListener('click', function() {
-  if (!this.disabled) openModal('modal-delete-confirm');
+  if (this.disabled) return;
+  document.getElementById('delete-confirm-desc').textContent = `${checkedIds.size}건을 삭제하시겠습니까?`;
+  openModal('modal-delete-confirm');
 });
 
 function confirmDelete() {
-  filteredData = filteredData.filter(p => !checkedIds.has(p.id));
-  checkedIds.clear();
-  currentPage = 1;
-  closeModal('modal-delete-confirm');
-  renderTable();
-  updateDeleteBtn();
-  openModal('modal-delete-complete');
+  const ids = Array.from(checkedIds);
+  fetch(BULK_DEL_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body:    JSON.stringify({ ids }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.success) return;
+    filteredData = filteredData.filter(p => !checkedIds.has(p.id));
+    checkedIds.clear();
+    currentPage = 1;
+    closeModal('modal-delete-confirm');
+    renderTable();
+    updateDeleteBtn();
+    openModal('modal-delete-complete');
+  });
 }
 
-// 정렬
+/* ── 정렬 ── */
 document.getElementById('sort-btn').addEventListener('click', function() {
   document.getElementById('sort-dropdown').classList.toggle('hidden');
 });
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('#sort-btn') && !e.target.closest('#sort-dropdown')) {
+  if (!e.target.closest('#sort-btn') && !e.target.closest('#sort-dropdown'))
     document.getElementById('sort-dropdown').classList.add('hidden');
-  }
 });
 document.querySelectorAll('.sort-option').forEach(btn => {
   btn.addEventListener('click', function() {
@@ -509,18 +540,19 @@ document.querySelectorAll('.sort-option').forEach(btn => {
 function sortData() {
   filteredData.sort((a, b) => {
     switch (currentSort) {
-      case 'name-asc':    return a.name.localeCompare(b.name);
-      case 'name-desc':   return b.name.localeCompare(a.name);
-      case 'event-asc':   return a.event.localeCompare(b.event);
-      case 'event-desc':  return b.event.localeCompare(a.event);
+      case 'recent-asc':     return a.modDate.localeCompare(b.modDate);
+      case 'name-asc':       return a.name.localeCompare(b.name, 'ko');
+      case 'name-desc':      return b.name.localeCompare(a.name, 'ko');
+      case 'event-asc':      return a.event.localeCompare(b.event, 'ko');
+      case 'event-desc':     return b.event.localeCompare(a.event, 'ko');
       case 'active-first':   return (b.active ? 1 : 0) - (a.active ? 1 : 0);
       case 'inactive-first': return (a.active ? 1 : 0) - (b.active ? 1 : 0);
-      default: return b.id - a.id;
+      default:               return b.modDate.localeCompare(a.modDate);  /* recent-desc */
     }
   });
 }
 
-// 검색 필터
+/* ── 검색 필터 ── */
 function applyFilters() {
   const name   = document.getElementById('filter-name').value.trim().toLowerCase();
   const event  = document.getElementById('filter-event').value.trim().toLowerCase();
@@ -528,8 +560,8 @@ function applyFilters() {
   filteredData = ALL_POLICIES.filter(p => {
     if (name   && !p.name.toLowerCase().includes(name))   return false;
     if (event  && !p.event.toLowerCase().includes(event)) return false;
-    if (status === '사용'   && !p.active)  return false;
-    if (status === '미사용' && p.active)   return false;
+    if (status === '사용'   && !p.active) return false;
+    if (status === '미사용' &&  p.active) return false;
     return true;
   });
   sortData();
@@ -551,54 +583,48 @@ function resetFilters() {
   updateDeleteBtn();
 }
 
-// ===== 정책 등록 팝업 =====
+/* ── 정책 등록 팝업 ── */
 document.getElementById('btn-policy-create').addEventListener('click', () => {
   resetCreateForm();
   openModal('modal-policy-create');
 });
 document.getElementById('btn-policy-create-cancel').addEventListener('click', () => closeModal('modal-policy-create'));
 
-// 이벤트 상세별 설정
 const EVENT_CONFIG = {
-  '가스 경보':                   { type: 'duration', label: '상태 지속형', targets: ['전체 가스 센서', '가스 센서 A', '가스 센서 B'], titleDefault: '가스 경보 발생',   contentHint: '{이벤트상세}, {발생대상}, {상태}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault: '{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}. 현장 상태를 확인해 주세요.' },
-  '전력 이상':                   { type: 'duration', label: '상태 지속형', targets: ['전체 전력 설비', '전력 설비 A', '전력 설비 B'], titleDefault: '전력 이상 감지',   contentHint: '{이벤트상세}, {발생대상}, {상태}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault: '{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}. 현장 상태를 확인해 주세요.' },
-  'PPE 미착용':                  { type: 'duration', label: '상태 지속형', targets: ['전체 작업자', '특정 작업자'],                    titleDefault: 'PPE 미착용 감지',  contentHint: '{이벤트상세}, {발생대상}, {발생시각} 변수를 사용할 수 있습니다.',           contentDefault: '{발생대상}의 PPE 미착용이 감지되었습니다. 발생 시각: {발생시각}. 즉시 착용을 지시해 주세요.' },
-  '작업 안전 체크리스트 미완료': { type: 'duration', label: '상태 지속형', targets: ['전체 작업자', '특정 작업자'],                    titleDefault: '체크리스트 미완료', contentHint: '{이벤트상세}, {발생대상}, {발생시각} 변수를 사용할 수 있습니다.',           contentDefault: '{발생대상}의 작업 안전 체크리스트가 미완료 상태입니다. 발생 시각: {발생시각}. 확인해 주세요.' },
-  'VR 교육 미이수':              { type: 'duration', label: '상태 지속형', targets: ['전체 작업자', '특정 작업자'],                    titleDefault: 'VR 교육 미이수',   contentHint: '{이벤트상세}, {발생대상}, {발생시각} 변수를 사용할 수 있습니다.',           contentDefault: '{발생대상}의 VR 교육이 미이수 상태입니다. 발생 시각: {발생시각}. 확인해 주세요.' },
-  '위험구역 진입':               { type: 'instant',  label: '즉시 발생형', targets: [],                                               titleDefault: '위험구역 진입 감지', contentHint: '{이벤트상세}, {발생대상}, {구역단계}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault: '{구역단계} {발생대상}에서 {이벤트상세}가 감지되었습니다. 발생 시각: {발생시각}. 즉시 확인해 주세요.' },
+  '가스 경보':                   { type:'duration', label:'상태 지속형', targets:['전체 가스 센서','가스 센서 A','가스 센서 B'], states:['위험','주의'],    titleDefault:'가스 경보 발생',    contentHint:'{이벤트상세}, {발생대상}, {상태}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault:'{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}. 현장 상태를 확인해 주세요.' },
+  '전력 이상':                   { type:'duration', label:'상태 지속형', targets:['전체 전력 설비','전력 설비 A','전력 설비 B'], states:['위험','주의'],    titleDefault:'전력 이상 감지',    contentHint:'{이벤트상세}, {발생대상}, {상태}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault:'{이벤트상세}가 발생했습니다. 발생 장비: {발생대상}, 상태: {상태}, 발생 시각: {발생시각}. 현장 상태를 확인해 주세요.' },
+  'PPE 미착용':                  { type:'duration', label:'상태 지속형', targets:['전체 작업자','특정 작업자'],                   states:['미착용'],         titleDefault:'PPE 미착용 감지',   contentHint:'{이벤트상세}, {발생대상}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault:'{발생대상}의 PPE 미착용이 감지되었습니다. 발생 시각: {발생시각}. 즉시 착용을 지시해 주세요.' },
+  '작업 안전 체크리스트 미완료': { type:'duration', label:'상태 지속형', targets:['전체 작업자','특정 작업자'],                   states:['미완료'],         titleDefault:'체크리스트 미완료',  contentHint:'{이벤트상세}, {발생대상}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault:'{발생대상}의 작업 안전 체크리스트가 미완료 상태입니다. 발생 시각: {발생시각}. 확인해 주세요.' },
+  'VR 교육 미이수':              { type:'duration', label:'상태 지속형', targets:['전체 작업자','특정 작업자'],                   states:['미이수'],         titleDefault:'VR 교육 미이수',    contentHint:'{이벤트상세}, {발생대상}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault:'{발생대상}의 VR 교육이 미이수 상태입니다. 발생 시각: {발생시각}. 확인해 주세요.' },
+  '위험구역 진입':               { type:'instant',  label:'즉시 발생형', targets:[],                                              states:[],                 titleDefault:'위험구역 진입 감지', contentHint:'{이벤트상세}, {발생대상}, {구역단계}, {발생시각} 변수를 사용할 수 있습니다.', contentDefault:'{구역단계} {발생대상}에서 {이벤트상세}가 감지되었습니다. 발생 시각: {발생시각}. 즉시 확인해 주세요.' },
 };
 
 function onEventChange() {
   const val = document.getElementById('inp-event').value;
   const cfg = EVENT_CONFIG[val];
   const section = document.getElementById('condition-section');
-
   if (!cfg) { section.classList.add('hidden'); return; }
 
   section.classList.remove('hidden');
-
-  // 배지
   const badge = document.getElementById('condition-type-badge');
   badge.textContent = cfg.label;
-  badge.className = cfg.type === 'instant'
+  badge.className   = cfg.type === 'instant'
     ? 'px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700'
     : 'px-3 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-600';
 
-  // 조건 폼 전환
   document.getElementById('cond-duration').classList.toggle('hidden', cfg.type !== 'duration');
-  document.getElementById('cond-instant').classList.toggle('hidden', cfg.type !== 'instant');
+  document.getElementById('cond-instant').classList.toggle('hidden',  cfg.type !== 'instant');
 
-  // 적용 대상 옵션
   if (cfg.type === 'duration') {
-    const sel = document.getElementById('cond-dur-target');
-    sel.innerHTML = cfg.targets.map(t => `<option>${t}</option>`).join('');
+    document.getElementById('cond-dur-target').innerHTML = cfg.targets.map(t => `<option>${t}</option>`).join('');
+    const stateEl = document.getElementById('cond-dur-state');
+    stateEl.innerHTML = cfg.states.map(s => `<option>${s}</option>`).join('');
+    stateEl.disabled  = cfg.states.length <= 1;
   }
 
-  // 알림 제목·내용 기본값
-  document.getElementById('inp-alarm-title').value = cfg.titleDefault;
+  document.getElementById('inp-alarm-title').value        = cfg.titleDefault;
   document.getElementById('alarm-content-hint').textContent = cfg.contentHint;
-  document.getElementById('inp-alarm-content').value = cfg.contentDefault;
-
+  document.getElementById('inp-alarm-content').value       = cfg.contentDefault;
   autoSummary();
 }
 
@@ -606,71 +632,115 @@ function autoSummary() {
   const val = document.getElementById('inp-event').value;
   const cfg = EVENT_CONFIG[val];
   if (!cfg) return;
-
   let summary = '';
   if (cfg.type === 'duration') {
     const target = document.getElementById('cond-dur-target').value;
     const state  = document.getElementById('cond-dur-state').value;
     const time   = document.getElementById('cond-dur-time').value;
     const unit   = document.getElementById('cond-dur-unit').value;
-    summary = `${target} 중 ${state} 상태를 ${time}${unit} 이상 유지한 장비가 발생하면 관리자와 작업자에게 알림을 발송합니다.`;
+    if (val === '작업 안전 체크리스트 미완료') {
+      summary = `${target} 위치 데이터 발생 후 ${time}${unit} 이내 작업 안전 체크리스트가 미완료 상태이면 알림을 발송합니다.`;
+    } else if (val === 'VR 교육 미이수') {
+      summary = `${target} 위치 데이터 발생 후 ${time}${unit} 이내 VR 교육이 미이수 상태이면 알림을 발송합니다.`;
+    } else if (val === 'PPE 미착용') {
+      summary = `${target} 위치 데이터 발생 후 ${time}${unit} 이내 PPE가 미착용 상태이면 알림을 발송합니다.`;
+    } else if (val === '전력 이상') {
+      summary = `${target} 중 ${state} 상태로 전환된 장비가 발생하면 즉시 알림을 발송합니다.`;
+    } else {
+      /* 가스 경보 */
+      summary = `${target} 중 ${state} 상태를 ${time}${unit} 이상 유지한 장비가 발생하면 알림을 발송합니다.`;
+    }
   } else {
-    const target = document.getElementById('cond-ins-target').value;
-    const zone   = document.getElementById('cond-ins-zone').value;
-    summary = `구역 단계가 ${zone}인 ${target}에 작업자가 진입하면 즉시 관리자와 작업자에게 알림을 발송합니다.`;
+    const target    = document.getElementById('cond-ins-target').value;
+    const zone      = document.getElementById('cond-ins-zone').value;
+    const receivers = [...document.querySelectorAll('.toggle-btn[data-group="target"].active-selected')]
+                        .map(b => b.dataset.val).join(', ');
+    const toStr     = receivers ? `${receivers}에게 ` : '';
+    summary = `구역 단계가 ${zone}인 ${target}에 작업자가 진입하면 ${toStr}즉시 알림을 발송합니다.`;
   }
   document.getElementById('inp-summary').value = summary;
 }
 
-// 이벤트 상세 선택 시 조건 입력 영역 표시
 document.getElementById('inp-event').addEventListener('change', onEventChange);
 
-// 토글 버튼 (다중/단일 선택)
+/* 토글 버튼 */
+const ON  = ['border-blue-400','bg-blue-100','text-blue-700','font-medium','active-selected'];
+const OFF = ['border-slate-200','text-slate-600'];
 document.querySelectorAll('.toggle-btn').forEach(btn => {
   btn.addEventListener('click', function() {
     const group  = this.dataset.group;
     const single = this.dataset.single === 'true';
-    const ON  = ['border-blue-400', 'bg-blue-100', 'text-blue-700', 'font-medium', 'active-selected'];
-    const OFF = ['border-slate-200', 'text-slate-600'];
     if (single) {
-      document.querySelectorAll(`.toggle-btn[data-group="${group}"]`).forEach(b => {
-        b.classList.remove(...ON); b.classList.add(...OFF);
-      });
+      document.querySelectorAll(`.toggle-btn[data-group="${group}"]`).forEach(b => { b.classList.remove(...ON); b.classList.add(...OFF); });
       this.classList.add(...ON); this.classList.remove(...OFF);
     } else {
-      const isOn = this.classList.contains('active-selected');
-      if (isOn) { this.classList.remove(...ON); this.classList.add(...OFF); }
-      else       { this.classList.add(...ON);   this.classList.remove(...OFF); }
+      if (this.classList.contains('active-selected')) { this.classList.remove(...ON); this.classList.add(...OFF); }
+      else                                            { this.classList.add(...ON);   this.classList.remove(...OFF); }
     }
+    if (group === 'target') autoSummary();
+  });
+});
+
+/* 등록 제출 */
+document.getElementById('btn-policy-submit').addEventListener('click', function() {
+  const name    = document.getElementById('inp-policy-name').value.trim();
+  const event   = document.getElementById('inp-event').value;
+  const title   = document.getElementById('inp-alarm-title').value.trim();
+  const content = document.getElementById('inp-alarm-content').value.trim();
+
+  if (!name || !event || !title || !content) {
+    alert('정책명, 이벤트 상세, 알림 제목, 알림 내용은 필수입니다.');
+    return;
+  }
+
+  const channels = [...document.querySelectorAll('.toggle-btn[data-group="channel"].active-selected')].map(b => b.dataset.val).join(', ');
+  const targets  = [...document.querySelectorAll('.toggle-btn[data-group="target"].active-selected')].map(b => b.dataset.val).join(', ');
+
+  if (!channels) { alert('발송 채널을 하나 이상 선택해주세요.'); return; }
+  if (!targets)  { alert('수신 대상을 하나 이상 선택해주세요.'); return; }
+
+  const activeBtn = document.querySelector('.toggle-btn[data-group="active"].active-selected');
+  const isActive  = activeBtn ? activeBtn.dataset.val === '사용' : true;
+
+  fetch(CREATE_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    body: JSON.stringify({
+      name,
+      event_type:        event,
+      channels,
+      targets,
+      is_active:         isActive,
+      alarm_title:       title,
+      alarm_content:     content,
+      condition_summary: document.getElementById('inp-summary').value,
+    }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.success) { alert(data.message || '등록에 실패했습니다.'); return; }
+    closeModal('modal-policy-create');
+    openModal('modal-create-complete');
   });
 });
 
 function resetCreateForm() {
-  document.getElementById('inp-policy-name').value = '';
+  ['inp-policy-name','inp-alarm-title','inp-alarm-content','inp-summary'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
   document.getElementById('inp-event').value = '';
-  document.getElementById('inp-alarm-title').value = '';
-  document.getElementById('inp-alarm-content').value = '';
-  document.getElementById('inp-summary').value = '';
   document.getElementById('alarm-content-hint').textContent = '';
   document.getElementById('condition-section').classList.add('hidden');
-  // 토글 버튼 초기화
-  document.querySelectorAll('.toggle-btn').forEach(b => {
-    b.classList.remove('border-blue-400', 'bg-blue-100', 'text-blue-700', 'font-medium', 'active-selected');
-    b.classList.add('border-slate-200', 'text-slate-600');
-  });
-  // 사용 여부 기본값 복원
+  document.querySelectorAll('.toggle-btn').forEach(b => { b.classList.remove(...ON); b.classList.add(...OFF); });
   const useBtn = document.querySelector('.toggle-btn[data-group="active"][data-val="사용"]');
-  if (useBtn) {
-    useBtn.classList.add('border-blue-400', 'bg-blue-100', 'text-blue-700', 'font-medium', 'active-selected');
-    useBtn.classList.remove('border-slate-200', 'text-slate-600');
-  }
+  if (useBtn) { useBtn.classList.add(...ON); useBtn.classList.remove(...OFF); }
 }
 
-// 모달 유틸
 function openModal(id)  { const el = document.getElementById(id); el.classList.remove('hidden'); el.classList.add('flex'); }
 function closeModal(id) { const el = document.getElementById(id); el.classList.add('hidden'); el.classList.remove('flex'); }
 
-// 초기 렌더
+/* 초기 렌더 */
+sortData();
 renderTable();
 </script>
 {% endblock %}

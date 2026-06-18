@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+alertmanager/alertmanager.yml
 db.sqlite3
 *.log
 .DS_Store
@@ -14,3 +15,15 @@ venv/
 # !**/migrations/__init__.py
 
 .claude/
+media/
+db.sqlite3.backup_*
+*.backup_*
+db.sqlite3-journal
+*.bak
+*.png
+*.md
+
+dump.rdb
+dump.json
+staticfiles/
+celerybeat-schedule

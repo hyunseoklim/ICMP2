@@ -1,8 +1,9 @@
 /**
  * power_detail.js — 전력 위젯 및 세부 페이지
  * 부하율 = 현재 전력 / rated_power_w × 100
- * 위험 판단 임시 기준: 부하율 50% 초과 → 주의, 75% 초과 → 위험
- * 시간대별 평균 기반 위험도는 4차에서 구현 예정
+ * 위험 판단 기준: window.POWER_LOAD_WARN / POWER_LOAD_DANGER (monitoring.js)
+ *   → 관리자 임계치 등록(TH_POWER / load_rate)으로 동적 변경 가능
+ *   → DB 미등록 시 기본값 50% / 75% 사용
  */
 
 // ── 상수 ─────────────────────────────────────────────────────
@@ -14,9 +15,9 @@ const POWER_LEVEL_COLOR = {
     off:     'rgba(100,100,100,0.3)',
 };
 
-const DEFAULT_RATED_W = 1000; // 카탈로그 기준 채널 최대 전력 (W)
-const WARN_LOAD       = 50;   // 주의 임계 부하율 % (화면설계 추정)
-const DANGER_LOAD     = 75;   // 위험 임계 부하율 % (화면설계 추정)
+const DEFAULT_RATED_W = window.DEFAULT_RATED_W ?? 1000;
+// WARN_LOAD / DANGER_LOAD → window.POWER_LOAD_WARN / window.POWER_LOAD_DANGER 로 대체
+// (monitoring.js 에서 기본값 50/75 초기화, DB 로드 후 갱신됨)
 
 // ── 상태 ─────────────────────────────────────────────────────
 let powerDevices      = [];
@@ -32,13 +33,16 @@ let selectedChannels  = new Set();
 const powerZonePlugin = {
     id: 'powerZoneBackground',
     beforeDraw(chart) {
+        // 전역 등록 플러그인이라 게이트 없으면 가스 등 다른 차트에도 전력 임계치(부하율 50/75)를
+        // 칠한다. 전력 차트만 config._powerZone=true 를 달아 여기서만 그리도록 제한.
+        if (!chart.config._powerZone) return;
     const { ctx, chartArea: area, scales: { y } } = chart;
         if (!area || !y) return;   // ← !y 추가
 
         const clamp = v => Math.max(area.top, Math.min(area.bottom, y.getPixelForValue(v)));
 
-        const dangerY = clamp(DANGER_LOAD);
-        const warnY   = clamp(WARN_LOAD);
+        const dangerY = clamp(window.POWER_LOAD_DANGER);
+        const warnY   = clamp(window.POWER_LOAD_WARN);
 
         ctx.fillStyle = 'rgba(239,68,68,0.2)';
         ctx.fillRect(area.left, area.top, area.right - area.left, dangerY - area.top);
@@ -61,8 +65,8 @@ function calcChannelLevel(r) {
     if (r.current_a === -1 || r.voltage_v === -1 || r.power_w === -1) return 'warning';
     if (r.current_a === 0  && r.voltage_v === 0  && r.power_w === 0)  return 'off';
     const load = calcLoadRate(r.power_w, r.channel_rated_power);
-    if (load > DANGER_LOAD) return 'danger';
-    if (load > WARN_LOAD)   return 'warning';
+    if (load > window.POWER_LOAD_DANGER) return 'danger';
+    if (load > window.POWER_LOAD_WARN)   return 'warning';
     return 'normal';
 }
 
@@ -176,6 +180,7 @@ function createPowerChart(ch) {
 
     const chart = new Chart(ctx, {
         type: 'bar',
+        _powerZone: true,   // powerZoneBackground 플러그인 동작 게이트 (전력 차트 전용)
         data: {
             labels: [ch.channel_name || ch.channel_code],
             datasets: [{
@@ -372,13 +377,16 @@ async function loadLatestPower(deviceId) {
         const readings = res.data;
 
         const channels = readings.map(r => ({
+            // power_forecast.js가 ChannelAPI.getForecast(ch.id)를 호출하므로
+            // DeviceChannel PK(serializer의 r.channel)를 그대로 전달해야 한다.
+            id:              r.channel,
             channel_code:    r.channel_code || r.channel,
             channel_name:    r.channel_name || r.channel_code || r.channel,
             rated_power_w:   r.channel_rated_power || DEFAULT_RATED_W,
             current_a:       r.current_a,
             voltage_v:       r.voltage_v,
             power_w:         r.power_w,
-            level:           calcChannelLevel(r),
+            level:           r.level || calcChannelLevel(r),
         }));
 
         currentChannels = channels;
@@ -461,9 +469,17 @@ function updatePowerNav() {
 // 초기화
 // ══════════════════════════════════════════════════════════
 window.initPowerWidget = async function () {
+    // DB 임계치 먼저 로드 → 차트·위험도 판단에 반영
+    await window.loadThresholdsFromDB?.();
+
     try {
         const res = await DeviceAPI.getList({ device_type: 'power', is_active: true });
         powerDevices = res.data.results || res.data;
+
+        // API 응답 순서는 측정 활성도와 무관 — last_seen_at=null인 디바이스가 앞에 오면
+        // index 0 기본 선택으로 latest_power가 [] → 탭 양쪽 모두 빈 상태로 렌더된다.
+        // 측정 이력이 있는 디바이스를 우선 배치 (안정 정렬).
+        powerDevices.sort((a, b) => (b.last_seen_at ? 1 : 0) - (a.last_seen_at ? 1 : 0));
 
         if (powerDevices.length === 0) {
             const tbody = document.getElementById('power-equip-list')

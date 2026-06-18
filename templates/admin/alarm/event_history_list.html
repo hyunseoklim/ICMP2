@@ -31,32 +31,36 @@
     <div>
       <label class="block text-xs font-medium text-slate-700 mb-1.5">조회 날짜</label>
       <div class="relative">
-        <input type="date" id="filter-date" value="2026-04-12"
+        <input type="date" id="filter-date" value="{{ today }}"
           class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
     </div>
     <div>
       <label class="block text-xs font-medium text-slate-700 mb-1.5">이벤트 구분</label>
-      <select id="filter-type"
-        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-        <option value="">전체</option>
-        <option value="가스 경보">가스 경보</option>
-        <option value="전력 이상">전력 이상</option>
-        <option value="위치 이탈">위치 이탈</option>
-        <option value="출입 이벤트">출입 이벤트</option>
-        <option value="시스템 이벤트">시스템 이벤트</option>
-        <option value="점검 일정">점검 일정</option>
-      </select>
+      <div class="relative">
+        <select id="filter-type"
+          class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none">
+          <option value="">전체</option>
+          <option value="가스 경보">가스 경보</option>
+          <option value="전력 이상">전력 이상</option>
+          <option value="위치 이탈">위치 이탈</option>
+          <option value="장비 이벤트">장비 이벤트</option>
+        </select>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+      </div>
     </div>
     <div>
       <label class="block text-xs font-medium text-slate-700 mb-1.5">이벤트 상태</label>
-      <select id="filter-status"
-        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-        <option value="">전체</option>
-        <option value="발생">발생</option>
-        <option value="확인중">확인중</option>
-        <option value="해제">해제</option>
-      </select>
+      <div class="relative">
+        <select id="filter-status"
+          class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none">
+          <option value="">전체</option>
+          <option value="발생">발생</option>
+          <option value="확인중">확인중</option>
+          <option value="해제">해제</option>
+        </select>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+      </div>
     </div>
   </div>
   <div class="flex justify-end gap-2">
@@ -78,8 +82,8 @@
   <!-- 목록 헤더 -->
   <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
     <div class="flex items-center gap-3">
-      <span class="text-sm font-semibold text-slate-900">전체 <span id="total-count" class="text-blue-600">128</span>건</span>
-      <span class="text-xs text-slate-400">최근 1개월 이벤트 이력을 조회할 수 있습니다.</span>
+      <span class="text-sm font-semibold text-slate-900">전체 <span id="total-count" class="text-blue-600">0</span>건</span>
+      <span class="text-xs text-slate-400">최근 이벤트 이력을 조회할 수 있습니다.</span>
     </div>
     <!-- 정렬 드롭다운 -->
     <div class="relative">
@@ -105,6 +109,7 @@
     <table class="w-full">
       <thead>
         <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="px-4 py-3 w-10"></th>
           <th class="text-left text-xs font-semibold text-slate-700 px-6 py-3 w-44">발생시간</th>
           <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-28">이벤트 구분</th>
           <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-52">발생 대상</th>
@@ -113,15 +118,13 @@
           <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3">발생 내용</th>
         </tr>
       </thead>
-      <tbody id="event-table-body">
-        <!-- JS 렌더 -->
-      </tbody>
+      <tbody id="event-table-body"></tbody>
     </table>
   </div>
 
   <!-- 페이지네이션 -->
   <div class="flex items-center justify-between px-6 py-4 border-t border-slate-100">
-    <span class="text-xs text-slate-500" id="page-info">1 - 10 / 128</span>
+    <span class="text-xs text-slate-500" id="page-info"></span>
     <div class="flex items-center gap-1" id="pagination"></div>
   </div>
 </div>
@@ -129,81 +132,61 @@
 {% endblock %}
 
 {% block modal %}
+{{ block.super }}
 <!-- 이벤트 상세 팝업 -->
 <div id="modal-event-detail" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl">
     <div class="px-7 py-6">
-      <!-- 타이틀 -->
       <h3 class="text-xl font-bold text-slate-900 mb-1">이벤트 상세</h3>
       <p class="text-sm text-slate-500 mb-4">이벤트 발생 이력과 연결된 정책 정보를 확인합니다.</p>
 
-      <!-- 탭 -->
       <div class="border-b border-slate-200 mb-5">
         <nav class="flex">
           <span class="px-4 py-2.5 text-sm font-medium border-b-2 border-blue-600 text-blue-600 -mb-px cursor-default">기본 정보</span>
         </nav>
       </div>
 
-      <!-- 필드 그리드 -->
       <div class="space-y-4">
-        <!-- 이벤트 구분 / 발생 대상 -->
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">이벤트 구분</label>
-            <div id="detail-type"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
+            <div id="detail-type" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">발생 대상</label>
-            <div id="detail-target"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
+            <div id="detail-target" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
           </div>
         </div>
-
-        <!-- 이벤트 상태 / 발생시간 -->
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">이벤트 상태</label>
-            <div id="detail-status"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 font-medium min-h-[40px]">-</div>
+            <div id="detail-status" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 font-medium min-h-[40px]">-</div>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">발생시간</label>
-            <div id="detail-time"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
+            <div id="detail-time" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
           </div>
         </div>
-
-        <!-- 해제시간 / 연결 정책 -->
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">해제시간</label>
-            <div id="detail-release-time"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
+            <div id="detail-release-time" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 정책</label>
-            <div id="detail-policy"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
+            <div id="detail-policy" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
           </div>
         </div>
-
-        <!-- 발생 내용 -->
         <div>
           <label class="block text-xs font-medium text-slate-700 mb-1.5">발생 내용</label>
-          <div id="detail-content"
-            class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700 leading-relaxed min-h-[72px]">-</div>
+          <div id="detail-content" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700 leading-relaxed min-h-[72px]">-</div>
         </div>
-
-        <!-- 상태 메모 -->
         <div>
           <label class="block text-xs font-medium text-slate-700 mb-1.5">상태 메모</label>
-          <div id="detail-memo"
-            class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700 leading-relaxed min-h-[60px]">-</div>
+          <div id="detail-memo" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700 leading-relaxed min-h-[60px]">-</div>
         </div>
       </div>
 
-      <!-- 닫기 -->
       <div class="flex justify-end mt-6">
         <button onclick="closeModal('modal-event-detail')"
           class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
@@ -216,86 +199,68 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
+{{ events_data|json_script:"events-data" }}
 <script>
-const ALL_EVENTS = [
-  { id:1,  time:'2026-04-12 10:24:18', type:'가스 경보',     target:'가스 센서 GS-021',          policy:'가스 경보 정책',        status:'발생',  releasedAt:'-',
-    content:'가스 센서 GS-021에서 가스 농도 경고 기준 초과가 감지되어 이벤트가 발생했습니다. 가스 경보 정책이 즉시 적용되었습니다.',
-    memo:'가스 경보 정책에 따라 관리자에게 SMS, 앱 푸시가 발송되었습니다.' },
-  { id:2,  time:'2026-04-12 10:15:02', type:'전력 이상',     target:'스마트전력시스템 SP-004',    policy:'전력 이상 정책',        status:'확인중', releasedAt:'-',
-    content:'스마트전력시스템 SP-004에서 전력 사용량 급증이 감지되어 이벤트가 발생했습니다. 담당자가 확인 중입니다.',
-    memo:'전력 이상 정책에 따라 관리자에게 앱 알림이 발송되었습니다. 현재 확인 진행 중입니다.' },
-  { id:3,  time:'2026-04-12 09:58:41', type:'위치 이탈',     target:'위치 노드 LN-014',           policy:'위치 이탈 정책',        status:'해제',  releasedAt:'2026-04-12 10:03:22',
-    content:'위치 노드 LN-014 관할 구역에서 작업자의 지정 위치 이탈이 감지되었습니다.',
-    memo:'위치 이탈 정책에 따라 관리자에게 앱 푸시가 발송되었습니다. 작업자 복귀 확인 후 해제되었습니다.' },
-  { id:4,  time:'2026-04-12 09:41:13', type:'출입 이벤트',   target:'출입문 A-03',               policy:'출입 통제 정책',        status:'발생',  releasedAt:'-',
-    content:'출입문 A-03에서 제한 시간(22:00~06:00) 내 출입이 감지되었습니다.',
-    memo:'출입 통제 정책에 따라 관리자에게 관제 실시간 알림이 발송되었습니다.' },
-  { id:5,  time:'2026-04-12 09:20:55', type:'시스템 이벤트', target:'배치 서버',                 policy:'시스템 배치 결과 정책', status:'해제',  releasedAt:'2026-04-12 09:35:10',
-    content:'배치 서버에서 야간 배치 작업 오류가 발생하였습니다. 자동 재시도 후 정상 복구되었습니다.',
-    memo:'시스템 배치 결과 정책에 따라 운영팀에 이메일 알림이 발송되었습니다. 배치 오류 복구 완료 확인 후 해제되었습니다.' },
-  { id:6,  time:'2026-04-12 08:52:27', type:'점검 일정',     target:'점검 캘린더',               policy:'점검 일정 정책',        status:'발생',  releasedAt:'-',
-    content:'설비 정기 점검 예정 시간(09:00)에 도달하였습니다. 점검 담당자의 확인이 필요합니다.',
-    memo:'점검 일정 정책에 따라 담당자에게 앱 푸시 및 SMS가 발송되었습니다.' },
-  { id:7,  time:'2026-04-12 08:31:05', type:'가스 경보',     target:'가스 센서 GS-007',          policy:'가스 경보 정책',        status:'해제',  releasedAt:'2026-04-12 08:45:19',
-    content:'가스 센서 GS-007에서 가스 농도 경고가 감지되었으나 이후 정상 범위로 복귀하였습니다.',
-    memo:'가스 경보 정책에 따라 관리자에게 앱 푸시가 발송되었습니다. 가스 농도 정상 복귀 확인 후 해제되었습니다.' },
-  { id:8,  time:'2026-04-12 07:48:22', type:'전력 이상',     target:'스마트전력시스템 SP-002',    policy:'전력 이상 정책',        status:'확인중', releasedAt:'-',
-    content:'스마트전력시스템 SP-002에서 전력 차단기 오작동이 감지되었습니다. 현장 점검이 진행 중입니다.',
-    memo:'전력 이상 정책에 따라 관리자 및 전기 담당자에게 SMS가 발송되었습니다. 현장 점검 중입니다.' },
-  { id:9,  time:'2026-04-12 07:22:11', type:'위치 이탈',     target:'위치 노드 LN-009',           policy:'위치 이탈 정책',        status:'해제',  releasedAt:'2026-04-12 07:28:05',
-    content:'위치 노드 LN-009 구역에서 작업자의 허용 구역 이탈이 감지되었습니다.',
-    memo:'위치 이탈 정책에 따라 관리자에게 앱 알림이 발송되었습니다. 작업자 복귀 후 해제처리 되었습니다.' },
-  { id:10, time:'2026-04-12 06:55:44', type:'출입 이벤트',   target:'출입문 B-01',               policy:'출입 통제 정책',        status:'발생',  releasedAt:'-',
-    content:'출입문 B-01에서 미등록 인원의 출입 시도가 감지되었습니다. 보안 담당자 확인이 필요합니다.',
-    memo:'출입 통제 정책에 따라 보안 담당자에게 관제 실시간 알림 및 SMS가 발송되었습니다.' },
-  { id:11, time:'2026-04-12 06:30:18', type:'가스 경보',     target:'가스 센서 GS-015',          policy:'가스 경보 정책',        status:'발생',  releasedAt:'-',
-    content:'가스 센서 GS-015에서 황화수소(H₂S) 농도가 임계치를 초과하였습니다. 즉시 현장 확인이 필요합니다.',
-    memo:'가스 경보 정책에 따라 관리자 및 작업자에게 앱 푸시와 SMS가 발송되었습니다.' },
-  { id:12, time:'2026-04-12 06:10:03', type:'시스템 이벤트', target:'모니터링 서버',             policy:'시스템 배치 결과 정책', status:'해제',  releasedAt:'2026-04-12 06:18:44',
-    content:'모니터링 서버가 예기치 않게 중단되어 자동 재시작이 실행되었습니다.',
-    memo:'시스템 배치 결과 정책에 따라 운영팀에 알림이 발송되었습니다. 서버 자동 재시작 완료 확인 후 해제되었습니다.' },
-];
+const TODAY      = '{{ today }}';
+const ALL_EVENTS = JSON.parse(document.getElementById('events-data').textContent);
 
 const PAGE_SIZE = 10;
-let currentPage = 1;
-let currentSort = 'time-desc';
-let filteredData = [...ALL_EVENTS];
-let selectedId = null;
+let currentPage  = 1;
+let currentSort  = 'time-desc';
+let filteredData = ALL_EVENTS.filter(e => e.date === TODAY);
+let selectedId   = null;
 
 const STATUS_STYLE = {
   '발생':  'text-red-500',
   '확인중': 'text-amber-500',
-  '해제':  'text-slate-400',
+  '해제':  'text-emerald-500',
 };
-
 const STATUS_ORDER = { '발생': 0, '확인중': 1, '해제': 2 };
 
 function renderTable() {
-  const start = (currentPage - 1) * PAGE_SIZE;
+  const start    = (currentPage - 1) * PAGE_SIZE;
   const pageData = filteredData.slice(start, start + PAGE_SIZE);
-  const tbody = document.getElementById('event-table-body');
+  const tbody    = document.getElementById('event-table-body');
 
   tbody.innerHTML = pageData.length === 0
-    ? `<tr><td colspan="6" class="text-center text-sm text-slate-400 py-12">검색 결과가 없습니다.</td></tr>`
+    ? `<tr><td colspan="7" class="text-center text-sm text-slate-400 py-12">검색 결과가 없습니다.</td></tr>`
     : pageData.map(e => `
       <tr data-id="${e.id}" onclick="selectRow(${e.id})"
         class="border-b border-slate-100 last:border-0 transition-colors cursor-pointer
                ${selectedId === e.id ? 'bg-blue-50 hover:bg-blue-50' : 'hover:bg-slate-50/50'}">
-        <td class="px-6 py-3 text-sm text-slate-700">${e.time}</td>
-        <td class="px-4 py-3 text-sm font-medium text-slate-800">${e.type}</td>
+        <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
+          <input type="checkbox" value="${e.id}"
+            ${selectedId === e.id ? 'checked' : ''}
+            onchange="checkRow(${e.id}, this)"
+            class="row-check w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer">
+        </td>
+        <td class="px-6 py-3 text-sm text-slate-700 whitespace-nowrap">${e.time}</td>
+        <td class="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">${e.type}</td>
         <td class="px-4 py-3 text-sm text-slate-600">${e.target}</td>
         <td class="px-4 py-3 text-sm text-slate-600">${e.policy}</td>
-        <td class="px-4 py-3 text-sm font-medium ${STATUS_STYLE[e.status] || 'text-slate-500'}">${e.status}</td>
-        <td class="px-4 py-3 text-sm text-slate-500">${e.content}</td>
+        <td class="px-4 py-3 text-sm font-semibold whitespace-nowrap ${STATUS_STYLE[e.status] || 'text-slate-500'}">${e.status}</td>
+        <td class="px-4 py-3 text-sm text-slate-500 max-w-xs truncate">${e.content}</td>
       </tr>
     `).join('');
 
   document.getElementById('total-count').textContent = filteredData.length;
-  document.getElementById('page-info').textContent =
-    `${start + 1} - ${Math.min(start + PAGE_SIZE, filteredData.length)} / ${filteredData.length}`;
+  document.getElementById('page-info').textContent   =
+    filteredData.length === 0
+      ? '0 / 0'
+      : `${start + 1} - ${Math.min(start + PAGE_SIZE, filteredData.length)} / ${filteredData.length}`;
 
   renderPagination();
   if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function checkRow(id, cb) {
+  if (cb && !cb.checked) {
+    selectedId = null;
+  } else {
+    selectedId = id;
+  }
+  renderTable();
 }
 
 function selectRow(id) {
@@ -305,27 +270,33 @@ function selectRow(id) {
 }
 
 function renderPagination() {
-  const total = Math.ceil(filteredData.length / PAGE_SIZE);
+  const total     = Math.ceil(filteredData.length / PAGE_SIZE);
   const container = document.getElementById('pagination');
+  if (total <= 1) { container.innerHTML = ''; return; }
+
+  let startPage = Math.max(1, currentPage - 2);
+  let endPage   = Math.min(total, startPage + 4);
+  if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+  const BTN_BASE   = 'w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors';
+  const BTN_ACTIVE = 'bg-blue-600 text-white';
+  const BTN_NORMAL = 'border border-slate-200 text-slate-700 hover:bg-slate-50';
+  const BTN_NAV    = 'border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed';
   const pages = [];
 
   pages.push(`<button onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}
-    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-    <i data-lucide="chevron-left" class="w-4 h-4"></i>
-  </button>`);
+    class="${BTN_BASE} ${BTN_NAV}">
+    <i data-lucide="chevron-left" class="w-4 h-4"></i></button>`);
 
-  for (let i = 1; i <= Math.min(total, 5); i++) {
+  for (let i = startPage; i <= endPage; i++) {
     pages.push(`<button onclick="goPage(${i})"
-      class="w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors
-             ${i === currentPage ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-700 hover:bg-slate-50'}">
-      ${i}
-    </button>`);
+      class="${BTN_BASE} ${i === currentPage ? BTN_ACTIVE : BTN_NORMAL}">
+      ${i}</button>`);
   }
 
   pages.push(`<button onclick="goPage(${currentPage + 1})" ${currentPage === total ? 'disabled' : ''}
-    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-    <i data-lucide="chevron-right" class="w-4 h-4"></i>
-  </button>`);
+    class="${BTN_BASE} ${BTN_NAV}">
+    <i data-lucide="chevron-right" class="w-4 h-4"></i></button>`);
 
   container.innerHTML = pages.join('');
   if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -338,14 +309,13 @@ function goPage(page) {
   renderTable();
 }
 
-// 정렬
+/* ── 정렬 ── */
 document.getElementById('sort-btn').addEventListener('click', function() {
   document.getElementById('sort-dropdown').classList.toggle('hidden');
 });
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('#sort-btn') && !e.target.closest('#sort-dropdown')) {
+  if (!e.target.closest('#sort-btn') && !e.target.closest('#sort-dropdown'))
     document.getElementById('sort-dropdown').classList.add('hidden');
-  }
 });
 document.querySelectorAll('.sort-option').forEach(btn => {
   btn.addEventListener('click', function() {
@@ -361,47 +331,49 @@ document.querySelectorAll('.sort-option').forEach(btn => {
 function sortData() {
   filteredData.sort((a, b) => {
     switch (currentSort) {
-      case 'time-asc':      return a.time.localeCompare(b.time);
-      case 'type-asc':      return a.type.localeCompare(b.type);
-      case 'type-desc':     return b.type.localeCompare(a.type);
-      case 'status-occur':  return (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
-      case 'status-clear':  return (STATUS_ORDER[b.status] ?? 9) - (STATUS_ORDER[a.status] ?? 9);
-      default:              return b.time.localeCompare(a.time);
+      case 'time-asc':     return a.time.localeCompare(b.time);
+      case 'type-asc':     return a.type.localeCompare(b.type, 'ko');
+      case 'type-desc':    return b.type.localeCompare(a.type, 'ko');
+      case 'status-occur': return (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+      case 'status-clear': return (STATUS_ORDER[b.status] ?? 9) - (STATUS_ORDER[a.status] ?? 9);
+      default:             return b.time.localeCompare(a.time);   /* time-desc */
     }
   });
 }
 
-// 검색 필터
+/* ── 검색 필터 ── */
 function applyFilters() {
+  const date   = document.getElementById('filter-date').value;
   const type   = document.getElementById('filter-type').value;
   const status = document.getElementById('filter-status').value;
+
   filteredData = ALL_EVENTS.filter(e => {
+    if (date   && e.date   !== date)   return false;
     if (type   && e.type   !== type)   return false;
     if (status && e.status !== status) return false;
     return true;
   });
   sortData();
   currentPage = 1;
-  selectedId = null;
-  document.getElementById('btn-detail-view').disabled = true;
+  selectedId  = null;
   renderTable();
 }
 
 function resetFilters() {
-  document.getElementById('filter-date').value   = '2026-04-12';
+  document.getElementById('filter-date').value   = TODAY;
   document.getElementById('filter-type').value   = '';
   document.getElementById('filter-status').value = '';
-  filteredData = [...ALL_EVENTS];
+  filteredData = ALL_EVENTS.filter(e => e.date === TODAY);
   sortData();
   currentPage = 1;
-  selectedId = null;
-  document.getElementById('btn-detail-view').disabled = true;
+  selectedId  = null;
   renderTable();
 }
 
+/* ── 상세 팝업 ── */
 function openDetailModal() {
   if (!selectedId) return;
-  const ev = filteredData.find(e => e.id === selectedId) || ALL_EVENTS.find(e => e.id === selectedId);
+  const ev = ALL_EVENTS.find(e => e.id === selectedId);
   if (!ev) return;
 
   document.getElementById('detail-type').textContent         = ev.type;
@@ -414,30 +386,24 @@ function openDetailModal() {
 
   const statusEl = document.getElementById('detail-status');
   statusEl.textContent = ev.status;
-  statusEl.className = `px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 font-medium ${STATUS_STYLE[ev.status] || 'text-slate-500'}`;
+  statusEl.className   = `px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 font-semibold ${STATUS_STYLE[ev.status] || 'text-slate-500'}`;
 
   openModal('modal-event-detail');
 }
 
-// 상세 조회 버튼 — 마지막으로 선택된 행의 상세를 다시 열 때 사용
 document.getElementById('btn-detail-view').addEventListener('click', function() {
-  if (selectedId) {
-    openDetailModal();
-  } else {
-    // 선택된 행 없음 → 첫 번째 행 선택
-    if (filteredData.length > 0) {
-      selectedId = filteredData[0].id;
-      renderTable();
-      openDetailModal();
-    }
+  if (!selectedId) {
+    alert('상세 조회할 항목을 체크박스로 선택해주세요.');
+    return;
   }
+  openDetailModal();
 });
 
-// 모달 유틸
 function openModal(id)  { const el = document.getElementById(id); el.classList.remove('hidden'); el.classList.add('flex'); }
 function closeModal(id) { const el = document.getElementById(id); el.classList.add('hidden'); el.classList.remove('flex'); }
 
-// 초기 렌더
+/* 초기 렌더 */
+sortData();
 renderTable();
 </script>
 {% endblock %}

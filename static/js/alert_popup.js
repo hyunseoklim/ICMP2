@@ -121,7 +121,36 @@ const AlertPopup = (() => {
         }
     }
 
+    function handleIncoming(alarm) {
+        const seen = getSeenIds();
+        if (seen.has(alarm.id)) return;
+        if (alarm.severity !== 'danger' && alarm.severity !== 'warning') return;
+        markSeen(alarm.id);
+        queue.push(alarm);
+        queue.sort((a, b) => ({ danger: 0, warning: 1 }[a.severity] ?? 2) - ({ danger: 0, warning: 1 }[b.severity] ?? 2));
+        showNext();
+    }
+
+    function connectWS() {
+        const ws = new WebSocket(`ws://${location.host}/ws/alerts/`);
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'alert' && msg.data) handleIncoming(msg.data);
+            } catch (e) {
+                console.warn('[AlertPopup] WS 메시지 파싱 실패:', e);
+            }
+        };
+
+        ws.onclose = () => setTimeout(connectWS, 3000);
+        ws.onerror = () => ws.close();
+
+        return ws;
+    }
+
     function init() {
+        connectWS();
         poll();
         setInterval(poll, POLL_INTERVAL);
     }

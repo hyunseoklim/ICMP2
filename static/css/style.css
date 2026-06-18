@@ -953,6 +953,33 @@ body {
     color: var(--text-primary);
 }
 
+.snb-group--single {
+    border-bottom: 1px solid var(--border);
+}
+
+.snb-single-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.snb-single-link:hover {
+    background: var(--bg-hover);
+}
+
+.snb-single-link.active {
+    color: var(--accent-cyan);
+    border-left: 3px solid var(--accent-cyan);
+    padding-left: 13px;
+}
+
+.snb-single-link .icon { margin-right: 8px; color: var(--text-primary); font-size: 10px; }
+
 .snb-overlay {
     position: fixed;
     inset: 0;
@@ -962,4 +989,155 @@ body {
 }
 .snb-overlay.active {
     display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AI 예측 가스 위젯 (components/ai_gas_predict.html)
+   — 전부 .ai-gas-widget 네임스페이스. 기존 규칙 무수정 append.
+   ═══════════════════════════════════════════════════════════ */
+.ai-gas-widget { display: flex; flex-direction: column; }
+.ai-gas-widget__body { flex: 1; display: flex; min-height: 0; padding: 8px; }
+.ai-gas-widget__card {
+    flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0;
+    background: var(--bg-panel-2); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 10px 12px;
+}
+.ai-gas-widget__card-head { display: flex; align-items: center; gap: 8px; }
+.ai-gas-widget__channel {
+    font-size: 13px; font-weight: 700; color: var(--text-primary);
+    border-left: 3px solid var(--accent-cyan); padding-left: 7px;
+}
+.ai-gas-widget__device {
+    font-size: 10px; font-family: var(--font-mono); color: var(--accent-cyan);
+    background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2);
+    border-radius: 9999px; padding: 2px 8px; white-space: nowrap;
+}
+.ai-gas-widget__nav { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.ai-gas-widget__nav-btn {
+    width: 22px; height: 22px; flex-shrink: 0; line-height: 1;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-primary);
+    cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+}
+.ai-gas-widget__nav-btn:hover { background: var(--bg-hover); }
+.ai-gas-widget__page {
+    font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);
+    min-width: 36px; text-align: center;
+}
+.ai-gas-widget__metrics { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.ai-gas-widget__metric { display: flex; flex-direction: column; gap: 2px; }
+.ai-gas-widget__metric-label { font-size: 10px; color: var(--text-muted); }
+.ai-gas-widget__metric-value {
+    font-size: 20px; font-weight: 700; color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+.ai-gas-widget__metric-divider { width: 1px; align-self: stretch; background: var(--border); }
+.ai-gas-widget__chart { flex: 1; min-height: 0; position: relative; }
+.ai-gas-widget__chart canvas { width: 100% !important; height: 100% !important; }
+.ai-gas-widget__dots { display: flex; justify-content: center; gap: 5px; flex-shrink: 0; }
+.ai-gas-widget__dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border-light); cursor: pointer;
+}
+.ai-gas-widget__dot--active { background: var(--accent-cyan); }
+
+/* ═══════════════════════════════════════════════════════════
+   AI 예측 전력 위젯 (components/ai_power_predict.html)
+   — 전부 .ai-power-widget 네임스페이스. gas widget 규칙 미러.
+   ═══════════════════════════════════════════════════════════ */
+.ai-power-widget { display: flex; flex-direction: column; }
+.ai-power-widget__body { flex: 1; display: flex; min-height: 0; padding: 8px; }
+.ai-power-widget__card {
+    flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0;
+    background: var(--bg-panel-2); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 10px 12px;
+}
+.ai-power-widget__card-head { display: flex; align-items: center; gap: 8px; }
+.ai-power-widget__channel {
+    font-size: 13px; font-weight: 700; color: var(--text-primary);
+    border-left: 3px solid var(--accent-cyan); padding-left: 7px;
+}
+.ai-power-widget__device {
+    font-size: 10px; font-family: var(--font-mono); color: var(--accent-cyan);
+    background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2);
+    border-radius: 9999px; padding: 2px 8px; white-space: nowrap;
+}
+.ai-power-widget__nav { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.ai-power-widget__nav-btn {
+    width: 22px; height: 22px; flex-shrink: 0; line-height: 1;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text-primary);
+    cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+}
+.ai-power-widget__nav-btn:hover { background: var(--bg-hover); }
+.ai-power-widget__page {
+    font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);
+    min-width: 36px; text-align: center;
+}
+.ai-power-widget__metrics { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.ai-power-widget__metric { display: flex; flex-direction: column; gap: 2px; }
+.ai-power-widget__metric-label { font-size: 10px; color: var(--text-muted); }
+.ai-power-widget__metric-value {
+    font-size: 20px; font-weight: 700; color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+.ai-power-widget__metric-divider { width: 1px; align-self: stretch; background: var(--border); }
+.ai-power-widget__chart { flex: 1; min-height: 0; position: relative; }
+.ai-power-widget__chart canvas { width: 100% !important; height: 100% !important; }
+.ai-power-widget__dots { display: flex; justify-content: center; gap: 5px; flex-shrink: 0; }
+.ai-power-widget__dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border-light); cursor: pointer;
+}
+.ai-power-widget__dot--active { background: var(--accent-cyan); }
+
+/* ═══════════════════════════════════════════════════════════
+   AI 예측 탭 — 카드 차트 hover 툴팁 카드 (.pfc-tooltip-card)
+   — power_forecast.js externalTooltipHandler가 동적 생성·재사용.
+   — canvas 부모(power-chart-card__canvas-wrap) 안에 absolute로 위치.
+   ═══════════════════════════════════════════════════════════ */
+.power-chart-card__canvas-wrap { position: relative; }
+.pfc-tooltip-card {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+    background: rgba(22,27,34,0.96);
+    border: 1px solid rgba(239,68,68,0.7);
+    border-radius: 6px;
+    padding: 10px 14px;
+    min-width: 220px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+    z-index: 10;
+    white-space: nowrap;
+}
+.pfc-tooltip-card__ts {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    font-family: var(--font-mono);
+}
+.pfc-tooltip-card__row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 3px 0;
+}
+.pfc-tooltip-card__label {
+    font-size: 10px;
+    color: #94a3b8;
+}
+.pfc-tooltip-card__value {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ef4444;
+    font-family: var(--font-mono);
+}
+
+/* ── 테이블 행 선택 하이라이트 ── */
+tr.row-selected {
+    background-color: #eff6ff !important;
 }

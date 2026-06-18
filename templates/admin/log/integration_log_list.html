@@ -32,7 +32,7 @@
           </div>
           <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
         </button>
-        <div id="dateRangePicker"
+        <div id="dateRangePicker" onclick="event.stopPropagation()"
           class="hidden absolute z-50 top-full mt-1 left-0 bg-white border border-slate-200 rounded-lg shadow-lg p-4 w-80">
           <div class="flex gap-2 mb-3 flex-wrap">
             <button onclick="setQuick('today')"    class="px-2.5 py-1 text-xs rounded border border-slate-200 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors">오늘</button>
@@ -143,6 +143,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 <script>
 const SAMPLE_DATA = [
   { id:1,  time:'2026-04-12 10:22:41', type:'수집', target:'유해가스 센서 게이트웨이', result:'성공', content:'센서 데이터 수신 완료' },
@@ -343,5 +344,15 @@ function exportCSV() {
 }
 
 applyFilters();
+
+// 기본 조회 기간: 최근 1개월
+(function() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const s = new Date(today); s.setMonth(s.getMonth()-1);
+  pickerStart = s; pickerEnd = today;
+  document.getElementById('startDate').value = fmtDate(s);
+  document.getElementById('endDate').value   = fmtDate(today);
+  document.getElementById('dateRangeLabel').textContent = `${fmtDate(s)} ~ ${fmtDate(today)}`;
+})();
 </script>
 {% endblock %}

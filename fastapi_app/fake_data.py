@@ -49,6 +49,14 @@ _POWER_CHANNELS = [
     {"device_uid": "PWR-002", "channel_code": "slave22", "rated_w": 700},
     {"device_uid": "PWR-002", "channel_code": "slave31", "rated_w": 300},
     {"device_uid": "PWR-002", "channel_code": "slave32", "rated_w": 300},
+    {"device_uid": "PWR-003", "channel_code": "slave01", "rated_w": 800},
+    {"device_uid": "PWR-003", "channel_code": "slave02", "rated_w": 800},
+    {"device_uid": "PWR-003", "channel_code": "slave11", "rated_w": 50},
+    {"device_uid": "PWR-003", "channel_code": "slave12", "rated_w": 50},
+    {"device_uid": "PWR-003", "channel_code": "slave21", "rated_w": 500},
+    {"device_uid": "PWR-003", "channel_code": "slave22", "rated_w": 500},
+    {"device_uid": "PWR-003", "channel_code": "slave31", "rated_w": 300},
+    {"device_uid": "PWR-003", "channel_code": "slave32", "rated_w": 300},
 ]
 
 
@@ -104,8 +112,9 @@ def _generate_o2() -> float:
 
 
 # ── 전력 채널 데이터 생성 ─────────────────────────────────────
-def generate_power_data() -> dict:
-    ch = random.choice(_POWER_CHANNELS)
+def generate_power_data(ch: dict | None = None) -> dict:
+    # ch를 외부에서 지정하면 해당 채널을, 없으면 랜덤 선택 (하위 호환)
+    ch = ch or random.choice(_POWER_CHANNELS)
     rated_w = ch["rated_w"]
 
     rand = random.random()
@@ -142,6 +151,15 @@ def generate_power_data() -> dict:
     }
 
 
+def generate_all_power_data() -> list[dict]:
+    """전체 전력 채널 데이터를 순서대로 생성해서 반환.
+
+    랜덤 뽑기 대신 _POWER_CHANNELS 전체를 순회하므로
+    중복·누락 없이 모든 채널이 정확히 1번씩 기록된다.
+    """
+    return [generate_power_data(ch=ch) for ch in _POWER_CHANNELS]
+
+
 # ── 작업자 위치 데이터 생성 ───────────────────────────────────
 def generate_location_data() -> dict:
     worker_id = random.choice(list(_worker_positions.keys()))
@@ -157,6 +175,51 @@ def generate_location_data() -> dict:
         "x":           pos["x"],
         "y":           pos["y"],
     }
+
+
+_DETECTION_RANGE = 15.0  # 노드가 작업자 신호를 수신하는 최대 거리
+
+
+def generate_node_readings(nodes: list[dict]) -> list[dict]:
+    """노드 페이로드를 두 종류로 생성한다.
+
+    1) Heartbeat — 모든 노드 매 tick (x/y null). 장비가 켜져 있고 통신
+       가능함을 알리는 신호. ingest_node 가 update_last_seen 을 호출해
+       Device.last_seen_at 을 갱신 → "마지막 데이터 수신"·MISSING 알람의 기반.
+
+    2) Event — 노드 반경 15 units 안에 작업자가 있을 때만, 노이즈 좌표를
+       포함해 생성. 실제 측위 데이터.
+
+    nodes: [{"node_code": "LOC-001", "x": 5.0, "y": 5.0}, ...]
+    """
+    results = []
+
+    # 1) Heartbeat — 모든 노드 1회씩
+    for node in nodes:
+        results.append({
+            "node_code": node["node_code"],
+            "x": None,
+            "y": None,
+        })
+
+    # 2) Event — 작업자 근접 시 좌표 데이터 추가
+    for node in nodes:
+        nx, ny = node.get("x"), node.get("y")
+        if nx is None or ny is None:
+            # 미배치 노드는 좌표 미정 — event(측위) 단계 스킵, heartbeat만 유지
+            continue
+        for pos in _worker_positions.values():
+            dist = ((pos["x"] - nx) ** 2 + (pos["y"] - ny) ** 2) ** 0.5
+            if dist <= _DETECTION_RANGE:
+                noise_x = round(nx + random.uniform(-1.0, 1.0), 3)
+                noise_y = round(ny + random.uniform(-1.0, 1.0), 3)
+                results.append({
+                    "node_code": node["node_code"],
+                    "x": noise_x,
+                    "y": noise_y,
+                })
+                break  # 노드당 이벤트 1회만 기록
+    return results
 
 
 def generate_all_location_data(floor_id: int = 1) -> list[dict]:

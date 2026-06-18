@@ -57,7 +57,7 @@
         <div class="role-card border border-slate-200 rounded-lg p-4 cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-all"
              data-role="worker">
           <div class="flex items-center justify-between mb-1">
-            <span class="text-sm font-semibold text-slate-900">작업자</span>
+            <span class="text-sm font-semibold text-slate-900">일반사용자</span>
             <div class="flex items-center gap-1.5">
               <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">앱 전용</span>
               <span class="role-active-badge text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">활성화</span>
@@ -99,7 +99,7 @@
       </div>
 
       <div class="flex justify-end mt-4">
-        <button id="btn-edit" onclick="showEditComplete()"
+        <button id="btn-edit"
           class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
           수정
         </button>
@@ -118,6 +118,15 @@
               data-tab="main">웹 메인 메뉴</button>
       <button class="menu-tab px-4 py-2 text-sm rounded-md font-medium text-slate-600 hover:bg-slate-100 transition-all"
               data-tab="admin">웹 관리자 메뉴</button>
+    </div>
+
+    <!-- 작업자 선택 시 앱 전용 안내 (탭 대체) -->
+    <div id="app-only-notice" class="hidden mb-4 flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
+      <i data-lucide="smartphone" class="w-4 h-4 text-amber-500 shrink-0"></i>
+      <div>
+        <span class="text-sm font-medium text-amber-800">앱 전용 메뉴</span>
+        <span class="text-xs text-amber-600 ml-2">일반사용자는 앱만 사용하며 웹 로그인이 불가능합니다.</span>
+      </div>
     </div>
 
     <!-- 메뉴 테이블 -->
@@ -142,7 +151,7 @@
 
     <!-- 저장 버튼 -->
     <div class="flex justify-end mt-4">
-      <button onclick="showSaveConfirm()"
+      <button id="btn-save"
         class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
         저장
       </button>
@@ -153,6 +162,7 @@
 {% endblock %}
 
 {% block modal %}
+{{ block.super }}
 <!-- 활성화 확인 팝업 -->
 <div id="modal-activate" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-7 text-center">
@@ -160,8 +170,11 @@
       <div class="w-6 h-6 bg-white rounded-md"></div>
     </div>
     <p class="text-xs text-slate-500 mb-3">역할 활성화</p>
-    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">
-      해당 역할을 활성화하시겠습니까?
+    <p class="text-base font-bold leading-relaxed mb-6">
+      <span id="modal-activate-role-name" class="text-orange-500"></span>
+      <span class="text-slate-900"> 역할을<br></span>
+      <span class="text-blue-600">활성화</span>
+      <span class="text-slate-900">하시겠습니까?</span>
     </p>
     <div class="flex items-center gap-2 justify-center">
       <button onclick="closeModal('modal-activate')"
@@ -183,8 +196,11 @@
       <div class="w-6 h-6 bg-white rounded-md"></div>
     </div>
     <p class="text-xs text-slate-500 mb-3">역할 비활성화</p>
-    <p class="text-base font-semibold text-slate-900 leading-relaxed mb-6">
-      해당 역할을 비활성화하시겠습니까?
+    <p class="text-base font-bold leading-relaxed mb-6">
+      <span id="modal-deactivate-role-name" class="text-orange-500"></span>
+      <span class="text-slate-900"> 역할을<br></span>
+      <span class="text-red-500">비활성화</span>
+      <span class="text-slate-900">하시겠습니까?</span>
     </p>
     <div class="flex items-center gap-2 justify-center">
       <button onclick="closeModal('modal-deactivate')"
@@ -213,7 +229,7 @@
         class="px-6 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">
         취 소
       </button>
-      <button onclick="confirmSave()"
+      <button id="modal-save-ok-btn"
         class="px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
         저 장
       </button>
@@ -259,6 +275,7 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
 <script>
 const roleData = {
   super: {
@@ -318,7 +335,7 @@ const roleData = {
     }
   },
   worker: {
-    name: '작업자',
+    name: '일반사용자',
     desc: '앱을 통한 업무 및 안전 정보 확인',
     isActive: true,
     menus: {
@@ -380,13 +397,19 @@ function selectRole(roleId) {
   document.getElementById('detail-role-desc').value = role.desc;
   document.getElementById('role-detail-section').classList.remove('hidden');
 
-  // 작업자는 앱 전용 — 탭 숨김, 나머지는 웹 탭 표시
-  const tabsContainer = document.getElementById('menu-tabs-container');
+  // 작업자는 앱 전용 — 탭 숨김 + 안내 배너, 나머지는 웹 탭 표시
+  const tabsContainer  = document.getElementById('menu-tabs-container');
+  const appOnlyNotice  = document.getElementById('app-only-notice');
   if (roleId === 'worker') {
     tabsContainer.classList.add('hidden');
+    appOnlyNotice.classList.remove('hidden');
+    appOnlyNotice.classList.add('flex');
     currentTab = 'app';
+    lucide.createIcons();
   } else {
     tabsContainer.classList.remove('hidden');
+    appOnlyNotice.classList.add('hidden');
+    appOnlyNotice.classList.remove('flex');
     currentTab = 'main';
     document.querySelectorAll('.menu-tab').forEach(t => {
       if (t.dataset.tab === 'main') {
@@ -470,8 +493,16 @@ document.getElementById('btn-deactivate').addEventListener('click', function () 
   if (!this.disabled) showDeactivateConfirm();
 });
 
-function showActivateConfirm()   { openModal('modal-activate'); }
-function showDeactivateConfirm() { openModal('modal-deactivate'); }
+function showActivateConfirm() {
+  const name = selectedRole ? roleData[selectedRole].name : '';
+  document.getElementById('modal-activate-role-name').textContent = name;
+  openModal('modal-activate');
+}
+function showDeactivateConfirm() {
+  const name = selectedRole ? roleData[selectedRole].name : '';
+  document.getElementById('modal-deactivate-role-name').textContent = name;
+  openModal('modal-deactivate');
+}
 
 function confirmActivate() {
   if (!selectedRole) return;
@@ -501,14 +532,55 @@ function updateRoleBadge(roleId, isActive) {
   }
 }
 
-// 수정
-function showEditComplete() { openModal('modal-edit-complete'); }
+// ── 수정 버튼 ──────────────────────────────────────────────────────
+document.getElementById('btn-edit').addEventListener('click', function () {
+  if (!selectedRole) return;
+  const newName = document.getElementById('detail-role-name').value.trim();
+  const newDesc = document.getElementById('detail-role-desc').value.trim();
+  if (!newName) { alert('역할명을 입력하세요.'); return; }
 
-// 저장
-function showSaveConfirm() { openModal('modal-save-confirm'); }
+  // roleData 업데이트
+  roleData[selectedRole].name = newName;
+  roleData[selectedRole].desc = newDesc;
+
+  // 역할 카드 이름·설명 텍스트 업데이트
+  const card = document.querySelector(`.role-card[data-role="${selectedRole}"]`);
+  if (card) {
+    card.querySelector('span.text-sm.font-semibold').textContent = newName;
+    card.querySelector('p.text-xs').textContent = newDesc;
+  }
+
+  openModal('modal-edit-complete');
+});
+
+// ── 저장 버튼 ──────────────────────────────────────────────────────
+// 저장 확인 전에 현재 메뉴 상태 스냅샷 (취소 시 롤백용)
+let menuSnapshot = null;
+
+document.getElementById('btn-save').addEventListener('click', function () {
+  if (!selectedRole) { alert('사용자 역할을 선택하세요.'); return; }
+  // 현재 메뉴 상태 깊은 복사
+  menuSnapshot = JSON.parse(JSON.stringify(roleData[selectedRole].menus));
+  openModal('modal-save-confirm');
+});
+
 function confirmSave() {
+  menuSnapshot = null;  // 스냅샷 해제 (저장 확정)
   closeModal('modal-save-confirm');
   openModal('modal-save-complete');
 }
+
+// 저장 확인 팝업 저장 버튼
+document.getElementById('modal-save-ok-btn').addEventListener('click', confirmSave);
+
+// 저장 확인 팝업 취소 → 롤백
+document.querySelector('#modal-save-confirm button:first-child').addEventListener('click', function () {
+  if (menuSnapshot && selectedRole) {
+    roleData[selectedRole].menus = menuSnapshot;
+    menuSnapshot = null;
+    renderMenuTable();  // 테이블 원상복구
+  }
+  closeModal('modal-save-confirm');
+});
 </script>
 {% endblock %}

@@ -1,19 +1,31 @@
+import os
+import sys
 from pathlib import Path
+
+from dotenv import load_dotenv
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# AI 엔진(fastapi_app/ai_engine)은 top-level 패키지(common·gas·power)로 import되므로
+# 해당 디렉토리를 sys.path에 등록한다. (STEP F — Isolation Forest 통합)
+_AI_ENGINE_DIR = BASE_DIR / 'fastapi_app' / 'ai_engine'
+if _AI_ENGINE_DIR.is_dir() and str(_AI_ENGINE_DIR) not in sys.path:
+    sys.path.insert(0, str(_AI_ENGINE_DIR))
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-8%t_y(+&5(&zcg6yba$)r&thfvrydt!pi4r%r!-pqhlc(u81d('
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
+USE_X_FORWARDED_HOST = True
 
 
 # Application definition
@@ -27,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
      # third-party
+    'django_prometheus',
     'django_filters',
     'rest_framework',
     # local apps
@@ -48,13 +61,16 @@ REST_FRAMEWORK = {
 }
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -80,11 +96,76 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
+CELERY_TIMEZONE = 'Asia/Seoul'
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_TRACK_STARTED = True
+
+# STEP G(예측)는 상태기(PredictionSubsystem)라 전용 큐 + 단일 동시성 worker로
+# 처리한다. forecast_gas_task + forecast_power_task가 forecast 큐로 라우팅
+# (아키텍처 D2). Phase D 결정 (i): 기존 celery-forecast 컨테이너 공유.
+CELERY_TASK_ROUTES = {
+    'alerts.tasks.forecast_gas_task':   {'queue': 'forecast'},
+    'alerts.tasks.forecast_power_task': {'queue': 'forecast'},   # Phase D M1-8
+    # facilities 이벤트 핸들러는 전용 큐 + 단일 worker로 격리해
+    # 다른 파이프라인(가스 인제스트 등)과 부하를 분리한다.
+    'facilities.tasks.handle_floor_grid_changed': {'queue': 'events'},
+    'facilities.tasks.handle_floor_dimensions_changed': {'queue': 'events'},
+}
+
+from celery.schedules import crontab  # noqa: E402
+
+# 7. MISSING 장비 감지 — 매 60초 주기 실행
+# 8. 데이터 보관 주기 — 매일 새벽 3시 (dev 머지)
+CELERY_BEAT_SCHEDULE = {
+    'check-missing-devices': {
+        'task': 'alerts.tasks.check_missing_devices',
+        'schedule': 60.0,
+    },
+
+    'data-retention-daily': {
+        'task': 'alerts.tasks.run_data_retention',
+        'schedule': crontab(hour=3, minute=0),
+    },
+
+    # 9. STALE 가스센서 자동 지오펜스 비활성화 — 30초 주기
+    #    데이터 수신이 끊긴 센서의 danger 지오펜스가 지도에 영구히 남는 문제 해소.
+    'deactivate-stale-geofences': {
+        'task': 'facilities.tasks.deactivate_stale_geofences',
+        'schedule': 30.0,
+    },
+
+    # 10. STALE 작업자 off_duty 정리 — 30초 주기
+    #     위치 수신이 끊긴 on_duty 작업자가 '근무 중'(+위험)으로 남는 문제 해소.
+    'deactivate-stale-workers': {
+        'task': 'facilities.tasks.deactivate_stale_workers',
+        'schedule': 30.0,
+    },
+}
+
+# Phase 2 — AI 예측(STEP G) 튜닝 파라미터. 검증·운영 중 무재학습 조정용.
+FORECAST_K_CONFIRM = int(os.environ.get('FORECAST_K_CONFIRM', '18'))
+
+DEFAULT_POWER_RATED_W = int(os.environ.get('DEFAULT_POWER_RATED_W', '1000'))
+
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': f"redis://{os.environ.get('REDIS_HOST', '127.0.0.1')}:6379/2",
+    }
+}
+
+SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
+DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
+            'hosts': [(os.environ.get('REDIS_HOST', 'redis'), 6379)],
         },
     },
 }
@@ -94,8 +175,12 @@ CHANNEL_LAYERS = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
@@ -136,7 +221,6 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
-    BASE_DIR / 'templates',
     BASE_DIR / 'static',
 ]
 MEDIA_URL = '/media/'
@@ -150,3 +234,33 @@ MEDIA_ROOT = BASE_DIR / 'media'
 AUTH_USER_MODEL = 'accounts.User'
 
 # LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'default': {
+            'format': '[{levelname}] {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'default',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}

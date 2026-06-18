@@ -30,28 +30,34 @@
   <div class="grid grid-cols-3 gap-4 mb-4">
     <div>
       <label class="block text-xs font-medium text-slate-700 mb-1.5">조회 날짜</label>
-      <input type="date" id="filter-date" value="2026-04-12"
+      <input type="date" id="filter-date" value="{{ today }}"
         class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
     </div>
     <div>
       <label class="block text-xs font-medium text-slate-700 mb-1.5">발송 채널</label>
-      <select id="filter-channel"
-        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-        <option value="">전체</option>
-        <option value="SMS">SMS</option>
-        <option value="이메일">이메일</option>
-        <option value="앱 푸시">앱 푸시</option>
-      </select>
+      <div class="relative">
+        <select id="filter-channel"
+          class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none">
+          <option value="">전체</option>
+          <option value="관제 실시간 알림">관제 실시간 알림</option>
+          <option value="Slack">Slack</option>
+          <option value="Discord">Discord</option>
+        </select>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+      </div>
     </div>
     <div>
       <label class="block text-xs font-medium text-slate-700 mb-1.5">발송 결과</label>
-      <select id="filter-result"
-        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-        <option value="">전체</option>
-        <option value="성공">성공</option>
-        <option value="실패">실패</option>
-        <option value="지연">지연</option>
-      </select>
+      <div class="relative">
+        <select id="filter-result"
+          class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none">
+          <option value="">전체</option>
+          <option value="성공">성공</option>
+          <option value="실패">실패</option>
+          <option value="지연">지연</option>
+        </select>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+      </div>
     </div>
   </div>
   <div class="flex justify-end gap-2">
@@ -73,10 +79,9 @@
   <!-- 목록 헤더 -->
   <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
     <div class="flex items-center gap-3">
-      <span class="text-sm font-semibold text-slate-900">전체 <span id="total-count" class="text-blue-600">128</span>건</span>
-      <span class="text-xs text-slate-400">최근 1개월 알림 발송 이력을 조회할 수 있습니다.</span>
+      <span class="text-sm font-semibold text-slate-900">전체 <span id="total-count" class="text-blue-600">0</span>건</span>
+      <span class="text-xs text-slate-400">최근 알림 발송 이력을 조회할 수 있습니다.</span>
     </div>
-    <!-- 정렬 드롭다운 -->
     <div class="relative">
       <button id="sort-btn"
         class="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 transition-colors">
@@ -100,22 +105,21 @@
     <table class="w-full">
       <thead>
         <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="px-4 py-3 w-10"></th>
           <th class="text-left text-xs font-semibold text-slate-700 px-6 py-3 w-44">발생시간</th>
           <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-28">발송 채널</th>
-          <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-44">수신 대상</th>
+          <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-44">수신 역할</th>
           <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3 w-24">발송 결과</th>
           <th class="text-left text-xs font-semibold text-slate-700 px-4 py-3">발송 내용</th>
         </tr>
       </thead>
-      <tbody id="send-table-body">
-        <!-- JS 렌더 -->
-      </tbody>
+      <tbody id="send-table-body"></tbody>
     </table>
   </div>
 
   <!-- 페이지네이션 -->
   <div class="flex items-center justify-between px-6 py-4 border-t border-slate-100">
-    <span class="text-xs text-slate-500" id="page-info">1 - 10 / 128</span>
+    <span class="text-xs text-slate-500" id="page-info"></span>
     <div class="flex items-center gap-1" id="pagination"></div>
   </div>
 </div>
@@ -123,34 +127,30 @@
 {% endblock %}
 
 {% block modal %}
+{{ block.super }}
 <!-- 발송 상세 팝업 -->
 <div id="modal-send-detail" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl">
     <div class="px-7 py-6">
-      <!-- 타이틀 -->
       <h3 class="text-xl font-bold text-slate-900 mb-1">발송 이력 상세</h3>
       <p class="text-sm text-slate-500 mb-4">발송 시각, 대상, 내용, 결과를 확인합니다.</p>
 
-      <!-- 탭 -->
       <div class="border-b border-slate-200 mb-5">
         <nav class="flex">
           <span class="px-4 py-2.5 text-sm font-medium border-b-2 border-blue-600 text-blue-600 -mb-px cursor-default">기본 정보</span>
         </nav>
       </div>
 
-      <!-- 필드 그리드 -->
       <div class="space-y-4">
         <!-- 발송 시각 / 발송 채널 -->
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">발송 시각</label>
-            <div id="detail-time"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
+            <div id="detail-time" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">발송 채널</label>
-            <div id="detail-channel"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
+            <div id="detail-channel" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
           </div>
         </div>
 
@@ -158,13 +158,11 @@
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">수신 역할</label>
-            <div id="detail-targets"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
+            <div id="detail-targets" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">발송 결과</label>
-            <div id="detail-result"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 font-medium min-h-[40px]">-</div>
+            <div id="detail-result" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 font-semibold min-h-[40px]">-</div>
           </div>
         </div>
 
@@ -172,32 +170,27 @@
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">연결 알림 정책</label>
-            <div id="detail-policy"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
+            <div id="detail-policy" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 min-h-[40px]">-</div>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1.5">적용 역할 범위</label>
-            <div id="detail-scope"
-              class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
+            <div id="detail-scope" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]">-</div>
           </div>
         </div>
 
         <!-- 발송 내용 -->
         <div>
           <label class="block text-xs font-medium text-slate-700 mb-1.5">발송 내용</label>
-          <div id="detail-content"
-            class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700 leading-relaxed min-h-[72px]">-</div>
+          <div id="detail-content" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700 leading-relaxed min-h-[72px]">-</div>
         </div>
 
         <!-- 결과 메모 -->
         <div>
           <label class="block text-xs font-medium text-slate-700 mb-1.5">결과 메모</label>
-          <div id="detail-reason"
-            class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700 leading-relaxed min-h-[60px]">-</div>
+          <div id="detail-reason" class="px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700 leading-relaxed min-h-[60px]">-</div>
         </div>
       </div>
 
-      <!-- 닫기 -->
       <div class="flex justify-end mt-6">
         <button onclick="closeModal('modal-send-detail')"
           class="px-5 py-2 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50 transition-colors">
@@ -210,85 +203,67 @@
 {% endblock %}
 
 {% block extra_script %}
+{{ block.super }}
+{{ sends_data|json_script:"sends-data" }}
 <script>
-const ALL_SENDS = [
-  { id:1,  time:'2026-04-12 10:22:41', channel:'SMS',    targets:'관리자',            result:'성공', policy:'가스 경보 알림',          scope:'관리자',
-    content:'가스 센서 GS-021에서 경고 상태가 감지되었습니다. 관리자 역할에 SMS 알림이 즉시 발송되었습니다.',
-    reason:'통신사 응답 코드 200을 수신했고 추가 재시도는 발생하지 않았습니다.' },
-  { id:2,  time:'2026-04-12 10:18:27', channel:'이메일', targets:'관리자, 슈퍼관리자', result:'실패', policy:'전력 이상 알림',           scope:'관리자, 슈퍼관리자',
-    content:'스마트전력시스템 SP-004 이상 감지에 따른 이메일 알림 발송이 실패하였습니다.',
-    reason:'이메일 서버 네트워크 연결 오류로 인해 발송에 실패하였습니다. 재발송 처리가 필요합니다.' },
-  { id:3,  time:'2026-04-12 10:11:09', channel:'앱 푸시', targets:'작업자',            result:'성공', policy:'위치 이탈 알림',           scope:'작업자',
-    content:'위치 노드 LN-014 관할 구역에서 작업자 위치 이탈이 감지되어 작업자 앱 푸시 알림을 발송하였습니다.',
-    reason:'앱 서버 응답 코드 200 수신. 정상 발송 완료되었습니다.' },
-  { id:4,  time:'2026-04-12 09:58:42', channel:'SMS',    targets:'작업자, 관리자',    result:'성공', policy:'점검 일정 사전 알림',       scope:'작업자, 관리자',
-    content:'점검 일정(10:00) 30분 전 사전 알림을 작업자 및 관리자에게 SMS로 발송하였습니다.',
-    reason:'통신사 응답 코드 200을 수신했고 추가 재시도는 발생하지 않았습니다.' },
-  { id:5,  time:'2026-04-12 09:42:15', channel:'이메일', targets:'슈퍼관리자',         result:'지연', policy:'시스템 배치 결과 알림',     scope:'슈퍼관리자',
-    content:'시스템 야간 배치 결과 이메일 알림 발송이 정상 처리되었으나 전송 지연이 발생하였습니다.',
-    reason:'발송 서버 처리 부하로 인해 예정 시간 대비 약 12분 전송 지연이 발생하였습니다.' },
-  { id:6,  time:'2026-04-12 09:31:54', channel:'앱 푸시', targets:'관리자',            result:'성공', policy:'출입 통제 경보 알림',       scope:'관리자',
-    content:'출입문 A-03에서 제한 시간 내 접근 경보가 감지되어 관리자에게 앱 푸시 알림을 발송하였습니다.',
-    reason:'앱 서버 응답 코드 200 수신. 정상 발송 완료되었습니다.' },
-  { id:7,  time:'2026-04-12 09:15:30', channel:'SMS',    targets:'관리자, 작업자',    result:'성공', policy:'가스 경보 해제 알림',       scope:'관리자, 작업자',
-    content:'가스 센서 GS-007 경보 상태가 해제되어 관리자 및 작업자에게 SMS 해제 알림을 발송하였습니다.',
-    reason:'통신사 응답 코드 200을 수신했고 추가 재시도는 발생하지 않았습니다.' },
-  { id:8,  time:'2026-04-12 08:55:12', channel:'이메일', targets:'슈퍼관리자',         result:'성공', policy:'시스템 배치 결과 알림',     scope:'슈퍼관리자',
-    content:'2026-04-12 일간 시스템 운영 리포트를 슈퍼관리자에게 이메일로 발송하였습니다.',
-    reason:'이메일 서버 응답 코드 250 수신. 정상 발송 완료되었습니다.' },
-  { id:9,  time:'2026-04-12 08:30:45', channel:'앱 푸시', targets:'작업자',            result:'실패', policy:'PPE 미착용 경고 알림',      scope:'작업자',
-    content:'PPE 미착용 경고 알림을 작업자 앱으로 발송하려 했으나 실패하였습니다.',
-    reason:'수신 작업자 디바이스 토큰 만료로 인해 앱 푸시 발송에 실패하였습니다. 토큰 갱신 후 재발송이 필요합니다.' },
-  { id:10, time:'2026-04-12 07:55:22', channel:'SMS',    targets:'관리자',            result:'지연', policy:'전력 이상 주의 알림',       scope:'관리자',
-    content:'스마트전력시스템 SP-002 전력 이상 주의 알림을 관리자에게 SMS로 발송 요청하였으나 전송이 지연되었습니다.',
-    reason:'SMS 게이트웨이 트래픽 집중으로 인해 약 8분 전송 지연이 발생하였습니다.' },
-  { id:11, time:'2026-04-12 07:30:08', channel:'앱 푸시', targets:'작업자, 관리자',   result:'성공', policy:'출입 통제 경보 알림',       scope:'작업자, 관리자',
-    content:'출입문 B-01 접근 이벤트 경보 알림을 작업자 및 관리자에게 앱 푸시로 발송하였습니다.',
-    reason:'앱 서버 응답 코드 200 수신. 정상 발송 완료되었습니다.' },
-  { id:12, time:'2026-04-12 07:10:33', channel:'이메일', targets:'슈퍼관리자',         result:'성공', policy:'VR 교육 현황 리포트 알림',  scope:'슈퍼관리자',
-    content:'VR 교육 미이수 현황 주간 리포트를 슈퍼관리자에게 이메일로 발송하였습니다.',
-    reason:'이메일 서버 응답 코드 250 수신. 정상 발송 완료되었습니다.' },
-];
+const TODAY    = '{{ today }}';
+const ALL_SENDS = JSON.parse(document.getElementById('sends-data').textContent);
 
-const PAGE_SIZE = 10;
-let currentPage = 1;
-let currentSort = 'time-desc';
-let filteredData = [...ALL_SENDS];
-let selectedId = null;
+const PAGE_SIZE  = 10;
+let currentPage  = 1;
+let currentSort  = 'time-desc';
+let filteredData = ALL_SENDS.filter(s => s.date === TODAY);
+let selectedId   = null;
 
 const RESULT_STYLE = {
   '성공': 'text-emerald-600',
   '실패': 'text-red-500',
   '지연': 'text-amber-500',
 };
-
 const RESULT_ORDER = { '실패': 0, '지연': 1, '성공': 2 };
 
 function renderTable() {
-  const start = (currentPage - 1) * PAGE_SIZE;
+  const start    = (currentPage - 1) * PAGE_SIZE;
   const pageData = filteredData.slice(start, start + PAGE_SIZE);
-  const tbody = document.getElementById('send-table-body');
+  const tbody    = document.getElementById('send-table-body');
 
   tbody.innerHTML = pageData.length === 0
-    ? `<tr><td colspan="5" class="text-center text-sm text-slate-400 py-12">검색 결과가 없습니다.</td></tr>`
+    ? `<tr><td colspan="6" class="text-center text-sm text-slate-400 py-12">검색 결과가 없습니다.</td></tr>`
     : pageData.map(s => `
       <tr data-id="${s.id}" onclick="selectRow(${s.id})"
         class="border-b border-slate-100 last:border-0 transition-colors cursor-pointer
                ${selectedId === s.id ? 'bg-blue-50 hover:bg-blue-50' : 'hover:bg-slate-50/50'}">
-        <td class="px-6 py-3 text-sm text-slate-700">${s.time}</td>
-        <td class="px-4 py-3 text-sm font-medium text-slate-800">${s.channel}</td>
+        <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
+          <input type="checkbox" value="${s.id}"
+            ${selectedId === s.id ? 'checked' : ''}
+            onchange="checkRow(${s.id}, this)"
+            class="row-check w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer">
+        </td>
+        <td class="px-6 py-3 text-sm text-slate-700 whitespace-nowrap">${s.time}</td>
+        <td class="px-4 py-3 text-sm font-medium text-slate-800 whitespace-nowrap">${s.channel}</td>
         <td class="px-4 py-3 text-sm text-slate-600">${s.targets}</td>
-        <td class="px-4 py-3 text-sm font-medium ${RESULT_STYLE[s.result] || 'text-slate-500'}">${s.result}</td>
+        <td class="px-4 py-3 text-sm font-semibold whitespace-nowrap ${RESULT_STYLE[s.result] || 'text-slate-500'}">${s.result}</td>
         <td class="px-4 py-3 text-sm text-slate-500 max-w-xs truncate">${s.content}</td>
       </tr>
     `).join('');
 
   document.getElementById('total-count').textContent = filteredData.length;
-  document.getElementById('page-info').textContent =
-    `${start + 1} - ${Math.min(start + PAGE_SIZE, filteredData.length)} / ${filteredData.length}`;
+  document.getElementById('page-info').textContent   =
+    filteredData.length === 0
+      ? '0 / 0'
+      : `${start + 1} - ${Math.min(start + PAGE_SIZE, filteredData.length)} / ${filteredData.length}`;
 
   renderPagination();
   if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function checkRow(id, cb) {
+  if (cb && !cb.checked) {
+    selectedId = null;
+  } else {
+    selectedId = id;
+  }
+  renderTable();
 }
 
 function selectRow(id) {
@@ -298,27 +273,33 @@ function selectRow(id) {
 }
 
 function renderPagination() {
-  const total = Math.ceil(filteredData.length / PAGE_SIZE);
+  const total     = Math.ceil(filteredData.length / PAGE_SIZE);
   const container = document.getElementById('pagination');
+  if (total <= 1) { container.innerHTML = ''; return; }
+
+  let startPage = Math.max(1, currentPage - 2);
+  let endPage   = Math.min(total, startPage + 4);
+  if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+
+  const BTN_BASE   = 'w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors';
+  const BTN_ACTIVE = 'bg-blue-600 text-white';
+  const BTN_NORMAL = 'border border-slate-200 text-slate-700 hover:bg-slate-50';
+  const BTN_NAV    = 'border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed';
   const pages = [];
 
   pages.push(`<button onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}
-    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-    <i data-lucide="chevron-left" class="w-4 h-4"></i>
-  </button>`);
+    class="${BTN_BASE} ${BTN_NAV}">
+    <i data-lucide="chevron-left" class="w-4 h-4"></i></button>`);
 
-  for (let i = 1; i <= Math.min(total, 5); i++) {
+  for (let i = startPage; i <= endPage; i++) {
     pages.push(`<button onclick="goPage(${i})"
-      class="w-8 h-8 flex items-center justify-center rounded-md text-sm font-medium transition-colors
-             ${i === currentPage ? 'bg-blue-600 text-white' : 'border border-slate-200 text-slate-700 hover:bg-slate-50'}">
-      ${i}
-    </button>`);
+      class="${BTN_BASE} ${i === currentPage ? BTN_ACTIVE : BTN_NORMAL}">
+      ${i}</button>`);
   }
 
   pages.push(`<button onclick="goPage(${currentPage + 1})" ${currentPage === total ? 'disabled' : ''}
-    class="w-8 h-8 flex items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-    <i data-lucide="chevron-right" class="w-4 h-4"></i>
-  </button>`);
+    class="${BTN_BASE} ${BTN_NAV}">
+    <i data-lucide="chevron-right" class="w-4 h-4"></i></button>`);
 
   container.innerHTML = pages.join('');
   if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -331,14 +312,13 @@ function goPage(page) {
   renderTable();
 }
 
-// 정렬
+/* ── 정렬 ── */
 document.getElementById('sort-btn').addEventListener('click', function() {
   document.getElementById('sort-dropdown').classList.toggle('hidden');
 });
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('#sort-btn') && !e.target.closest('#sort-dropdown')) {
+  if (!e.target.closest('#sort-btn') && !e.target.closest('#sort-dropdown'))
     document.getElementById('sort-dropdown').classList.add('hidden');
-  }
 });
 document.querySelectorAll('.sort-option').forEach(btn => {
   btn.addEventListener('click', function() {
@@ -355,77 +335,87 @@ function sortData() {
   filteredData.sort((a, b) => {
     switch (currentSort) {
       case 'time-asc':       return a.time.localeCompare(b.time);
-      case 'channel-asc':    return a.channel.localeCompare(b.channel);
-      case 'channel-desc':   return b.channel.localeCompare(a.channel);
+      case 'channel-asc':    return a.channel.localeCompare(b.channel, 'ko');
+      case 'channel-desc':   return b.channel.localeCompare(a.channel, 'ko');
       case 'result-success': return (RESULT_ORDER[a.result] ?? 9) - (RESULT_ORDER[b.result] ?? 9);
       case 'result-fail':    return (RESULT_ORDER[b.result] ?? 9) - (RESULT_ORDER[a.result] ?? 9);
-      default:               return b.time.localeCompare(a.time);
+      default:               return b.time.localeCompare(a.time);   /* time-desc */
     }
   });
 }
 
-// 검색 필터
+/* ── 검색 필터 ── */
 function applyFilters() {
+  const date    = document.getElementById('filter-date').value;
   const channel = document.getElementById('filter-channel').value;
   const result  = document.getElementById('filter-result').value;
+
   filteredData = ALL_SENDS.filter(s => {
+    if (date    && s.date    !== date)    return false;
     if (channel && s.channel !== channel) return false;
     if (result  && s.result  !== result)  return false;
     return true;
   });
   sortData();
   currentPage = 1;
-  selectedId = null;
+  selectedId  = null;
   renderTable();
 }
 
 function resetFilters() {
-  document.getElementById('filter-date').value    = '2026-04-12';
+  document.getElementById('filter-date').value    = TODAY;
   document.getElementById('filter-channel').value = '';
   document.getElementById('filter-result').value  = '';
-  filteredData = [...ALL_SENDS];
+  filteredData = ALL_SENDS.filter(s => s.date === TODAY);
   sortData();
   currentPage = 1;
-  selectedId = null;
+  selectedId  = null;
   renderTable();
 }
 
-// 상세 조회
+/* ── 상세 팝업 ── */
 function openDetailModal() {
   if (!selectedId) return;
-  const s = filteredData.find(x => x.id === selectedId) || ALL_SENDS.find(x => x.id === selectedId);
+  const s = ALL_SENDS.find(x => x.id === selectedId);
   if (!s) return;
 
   document.getElementById('detail-time').textContent    = s.time;
   document.getElementById('detail-channel').textContent = s.channel;
   document.getElementById('detail-targets').textContent = s.targets;
-  document.getElementById('detail-policy').textContent  = s.policy || '-';
-  document.getElementById('detail-scope').textContent   = s.scope || '-';
+  document.getElementById('detail-scope').textContent   = s.scope  || '-';
   document.getElementById('detail-content').textContent = s.content;
   document.getElementById('detail-reason').textContent  = s.reason || '-';
 
+  const policyEl = document.getElementById('detail-policy');
+  if (s.policy_id) {
+    policyEl.innerHTML = `<a href="{% url 'alarm_policy_list' %}"
+      class="text-blue-600 hover:underline font-medium">${s.policy || '-'}</a>
+      <span class="ml-1.5 text-[11px] text-slate-400">↗ 정책 목록</span>`;
+  } else {
+    policyEl.textContent = s.policy || '-';
+    policyEl.className   = 'px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-900 min-h-[40px]';
+  }
+
   const resultEl = document.getElementById('detail-result');
   resultEl.textContent = s.result;
-  resultEl.className = `px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 font-medium ${RESULT_STYLE[s.result] || 'text-slate-500'}`;
+  resultEl.className   = `px-3 py-2.5 text-sm border border-slate-200 rounded-md bg-slate-50 font-semibold ${RESULT_STYLE[s.result] || 'text-slate-500'}`;
 
   openModal('modal-send-detail');
 }
 
 document.getElementById('btn-detail-view').addEventListener('click', function() {
-  if (selectedId) {
-    openDetailModal();
-  } else if (filteredData.length > 0) {
-    selectedId = filteredData[0].id;
-    renderTable();
-    openDetailModal();
+  if (!selectedId) {
+    alert('상세 조회할 항목을 체크박스로 선택해주세요.');
+    return;
   }
+  openDetailModal();
 });
 
-// 모달 유틸
 function openModal(id)  { const el = document.getElementById(id); el.classList.remove('hidden'); el.classList.add('flex'); }
 function closeModal(id) { const el = document.getElementById(id); el.classList.add('hidden'); el.classList.remove('flex'); }
 
-// 초기 렌더
+/* 초기 렌더 */
+sortData();
 renderTable();
 </script>
 {% endblock %}

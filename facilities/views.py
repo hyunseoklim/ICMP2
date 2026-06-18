@@ -1,5 +1,11 @@
+import json
+import logging
+
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+
+logger = logging.getLogger(__name__)
+from django.core.cache import cache
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -28,7 +34,8 @@ from .serializers import (
     WorkerLocationLatestSerializer, EquipmentSerializer,
     SensorLocationSerializer
 )
-from .services.floor_grid_maker    import FloorGridService
+from .cache import INDEX_GRID_TTL, floor_grid_response_cache_key
+from .services.floor_grid_maker    import FloorGridService, setup_index_grid_for_floor
 from .repositories import IndexGridWriter, IndexGridReader
 
 
@@ -121,28 +128,9 @@ class FloorGridSetupView(View):
     """
 
     def post(self, request, floor_id):
-
-        # 1. Floor 조회
         floor = get_object_or_404(Floor, id=floor_id)
-
-        # 2. FloorGrid 조회 또는 생성
-        #    floor.grid 없으면 RelatedObjectDoesNotExist 발생
-        #    → get_or_create로 방어
-        FloorGrid.objects.get_or_create(
-            floor=floor,
-            defaults={"cell_size": 1.0}
-        )
-
-        # 3. 셀 목록 계산
-        service = FloorGridService(floor)
-        cells   = service.generate_all_cells()
-
-        # 4. DB 저장
-        writer  = IndexGridWriter()
-        writer.bulk_create(floor, cells)
-
-        # 5. 응답
-        return JsonResponse({"created": len(cells)})
+        count = setup_index_grid_for_floor(floor)
+        return Response({"created": count}, status=status.HTTP_200_OK)
     
 class FloorGridViewSet(viewsets.ModelViewSet):
     """
@@ -197,17 +185,20 @@ def floor_grid_data(request, floor_id):
         }
     }
     """
+    response_key = floor_grid_response_cache_key(floor_id)
+    cached_body = cache.get(response_key)
+    if cached_body is not None:
+        return HttpResponse(cached_body, content_type="application/json")
+
     floor = get_object_or_404(Floor, pk=floor_id)
 
-    # IndexGrid DB 조회 — Single Source of Truth
-    cells = IndexGridReader().get_full_grid(floor)
-    if not cells:
+    grid = IndexGridReader().get_full_grid(floor)
+    if grid["total"] == 0:
         return JsonResponse(
-            {"error": "IndexGrid 없음. /floors/{floor_id}/setup/ 먼저 호출 필요"},
-            status=400
+            {"error": f"IndexGrid 없음. /floors/{floor_id}/setup/ 먼저 호출 필요"},
+            status=400,
         )
 
-    # cell_size 조회
     try:
         cell_size = float(floor.grid.cell_size)
     except Exception:
@@ -215,19 +206,17 @@ def floor_grid_data(request, floor_id):
 
     width  = float(floor.width)
     length = float(floor.length)
+    cols   = grid["cols"]
+    rows   = grid["rows"]
 
-    # cols, rows: Floor 모델이 아닌 DB 실제값 기준
-    cols = max(cell.col for cell in cells) + 1
-    rows = max(cell.row for cell in cells) + 1
-
-    return JsonResponse({
+    payload = {
         "floor_id":  floor.id,
         "width":     width,
         "length":    length,
         "cell_size": cell_size,
         "cols":      cols,
         "rows":      rows,
-        "floor_image": request.build_absolute_uri(floor.plan_image.url) if floor.plan_image else None,  # ← 추가
+        "floor_image": request.build_absolute_uri(floor.plan_image.url) if floor.plan_image else None,
         "lines": {
             "vertical": [
                 {"x": round(c * cell_size, 6), "y1": 0, "y2": length}
@@ -237,8 +226,12 @@ def floor_grid_data(request, floor_id):
                 {"y": round(r * cell_size, 6), "x1": 0, "x2": width}
                 for r in range(rows + 1)
             ],
-        }
-    })
+        },
+    }
+
+    body = json.dumps(payload)
+    cache.set(response_key, body, INDEX_GRID_TTL)
+    return HttpResponse(body, content_type="application/json")
 class ZoneViewSet(viewsets.ModelViewSet):
     """
     Zone CRUD.
@@ -267,6 +260,20 @@ class LocationNodeViewSet(viewsets.ModelViewSet):
         if zone_id:
             qs = qs.filter(zone_id=zone_id)
         return qs
+
+    def perform_update(self, serializer):
+        # T1-δ B1+C1+E3
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(serializer.instance)
+        instance = serializer.save()
+        after = capture_state(instance)
+        log_change(instance, before, after, 'update', self.request.user)
+
+    def perform_destroy(self, instance):
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(instance)
+        log_change(instance, before, None, 'delete', self.request.user)
+        instance.delete()
 
 class WorkerViewSet(viewsets.ModelViewSet):
     queryset = Worker.objects.all().order_by('worker_name')
@@ -339,7 +346,7 @@ class WorkerLocationViewSet(viewsets.ModelViewSet):
                         try:
                             update_geofence_from_gas(reading)
                         except Exception as e:
-                            print(f'[geofence_sync] device_id={device_id} 오류: {e}')
+                            logger.warning('[geofence_sync] device_id=%s 오류: %s', device_id, e)
 
 
             # 2. 현장 근무 중인 작업자 geofence 판단 (off_duty 제외)
@@ -454,6 +461,21 @@ class EquipmentViewSet(viewsets.ModelViewSet):
 
         return qs.order_by('equipment_code')
 
+    def perform_update(self, serializer):
+        # T1-δ B1+C1+E3: 변경 이력 기록 (full snapshot before/after)
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(serializer.instance)
+        instance = serializer.save()
+        after = capture_state(instance)
+        log_change(instance, before, after, 'update', self.request.user)
+
+    def perform_destroy(self, instance):
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(instance)
+        log_change(instance, before, None, 'delete', self.request.user)
+        instance.delete()
+
+
 class SensorLocationViewSet(viewsets.ModelViewSet):
     """
     센서 위치 CRUD.
@@ -487,6 +509,21 @@ class SensorLocationViewSet(viewsets.ModelViewSet):
 
         return qs.order_by('sensor_type', 'id')
 
+    def perform_update(self, serializer):
+        # T1-δ B1+C1+E3
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(serializer.instance)
+        instance = serializer.save()
+        after = capture_state(instance)
+        log_change(instance, before, after, 'update', self.request.user)
+
+    def perform_destroy(self, instance):
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(instance)
+        log_change(instance, before, None, 'delete', self.request.user)
+        instance.delete()
+
+
 class GeofenceViewSet(viewsets.ModelViewSet):
     """
     Geofence CRUD.
@@ -512,16 +549,29 @@ class GeofenceViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
     def perform_create(self, serializer):
+        # T1-δ B1+C1+E3: create 도 기록 (Geofence 만 — frontend 가 직접 생성)
+        from core.services.change_log import capture_state, log_change
         geofence = serializer.save()
+        after = capture_state(geofence)
+        log_change(geofence, None, after, 'create', self.request.user)
         self._broadcast(geofence, 'delta')
 
     def perform_update(self, serializer):
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(serializer.instance)
         geofence = serializer.save()
+        after = capture_state(geofence)
+        log_change(geofence, before, after, 'update', self.request.user)
         self._broadcast(geofence, 'delta')
 
     def perform_destroy(self, instance):
+        # soft-delete (is_active=False) — 사용자 의도는 delete 로 기록
+        from core.services.change_log import capture_state, log_change
+        before = capture_state(instance)
         instance.is_active = False
         instance.save(update_fields=['is_active'])
+        after = capture_state(instance)
+        log_change(instance, before, after, 'delete', self.request.user)
         self._broadcast(instance, 'delta')
 
     def _broadcast(self, geofence, msg_type):
@@ -547,4 +597,63 @@ class GeofenceViewSet(viewsets.ModelViewSet):
                 try:
                     update_geofence_from_gas(reading)
                 except Exception as e:
-                    print(f'[geofence_sync] device_id={device_id} 오류: {e}')
+                    logger.warning('[geofence_sync] device_id=%s 오류: %s', device_id, e)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# T1-ε: map editor bulk-save endpoint
+# POST /facilities/api/map-editor/bulk-save/
+# body: { equipment: {<pk>: {...}}, locationNode: {...}, sensor: {...}, geofence: {...} }
+# B2 per-item: 객체별 독립 처리, 일부 실패 허용
+# ChangeLog: 성공 row 만 기록 (T1-δ 와 일관)
+# ─────────────────────────────────────────────────────────────────────
+_BULK_CONFIG = {
+    'equipment':    (Equipment,      EquipmentSerializer),
+    'locationNode': (LocationNode,   LocationNodeSerializer),
+    'sensor':       (SensorLocation, SensorLocationSerializer),
+    'geofence':     (Geofence,       GeofenceSerializer),
+}
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def bulk_map_editor_save(request):
+    """
+    T1-ε: 지도 편집기의 일괄 저장 endpoint.
+    per-item try/except — 일부 실패해도 나머지는 저장.
+    """
+    from core.services.change_log import capture_state, log_change
+
+    payload = request.data or {}
+    success_count = 0
+    errors = []
+
+    for category, (Model, Serializer) in _BULK_CONFIG.items():
+        items = (payload.get(category) or {}).get('update') or payload.get(category) or {}
+        # 양쪽 형식 지원: {<pk>: data} 또는 {update: {<pk>: data}}
+        if not isinstance(items, dict):
+            continue
+        for pk, data in items.items():
+            try:
+                instance = Model.objects.get(pk=pk)
+            except Model.DoesNotExist:
+                errors.append({'type': category, 'pk': pk, 'errors': {'detail': 'Not found'}})
+                continue
+            serializer = Serializer(instance, data=data, partial=True)
+            if not serializer.is_valid():
+                errors.append({'type': category, 'pk': pk, 'errors': serializer.errors})
+                continue
+            try:
+                before = capture_state(instance)
+                instance = serializer.save()
+                after = capture_state(instance)
+                log_change(instance, before, after, 'update', request.user)
+                success_count += 1
+            except Exception as e:
+                errors.append({'type': category, 'pk': pk, 'errors': {'detail': str(e)}})
+
+    return Response({
+        'success': success_count,
+        'failed':  len(errors),
+        'errors':  errors,
+    }, status=status.HTTP_200_OK)

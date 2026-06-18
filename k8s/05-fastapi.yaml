@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi
+  namespace: icmp2
+spec:
+  replicas: 1   # 스토리 생성기는 1개 파드에서만(2개면 중복 송신)
+  selector:
+    matchLabels:
+      app: fastapi
+  template:
+    metadata:
+      labels:
+        app: fastapi
+    spec:
+      containers:
+        - name: fastapi
+          image: icmp2-fastapi:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: icmp2-config
+            - secretRef:
+                name: icmp2-secret
+          env:
+            # 데이터 생성 독립 플래그 (kubectl set env로 토글, 재빌드 불필요)
+            - name: ENABLE_STORY
+              value: "true"       # fake_data2(통합 검증 스토리)
+            - name: ENABLE_LOAD
+              value: "false"      # fake_data(랜덤 부하)
+            - name: STORY_TICK_SECONDS
+              value: "2.0"        # 스토리 틱 간격(초). 작을수록 빠름.
+                                  # 2.0 = 풀 스토리 ~21분 → AI예측 그래프가 60s 폴링으로
+                                  # ~20회 갱신되어 진화가 가시적으로 드러남(관람/검증용)
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8001
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi
+  namespace: icmp2
+spec:
+  selector:
+    app: fastapi
+  ports:
+    - port: 8001
+      targetPort: 8001
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fastapi-hpa
+  namespace: icmp2
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fastapi
+  minReplicas: 1   # 생성기는 싱글톤 — 2개면 스토리 중복 송신
+  maxReplicas: 1
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

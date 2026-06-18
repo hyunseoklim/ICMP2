@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: icmp2-ingress
+  namespace: icmp2
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: icmp2.local
+      http:
+        paths:
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+          - path: /ws
+            pathType: Exact
+            backend:
+              service:
+                name: fastapi
+                port:
+                  number: 8001
+          - path: /api/sensor
+            pathType: Prefix
+            backend:
+              service:
+                name: fastapi
+                port:
+                  number: 8001
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: django
+                port:
+                  number: 8000

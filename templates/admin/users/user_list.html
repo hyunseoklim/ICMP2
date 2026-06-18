@@ -38,31 +38,36 @@
         <label class="block text-xs font-medium text-slate-700 mb-1.5">소속</label>
         <select name="dept" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
           <option value="">전체</option>
-          {# 실제 옵션은 view에서 context로 전달 #}
+          {% for dept in departments %}
+          <option value="{{ dept.id }}" {% if request.GET.dept == dept.id|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+          {% endfor %}
         </select>
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-700 mb-1.5">직위</label>
         <select name="position" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
           <option value="">전체</option>
+          {% for pos in positions %}
+          <option value="{{ pos }}" {% if request.GET.position == pos %}selected{% endif %}>{{ pos }}</option>
+          {% endfor %}
         </select>
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-700 mb-1.5">권한</label>
         <select name="user_type" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
           <option value="">전체</option>
-          <option value="superuser">슈퍼관리자</option>
-          <option value="admin">관리자</option>
-          <option value="manager">현장 관리자</option>
-          <option value="worker">작업자</option>
+          <option value="admin">슈퍼관리자</option>
+          <option value="manager">관리자</option>
+          <option value="worker">일반사용자</option>
         </select>
       </div>
       <div>
         <label class="block text-xs font-medium text-slate-700 mb-1.5">계정 상태</label>
         <select name="is_active" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
           <option value="">전체</option>
-          <option value="true">사용</option>
-          <option value="false">비활성</option>
+          <option value="true" {% if request.GET.is_active == 'true' %}selected{% endif %}>사용</option>
+          <option value="locked" {% if request.GET.is_active == 'locked' %}selected{% endif %}>잠금</option>
+          <option value="false" {% if request.GET.is_active == 'false' %}selected{% endif %}>비활성</option>
         </select>
       </div>
     </div>
@@ -88,21 +93,39 @@
     <div class="flex items-center gap-3">
       {# ⑪ 카운트 #}
       <span class="text-sm font-semibold text-slate-900">
-        전체 사용자 <span class="text-blue-600">{{ total_count|default:128 }}</span>
+        전체 사용자 <span class="text-blue-600">{{ total_count }}</span>
       </span>
       {# ⑬⑭⑮ 액션 버튼 #}
       <div class="flex items-center gap-1.5 ml-3">
-        <button type="button" class="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-medium rounded hover:bg-red-100 transition-colors">삭제</button>
-        <button type="button" class="px-3 py-1.5 bg-orange-50 text-orange-600 text-xs font-medium rounded hover:bg-orange-100 transition-colors">계정 잠금</button>
-        <button type="button" class="px-3 py-1.5 bg-green-50 text-green-700 text-xs font-medium rounded hover:bg-green-100 transition-colors">계정 잠금 해제</button>
+        <button type="button" id="btn-delete" disabled
+          class="action-btn px-3 py-1.5 bg-red-50 text-red-300 text-xs font-medium rounded opacity-40 cursor-not-allowed transition-colors">삭제</button>
+        <button type="button" id="btn-lock" disabled
+          class="action-btn px-3 py-1.5 bg-orange-50 text-orange-300 text-xs font-medium rounded opacity-40 cursor-not-allowed transition-colors">계정 잠금</button>
+        <button type="button" id="btn-unlock" disabled
+          class="action-btn px-3 py-1.5 bg-green-50 text-green-300 text-xs font-medium rounded opacity-40 cursor-not-allowed transition-colors">계정 잠금 해제</button>
       </div>
     </div>
 
-    {# ⑯ 정렬 #}
-    <button type="button" class="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors">
-      등록일 오름차순
-      <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
-    </button>
+    {# ⑯ 정렬 드롭다운 #}
+    <div class="relative">
+      <button type="button" id="sort-toggle" class="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors">
+        <span id="sort-label">
+          {% if request.GET.sort == 'name' %}이름순
+          {% elif request.GET.sort == 'last_login' %}최근 로그인순
+          {% elif request.GET.sort == 'user_type' %}권한순
+          {% elif request.GET.sort == 'is_active' %}계정 상태순
+          {% else %}등록일순{% endif %}
+        </span>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+      </button>
+      <div id="sort-menu" class="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-30 py-1 min-w-[140px]">
+        <button type="button" data-sort="name" class="sort-option w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 {% if request.GET.sort == 'name' %}font-semibold text-blue-600{% endif %}">이름순</button>
+        <button type="button" data-sort="last_login" class="sort-option w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 {% if request.GET.sort == 'last_login' %}font-semibold text-blue-600{% endif %}">최근 로그인순</button>
+        <button type="button" data-sort="date_joined" class="sort-option w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 {% if not request.GET.sort or request.GET.sort == 'date_joined' %}font-semibold text-blue-600{% endif %}">등록일순</button>
+        <button type="button" data-sort="user_type" class="sort-option w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 {% if request.GET.sort == 'user_type' %}font-semibold text-blue-600{% endif %}">권한순</button>
+        <button type="button" data-sort="is_active" class="sort-option w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 {% if request.GET.sort == 'is_active' %}font-semibold text-blue-600{% endif %}">계정 상태순</button>
+      </div>
+    </div>
   </div>
 
   {# ⑫ 사용자 테이블 #}
@@ -135,18 +158,18 @@
           <td class="px-4 py-3 text-slate-600">{{ u.position|default:"-" }}</td>
           <td class="px-4 py-3 text-slate-600 font-mono text-xs">{{ u.username }}</td>
           <td class="px-4 py-3">
-            {% if u.is_superuser %}
+            {% if u.user_type == 'admin' %}
               <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-purple-100 text-purple-700">슈퍼관리자</span>
-            {% elif u.user_type == 'admin' %}
-              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span>
             {% elif u.user_type == 'manager' %}
-              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-cyan-100 text-cyan-700">현장 관리자</span>
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span>
             {% else %}
-              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">작업자</span>
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">일반사용자</span>
             {% endif %}
           </td>
           <td class="px-4 py-3">
-            {% if u.is_active %}
+            {% if u.is_locked %}
+              <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-yellow-100 text-yellow-700">잠금</span>
+            {% elif u.is_active %}
               <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span>
             {% else %}
               <span class="px-2.5 py-1 text-xs font-medium rounded-md bg-red-100 text-red-700">비활성</span>
@@ -155,100 +178,28 @@
           <td class="px-4 py-3 text-slate-600 text-xs">{{ u.phone|default:"-" }}</td>
           <td class="px-4 py-3 text-slate-600 text-xs">{{ u.last_login_at|date:"Y-m-d H:i:s"|default:"-" }}</td>
           <td class="px-4 py-3 text-slate-600 text-xs">{{ u.date_joined|date:"Y-m-d"|default:"-" }}</td>
-          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+          <td class="px-4 py-3">
+            <button type="button"
+              class="detail-btn px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors"
+              data-pk="{{ u.pk }}"
+              data-name="{{ u.name }}"
+              data-username="{{ u.username }}"
+              data-dept-id="{{ u.department_id|default:'' }}"
+              data-dept-name="{{ u.department.name|default:'-' }}"
+              data-position="{{ u.position|default:'' }}"
+              data-user-type="{{ u.user_type }}"
+              data-is-active="{{ u.is_active|yesno:'true,false' }}"
+              data-is-locked="{{ u.is_locked|yesno:'true,false' }}"
+              data-email="{{ u.email|default:'' }}"
+              data-phone="{{ u.phone|default:'' }}"
+              data-edit-url="{% url 'user_edit' u.pk %}">수정</button>
+          </td>
         </tr>
         {% empty %}
-        {# users 데이터가 없을 때 더미 데이터로 디자인 미리보기 #}
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors bg-blue-50/30">
-          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" checked /></td>
-          <td class="px-4 py-3 text-slate-900 font-medium">김관리</td>
-          <td class="px-4 py-3 text-slate-600">경영지원팀</td>
-          <td class="px-4 py-3 text-slate-600">과장</td>
-          <td class="px-4 py-3 text-slate-600 font-mono text-xs">admin_kim</td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span></td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">010-2222-1111</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-02-15</td>
-          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 text-slate-900 font-medium">박현장</td>
-          <td class="px-4 py-3 text-slate-600">영업팀</td>
-          <td class="px-4 py-3 text-slate-600">차장</td>
-          <td class="px-4 py-3 text-slate-600 font-mono text-xs">field_mgr_01</td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span></td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-orange-100 text-orange-700">잠금</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">010-3456-7821</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-02-21</td>
-          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 text-slate-900 font-medium">이작업</td>
-          <td class="px-4 py-3 text-slate-600">기술연구소</td>
-          <td class="px-4 py-3 text-slate-600">사원</td>
-          <td class="px-4 py-3 text-slate-600 font-mono text-xs">worker_lee</td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">일반사용자</span></td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">010-7788-9900</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-01</td>
-          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 text-slate-900 font-medium">정운영</td>
-          <td class="px-4 py-3 text-slate-600">관제운영팀</td>
-          <td class="px-4 py-3 text-slate-600">대리</td>
-          <td class="px-4 py-3 text-slate-600 font-mono text-xs">ops_jung</td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-700">관리자</span></td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">010-1122-3344</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-08</td>
-          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 text-slate-900 font-medium">최정겸</td>
-          <td class="px-4 py-3 text-slate-600">시스템운영팀</td>
-          <td class="px-4 py-3 text-slate-600">조장</td>
-          <td class="px-4 py-3 text-slate-600 font-mono text-xs">worker_choi</td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700">일반사용자</span></td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-red-100 text-red-700">비활성</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">010-6677-1223</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-04</td>
-          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 text-slate-900 font-medium">홍길동</td>
-          <td class="px-4 py-3 text-slate-600">-</td>
-          <td class="px-4 py-3 text-slate-600">대표이사</td>
-          <td class="px-4 py-3 text-slate-600 font-mono text-xs">super_admin</td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-purple-100 text-purple-700">슈퍼관리자</span></td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">010-1234-5678</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-30 08:45:00</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-02-11</td>
-          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
-        </tr>
-        <tr class="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-          <td class="px-4 py-3"><input type="checkbox" class="row-check rounded border-slate-300" /></td>
-          <td class="px-4 py-3 text-slate-900 font-medium">정운영</td>
-          <td class="px-4 py-3 text-slate-600">운영팀</td>
-          <td class="px-4 py-3 text-slate-600">대리</td>
-          <td class="px-4 py-3 text-slate-600 font-mono text-xs">ops_jung_02</td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-purple-100 text-purple-700">슈퍼관리자</span></td>
-          <td class="px-4 py-3"><span class="px-2.5 py-1 text-xs font-medium rounded-md bg-green-100 text-green-700">사용</span></td>
-          <td class="px-4 py-3 text-slate-600 text-xs">010-2456-8891</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-29 14:20</td>
-          <td class="px-4 py-3 text-slate-600 text-xs">2026-03-10</td>
-          <td class="px-4 py-3"><a href="#" class="px-3 py-1 border border-slate-200 rounded text-xs text-slate-700 hover:bg-slate-100 transition-colors">수정</a></td>
+        <tr>
+          <td colspan="11" class="px-4 py-12 text-center text-sm text-slate-400">
+            검색 결과가 없습니다.
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -258,34 +209,28 @@
   {# ⑱ 페이지 정보 + ⑲ 페이지네이션 #}
   <div class="flex items-center justify-between px-6 py-4 border-t border-slate-200">
     <div class="text-xs text-slate-500">
-      {% if page_obj %}
+      {% if page_obj and page_obj.paginator.count %}
         {{ page_obj.start_index }} - {{ page_obj.end_index }} / {{ page_obj.paginator.count }}
       {% else %}
-        1 - 10 / 128
+        0 / 0
       {% endif %}
     </div>
 
     <div class="flex items-center gap-1">
-      <a href="?page={% if page_obj %}{{ page_obj.previous_page_number }}{% else %}1{% endif %}"
+      <a href="?{% if base_params %}{{ base_params }}&{% endif %}page={% if page_obj.has_previous %}{{ page_obj.previous_page_number }}{% else %}1{% endif %}"
          class="w-8 h-8 flex items-center justify-center rounded text-slate-400 hover:bg-slate-100 transition-colors">
         <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
       </a>
       {% if page_obj %}
         {% for num in page_obj.paginator.page_range %}
-          <a href="?page={{ num }}"
+          <a href="?{% if base_params %}{{ base_params }}&{% endif %}page={{ num }}"
              class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium transition-colors
                     {% if page_obj.number == num %}bg-slate-900 text-white{% else %}text-slate-600 hover:bg-slate-100{% endif %}">
             {{ num }}
           </a>
         {% endfor %}
-      {% else %}
-        <a href="?page=1" class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium bg-slate-900 text-white">1</a>
-        <a href="?page=2" class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium text-slate-600 hover:bg-slate-100">2</a>
-        <a href="?page=3" class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium text-slate-600 hover:bg-slate-100">3</a>
-        <a href="?page=4" class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium text-slate-600 hover:bg-slate-100">4</a>
-        <a href="?page=5" class="w-8 h-8 flex items-center justify-center rounded text-xs font-medium text-slate-600 hover:bg-slate-100">5</a>
       {% endif %}
-      <a href="?page={% if page_obj %}{{ page_obj.next_page_number }}{% else %}2{% endif %}"
+      <a href="?{% if base_params %}{{ base_params }}&{% endif %}page={% if page_obj.has_next %}{{ page_obj.next_page_number }}{% else %}{{ page_obj.paginator.num_pages }}{% endif %}"
          class="w-8 h-8 flex items-center justify-center rounded text-slate-600 hover:bg-slate-100 transition-colors">
         <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
       </a>
@@ -299,13 +244,323 @@
 {% block extra_script %}
 {{ block.super }}
 <script>
+  // ── 벌크 액션 POST 제출 ─────────────────────────────────────────
+  function submitBulkAction(actionUrl) {
+    const ids = [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+    if (!ids.length) return;
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.action = actionUrl;
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = 'csrfmiddlewaretoken';
+    csrf.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    form.appendChild(csrf);
+    ids.forEach(id => {
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'selected_ids';
+      inp.value = id;
+      form.appendChild(inp);
+    });
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  document.getElementById('btn-delete')?.addEventListener('click', () => {
+    const count = document.querySelectorAll('.row-check:checked').length;
+    if (confirm(`선택한 사용자 ${count}명을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+      submitBulkAction("{% url 'user_bulk_delete' %}");
+    }
+  });
+  document.getElementById('btn-lock')?.addEventListener('click', () => {
+    submitBulkAction("{% url 'user_bulk_lock' %}");
+  });
+  document.getElementById('btn-unlock')?.addEventListener('click', () => {
+    submitBulkAction("{% url 'user_bulk_unlock' %}");
+  });
+
+  // ── 액션 버튼 활성화 ────────────────────────────────────────────
+  function updateActionButtons() {
+    const anyChecked = document.querySelectorAll('.row-check:checked').length > 0;
+    document.getElementById('btn-delete')?.classList.toggle('opacity-40', !anyChecked);
+    document.getElementById('btn-delete')?.classList.toggle('cursor-not-allowed', !anyChecked);
+    document.getElementById('btn-delete')?.classList.toggle('text-red-600', anyChecked);
+    document.getElementById('btn-delete')?.classList.toggle('text-red-300', !anyChecked);
+    document.getElementById('btn-delete')?.classList.toggle('hover:bg-red-100', anyChecked);
+    if (document.getElementById('btn-delete')) document.getElementById('btn-delete').disabled = !anyChecked;
+
+    document.getElementById('btn-lock')?.classList.toggle('opacity-40', !anyChecked);
+    document.getElementById('btn-lock')?.classList.toggle('cursor-not-allowed', !anyChecked);
+    document.getElementById('btn-lock')?.classList.toggle('text-orange-600', anyChecked);
+    document.getElementById('btn-lock')?.classList.toggle('text-orange-300', !anyChecked);
+    document.getElementById('btn-lock')?.classList.toggle('hover:bg-orange-100', anyChecked);
+    if (document.getElementById('btn-lock')) document.getElementById('btn-lock').disabled = !anyChecked;
+
+    document.getElementById('btn-unlock')?.classList.toggle('opacity-40', !anyChecked);
+    document.getElementById('btn-unlock')?.classList.toggle('cursor-not-allowed', !anyChecked);
+    document.getElementById('btn-unlock')?.classList.toggle('text-green-700', anyChecked);
+    document.getElementById('btn-unlock')?.classList.toggle('text-green-300', !anyChecked);
+    document.getElementById('btn-unlock')?.classList.toggle('hover:bg-green-100', anyChecked);
+    if (document.getElementById('btn-unlock')) document.getElementById('btn-unlock').disabled = !anyChecked;
+  }
+
   // 전체 선택 체크박스
   const checkAll = document.getElementById('check-all');
   const rowChecks = document.querySelectorAll('.row-check');
   if (checkAll) {
     checkAll.addEventListener('change', (e) => {
       rowChecks.forEach(cb => cb.checked = e.target.checked);
+      updateActionButtons();
     });
   }
+  rowChecks.forEach(cb => cb.addEventListener('change', updateActionButtons));
+
+  // ── 정렬 드롭다운 ────────────────────────────────────────────────
+  const sortToggle = document.getElementById('sort-toggle');
+  const sortMenu   = document.getElementById('sort-menu');
+
+  sortToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sortMenu.classList.toggle('hidden');
+  });
+
+  document.querySelectorAll('.sort-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('sort', btn.dataset.sort);
+      url.searchParams.delete('page');
+      window.location.href = url.toString();
+    });
+  });
+
+  document.addEventListener('click', () => sortMenu?.classList.add('hidden'));
+
+  // ── 사용자 상세/수정 모달 ──────────────────────────────────────────
+  const detailOverlay = document.getElementById('user-detail-overlay');
+  const detailModal   = document.getElementById('user-detail-modal');
+  const saveBtn       = document.getElementById('detail-save-btn');
+
+  function closeDetailModal() {
+    detailOverlay.classList.add('hidden');
+    detailOverlay.classList.remove('flex');
+  }
+
+  function openDetailModal(data) {
+    document.getElementById('d-name').value     = data.name;
+    document.getElementById('d-username').value = data.username;
+    document.getElementById('d-email').value    = data.email;
+    document.getElementById('d-phone').value    = data.phone;
+    document.getElementById('d-department').value = data.deptId;
+    document.getElementById('d-position').value   = data.position;
+    document.getElementById('d-user-type').value  = data.userType;
+    document.getElementById('d-is-active').value  = data.isLocked === 'true' ? 'locked' : data.isActive;
+    document.getElementById('detail-edit-form').action = data.editUrl;
+
+    // 비밀번호 초기화 섹션 숨김
+    document.getElementById('pw-expand').classList.add('hidden');
+    document.getElementById('pw-fields').classList.add('hidden');
+    document.querySelector('[name="password1"]').value = '';
+    document.querySelector('[name="password2"]').value = '';
+
+    setEditMode(false);
+    detailOverlay.classList.remove('hidden');
+    detailOverlay.classList.add('flex');
+  }
+
+  function setEditMode(editable) {
+    const editables = ['d-name', 'd-department', 'd-position', 'd-user-type', 'd-is-active', 'd-email', 'd-phone'];
+    editables.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.disabled = !editable;
+      el.classList.toggle('bg-slate-50', !editable);
+      el.classList.toggle('bg-white', editable);
+    });
+
+    document.getElementById('pw-row').classList.toggle('hidden', !editable);
+    if (editable) {
+      document.getElementById('pw-expand').classList.remove('hidden');
+    }
+    document.getElementById('detail-view-btns').classList.toggle('hidden', editable);
+    document.getElementById('detail-edit-btns').classList.toggle('hidden', !editable);
+    document.getElementById('detail-modal-title').textContent =
+      editable ? '사용자 정보 수정' : '사용자 정보 조회';
+    document.getElementById('detail-modal-sub').textContent =
+      editable ? '필수 항목을 입력한 뒤 저장 버튼을 눌러주세요.' : '사용자의 프로필 정보를 조회합니다.';
+
+    if (editable) checkSaveReady();
+  }
+
+  // 저장 버튼 활성화: 필수 필드(사용자명, 권한, 계정 상태)가 모두 채워지면
+  function checkSaveReady() {
+    const name     = document.getElementById('d-name').value.trim();
+    const userType = document.getElementById('d-user-type').value;
+    const isActive = document.getElementById('d-is-active').value;
+    const ok = name && userType && isActive;
+    saveBtn.disabled = !ok;
+    saveBtn.classList.toggle('opacity-40', !ok);
+    saveBtn.classList.toggle('cursor-not-allowed', !ok);
+  }
+
+  ['d-name', 'd-department', 'd-position', 'd-user-type', 'd-is-active', 'd-email', 'd-phone'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', checkSaveReady);
+    document.getElementById(id)?.addEventListener('change', checkSaveReady);
+  });
+
+  // 수정 버튼(테이블) 클릭 → 모달 열기
+  document.querySelectorAll('.detail-btn').forEach(btn => {
+    btn.addEventListener('click', () => openDetailModal({
+      name:     btn.dataset.name,
+      username: btn.dataset.username,
+      deptId:   btn.dataset.deptId,
+      position: btn.dataset.position,
+      userType: btn.dataset.userType,
+      isActive: btn.dataset.isActive,
+      isLocked: btn.dataset.isLocked,
+      email:    btn.dataset.email,
+      phone:    btn.dataset.phone,
+      editUrl:  btn.dataset.editUrl,
+    }));
+  });
+
+  // 조회 모드 닫기
+  document.getElementById('detail-cancel-view')?.addEventListener('click', closeDetailModal);
+
+  // 수정 모드 취소 → 조회 모드로 복귀
+  document.getElementById('detail-cancel-edit')?.addEventListener('click', () => setEditMode(false));
+
+  // 조회 → 수정 전환
+  document.getElementById('detail-to-edit')?.addEventListener('click', () => setEditMode(true));
+
+  // 비밀번호 초기화 버튼
+  document.getElementById('pw-reset-btn')?.addEventListener('click', () => {
+    document.getElementById('pw-expand').classList.add('hidden');
+    document.getElementById('pw-fields').classList.toggle('hidden');
+  });
 </script>
+{% endblock %}
+
+{# ── 사용자 상세/수정 모달 ──────────────────────────────────────── #}
+{% block modal %}
+{{ block.super }}
+<div id="user-detail-overlay" class="fixed inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4">
+  <div id="user-detail-modal" class="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div class="px-8 py-7">
+      <div class="mb-5">
+        <h3 id="detail-modal-title" class="text-xl font-bold text-slate-900 mb-1">사용자 정보 조회</h3>
+        <p id="detail-modal-sub" class="text-xs text-slate-500">사용자의 프로필 정보를 조회합니다.</p>
+      </div>
+
+      <form id="detail-edit-form" method="post" action="#">
+        {% csrf_token %}
+        <div class="space-y-3">
+
+          <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+            <span class="text-xs font-medium text-slate-700">사용자명 <span class="text-red-500">*</span></span>
+            <input id="d-name" type="text" name="name" disabled
+              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
+          </div>
+
+          <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+            <span class="text-xs font-medium text-slate-700">아이디</span>
+            <input id="d-username" type="text" disabled
+              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-500 font-mono" />
+          </div>
+
+          {# 비밀번호 행 (수정 모드에서만 표시) #}
+          <div id="pw-row" class="hidden space-y-2">
+            <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+              <span class="text-xs font-medium text-slate-700">비밀번호</span>
+              <div id="pw-expand" class="flex items-center gap-2">
+                <input type="text" value="••••••••" disabled
+                  class="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-400 tracking-widest" />
+                <button type="button" id="pw-reset-btn"
+                  class="px-3 py-2 text-xs font-medium bg-orange-100 text-orange-600 rounded-md hover:bg-orange-200 whitespace-nowrap">
+                  비밀번호 초기화
+                </button>
+              </div>
+            </div>
+            <div id="pw-fields" class="hidden space-y-2 pl-[92px]">
+              <input type="password" name="password1" placeholder="새 비밀번호"
+                class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white" />
+              <input type="password" name="password2" placeholder="비밀번호 확인"
+                class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-white" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+            <span class="text-xs font-medium text-slate-700">소속</span>
+            <select id="d-department" name="department" disabled
+              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700">
+              <option value="">-</option>
+              {% for dept in departments %}
+              <option value="{{ dept.id }}">{{ dept.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+            <span class="text-xs font-medium text-slate-700">직위</span>
+            <select id="d-position" name="position" disabled
+              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700">
+              <option value="">-</option>
+              {% for pos in positions %}
+              <option value="{{ pos }}">{{ pos }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+            <span class="text-xs font-medium text-slate-700">권한 <span class="text-red-500">*</span></span>
+            <select id="d-user-type" name="user_type" disabled
+              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700">
+              <option value="admin">슈퍼관리자</option>
+              <option value="manager">관리자</option>
+              <option value="worker">일반사용자</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+            <span class="text-xs font-medium text-slate-700">계정 상태 <span class="text-red-500">*</span></span>
+            <select id="d-is-active" name="is_active" disabled
+              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700">
+              <option value="true">사용</option>
+              <option value="locked">잠금</option>
+              <option value="false">비활성</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+            <span class="text-xs font-medium text-slate-700">이메일</span>
+            <input id="d-email" type="email" name="email" disabled
+              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
+          </div>
+
+          <div class="grid grid-cols-[80px_1fr] gap-3 items-center">
+            <span class="text-xs font-medium text-slate-700">연락처</span>
+            <input id="d-phone" type="text" name="phone" disabled
+              class="w-full px-3 py-2 text-sm border border-slate-200 rounded-md bg-slate-50 text-slate-700" />
+          </div>
+
+        </div>
+
+        {# 조회 모드 버튼 #}
+        <div id="detail-view-btns" class="flex items-center justify-end gap-2 mt-6">
+          <button type="button" id="detail-cancel-view"
+            class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+          <button type="button" id="detail-to-edit"
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md">수정</button>
+        </div>
+        {# 수정 모드 버튼 #}
+        <div id="detail-edit-btns" class="hidden flex items-center justify-end gap-2 mt-6">
+          <button type="button" id="detail-cancel-edit"
+            class="px-5 py-2 border border-slate-200 bg-white rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</button>
+          <button type="submit" id="detail-save-btn" disabled
+            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md opacity-40 cursor-not-allowed transition-opacity">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}

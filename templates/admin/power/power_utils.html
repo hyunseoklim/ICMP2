@@ -1,7 +1,10 @@
 <script>
 window.PWR = window.PWR || {};
 
-PWR.MANAGER_NAMES = { m1: '박관리', m2: '김현장', m3: '김반장' };
+PWR.getCsrfToken = function() {
+  var m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? m[1] : '';
+};
 
 PWR.todayStr = function() {
   var d = new Date();

@@ -1,0 +1,82 @@
+# 가스 9종 임계치 — 결정 A 시스템 전제 조건서 Phase 2 기준
+#
+# 본 파일은 common/modules/threshold.py의 ThresholdClassifier 생성자와
+# 호환되는 형식.
+#
+# 형식:
+#   <sensor_type>:
+#     direction: "high" (높을수록 위험) | "low" (낮을수록 위험) | "both"
+#     caution: 주의 임계 (high/low 시) | (both 시 사용 안 함)
+#     danger: 위험 임계 (high/low 시) | (both 시 사용 안 함)
+#     caution_high/danger_high/caution_low/danger_low: both 시 사용
+#     unit: 단위 (문서·디버깅용, ThresholdClassifier는 무시)
+#     description: 가스 설명 (문서·디버깅용)
+#
+# 임계 산정 근거:
+#   - 산업 안전 기준 (KOSHA, OSHA TWA/STEL)
+#   - 보고서 5.2.3 시나리오 카드 (S-T1·T2·T3 등)
+#   - Phase 2 결정
+
+co:
+  direction: high
+  caution: 25.0
+  danger: 200.0
+  unit: "ppm"
+  description: "일산화탄소 (Carbon Monoxide)"
+
+h2s:
+  direction: high
+  caution: 10.0
+  danger: 15.0
+  unit: "ppm"
+  description: "황화수소 (Hydrogen Sulfide)"
+
+co2:
+  direction: high
+  caution: 1000.0
+  danger: 5000.0
+  unit: "ppm"
+  description: "이산화탄소 (Carbon Dioxide)"
+
+# O2는 역방향 — 농도가 낮을수록 위험
+o2:
+  direction: low
+  caution: 18.0
+  danger: 16.0
+  unit: "%vol"
+  description: "산소 (Oxygen, 역방향: 낮을수록 위험)"
+
+no2:
+  direction: high
+  caution: 3.0
+  danger: 5.0
+  unit: "ppm"
+  description: "이산화질소 (Nitrogen Dioxide)"
+
+so2:
+  direction: high
+  caution: 2.0
+  danger: 5.0
+  unit: "ppm"
+  description: "이산화황 (Sulfur Dioxide)"
+
+o3:
+  direction: high
+  caution: 0.1
+  danger: 0.3
+  unit: "ppm"
+  description: "오존 (Ozone)"
+
+nh3:
+  direction: high
+  caution: 25.0
+  danger: 50.0
+  unit: "ppm"
+  description: "암모니아 (Ammonia)"
+
+voc:
+  direction: high
+  caution: 200.0
+  danger: 500.0
+  unit: "ppm"
+  description: "휘발성 유기화합물 (Volatile Organic Compounds)"

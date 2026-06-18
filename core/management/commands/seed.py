@@ -1,0 +1,1434 @@
+"""
+core/management/commands/seed.py
+─────────────────────────────────
+ICMP2 통합 시드 커맨드
+
+사용법:
+    python manage.py seed              # 전체 시드
+    python manage.py seed --flush      # DB 초기화 후 시드
+    python manage.py seed --section accounts
+    python manage.py seed --section facilities
+    python manage.py seed --section monitoring
+    python manage.py seed --section alerts
+    python manage.py seed --section safety
+    python manage.py seed --section workers
+"""
+
+
+from django.core.management.base import BaseCommand
+from django.db import transaction, connection
+
+
+# ─────────────────────────────────────────────────────────────
+# 섹션별 시드 함수
+# ─────────────────────────────────────────────────────────────
+
+def seed_accounts():
+    """departments, positions, users (admin / manager1 / worker1 / worker_002~005 / worker_006~105)"""
+    from accounts.models import Department, Position, User
+
+    print("  [accounts] positions...")
+    positions = [
+        ("사원",       1),
+        ("대리",       2),
+        ("과장",       3),
+        ("차장",       4),
+        ("부장",       5),
+        ("조장",       6),
+        ("반장",       7),
+        ("현장소장",   8),
+        ("이사",       9),
+        ("상무",      10),
+        ("전무",      11),
+        ("대표이사",  12),
+    ]
+    for name, order in positions:
+        Position.objects.get_or_create(name=name, defaults={"order": order, "is_active": True})
+
+    print("  [accounts] departments...")
+    depts = [
+        ("DEPT_001", "경영지원팀"),
+        ("DEPT_002", "영업팀"),
+        ("DEPT_003", "사업기획팀"),
+        ("DEPT_004", "기술연구소"),
+        ("DEPT_005", "개발팀"),
+        ("DEPT_006", "관제운영팀"),
+        ("DEPT_007", "시스템운영팀"),
+        ("DEPT_008", "안전관리팀"),
+        ("DEPT_009", "품질관리팀"),
+        ("DEPT_010", "생산관리팀"),
+        ("DEPT_011", "설치공사팀"),
+        ("DEPT_012", "유지보수팀"),
+        ("DEPT_013", "고객지원팀"),
+    ]
+    dept_map = {}
+    for code, name in depts:
+        obj, _ = Department.objects.get_or_create(code=code, defaults={"name": name})
+        dept_map[code] = obj
+
+    print("  [accounts] users (admin, manager1, worker1)...")
+    # admin
+    admin, created = User.objects.get_or_create(username="admin")
+    if created or not admin.has_usable_password():
+        admin.set_password("admin1234!")
+    admin.name = "관리자"
+    admin.user_type = "admin"
+    admin.department = dept_map["DEPT_001"]
+    admin.position = "부장"
+    admin.phone = "010-0000-0001"
+    admin.email = "admin@icmp.co.kr"
+    admin.is_staff = True
+    admin.is_superuser = True
+    admin.save()
+
+    # manager1
+    mgr, created = User.objects.get_or_create(username="manager1")
+    if created or not mgr.has_usable_password():
+        mgr.set_password("manager1234!")
+    mgr.name = "현장관리자"
+    mgr.user_type = "manager"
+    mgr.department = dept_map["DEPT_006"]
+    mgr.position = "과장"
+    mgr.phone = "010-0000-0002"
+    mgr.email = "manager1@icmp.co.kr"
+    mgr.is_staff = True
+    mgr.save()
+
+    # worker1 (W001 연결용)
+    w1, created = User.objects.get_or_create(username="worker1")
+    if created or not w1.has_usable_password():
+        w1.set_password("worker1234!")
+    w1.name = "김철수"
+    w1.user_type = "worker"
+    w1.department = dept_map["DEPT_010"]
+    w1.position = "사원"
+    w1.phone = "010-0000-0003"
+    w1.email = "worker1@icmp.co.kr"
+    w1.save()
+
+    print("  [accounts] users (worker_002~005)...")
+    worker_core = [
+        ("worker_002", "이영희",  "010-6631-6561"),
+        ("worker_003", "박민준",  "010-4359-5031"),
+        ("worker_004", "최수진",  "010-2109-9189"),
+        ("worker_005", "정도현",  "010-8224-5510"),
+    ]
+    for uname, name, phone in worker_core:
+        u, created = User.objects.get_or_create(username=uname)
+        if created or not u.has_usable_password():
+            u.set_password("worker1234!")
+        u.name = name
+        u.user_type = "worker"
+        u.department = dept_map["DEPT_010"]
+        u.position = "사원"
+        u.phone = phone
+        u.email = f"{uname}@icmp.co.kr"
+        u.save()
+
+    print("  [accounts] users (worker_006~105)...")
+    BULK_USERS = [
+        ("W006","박서연",11,"010-5251-5704","safe","worker_006","박서연","manager","차장","worker_006@icmp.co.kr",1),
+        ("W007","권지유",4,"010-5253-6380","warning","worker_007","권지유","worker","대리","worker_007@icmp.co.kr",0),
+        ("W008","한지민",2,"010-7336-7970","danger","worker_008","한지민","worker","사원","worker_008@icmp.co.kr",0),
+        ("W009","권민재",3,"010-9605-9661","danger","worker_009","권민재","worker","대리","worker_009@icmp.co.kr",0),
+        ("W010","김지아",4,"010-5833-5004","safe","worker_010","김지아","worker","대리","worker_010@icmp.co.kr",0),
+        ("W011","서현우",1,"010-5885-8320","danger","worker_011","서현우","worker","대리","worker_011@icmp.co.kr",0),
+        ("W012","서민준",3,"010-4909-5016","safe","worker_012","서민준","manager","과장","worker_012@icmp.co.kr",1),
+        ("W013","서채원",12,"010-7651-6223","safe","worker_013","서채원","worker","사원","worker_013@icmp.co.kr",0),
+        ("W014","서현우",12,"010-8842-1034","safe","worker_014","서현우","worker","사원","worker_014@icmp.co.kr",0),
+        ("W015","김도윤",4,"010-1131-4005","safe","worker_015","김도윤","worker","사원","worker_015@icmp.co.kr",0),
+        ("W016","오채원",7,"010-6127-1873","safe","worker_016","오채원","manager","차장","worker_016@icmp.co.kr",1),
+        ("W017","정지유",13,"010-6381-7355","safe","worker_017","정지유","worker","사원","worker_017@icmp.co.kr",0),
+        ("W018","이서윤",1,"010-8571-3707","safe","worker_018","이서윤","worker","대리","worker_018@icmp.co.kr",0),
+        ("W019","오민준",1,"010-5825-9702","safe","worker_019","오민준","manager","차장","worker_019@icmp.co.kr",1),
+        ("W020","김하은",2,"010-3545-8398","safe","worker_020","김하은","worker","사원","worker_020@icmp.co.kr",0),
+        ("W021","신예준",3,"010-3421-7061","safe","worker_021","신예준","worker","사원","worker_021@icmp.co.kr",0),
+        ("W022","오지아",6,"010-6396-4120","safe","worker_022","오지아","manager","차장","worker_022@icmp.co.kr",1),
+        ("W023","임채원",3,"010-7403-9647","safe","worker_023","임채원","worker","사원","worker_023@icmp.co.kr",0),
+        ("W024","오예준",7,"010-9316-5732","safe","worker_024","오예준","worker","사원","worker_024@icmp.co.kr",0),
+        ("W025","김수아",7,"010-1111-6008","safe","worker_025","김수아","worker","사원","worker_025@icmp.co.kr",0),
+        ("W026","황예준",5,"010-4212-2279","safe","worker_026","황예준","worker","사원","worker_026@icmp.co.kr",0),
+        ("W027","이민지",13,"010-4289-9183","safe","worker_027","이민지","worker","사원","worker_027@icmp.co.kr",0),
+        ("W028","이도윤",8,"010-2764-7960","safe","worker_028","이도윤","worker","사원","worker_028@icmp.co.kr",0),
+        ("W029","황준혁",6,"010-3501-8736","safe","worker_029","황준혁","worker","대리","worker_029@icmp.co.kr",0),
+        ("W030","임예린",1,"010-4408-8619","safe","worker_030","임예린","worker","사원","worker_030@icmp.co.kr",0),
+        ("W031","신준혁",9,"010-6573-4398","safe","worker_031","신준혁","worker","대리","worker_031@icmp.co.kr",0),
+        ("W032","김예린",11,"010-5003-2481","safe","worker_032","김예린","worker","사원","worker_032@icmp.co.kr",0),
+        ("W033","강민준",4,"010-2785-7893","safe","worker_033","강민준","worker","사원","worker_033@icmp.co.kr",0),
+        ("W034","박예준",5,"010-4636-8218","safe","worker_034","박예준","worker","사원","worker_034@icmp.co.kr",0),
+        ("W035","정민지",13,"010-9217-5038","safe","worker_035","정민지","worker","사원","worker_035@icmp.co.kr",0),
+        ("W036","한하은",8,"010-3924-4972","safe","worker_036","한하은","worker","사원","worker_036@icmp.co.kr",0),
+        ("W037","이준혁",12,"010-6498-2847","safe","worker_037","이준혁","worker","대리","worker_037@icmp.co.kr",0),
+        ("W038","김지우",2,"010-7324-6593","safe","worker_038","김지우","worker","사원","worker_038@icmp.co.kr",0),
+        ("W039","조현준",9,"010-8612-3471","safe","worker_039","조현준","worker","사원","worker_039@icmp.co.kr",0),
+        ("W040","최예린",10,"010-9183-7264","safe","worker_040","최예린","worker","사원","worker_040@icmp.co.kr",0),
+        ("W041","권민재",5,"010-3647-8192","safe","worker_041","권민재","worker","사원","worker_041@icmp.co.kr",0),
+        ("W042","박하은",7,"010-7293-4861","safe","worker_042","박하은","worker","사원","worker_042@icmp.co.kr",0),
+        ("W043","이서연",11,"010-4821-6374","safe","worker_043","이서연","worker","사원","worker_043@icmp.co.kr",0),
+        ("W044","강지우",13,"010-6147-2983","safe","worker_044","강지우","worker","사원","worker_044@icmp.co.kr",0),
+        ("W045","조서연",4,"010-8392-1647","safe","worker_045","조서연","worker","사원","worker_045@icmp.co.kr",0),
+        ("W046","한준혁",3,"010-2748-9316","safe","worker_046","한준혁","worker","대리","worker_046@icmp.co.kr",0),
+        ("W047","정예준",6,"010-5163-4827","safe","worker_047","정예준","worker","사원","worker_047@icmp.co.kr",0),
+        ("W048","신지아",8,"010-9274-3618","safe","worker_048","신지아","worker","사원","worker_048@icmp.co.kr",0),
+        ("W049","임민준",1,"010-3816-7243","safe","worker_049","임민준","worker","사원","worker_049@icmp.co.kr",0),
+        ("W050","오지우",2,"010-7429-1836","safe","worker_050","오지우","worker","사원","worker_050@icmp.co.kr",0),
+        ("W051","황채원",5,"010-4873-2961","safe","worker_051","황채원","worker","사원","worker_051@icmp.co.kr",0),
+        ("W052","김민재",9,"010-6312-8497","safe","worker_052","김민재","worker","사원","worker_052@icmp.co.kr",0),
+        ("W053","이하은",11,"010-8147-3629","safe","worker_053","이하은","worker","사원","worker_053@icmp.co.kr",0),
+        ("W054","박채원",13,"010-2963-7148","safe","worker_054","박채원","worker","사원","worker_054@icmp.co.kr",0),
+        ("W055","강예준",7,"010-7381-4926","safe","worker_055","강예준","worker","사원","worker_055@icmp.co.kr",0),
+        ("W056","조민재",4,"010-4926-8371","safe","worker_056","조민재","worker","사원","worker_056@icmp.co.kr",0),
+        ("W057","한예린",10,"010-9147-2836","safe","worker_057","한예린","worker","사원","worker_057@icmp.co.kr",0),
+        ("W058","정서연",3,"010-3618-7492","safe","worker_058","정서연","worker","사원","worker_058@icmp.co.kr",0),
+        ("W059","신민지",6,"010-7263-4918","safe","worker_059","신민지","worker","사원","worker_059@icmp.co.kr",0),
+        ("W060","임준혁",12,"010-4891-3726","safe","worker_060","임준혁","worker","대리","worker_060@icmp.co.kr",0),
+        ("W061","오예린",2,"010-8374-1629","safe","worker_061","오예린","worker","사원","worker_061@icmp.co.kr",0),
+        ("W062","황지우",5,"010-2916-8347","safe","worker_062","황지우","worker","사원","worker_062@icmp.co.kr",0),
+        ("W063","김준혁",9,"010-6483-2917","safe","worker_063","김준혁","worker","사원","worker_063@icmp.co.kr",0),
+        ("W064","이채원",11,"010-9128-4763","safe","worker_064","이채원","worker","사원","worker_064@icmp.co.kr",0),
+        ("W065","박민지",13,"010-3742-9186","safe","worker_065","박민지","worker","사원","worker_065@icmp.co.kr",0),
+        ("W066","강서연",7,"010-8169-3274","safe","worker_066","강서연","worker","사원","worker_066@icmp.co.kr",0),
+        ("W067","조예준",4,"010-2847-6193","safe","worker_067","조예준","worker","사원","worker_067@icmp.co.kr",0),
+        ("W068","한하은",10,"010-6391-8274","safe","worker_068","한하은","worker","사원","worker_068@icmp.co.kr",0),
+        ("W069","정민준",3,"010-9248-1736","safe","worker_069","정민준","worker","사원","worker_069@icmp.co.kr",0),
+        ("W070","신지우",6,"010-4827-9163","safe","worker_070","신지우","worker","사원","worker_070@icmp.co.kr",0),
+        ("W071","임채원",8,"010-7193-2864","safe","worker_071","임채원","worker","사원","worker_071@icmp.co.kr",0),
+        ("W072","오예린",1,"010-3674-8129","safe","worker_072","오예린","worker","사원","worker_072@icmp.co.kr",0),
+        ("W073","황민재",5,"010-8417-2693","safe","worker_073","황민재","worker","사원","worker_073@icmp.co.kr",0),
+        ("W074","김서연",9,"010-2738-6491","safe","worker_074","김서연","worker","사원","worker_074@icmp.co.kr",0),
+        ("W075","이예준",11,"010-6182-3947","safe","worker_075","이예준","worker","사원","worker_075@icmp.co.kr",0),
+        ("W076","박지우",13,"010-9164-2783","safe","worker_076","박지우","worker","사원","worker_076@icmp.co.kr",0),
+        ("W077","강하은",7,"010-3826-7194","safe","worker_077","강하은","worker","사원","worker_077@icmp.co.kr",0),
+        ("W078","조채원",4,"010-7491-2638","safe","worker_078","조채원","worker","사원","worker_078@icmp.co.kr",0),
+        ("W079","한민지",10,"010-2864-9173","safe","worker_079","한민지","worker","사원","worker_079@icmp.co.kr",0),
+        ("W080","정준혁",3,"010-6739-1842","safe","worker_080","정준혁","worker","대리","worker_080@icmp.co.kr",0),
+        ("W081","신서연",6,"010-4218-7396","safe","worker_081","신서연","worker","사원","worker_081@icmp.co.kr",0),
+        ("W082","임예린",8,"010-9347-2618","safe","worker_082","임예린","worker","사원","worker_082@icmp.co.kr",0),
+        ("W083","오지우",1,"010-3826-7491","safe","worker_083","오지우","worker","사원","worker_083@icmp.co.kr",0),
+        ("W084","황민준",5,"010-7194-3826","safe","worker_084","황민준","worker","사원","worker_084@icmp.co.kr",0),
+        ("W085","김채원",9,"010-2638-9174","safe","worker_085","김채원","worker","사원","worker_085@icmp.co.kr",0),
+        ("W086","이서윤",11,"010-6473-2918","safe","worker_086","이서윤","worker","사원","worker_086@icmp.co.kr",0),
+        ("W087","박예준",13,"010-9182-7364","safe","worker_087","박예준","worker","사원","worker_087@icmp.co.kr",0),
+        ("W088","강민지",7,"010-3927-1648","safe","worker_088","강민지","worker","사원","worker_088@icmp.co.kr",0),
+        ("W089","조하은",4,"010-7164-2839","safe","worker_089","조하은","worker","사원","worker_089@icmp.co.kr",0),
+        ("W090","한지우",10,"010-2849-3617","safe","worker_090","한지우","worker","사원","worker_090@icmp.co.kr",0),
+        ("W091","정채원",3,"010-6391-7482","safe","worker_091","정채원","worker","사원","worker_091@icmp.co.kr",0),
+        ("W092","신예준",6,"010-4837-2691","safe","worker_092","신예준","worker","사원","worker_092@icmp.co.kr",0),
+        ("W093","임민재",8,"010-9263-1748","safe","worker_093","임민재","worker","사원","worker_093@icmp.co.kr",0),
+        ("W094","오서연",1,"010-3174-9628","safe","worker_094","오서연","worker","사원","worker_094@icmp.co.kr",0),
+        ("W095","황준혁",5,"010-7438-2916","safe","worker_095","황준혁","worker","대리","worker_095@icmp.co.kr",0),
+        ("W096","김하은",9,"010-2691-8347","safe","worker_096","김하은","worker","사원","worker_096@icmp.co.kr",0),
+        ("W097","이민지",11,"010-6814-3729","safe","worker_097","이민지","worker","사원","worker_097@icmp.co.kr",0),
+        ("W098","박지아",13,"010-9472-1638","safe","worker_098","박지아","worker","사원","worker_098@icmp.co.kr",0),
+        ("W099","강예린",7,"010-3618-7294","safe","worker_099","강예린","worker","사원","worker_099@icmp.co.kr",0),
+        ("W100","조서윤",4,"010-7283-9164","safe","worker_100","조서윤","worker","사원","worker_100@icmp.co.kr",0),
+        ("W101","한채원",10,"010-2916-8473","safe","worker_101","한채원","worker","사원","worker_101@icmp.co.kr",0),
+        ("W102","정민재",3,"010-3748-1926","safe","worker_102","정민재","worker","사원","worker_102@icmp.co.kr",0),
+        ("W103","신지아",6,"010-7162-3894","safe","worker_103","신지아","worker","사원","worker_103@icmp.co.kr",0),
+        ("W104","임채원",12,"010-4923-7816","safe","worker_104","임채원","worker","사원","worker_104@icmp.co.kr",0),
+        ("W105","오예린",2,"010-8347-2961","safe","worker_105","오예린","worker","사원","worker_105@icmp.co.kr",0),
+    ]
+
+    # dept_id → Department 객체 매핑 (코드 기반)
+    dept_by_id = {i + 1: dept_map[f"DEPT_{i+1:03d}"] for i in range(13)}
+
+    for row in BULK_USERS:
+        (worker_no, worker_name, dept_id, phone, safety_status,
+         uname, uname2, user_type, position, email, is_staff) = row
+        u, created = User.objects.get_or_create(username=uname)
+        if created or not u.has_usable_password():
+            u.set_password("worker1234!")
+        u.name = worker_name
+        u.user_type = user_type
+        u.department = dept_by_id[dept_id]
+        u.position = position
+        u.phone = phone
+        u.email = email
+        u.is_staff = bool(is_staff)
+        u.save()
+
+    print("  [accounts] ✓ done")
+
+
+def seed_facilities():
+    """facilities, buildings, floors, floor_grids, index_grids, zones, geofences,
+       equipments, location_nodes"""
+    from facilities.models import (
+        Facility, Building, Floor, FloorGrid, IndexGrid,
+        Zone, Geofence, Equipment, LocationNode,
+    )
+
+    print("  [facilities] facilities...")
+    fac_data = [
+        ("FAC-001", "제1공장"),
+        ("FAC-002", "제2공장"),
+        ("FAC-003", "창고동"),
+    ]
+    fac_map = {}
+    for code, name in fac_data:
+        fac, _ = Facility.objects.get_or_create(
+            facility_code=code,
+            defaults={"facility_name": name, "status": "active"},  # ✅ [수정 1] facility_name
+        )
+        fac_map[code] = fac
+
+    print("  [facilities] buildings...")
+    bld_data = [
+        ("B01", "제1공장 본관", "FAC-001"),
+        ("B01", "제2공장 본관", "FAC-002"),
+        ("B01", "창고동 본관",  "FAC-003"),
+    ]
+    bld_map = {}
+    for code, name, fac_code in bld_data:
+        bld, _ = Building.objects.get_or_create(
+            building_code=code,
+            facility=fac_map[fac_code],
+            defaults={"building_name": name},
+        )
+        bld_map[(code, fac_code)] = bld
+
+    print("  [facilities] floors & floor_grids...")
+    bld1 = bld_map[("B01", "FAC-001")]
+    floor1, _ = Floor.objects.get_or_create(
+        building=bld1,
+        floor_no=1,
+        defaults={
+            "floor_name": "1층",
+            "width": 50,
+            "length": 30,
+            "height": 4,
+        },
+    )
+    FloorGrid.objects.get_or_create(
+        floor=floor1,
+        defaults={"cell_size": 1.0},
+    )
+
+    # ─────────────────────────────────────────────────────────
+    # ✅ [수정 10] IndexGrid 자동 생성 (1500개 셀)
+    # FloorGridService가 floor.width, floor.length, cell_size로 셀 계산
+    # 이미지(plan_image)와 무관 — 건물 크기만으로 격자 생성됨
+    # ─────────────────────────────────────────────────────────
+    if not IndexGrid.objects.filter(floor=floor1).exists():
+        from facilities.services.floor_grid_maker import FloorGridService
+        from facilities.repositories import IndexGridWriter
+        print("  [facilities] index_grids (auto-generate cells)...")
+        service = FloorGridService(floor1)
+        cells = service.generate_all_cells()
+        IndexGridWriter().bulk_create(floor1, cells)
+        print(f"  [facilities] {len(cells)}개 셀 생성")
+    else:
+        print("  [facilities] index_grids 이미 존재 (skip)")
+
+    print("  [facilities] zones...")
+    zone1, _ = Zone.objects.get_or_create(
+        zone_name="작업구역A",
+        floor=floor1,
+        defaults={
+            "zone_type": "work",
+            "cell_row_start": 2,
+            "cell_row_end": 8,
+            "cell_col_start": 2,
+            "cell_col_end": 10,
+            "color": "#378ADD",
+            "status": "active",
+        },
+    )
+
+    print("  [facilities] geofences...")
+    geofence_data = [
+        # name, type, severity, description, is_active, cx, cy, radius, zone
+        ("위험구역1",         "circle", "danger",  "",                          True,  25.0, 15.0, 3.0,  None),
+        ("[자동] 가스센서-A", "circle", "danger",  "가스센서 자동 생성 — device_id=1", False, 10.0,  5.0, 5.0,  None),
+        ("[자동] 가스센서-B", "circle", "warning", "가스센서 자동 생성 — device_id=2", True,  25.0,  5.0, 3.0,  None),
+        ("[자동] 창고동 가스센서", "circle", "warning", "가스센서 자동 생성 — device_id=7", True, 15.0, 25.0, 3.0, None),
+        ("[자동] 가스센서-C", "circle", "danger",  "가스센서 자동 생성 — device_id=3", True,  40.0, 15.0, 5.0,  None),
+    ]
+    for name, gtype, severity, desc, is_active, cx, cy, radius, zone in geofence_data:
+        Geofence.objects.get_or_create(
+            name=name,
+            floor=floor1,
+            defaults={
+                "geofence_type": gtype,
+                "severity": severity,
+                "description": desc,
+                "is_active": is_active,
+                "center_x": cx,
+                "center_y": cy,
+                "radius": radius,
+                "zone": zone,
+            },
+        )
+
+    print("  [facilities] equipments...")
+    eq_data = [
+        ("EQ-001", "압축기-A", 2.0, 2.0, 15.0, 15.0),
+        ("EQ-002", "펌프-A",   1.5, 1.5, 30.0, 15.0),
+        ("EQ-003", "탱크-A",   3.0, 3.0, 40.0, 20.0),
+    ]
+    for code, name, w, h, x, y in eq_data:
+        Equipment.objects.get_or_create(
+            equipment_code=code,
+            defaults={
+                "equipment_name": name,
+                "width": w,
+                "height": h,
+                "center_x": x,         # ✅ [수정 2] position_x → center_x
+                "center_y": y,         # ✅ [수정 2] position_y → center_y
+                "status": "active",
+                "floor": floor1,
+                "is_placed": True,     # ✅ [수정 2] 시드 데이터는 배치 완료 상태
+                # building 인자 삭제 — Equipment 모델에 없는 필드
+            },
+        )
+
+    print("  [facilities] location_nodes...")
+    ln_data = [
+        ("LOC-001", "위치노드-A",  5.0,  5.0),
+        ("LOC-002", "위치노드-B", 25.0,  5.0),
+        ("LOC-003", "위치노드-C", 45.0,  5.0),
+        ("LOC-004", "위치노드-D",  5.0, 25.0),
+        ("LOC-005", "위치노드-E", 45.0, 25.0),
+    ]
+    for code, name, x, y in ln_data:
+        LocationNode.objects.get_or_create(
+            node_code=code,
+            defaults={
+                "node_name": name,
+                "x": x,                # ✅ [수정 3] pos_x → x
+                "y": y,                # ✅ [수정 3] pos_y → y
+                "z": 0.0,              # ✅ [수정 3] altitude → z
+                "status": "active",
+                "floor": floor1,
+                "is_placed": True,     # T1-α X3: 시드 데이터는 배치 완료 상태
+            },
+        )
+
+    print("  [facilities] ✓ done")
+
+
+def seed_workers():
+    """workers W001~W105 + initial WorkerLocations + geofence sync"""
+    from facilities.models import Worker, WorkerLocation, Floor
+    from accounts.models import User, Department
+
+    # ✅ [수정 6] dept_id(정수) → Department 객체 매핑 (코드 기반)
+    dept_by_id = {
+        i + 1: Department.objects.get(code=f"DEPT_{i+1:03d}")
+        for i in range(13)
+    }
+
+    print("  [workers] W000~W005 (on_duty)...")
+    w_on = [
+        ("W000", "관리자",   5, "010-0000-0000", "admin"),
+        ("W001", "김철수", 10, "010-7425-1251", "worker1"),
+        ("W002", "이영희", 10, "010-6631-6561", "worker_002"),
+        ("W003", "박민준", 10, "010-4359-5031", "worker_003"),
+        ("W004", "최수진", 10, "010-2109-9189", "worker_004"),
+        ("W005", "정도현", 10, "010-8224-5510", "worker_005"),
+    ]
+    for worker_no, name, dept_id, phone, uname in w_on:
+        user = User.objects.filter(username=uname).first()
+        if user:
+            Worker.objects.filter(user=user).exclude(worker_no=worker_no).update(user=None)
+        Worker.objects.update_or_create(
+            worker_no=worker_no,
+            defaults={
+                "worker_name": name,
+                "department": dept_by_id[dept_id],
+                "phone": phone,
+                "current_state": "on_duty",
+                "safety_status": "safe",
+                "user": user,
+            },
+        )
+
+    print("  [workers] W006~W105 (off_duty)...")
+    BULK = [
+        ("W006","박서연",11,"010-5251-5704","safe","worker_006"),
+        ("W007","권지유",4,"010-5253-6380","warning","worker_007"),
+        ("W008","한지민",2,"010-7336-7970","danger","worker_008"),
+        ("W009","권민재",3,"010-9605-9661","danger","worker_009"),
+        ("W010","김지아",4,"010-5833-5004","safe","worker_010"),
+        ("W011","서현우",1,"010-5885-8320","danger","worker_011"),
+        ("W012","서민준",3,"010-4909-5016","safe","worker_012"),
+        ("W013","서채원",12,"010-7651-6223","safe","worker_013"),
+        ("W014","서현우",12,"010-8842-1034","safe","worker_014"),
+        ("W015","김도윤",4,"010-1131-4005","safe","worker_015"),
+        ("W016","오채원",7,"010-6127-1873","safe","worker_016"),
+        ("W017","정지유",13,"010-6381-7355","safe","worker_017"),
+        ("W018","이서윤",1,"010-8571-3707","safe","worker_018"),
+        ("W019","오민준",1,"010-5825-9702","safe","worker_019"),
+        ("W020","김하은",2,"010-3545-8398","safe","worker_020"),
+        ("W021","신예준",3,"010-3421-7061","safe","worker_021"),
+        ("W022","오지아",6,"010-6396-4120","safe","worker_022"),
+        ("W023","임채원",3,"010-7403-9647","safe","worker_023"),
+        ("W024","오예준",7,"010-9316-5732","safe","worker_024"),
+        ("W025","김수아",7,"010-1111-6008","safe","worker_025"),
+        ("W026","황예준",5,"010-4212-2279","safe","worker_026"),
+        ("W027","이민지",13,"010-4289-9183","safe","worker_027"),
+        ("W028","이도윤",8,"010-2764-7960","safe","worker_028"),
+        ("W029","황준혁",6,"010-3501-8736","safe","worker_029"),
+        ("W030","임예린",1,"010-4408-8619","safe","worker_030"),
+        ("W031","신준혁",9,"010-6573-4398","safe","worker_031"),
+        ("W032","김예린",11,"010-5003-2481","safe","worker_032"),
+        ("W033","강민준",4,"010-2785-7893","safe","worker_033"),
+        ("W034","박예준",5,"010-4636-8218","safe","worker_034"),
+        ("W035","정민지",13,"010-9217-5038","safe","worker_035"),
+        ("W036","한하은",8,"010-3924-4972","safe","worker_036"),
+        ("W037","이준혁",12,"010-6498-2847","safe","worker_037"),
+        ("W038","김지우",2,"010-7324-6593","safe","worker_038"),
+        ("W039","조현준",9,"010-8612-3471","safe","worker_039"),
+        ("W040","최예린",10,"010-9183-7264","safe","worker_040"),
+        ("W041","권민재",5,"010-3647-8192","safe","worker_041"),
+        ("W042","박하은",7,"010-7293-4861","safe","worker_042"),
+        ("W043","이서연",11,"010-4821-6374","safe","worker_043"),
+        ("W044","강지우",13,"010-6147-2983","safe","worker_044"),
+        ("W045","조서연",4,"010-8392-1647","safe","worker_045"),
+        ("W046","한준혁",3,"010-2748-9316","safe","worker_046"),
+        ("W047","정예준",6,"010-5163-4827","safe","worker_047"),
+        ("W048","신지아",8,"010-9274-3618","safe","worker_048"),
+        ("W049","임민준",1,"010-3816-7243","safe","worker_049"),
+        ("W050","오지우",2,"010-7429-1836","safe","worker_050"),
+        ("W051","황채원",5,"010-4873-2961","safe","worker_051"),
+        ("W052","김민재",9,"010-6312-8497","safe","worker_052"),
+        ("W053","이하은",11,"010-8147-3629","safe","worker_053"),
+        ("W054","박채원",13,"010-2963-7148","safe","worker_054"),
+        ("W055","강예준",7,"010-7381-4926","safe","worker_055"),
+        ("W056","조민재",4,"010-4926-8371","safe","worker_056"),
+        ("W057","한예린",10,"010-9147-2836","safe","worker_057"),
+        ("W058","정서연",3,"010-3618-7492","safe","worker_058"),
+        ("W059","신민지",6,"010-7263-4918","safe","worker_059"),
+        ("W060","임준혁",12,"010-4891-3726","safe","worker_060"),
+        ("W061","오예린",2,"010-8374-1629","safe","worker_061"),
+        ("W062","황지우",5,"010-2916-8347","safe","worker_062"),
+        ("W063","김준혁",9,"010-6483-2917","safe","worker_063"),
+        ("W064","이채원",11,"010-9128-4763","safe","worker_064"),
+        ("W065","박민지",13,"010-3742-9186","safe","worker_065"),
+        ("W066","강서연",7,"010-8169-3274","safe","worker_066"),
+        ("W067","조예준",4,"010-2847-6193","safe","worker_067"),
+        ("W068","한하은",10,"010-6391-8274","safe","worker_068"),
+        ("W069","정민준",3,"010-9248-1736","safe","worker_069"),
+        ("W070","신지우",6,"010-4827-9163","safe","worker_070"),
+        ("W071","임채원",8,"010-7193-2864","safe","worker_071"),
+        ("W072","오예린",1,"010-3674-8129","safe","worker_072"),
+        ("W073","황민재",5,"010-8417-2693","safe","worker_073"),
+        ("W074","김서연",9,"010-2738-6491","safe","worker_074"),
+        ("W075","이예준",11,"010-6182-3947","safe","worker_075"),
+        ("W076","박지우",13,"010-9164-2783","safe","worker_076"),
+        ("W077","강하은",7,"010-3826-7194","safe","worker_077"),
+        ("W078","조채원",4,"010-7491-2638","safe","worker_078"),
+        ("W079","한민지",10,"010-2864-9173","safe","worker_079"),
+        ("W080","정준혁",3,"010-6739-1842","safe","worker_080"),
+        ("W081","신서연",6,"010-4218-7396","safe","worker_081"),
+        ("W082","임예린",8,"010-9347-2618","safe","worker_082"),
+        ("W083","오지우",1,"010-3826-7491","safe","worker_083"),
+        ("W084","황민준",5,"010-7194-3826","safe","worker_084"),
+        ("W085","김채원",9,"010-2638-9174","safe","worker_085"),
+        ("W086","이서윤",11,"010-6473-2918","safe","worker_086"),
+        ("W087","박예준",13,"010-9182-7364","safe","worker_087"),
+        ("W088","강민지",7,"010-3927-1648","safe","worker_088"),
+        ("W089","조하은",4,"010-7164-2839","safe","worker_089"),
+        ("W090","한지우",10,"010-2849-3617","safe","worker_090"),
+        ("W091","정채원",3,"010-6391-7482","safe","worker_091"),
+        ("W092","신예준",6,"010-4837-2691","safe","worker_092"),
+        ("W093","임민재",8,"010-9263-1748","safe","worker_093"),
+        ("W094","오서연",1,"010-3174-9628","safe","worker_094"),
+        ("W095","황준혁",5,"010-7438-2916","safe","worker_095"),
+        ("W096","김하은",9,"010-2691-8347","safe","worker_096"),
+        ("W097","이민지",11,"010-6814-3729","safe","worker_097"),
+        ("W098","박지아",13,"010-9472-1638","safe","worker_098"),
+        ("W099","강예린",7,"010-3618-7294","safe","worker_099"),
+        ("W100","조서윤",4,"010-7283-9164","safe","worker_100"),
+        ("W101","한채원",10,"010-2916-8473","safe","worker_101"),
+        ("W102","정민재",3,"010-3748-1926","safe","worker_102"),
+        ("W103","신지아",6,"010-7162-3894","safe","worker_103"),
+        ("W104","임채원",12,"010-4923-7816","safe","worker_104"),
+        ("W105","오예린",2,"010-8347-2961","safe","worker_105"),
+    ]
+    for row in BULK:
+        worker_no, name, dept_id, phone, safety, uname = row
+        user = User.objects.filter(username=uname).first()
+        if user:
+            Worker.objects.filter(user=user).exclude(worker_no=worker_no).update(user=None)
+        Worker.objects.update_or_create(
+            worker_no=worker_no,
+            defaults={
+                "worker_name": name,
+                "department": dept_by_id[dept_id],
+                "phone": phone,
+                "current_state": "off_duty",
+                "safety_status": safety,
+                "user": user,
+            },
+        )
+
+    # ─────────────────────────────────────────────────────────
+    # ✅ [수정 8] WorkerLocation (W001~W005 초기 위치 + geofence 자동 판정)
+    # ─────────────────────────────────────────────────────────
+    print("  [workers] worker_locations (initial)...")
+
+    # floor1 조회 (seed_facilities에서 생성한 제1공장 본관 1층)
+    floor1 = (Floor.objects
+              .filter(building__facility__facility_code="FAC-001",
+                      building__building_code="B01",
+                      floor_no=1)
+              .first())
+
+    if floor1 is None:
+        print("    skip — floor1 없음 (seed_facilities 먼저 실행 필요)")
+    else:
+        try:
+            from facilities.services.geofence_checker import sync_worker_status
+        except ImportError as exc:
+            print(f"    warn — geofence_checker import 실패: {exc}")
+            sync_worker_status = None
+
+        # 5명을 다양한 위치에 배치 (W005는 위험구역1 내부)
+        initial_locations = [
+            ("W001",  5.0, 15.0),
+            ("W002", 20.0, 10.0),
+            ("W003", 30.0, 20.0),
+            ("W004", 35.0, 15.0),
+            ("W005", 25.0, 14.0),   # 위험구역1(25,15,R=3) 내부 → danger 판정
+        ]
+
+        for worker_no, x, y in initial_locations:
+            worker = Worker.objects.filter(worker_no=worker_no).first()
+            if not worker:
+                print(f"    skip {worker_no} — Worker 없음")
+                continue
+
+            # 같은 작업자의 시드 위치가 이미 있으면 건너뜀 (중복 방지)
+            if WorkerLocation.objects.filter(worker=worker).exists():
+                print(f"    skip {worker_no} — WorkerLocation 이미 존재")
+                continue
+
+            loc = WorkerLocation.objects.create(
+                worker=worker,
+                floor=floor1,
+                x=x,
+                y=y,
+                cell_no=f"{int(y)}-{int(x)}",
+            )
+            # geofence 자동 판정 → Worker.safety_status 갱신
+            if sync_worker_status:
+                try:
+                    sync_worker_status(worker, loc)
+                except Exception as exc:
+                    print(f"    warn {worker_no} — sync_worker_status 실패: {exc}")
+
+    print("  [workers] ✓ done")
+
+
+def seed_monitoring():
+    """devices, device_channels, threshold_policies, sensor_locations"""
+    from monitoring.models import (
+        Device, DeviceChannel, ThresholdPolicy,
+    )
+    from facilities.models import Facility, Building, Floor, SensorLocation
+
+    fac1 = Facility.objects.get(facility_code="FAC-001")
+    fac2 = Facility.objects.get(facility_code="FAC-002")
+    fac3 = Facility.objects.get(facility_code="FAC-003")
+    # ✅ [수정 5] building_code 명시 — MultipleObjectsReturned 위험 제거
+    bld1 = Building.objects.get(facility=fac1, building_code="B01")
+    bld2 = Building.objects.get(facility=fac2, building_code="B01")
+    bld3 = Building.objects.get(facility=fac3, building_code="B01")
+    floor1 = Floor.objects.get(building=bld1, floor_no=1)
+
+    print("  [monitoring] devices...")
+    from accounts.models import User as _User
+    mgr_ids = list(_User.objects.filter(user_type='manager').values_list('id', flat=True))
+    def _mgr(i): return _User.objects.filter(id=mgr_ids[i % len(mgr_ids)]).first() if mgr_ids else None
+
+    device_data = [
+        # uid,      code,      type,    name,             mac,                  ip,              port,  fac,  bld,  flr,  mgr_idx
+        ("GAS-001","GAS-001","gas",  "가스센서-A",      "AA:BB:CC:DD:EE:01","192.168.1.101", 502,  fac1, bld1, floor1, 0),
+        ("GAS-002","GAS-002","gas",  "가스센서-B",      "AA:BB:CC:DD:EE:02","192.168.1.102", 502,  fac1, bld1, floor1, 1),
+        ("GAS-003","GAS-003","gas",  "가스센서-C",      "AA:BB:CC:DD:EE:03","192.168.1.103", 502,  fac2, bld2, None,   2),
+        ("PWR-001","PWR-001","power","전력계-A",        "AA:BB:CC:DD:EF:01","192.168.1.111", 502,  fac1, bld1, floor1, 0),
+        ("PWR-002","PWR-002","power","전력계-B",        "AA:BB:CC:DD:EF:02","192.168.1.112", 502,  fac2, bld2, None,   1),
+        ("PWR-003","PWR-003","power","전력계-C",        "AA:BB:CC:DD:EF:03","192.168.1.113", 502,  fac3, bld3, None,   2),
+        ("GAS-004","GAS-004","gas",  "창고동 가스센서", "AA:BB:CC:DD:EE:04","192.168.1.104", 8084, fac3, bld3, None,   3),
+    ]
+    device_map = {}
+    for uid, code, dtype, name, mac, ip, port, fac, bld, flr, mgr_idx in device_data:
+        note_val = f"MAC: {mac}"
+        dev, created = Device.objects.get_or_create(
+            device_uid=uid,
+            defaults={
+                "device_code": code,
+                "device_type": dtype,
+                "device_name": name,
+                "ip_address": ip,
+                "port": port,
+                "is_active": True,
+                "status": "active",
+                "software_version": "",
+                "model_name": "",
+                "note": note_val,
+                "facility": fac,
+                "building": bld,
+                "floor": flr,
+                "manager": _mgr(mgr_idx),
+            },
+        )
+        if not created:
+            updated = False
+            if not dev.ip_address:
+                dev.ip_address = ip
+                updated = True
+            if not dev.note or not dev.note.startswith("MAC: "):
+                dev.note = note_val
+                updated = True
+            if not dev.manager:
+                dev.manager = _mgr(mgr_idx)
+                updated = True
+            if not dev.building and bld:
+                dev.building = bld
+                updated = True
+            if updated:
+                dev.save(update_fields=['ip_address', 'note', 'manager', 'building'])
+        device_map[uid] = dev
+
+    print("  [monitoring] device_channels...")
+    pwr1_channels = [
+        ("slave01", "압연기 A",      800),
+        ("slave02", "압연기 B",      800),
+        ("slave11", "CCTV 1번",       50),
+        ("slave12", "CCTV 2번",       50),
+        ("slave21", "냉각팬 A",      500),
+        ("slave22", "냉각팬 B",      500),
+        ("slave31", "조명 A구역",    300),
+        ("slave32", "조명 B구역",    300),
+        ("slave41", "컨베이어 A",    600),
+        ("slave42", "컨베이어 B",    600),
+        ("slave51", "환기팬 A",      400),
+        ("slave52", "환기팬 B",      400),
+        ("slave61", "충전스테이션 A", 1000),
+        ("slave62", "충전스테이션 B", 1000),
+        ("slave71", "비상조명",      100),
+        ("slave72", "안전장치 전원", 200),
+    ]
+    for code, name, rated in pwr1_channels:
+        DeviceChannel.objects.get_or_create(
+            device=device_map["PWR-001"],
+            channel_code=code,
+            defaults={
+                "channel_name": name,
+                "is_active": True,
+                "status": "active",
+                "rated_power_w": rated,
+            },
+        )
+
+    pwr2_channels = [
+        ("slave01", "도장 로봇 A",   900),
+        ("slave02", "도장 로봇 B",   900),
+        ("slave11", "CCTV 3번",       50),
+        ("slave12", "CCTV 4번",       50),
+        ("slave21", "집진기 A",      700),
+        ("slave22", "집진기 B",      700),
+        ("slave31", "조명 C구역",    300),
+        ("slave32", "조명 D구역",    300),
+    ]
+    for code, name, rated in pwr2_channels:
+        DeviceChannel.objects.get_or_create(
+            device=device_map["PWR-002"],
+            channel_code=code,
+            defaults={
+                "channel_name": name,
+                "is_active": True,
+                "status": "active",
+                "rated_power_w": rated,
+            },
+        )
+
+    pwr3_channels = [
+        ("slave01", "창고 설비 A",    800),
+        ("slave02", "창고 설비 B",    800),
+        ("slave11", "CCTV 5번",        50),
+        ("slave12", "CCTV 6번",        50),
+        ("slave21", "창고 조명 A",    500),
+        ("slave22", "창고 조명 B",    500),
+        ("slave31", "환기팬",         300),
+        ("slave32", "안전장치 전원",  300),
+    ]
+    for code, name, rated in pwr3_channels:
+        DeviceChannel.objects.get_or_create(
+            device=device_map["PWR-003"],
+            channel_code=code,
+            defaults={
+                "channel_name": name,
+                "is_active": True,
+                "status": "active",
+                "rated_power_w": rated,
+            },
+        )
+
+    print("  [monitoring] threshold_policies...")
+    threshold_data = [
+        # metric_code, normal_min, normal_max, warning_min, warning_max, danger_min, danger_max, action_type
+        ("co",            None, None, None, 25.0,   None, 200.0,  "notify"),
+        ("h2s",           None, None, None, 10.0,   None,  15.0,  "notify"),
+        ("current_value", None, None, None, 80.0,   None, 100.0,  "notify"),
+        ("power_value",   None, None, None, 90.0,   None, 110.0,  "notify"),
+        ("co2",           None, None, None, 1000.0, None, 5000.0, "notify"),
+        ("o2",            18.0, 23.5, 16.0, 18.0,   None,  None,  "notify"),
+        ("no2",           None, None, None,  3.0,   None,   5.0,  "notify"),
+        ("so2",           None, None, None,  2.0,   None,   5.0,  "notify"),
+        ("o3",            None, None, None,  0.06,  None,   0.12, "notify"),
+        ("nh3",           None, None, None, 25.0,   None,  35.0,  "notify"),
+        ("voc",           None, None, None,  0.5,   None,   1.0,  "notify"),
+    ]
+    for row in threshold_data:
+        (code, nmin, nmax, wmin, wmax, dmin, dmax, action) = row
+        ThresholdPolicy.objects.get_or_create(
+            metric_code=code,
+            defaults={
+                "normal_min": nmin,
+                "normal_max": nmax,
+                "warning_min": wmin,
+                "warning_max": wmax,
+                "danger_min": dmin,
+                "danger_max": dmax,
+                "action_type": action,
+                "is_active": True,
+            },
+        )
+
+    print("  [monitoring] sensor_locations...")
+    sl_data = [
+        ("GAS-001", "gas",   10.0,  5.0, "가스센서-A"),
+        ("GAS-002", "gas",   25.0,  5.0, "가스센서-B"),
+        ("PWR-001", "power", 10.0, 20.0, "전력계-A"),
+        ("GAS-003", "gas",   40.0, 15.0, "가스센서-C"),
+        ("GAS-004", "gas",   15.0, 25.0, "창고동 가스센서"),
+    ]
+    for uid, stype, x, y, name in sl_data:
+        dev = device_map.get(uid)
+        if dev:
+            SensorLocation.objects.get_or_create(
+                device_id=dev.id,           # ✅ [수정 4] FK 대신 IntegerField PK
+                defaults={
+                    "sensor_type": stype,
+                    "x": x,                  # ✅ [수정 4] pos_x → x
+                    "y": y,                  # ✅ [수정 4] pos_y → y
+                    "device_name": name,     # ✅ [수정 4] label → device_name
+                    "is_active": True,
+                    "floor": floor1,
+                    "is_placed": True,       # T1-β Q1: 시드 데이터는 배치 완료 상태
+                },
+            )
+
+    # ── InspectionLog (점검 이력) ──────────────────────────────
+    print("  [monitoring] inspection_logs...")
+    from monitoring.models import InspectionLog
+    from accounts.models import User
+    from datetime import date
+
+    inspector = User.objects.filter(user_type='manager').first()
+
+    inspection_data = [
+        # device_uid, inspection_date, type, status, expected_action_date, note
+        ("GAS-001", date(2026, 5, 10), "regular",  "normal",          None,              "정상 작동 확인"),
+        ("GAS-002", date(2026, 4, 28), "regular",  "action_required", date(2026, 5, 30), "센서 감도 저하, 교체 예정"),
+        ("GAS-003", date(2026, 3, 15), "abnormal", "action_required", None,              "누설 감지 오작동 의심"),
+        ("GAS-004", date(2026, 5, 1),  "regular",  "normal",          None,              "정상"),
+    ]
+
+    for uid, insp_date, itype, status, exp_date, note in inspection_data:
+        dev = device_map.get(uid)
+        if not dev:
+            continue
+        log, _ = InspectionLog.objects.get_or_create(
+            device=dev,
+            inspection_date=insp_date,
+            defaults={
+                "inspector": inspector,
+                "inspection_type": itype,
+                "status": status,
+                "note": note,
+                "expected_action_date": exp_date,
+            },
+        )
+
+    print("  [monitoring] ✓ done")
+
+
+def seed_alerts():
+    """alarm_rules (기준 룰 6개) + risk_criteria (5개) + alarm_events (더미 10건) + event_histories"""
+    from datetime import timedelta
+    from django.utils import timezone
+    from alerts.models import AlarmRule, AlarmEvent, EventHistory, RiskCriteria
+    from monitoring.models import ThresholdPolicy, Device
+    from facilities.models import Facility, Worker
+    from accounts.models import User
+
+    print("  [alerts] risk_criteria...")
+    # 기존 항목 전체 삭제 후 재생성 (대소문자 혼재 정리)
+    RiskCriteria.objects.all().delete()
+
+    # stage_code 대문자 저장 → 관리자 UI에서 보기 좋음
+    # CSS/JS 생성 시 |lower 필터로 소문자 변환 → severity 값과 자동 매칭
+    # 알림 조회는 __iexact → 관리자가 어떤 케이스로 입력해도 연동됨
+    risk_data = [
+        # stage_code,             stage_name,            color_type, alert_emphasis, priority
+        ("DANGER",             "위험",              "red",    "위험",   1),
+        ("WARNING",            "주의",              "orange", "주의",   2),
+        ("ANOMALY",            "통계/AI 이상 탐지", "yellow", "이상 탐지", 3),
+        ("PREDICTIVE_WARNING", "AI 조기 예측 경보", "purple", "예측 경보", 4),
+        ("NORMAL",             "정상",              "green",  "정상",   5),
+    ]
+    for code, name, color, emphasis, priority in risk_data:
+        obj, _ = RiskCriteria.objects.get_or_create(stage_code=code)
+        obj.stage_name     = name
+        obj.color_type     = color
+        obj.alert_emphasis = emphasis
+        obj.priority       = priority
+        obj.is_active      = True
+        obj.save(update_fields=['stage_name', 'color_type', 'alert_emphasis', 'priority', 'is_active', 'updated_at'])
+
+    print("  [alerts] alarm_rules...")
+    rule_data = [
+        ("CO 임계치 초과 규칙",   "threshold", "notify", True,  "co"),
+        ("H2S 임계치 초과 규칙",  "threshold", "notify", True,  "h2s"),
+        ("전류 임계치 초과 규칙", "threshold", "notify", True,  "current_value"),
+        ("전력 이상 감지 규칙",   "power",     "notify", True,  "power_value"),
+        ("센서 데이터 누락 규칙", "missing",   "notify", True,  None),
+    ]
+    for name, rtype, action, is_active, tp_code in rule_data:
+        tp = None
+        if tp_code:
+            tp = ThresholdPolicy.objects.filter(metric_code=tp_code).first()
+        AlarmRule.objects.get_or_create(
+            rule_name=name,
+            defaults={
+                "rule_type": rtype,
+                "action_type": action,
+                "is_active": is_active,
+                "threshold_policy": tp,
+            },
+        )
+
+    # ─────────────────────────────────────────────────────────
+    # ✅ [수정 7] AlarmEvent (알람 이벤트 더미 10건) + EventHistory
+    # ─────────────────────────────────────────────────────────
+    print("  [alerts] alarm_events + event_histories...")
+
+    rules = list(AlarmRule.objects.order_by("id"))
+    facilities = {
+        "FAC-001": Facility.objects.get(facility_code="FAC-001"),
+        "FAC-002": Facility.objects.get(facility_code="FAC-002"),
+        "FAC-003": Facility.objects.get(facility_code="FAC-003"),
+    }
+    devices = {
+        d.device_uid: d
+        for d in Device.objects.filter(device_uid__in=[
+            "GAS-001", "GAS-002", "GAS-003", "PWR-001", "PWR-002", "PWR-003"
+        ])
+    }
+    workers = {
+        w.worker_no: w
+        for w in Worker.objects.filter(worker_no__in=["W001", "W002", "W003", "W004", "W005"])
+    }
+    admin = User.objects.filter(username="admin").first()
+
+    now = timezone.now()
+    # (rule_idx, fac_code, device_uid, worker_no, severity, event_type,
+    #  status, hours_ago, title, message)
+    event_specs = [
+        (0, "FAC-001", "GAS-001", None,   "danger",  "gas",      "open",
+         0.5, "CO 농도 위험 수준 초과",
+         "제1공장 가스센서-A에서 CO 농도 152ppm 감지. 허용 기준(100ppm) 초과."),
+
+        (1, "FAC-001", "GAS-001", "W003", "warning", "gas",      "acknowledged",
+         2,   "H2S 경고 수준 감지",
+         "가스센서-A CH2에서 H2S 7.3ppm 감지. 경고 임계치(5ppm) 초과. 작업자 박민준 인근 위치."),
+
+        (3, "FAC-002", "PWR-002", None,   "danger",  "power",    "open",
+         1,   "제2공장 전력계 이상",
+         "전력계-B에서 순간 과전력 감지. 정격 대비 118% 부하 발생."),
+
+        (4, "FAC-001", "GAS-002", None,   "warning", "device",   "open",
+         3,   "가스센서-B 데이터 누락",
+         "가스센서-B(GAS-002)에서 5분 이상 데이터 수신 없음."),
+
+        (4, "FAC-003", "PWR-003", None,   "warning", "device",   "acknowledged",
+         5,   "창고동 전력계 데이터 누락",
+         "전력계-C(PWR-003)에서 5분 이상 데이터 수신 없음. 네트워크 연결 확인 필요."),
+
+        (2, "FAC-001", "PWR-001", None,   "normal",  "power",    "closed",
+         24,  "전류 임계치 경고",
+         "전력계-A 전류값 83A 감지. 경고 임계치(80A) 소폭 초과. 이후 정상 복귀."),
+
+        (0, "FAC-002", "GAS-003", "W001", "danger",  "gas",      "open",
+         0.2, "CO 긴급 경보",
+         "제2공장 가스센서-C에서 CO 농도 210ppm 감지. 즉각 대피 조치 필요."),
+
+        (1, "FAC-001", "GAS-001", "W004", "warning", "gas",      "open",
+         4,   "H2S 주의 수준 감지",
+         "가스센서-A에서 H2S 3.1ppm 감지. 주의 단계. 환기 실시 권고."),
+
+        (4, "FAC-001", "GAS-001", None,   "warning", "device",   "open",
+         6,   "가스센서-A 데이터 미수신",
+         "가스센서-A(GAS-001)에서 주기적으로 데이터 수신 없음. 펌웨어 점검 필요."),
+
+        (3, "FAC-003", "PWR-003", "W005", "normal",  "power",    "closed",
+         48,  "창고동 전력 미세 이상",
+         "전력계-C에서 미세 전압 변동 감지. 조치 후 정상 복귀."),
+    ]
+
+    for spec in event_specs:
+        (ri, fac_code, dev_uid, w_no, severity, etype, status,
+         hours_ago, title, msg) = spec
+
+        rule = rules[ri] if ri < len(rules) else None
+        facility = facilities.get(fac_code)
+        device = devices.get(dev_uid) if dev_uid else None
+        worker = workers.get(w_no) if w_no else None
+
+        if rule is None or facility is None:
+            print(f"    skip event '{title}' — rule/facility 없음")
+            continue
+
+        occurred_at = now - timedelta(hours=hours_ago)
+        acknowledged_at = (now - timedelta(hours=hours_ago - 0.3)
+                           if status in ("acknowledged", "closed") else None)
+        closed_at = (now - timedelta(hours=hours_ago - 1)
+                     if status == "closed" else None)
+
+        ev, created = AlarmEvent.objects.get_or_create(
+            title=title,
+            defaults={
+                "rule": rule,
+                "facility": facility,
+                "device": device,
+                "worker": worker,
+                "severity": severity,
+                "event_type": etype,
+                "event_status": status,
+                "message": msg,
+                "occurred_at": occurred_at,
+                "acknowledged_by": admin if status in ("acknowledged", "closed") else None,
+                "acknowledged_at": acknowledged_at,
+                "closed_at": closed_at,
+            },
+        )
+
+        if status in ("acknowledged", "closed"):
+            EventHistory.objects.get_or_create(
+                alarm_event=ev,
+                action_type="acknowledge",
+                defaults={
+                    "action_by": admin,
+                    "action_note": "현장 확인 후 조치 착수",
+                },
+            )
+        if status == "closed":
+            EventHistory.objects.get_or_create(
+                alarm_event=ev,
+                action_type="close",
+                defaults={
+                    "action_by": admin,
+                    "action_note": "조치 완료 및 정상 복귀 확인",
+                },
+            )
+
+    print("  [alerts] ✓ done")
+
+
+def seed_safety():
+    """safety_check_items — JSON fixture 로드"""
+    import os
+    from django.core.management import call_command
+
+    fixture_paths = [
+        "safety/fixtures/safety_check_items.json",
+        "fixtures/safety_check_items.json",
+    ]
+    loaded = False
+    for path in fixture_paths:
+        if os.path.exists(path):
+            print(f"  [safety] loading fixture: {path}")
+            call_command("loaddata", path, verbosity=0)
+            loaded = True
+            break
+
+    if not loaded:
+        print("  [safety] fixture not found — skipping (run `loaddata` manually)")
+
+    print("  [safety] ✓ done")
+
+
+# ─────────────────────────────────────────────────────────────
+# Management Command
+# ─────────────────────────────────────────────────────────────
+
+def seed_alarm_policies():
+    """AlarmPolicy 기본 6개 정책 (이벤트 유형별 1개)"""
+    from manager.models import AlarmPolicy
+
+    defaults = [
+        ("가스 경보 알림",               "가스 경보",                   "앱, 관제 실시간 알림, Slack, Discord", "관리자, 작업자", True,
+         "전체 가스 센서 중 위험 상태를 1분 이상 유지한 장비가 발생하면 알림을 발송합니다.",
+         "",
+         ""),
+
+        ("전력 이상 알림",               "전력 이상",                   "앱, Slack, Discord",  "관리자",         True,
+         "전체 전력 설비 중 위험 상태로 전환된 장비가 발생하면 즉시 알림을 발송합니다.",
+         "",
+         ""),
+
+        ("위험구역 진입 알림",           "위험구역 진입",               "관제 실시간 알림",     "관리자, 작업자", True,
+         "구역 단계가 위험구역인 위험구역 A에 작업자가 진입하면 관리자, 작업자에게 즉시 알림을 발송합니다.",
+         "위험구역 진입 감지",
+         "구역 단계가 위험구역인 {발생대상}에 작업자가 진입하였습니다. 발생 시각: {발생시각}."),
+
+        ("PPE 미착용 경고 알림",         "PPE 미착용",                  "앱",                  "작업자",         True,
+         "전체 작업자 위치 데이터 발생 후 5분 이내 PPE가 미착용 상태이면 즉시 알림을 발송합니다.",
+         "PPE 미착용 감지",
+         "{발생대상}의 PPE 미착용이 감지되었습니다. 발생 시각: {발생시각}."),
+
+        ("체크리스트 미완료 알림",       "작업 안전 체크리스트 미완료", "관제 실시간 알림",     "관리자",         False,
+         "전체 작업자 위치 데이터 발생 후 5분 이내 작업 안전 체크리스트가 미완료 상태이면 즉시 알림을 발송합니다.",
+         "체크리스트 미완료",
+         "{발생대상}의 작업 안전 체크리스트가 미완료 상태입니다. 발생 시각: {발생시각}."),
+
+        ("VR 교육 미이수 알림",          "VR 교육 미이수",              "관제 실시간 알림",     "관리자",         True,
+         "전체 작업자 위치 데이터 발생 후 5분 이내 VR 교육이 미이수 상태이면 즉시 알림을 발송합니다.",
+         "VR 교육 미이수",
+         "{발생대상}의 VR 교육이 미이수 상태입니다. 발생 시각: {발생시각}."),
+    ]
+
+    policy_map = {}
+    for name, event, channels, targets, is_active, cond, title, content in defaults:
+        p, created = AlarmPolicy.objects.get_or_create(
+            name=name,
+            defaults={
+                "event_type":        event,
+                "channels":          channels,
+                "targets":           targets,
+                "is_active":         is_active,
+                "condition_summary": cond,
+                "alarm_title":       title,
+                "alarm_content":     content,
+            },
+        )
+        if not created:
+            changed = []
+            if p.channels != channels:
+                p.channels = channels
+                changed.append('channels')
+            if p.alarm_title != title:
+                p.alarm_title = title
+                changed.append('alarm_title')
+            if p.alarm_content != content:
+                p.alarm_content = content
+                changed.append('alarm_content')
+            if changed:
+                p.save(update_fields=changed)
+        policy_map[name] = p
+
+    print(f"  [alarm_policies] {len(policy_map)}개 정책 생성/확인")
+    return policy_map
+
+
+def seed_send_history():
+    """AlarmSendHistory 샘플 발송 이력 — AlarmPolicy FK 연결"""
+    from datetime import timedelta
+    from django.utils import timezone
+    from manager.models import AlarmSendHistory
+
+    AlarmSendHistory.objects.all().delete()   # 기존 데이터 초기화 후 재생성
+
+    # 연결할 정책 맵 확보 (없으면 생성)
+    policy_map = seed_alarm_policies()
+
+    now = timezone.now()
+
+    # (hours_ago, channel, targets, result, policy_name, scope, content, reason)
+    rows = [
+        (0.04, "Slack",           "관리자",            "성공", "가스 경보 알림",     "관리자",
+         "가스 센서 GS-021에서 경고 상태가 감지되었습니다. 관리자 채널로 Slack 알림이 발송되었습니다.",
+         "Webhook 응답 코드 200 수신. 정상 발송 완료되었습니다."),
+
+        (0.10, "Discord",         "관리자, 슈퍼관리자", "실패", "전력 이상 알림",     "관리자, 슈퍼관리자",
+         "스마트전력시스템 SP-004 이상 감지에 따른 Discord 알림 발송이 실패하였습니다.",
+         "Webhook URL 응답 없음. 네트워크 연결 오류로 발송에 실패하였습니다."),
+
+        (0.22, "관제 실시간 알림", "관리자",            "성공", "위험구역 진입 알림", "관리자",
+         "위치 노드 LOC-014 관할 구역에서 작업자 위치 이탈이 감지되어 관제 대시보드에 실시간 알림을 발송하였습니다.",
+         "WebSocket 전송 완료."),
+
+        (0.35, "Slack",           "관리자",            "성공", "가스 경보 알림",     "관리자",
+         "가스 센서 GS-009에서 CO 위험 수치(230ppm)가 감지되었습니다. Slack 알림이 발송되었습니다.",
+         "Webhook 응답 코드 200 수신. 정상 발송 완료되었습니다."),
+
+        (0.57, "Discord",         "관리자",            "성공", "위험구역 진입 알림", "관리자",
+         "출입문 A-03에서 제한 시간 내 접근 경보가 감지되어 관리자 Discord 채널에 알림을 발송하였습니다.",
+         "Webhook 응답 코드 204 수신. 정상 발송 완료되었습니다."),
+
+        (0.72, "Slack",           "관리자",            "성공", "가스 경보 알림",     "관리자",
+         "가스 센서 GS-007 경보 상태가 해제되어 Slack으로 해제 알림을 발송하였습니다.",
+         "Webhook 응답 코드 200 수신. 정상 발송 완료되었습니다."),
+
+        (0.84, "관제 실시간 알림", "슈퍼관리자",        "성공", "전력 이상 알림",     "슈퍼관리자",
+         "스마트전력시스템 SP-003 채널 부하율 이상이 감지되어 관제 대시보드에 실시간 알림을 발송하였습니다.",
+         "WebSocket 전송 완료."),
+
+        (1.02, "Discord",         "관리자",            "실패", "가스 경보 알림",     "관리자",
+         "가스 센서 GS-015 위험 경보 Discord 알림 발송이 실패하였습니다.",
+         "3회 재시도 소진. Webhook 엔드포인트 타임아웃 발생."),
+
+        (1.17, "Slack",           "관리자",            "지연", "전력 이상 알림",     "관리자",
+         "스마트전력시스템 SP-002 전력 이상 주의 알림을 Slack으로 발송 요청하였으나 전송이 지연되었습니다.",
+         "Slack API 응답 지연으로 약 8초 후 재시도하여 발송 완료되었습니다."),
+
+        (1.32, "관제 실시간 알림", "관리자",            "성공", "위험구역 진입 알림", "관리자",
+         "출입문 B-01 접근 이벤트 경보 알림을 관제 대시보드에 실시간으로 발송하였습니다.",
+         "WebSocket 전송 완료."),
+
+        (1.49, "Discord",         "슈퍼관리자",         "성공", "가스 경보 알림",     "슈퍼관리자",
+         "가스 센서 GS-003 H2S 수치 이상 감지 알림을 슈퍼관리자 Discord 채널에 발송하였습니다.",
+         "Webhook 응답 코드 204 수신. 정상 발송 완료되었습니다."),
+
+        (1.65, "Slack",           "관리자",            "성공", "전력 이상 알림",     "관리자",
+         "스마트전력시스템 SP-001 전압 이상 감지 알림을 Slack으로 발송하였습니다.",
+         "Webhook 응답 코드 200 수신. 정상 발송 완료되었습니다."),
+    ]
+
+    objs = [
+        AlarmSendHistory(
+            sent_at      = now - timedelta(hours=h),
+            channel      = channel,
+            targets      = targets,
+            result       = result,
+            alarm_policy = policy_map.get(policy_name),
+            policy_name  = policy_name,
+            scope        = scope,
+            content      = content,
+            reason       = reason,
+        )
+        for h, channel, targets, result, policy_name, scope, content, reason in rows
+    ]
+    AlarmSendHistory.objects.bulk_create(objs)
+    print(f"  [send_history] {len(objs)}건 생성 완료 (AlarmPolicy FK 연결)")
+
+
+def seed_notification_templates():
+    """NotificationTemplate — Slack / Discord / WebSocket 기본 메시지 포맷 시드.
+
+    기존 레코드(이전 email/sms/push 포함) 전체 초기화 후 재생성.
+    템플릿 변수 목록은 NotificationTemplate 모델 docstring 참조.
+    """
+    from alerts.models import NotificationTemplate
+
+    NotificationTemplate.objects.all().delete()
+
+    templates = [
+        (
+            'slack',
+            'Slack 알림',
+            '',  # title_template 미사용 (body에 통합)
+            '{severity_emoji} *[ICMP2 알림]* {emphasis}{title}\n'
+            '> {content}\n'
+            '> 시설: {facility}  |  발생: {occurred_at}{targets_line}',
+        ),
+        (
+            'discord',
+            'Discord 알림',
+            '[ICMP2 알림] {title}',
+            '{content}',
+        ),
+        (
+            'websocket',
+            '관제 실시간 알림',
+            '[ICMP2 알림] {title}',
+            '{content}',
+        ),
+    ]
+
+    for channel_type, name, title_tmpl, body_tmpl in templates:
+        NotificationTemplate.objects.create(
+            template_name=name,
+            channel_type=channel_type,
+            title_template=title_tmpl,
+            body_template=body_tmpl,
+            is_active=True,
+        )
+
+    print(f"  [notification_templates] {len(templates)}개 템플릿 생성")
+
+
+def seed_common_codes():
+    """미연결 공통코드 그룹 정리 — 현재 시스템과 연결된 그룹 없음"""
+    from core.models import CommonCode
+
+    unused_groups = ['DEVICE_TYPE', 'COMM_METHOD', 'GAS_TYPE', 'UNIT_CODE',
+                     'EVENT_TYPE', 'NOTI_CHANNEL', 'WORK_TYPE', 'TH_CATEGORY']
+    deleted, _ = CommonCode.objects.filter(group_code__in=unused_groups).delete()
+    if deleted:
+        print(f"  [common_codes] 미사용 그룹 {deleted}건 삭제")
+    else:
+        print("  [common_codes] 정리 완료 (삭제 대상 없음)")
+
+
+def seed_risk_codes():
+    """위험 유형 — 기존 시드 데이터 전체 삭제.
+    분류 그룹과 코드값 모두 납품사 관리자가 관리자 페이지에서 직접 등록."""
+    from core.models import CommonCode
+
+    deleted, _ = CommonCode.objects.filter(group_code__startswith='RISK_').delete()
+    if deleted:
+        print(f"  [risk_codes] 기존 위험 유형 데이터 {deleted}건 삭제")
+    else:
+        print("  [risk_codes] 정리 완료 (삭제 대상 없음)")
+
+
+def seed_retention_policies():
+    """데이터 보관 주기 초기 설정 (법적 기준 + 운영 기본값)"""
+    from manager.models import DataRetentionPolicy
+
+    policies = [
+        # 유해가스 센서 — 산업안전보건법: 측정 기록 3년 보관
+        ("gas", "raw",       3 * 365, 3 * 365, "monthly_1",  "산업안전보건법 시행규칙 제186조: 가스 측정 기록 3년 보관"),
+        ("gas", "event",     3 * 365, 3 * 365, "monthly_1",  "산업안전보건법 시행규칙: 이벤트 이력 3년 보관"),
+        ("gas", "aggregate", 3 * 365, 3 * 365, "monthly_15", "산업안전보건법: 집계 이력 3년 보관"),
+        # 스마트 전력 — 전기사업법/산안법: 점검 기록 2년
+        ("power", "raw",       180,     2 * 365, "monthly_1",  "운영 기본값: 원천 로그 180일, 이력 2년"),
+        ("power", "event",     2 * 365, 2 * 365, "monthly_1",  "전기사업법: 전력 점검 기록 2년 보관"),
+        ("power", "aggregate", 2 * 365, 2 * 365, "monthly_15", "전기사업법: 집계 이력 2년 보관"),
+        # 위치 노드 — 별도 법적 규정 없음: 운영 기본값 적용
+        ("node", "raw",      180, 365, "monthly_1",  "법적 규정 없음: 원천 로그 6개월, 이력 1년"),
+        ("node", "location", 180, 365, "monthly_15", "법적 규정 없음: 위치 이력 6개월~1년"),
+    ]
+
+    print("  [retention_policies] 데이터 보관 주기 설정...")
+    created = 0
+    for device_type, data_category, origin_days, history_days, delete_schedule, memo in policies:
+        _, is_new = DataRetentionPolicy.objects.get_or_create(
+            device_type=device_type,
+            data_category=data_category,
+            defaults={
+                "origin_days":     origin_days,
+                "history_days":    history_days,
+                "delete_schedule": delete_schedule,
+                "is_active":       True,
+                "memo":            memo,
+            },
+        )
+        if is_new:
+            created += 1
+    print(f"  완료: 보관 주기 {created}건 추가 (기존 항목 유지)")
+
+
+SECTIONS = {
+    "accounts":           seed_accounts,
+    "facilities":         seed_facilities,
+    "workers":            seed_workers,
+    "monitoring":         seed_monitoring,
+    "alerts":             seed_alerts,
+    "safety":             seed_safety,
+    "alarm_policies":     seed_alarm_policies,
+    # send_history: 실제 알림 발송이 AlarmSendHistory를 자동 생성하므로 더미 데이터 시드 제거
+    # notification_templates: 기본 포맷은 tasks.py 폴백이 보장, Django Admin에서 선택적 덮어쓰기 가능
+    "common_codes":       seed_common_codes,
+    "risk_codes":         seed_risk_codes,
+    "retention_policies": seed_retention_policies,
+}
+
+# 의존성 순서
+ALL_ORDER = [
+    "accounts", "facilities", "workers", "monitoring",
+    "alerts", "safety", "alarm_policies",
+    "common_codes", "risk_codes", "retention_policies",
+]
+
+class Command(BaseCommand):
+    help = "ICMP2 통합 시드: 기준 데이터를 DB에 삽입합니다"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--flush",
+            action="store_true",
+            help="시드 대상 테이블을 초기화한 후 삽입합니다 (주의: 모든 데이터 삭제)",
+        )
+        parser.add_argument(
+            "--section",
+            choices=list(SECTIONS.keys()),
+            default=None,
+            help="특정 섹션만 실행합니다",
+        )
+
+    def handle(self, *args, **options):
+        flush = options["flush"]
+        section = options["section"]
+
+        if flush:
+            self._flush()
+
+        targets = [section] if section else ALL_ORDER
+
+        from django.db.models.signals import post_save
+        from accounts.signals import sync_worker
+        post_save.disconnect(sync_worker, sender='accounts.User')
+
+        self.stdout.write(self.style.MIGRATE_HEADING("=== ICMP2 Seed ==="))
+        try:
+            with transaction.atomic():
+                for sec in targets:
+                    self.stdout.write(f"▶ {sec}")
+                    try:
+                        SECTIONS[sec]()
+                    except Exception as exc:
+                        self.stderr.write(self.style.ERROR(f"  ✗ {sec}: {exc}"))
+                        raise
+        finally:
+            post_save.connect(sync_worker, sender='accounts.User')
+
+        self.stdout.write(self.style.SUCCESS("✓ 시드 완료"))
+
+    def _flush(self):
+        """시드 대상 테이블 순서대로 초기화 (FK 순서 역방향)"""
+        flush_tables = [
+            # alerts
+            "event_histories",
+            "alarm_events",
+            "alarm_rules",
+            # monitoring
+            "action_logs",
+            "inspection_logs",
+            "device_channels",
+            "sensor_locations",
+            "devices",
+            "threshold_policies",
+            # facilities
+            "location_nodes",
+            "equipments",
+            "geofences",
+            "zones",
+            "index_grids",
+            "floor_grids",
+            "floors",
+            "buildings",
+            "worker_locations",
+            "workers",
+            "facilities",
+            # safety
+            "safety_check_item_results",
+            "safety_check_sessions",
+            "safety_check_items",
+            # accounts
+            "users",
+            "departments",
+        ]
+        self.stdout.write(self.style.WARNING("! --flush: 테이블 초기화 중..."))
+        with connection.cursor() as cur:
+            for tbl in flush_tables:
+                try:
+                    cur.execute(f'DELETE FROM "{tbl}";')
+                    self.stdout.write(f"  cleared {tbl}")
+                except Exception as e:
+                    self.stdout.write(f"  skip {tbl}: {e}")

@@ -1,395 +1,140 @@
 {% extends 'admin/base_manage.html' %}
 
-{% block title %}분류 그룹 등록 | 산재 예방 통합 관제 시스템{% endblock %}
+{% block title %}위험 분류 그룹 등록 | 산재 예방 통합 관제 시스템{% endblock %}
 
 {% block breadcrumb %}
 <div class="text-xs text-slate-500 mb-3">
-  기준정보 관리 / <span class="text-slate-700">위험 유형 관리</span>
+  기준정보 관리 / <a href="{% url 'risk_list' %}" class="hover:underline">위험 유형 관리</a> / <span class="text-slate-700">분류 그룹 등록</span>
 </div>
 {% endblock %}
 
 {% block page_header %}
-<div class="mb-6 flex items-start justify-between">
-  <div>
-    <h2 class="text-2xl font-bold text-slate-900 mb-1">위험 유형 관리</h2>
-    <p class="text-sm text-slate-500">시스템 내 위험 유형을 분류별로 관리합니다.</p>
-  </div>
-  {# 4. 위험 분류 등록 Btn #}
-  <a href="{% url 'risk_group_create' %}" class="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 flex items-center gap-1.5">
-    <i data-lucide="plus" class="w-4 h-4"></i>
-    위험 분류 등록
-  </a>
+<div class="mb-6">
+  <h2 class="text-2xl font-bold text-slate-900 mb-1">위험 유형 관리</h2>
+  <p class="text-sm text-slate-500">시스템 내 위험 유형을 분류별로 관리합니다.</p>
 </div>
 {% endblock %}
 
 {% block content %}
-<!-- 2단 레이아웃 -->
-<div class="grid grid-cols-12 gap-4">
-
-  <!-- ===== 좌측: 위험 분류 그룹 카드 (2번) ===== -->
-  <section class="col-span-4 bg-white rounded-xl border border-slate-200 p-6 flex flex-col">
-    <h3 class="text-base font-bold text-slate-900 mb-1">위험 분류 그룹</h3>
-    <p class="text-xs text-slate-500 mb-4">분류를 선택하면 우측에서 위험 유형과 반영 위치를 확인할 수 있습니다.</p>
-
-    <!-- 분류명 검색 필드 -->
-    <div class="flex items-center gap-2 mb-4">
-      <div class="relative flex-1">
-        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-        <input type="text" placeholder="분류명 검색"
-               class="w-full pl-9 pr-3 py-2.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
-      </div>
-      <button class="px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-        검색
-      </button>
-    </div>
-
-    <!-- 위험 분류 그룹 리스트 (스크롤 영역) -->
-    <div class="flex-1 border border-slate-200 rounded-lg overflow-hidden flex flex-col">
-      <div class="flex-1 max-h-[480px] overflow-y-auto custom-scroll">
-        <!-- 선택된 그룹 (유해가스) -->
-        <div class="px-4 py-3.5 bg-blue-50 border border-blue-300 m-1.5 rounded-md flex items-center justify-between cursor-pointer">
-          <span class="text-sm font-medium text-blue-700">유해가스</span>
-          <span class="text-xs font-mono text-blue-600">RISK_GAS</span>
-        </div>
-        <!-- 일반 그룹들 -->
-        <div class="px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between border-b border-slate-100">
-          <span class="text-sm text-slate-700">전력</span>
-          <span class="text-xs font-mono text-slate-500">RISK_POWER</span>
-        </div>
-        <div class="px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between border-b border-slate-100">
-          <span class="text-sm text-slate-700">위치</span>
-          <span class="text-xs font-mono text-slate-500">RISK_LOCATION</span>
-        </div>
-        <div class="px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between border-b border-slate-100">
-          <span class="text-sm text-slate-700">작업 안전</span>
-          <span class="text-xs font-mono text-slate-500">RISK_WORK</span>
-        </div>
-        <div class="px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between border-b border-slate-100">
-          <span class="text-sm text-slate-700">복합 위험</span>
-          <span class="text-xs font-mono text-slate-500">RISK_COMPLEX</span>
-        </div>
-        <div class="px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between border-b border-slate-100">
-          <span class="text-sm text-slate-700">시스템</span>
-          <span class="text-xs font-mono text-slate-500">RISK_SYSTEM</span>
-        </div>
-        <div class="px-4 py-3.5 hover:bg-slate-50 cursor-pointer flex items-center justify-between">
-          <span class="text-sm text-slate-700">공통</span>
-          <span class="text-xs font-mono text-slate-500">RISK_COMMON</span>
-        </div>
-      </div>
-
-      <!-- 수정 버튼 (하단 고정) -->
-      <div class="border-t border-slate-200 p-3 bg-slate-50/50 flex justify-end">
-        <a href="{% url 'risk_group_edit' %}" class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-          수정
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== 우측: 그룹 정보 + 위험 유형 목록 ===== -->
-  <div class="col-span-8 flex flex-col gap-4">
-
-    <!-- 3. 그룹 정보 영역 -->
-    <section class="bg-white rounded-xl border border-slate-200 p-6">
-      <div class="flex items-center justify-between mb-5">
-        <h3 class="text-base font-bold text-slate-900">그룹 정보</h3>
-        <!-- 우측 상단 선택 그룹 뱃지 -->
-        <span class="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-full border border-blue-200">
-          선택 그룹: <span class="font-bold">RISK_GAS</span>
-        </span>
-      </div>
-      <div class="grid grid-cols-2 gap-y-3 gap-x-8">
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">분류명</span>
-          <span class="text-sm font-medium text-slate-800">유해가스</span>
-        </div>
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-24">최근 수정일</span>
-          <span class="text-sm font-medium text-slate-800">2026-04-12 10:30:00</span>
-        </div>
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">분류 코드</span>
-          <span class="text-sm font-medium text-slate-800 font-mono">RISK_GAS</span>
-        </div>
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-24">최근 수정자</span>
-          <span class="text-sm font-medium text-slate-800">홍길동</span>
-        </div>
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-20">반영 범위</span>
-          <span class="text-sm font-medium text-slate-800">위험구역 / 이벤트 / 알림</span>
-        </div>
-        <div class="flex items-center gap-8">
-          <span class="text-sm text-slate-500 w-24">사용 유형 수</span>
-          <span class="text-sm font-medium text-slate-800">6건</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- 5. 위험 유형 목록 영역 -->
-    <section class="bg-white rounded-xl border border-slate-200 p-6">
-      <!-- 헤더: 타이틀 + 그룹 뱃지 + 선택 카운트 + 액션 버튼들 -->
-      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <div class="flex items-center gap-2">
-          <h3 class="text-base font-bold text-slate-900">위험 유형 목록</h3>
-          <span class="px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-700 rounded-md">
-            유해가스
-          </span>
-          <span class="text-xs text-slate-500">1건 선택</span>
-          <button class="ml-2 px-3.5 py-1.5 bg-rose-50 text-rose-600 text-sm font-medium rounded-md border border-rose-200 hover:bg-rose-100">
-            삭제
-          </button>
-          <a href="{% url 'risk_create' %}" class="px-3.5 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-            등록
-          </a>
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="relative w-56">
-            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="text" placeholder="유형 코드, 유형명 검색"
-                   class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400" />
-          </div>
-          <button class="px-3.5 py-2 border border-slate-200 text-sm text-slate-600 rounded-md hover:bg-slate-50">
-            초기화
-          </button>
-          <button class="px-3.5 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-            검색
-          </button>
-        </div>
-      </div>
-
-      <!-- 정렬 기준 표시 -->
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-xs text-slate-500">전체 4건</span>
-        <button class="text-xs text-slate-600 flex items-center gap-1 px-2 py-1 hover:bg-slate-50 rounded-md">
-          유형명 오름차순
-          <i data-lucide="chevron-down" class="w-3 h-3"></i>
-        </button>
-      </div>
-
-      <!-- 위험 유형 테이블 -->
-      <div class="border border-slate-200 rounded-lg overflow-hidden">
-        <table class="w-full">
-          <thead class="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 w-12">선택</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">유형 코드</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">유형명</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">지도 반영 여부</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">사용 여부</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600">최근 수정일</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr class="hover:bg-slate-50">
-              <td class="px-4 py-3">
-                <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-              </td>
-              <td class="px-4 py-3 text-sm font-mono text-slate-700">GAS_LEAK</td>
-              <td class="px-4 py-3 text-sm text-slate-700">가스 누출 위험</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">반영</span>
-              </td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">사용</span>
-              </td>
-              <td class="px-4 py-3 text-sm text-slate-600">2026-04-12</td>
-            </tr>
-            <tr class="hover:bg-slate-50 bg-blue-50/30">
-              <td class="px-4 py-3">
-                <input type="checkbox" checked class="w-4 h-4 rounded border-slate-300" />
-              </td>
-              <td class="px-4 py-3 text-sm font-mono text-slate-700">POWER_OVERLOAD</td>
-              <td class="px-4 py-3 text-sm text-slate-700">전력 과부하 위험</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded">미반영</span>
-              </td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">사용</span>
-              </td>
-              <td class="px-4 py-3 text-sm text-slate-600">2026-04-12</td>
-            </tr>
-            <tr class="hover:bg-slate-50">
-              <td class="px-4 py-3">
-                <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-              </td>
-              <td class="px-4 py-3 text-sm font-mono text-slate-700">LOCATION_OUT</td>
-              <td class="px-4 py-3 text-sm text-slate-700">위치 이탈 위험</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">반영</span>
-              </td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">사용</span>
-              </td>
-              <td class="px-4 py-3 text-sm text-slate-600">2026-04-12</td>
-            </tr>
-            <tr class="hover:bg-slate-50">
-              <td class="px-4 py-3">
-                <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-              </td>
-              <td class="px-4 py-3 text-sm font-mono text-slate-700">FALL_RISK</td>
-              <td class="px-4 py-3 text-sm text-slate-700">추락 위험</td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">반영</span>
-              </td>
-              <td class="px-4 py-3">
-                <span class="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded">미사용</span>
-              </td>
-              <td class="px-4 py-3 text-sm text-slate-600">2026-03-20</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- 페이지네이션 -->
-      <div class="flex items-center justify-between mt-4">
-        <span class="text-xs text-slate-500">1 - 4 / 4</span>
-        <div class="flex items-center gap-1">
-          <button class="w-8 h-8 border border-slate-200 rounded-md text-slate-500 hover:bg-slate-50 flex items-center justify-center">
-            <i data-lucide="chevron-left" class="w-4 h-4"></i>
-          </button>
-          <button class="w-8 h-8 bg-slate-900 text-white rounded-md text-sm font-medium">1</button>
-          <button class="w-8 h-8 border border-slate-200 rounded-md text-sm text-slate-600 hover:bg-slate-50">2</button>
-          <button class="w-8 h-8 border border-slate-200 rounded-md text-sm text-slate-600 hover:bg-slate-50">3</button>
-          <button class="w-8 h-8 border border-slate-200 rounded-md text-sm text-slate-600 hover:bg-slate-50">4</button>
-          <button class="w-8 h-8 border border-slate-200 rounded-md text-sm text-slate-600 hover:bg-slate-50">5</button>
-          <button class="w-8 h-8 border border-slate-200 rounded-md text-slate-500 hover:bg-slate-50 flex items-center justify-center">
-            <i data-lucide="chevron-right" class="w-4 h-4"></i>
-          </button>
-        </div>
-        <div></div>
-      </div>
-
-      <!-- 액션 버튼 영역 (행 선택 시 활성화) -->
-      <div class="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
-        <span class="text-xs text-slate-500 mr-2">1개 선택</span>
-        <button class="px-4 py-2 bg-rose-50 text-rose-600 text-sm font-medium rounded-md border border-rose-200 hover:bg-rose-100">
-          미사용 전환
-        </button>
-        <a href="{% url 'risk_edit' %}" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-          수정
-        </a>
-        <a href="{% url 'risk_create' %}" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-          유형 등록
-        </a>
-      </div>
-    </section>
-  </div>
-</div>
-
-<!-- ===== 분류 그룹 등록 팝업 모달 ===== -->
 <div class="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl">
 
-    {# 1. 모달 타이틀 영역 #}
     <div class="px-8 pt-7 pb-4 border-b border-slate-100">
       <h3 class="text-xl font-bold text-slate-900 mb-1">분류 그룹 등록</h3>
-      <p class="text-sm text-slate-500">위험 분류 그룹 기준을 등록합니다.</p>
+      <p class="text-sm text-slate-500">위험 분류 그룹 정보를 등록합니다.</p>
     </div>
 
-    {# 2. 분류 그룹 정보 영역 #}
-    <div class="px-8 py-6">
-      <div class="grid grid-cols-2 gap-x-5 gap-y-5">
+    <form method="post" action="{% url 'risk_group_create' %}">
+      {% csrf_token %}
+      <div class="px-8 py-6">
+        <div class="grid grid-cols-2 gap-x-5 gap-y-5">
 
-        {# 분류 코드 (필수) #}
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1.5">
-            분류 코드 <span class="text-rose-500">*</span>
-          </label>
-          <input type="text" value="RISK_GAS" placeholder="분류 코드 입력"
-                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 font-mono" />
-        </div>
-
-        {# 분류명 (필수) #}
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1.5">
-            분류명 <span class="text-rose-500">*</span>
-          </label>
-          <input type="text" placeholder="유해가스"
-                 class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
-        </div>
-
-        {# 반영 범위 (필수, 중복 선택 가능) - 체크박스 #}
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1.5">
-            반영 범위 <span class="text-rose-500">*</span>
-            <span class="text-xs text-slate-400 font-normal">(중복 선택 가능)</span>
-          </label>
-          <div class="flex items-center gap-4 px-3.5 py-2.5 bg-white border border-slate-200 rounded-md">
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-              <span class="text-sm text-slate-700">위험구역</span>
-            </label>
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-              <span class="text-sm text-slate-700">이벤트</span>
-            </label>
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" class="w-4 h-4 rounded border-slate-300" />
-              <span class="text-sm text-slate-700">알림</span>
-            </label>
+          <!-- Row 1: 분류 코드 | 분류명 -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">분류 코드 <span class="text-rose-500">*</span></label>
+            <input type="text" name="group_code" placeholder="RISK_GAS" required
+                   class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 font-mono" />
           </div>
-        </div>
 
-        {# 사용 여부 (필수) #}
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1.5">
-            사용 여부 <span class="text-rose-500">*</span>
-          </label>
-          <div class="inline-flex bg-slate-50 border border-slate-200 rounded-md p-1">
-            <button class="px-6 py-1.5 text-sm font-medium bg-blue-600 text-white rounded">
-              사용
-            </button>
-            <button class="px-6 py-1.5 text-sm text-slate-600 rounded hover:bg-white">
-              미사용
-            </button>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">분류명 <span class="text-rose-500">*</span></label>
+            <input type="text" name="group_name" placeholder="유해가스" required
+                   class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400" />
           </div>
-        </div>
 
-        {# 최근 수정일 (자동 고정) #}
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1.5">최근 수정일</label>
-          <input type="text" value="" disabled
-                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
-        </div>
+          <!-- Row 2: 연관 범주 선택 (full width) -->
+          <div class="col-span-2">
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">연관 범주 선택 <span class="text-xs text-slate-400 font-normal">(그룹 선택 기능)</span></label>
+            <div class="flex gap-2" id="scope_buttons">
+              {% for label in "위험구역,이벤트,알림"|split:"," %}{% endfor %}
+              <button type="button" onclick="toggleScope(this, '위험구역')"
+                      class="scope-btn px-4 py-2 text-sm border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">위험구역</button>
+              <button type="button" onclick="toggleScope(this, '이벤트')"
+                      class="scope-btn px-4 py-2 text-sm border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">이벤트</button>
+              <button type="button" onclick="toggleScope(this, '알림')"
+                      class="scope-btn px-4 py-2 text-sm border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50">알림</button>
+            </div>
+            <input type="hidden" name="scope" id="scope_hidden" value="">
+          </div>
 
-        {# 수정자 (자동 고정) #}
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1.5">수정자</label>
-          <input type="text" value="홍길동 관리자" disabled
-                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
-        </div>
+          <!-- Row 3: 사용 여부 | 최근 수정일 -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">사용 여부 <span class="text-rose-500">*</span></label>
+            <input type="hidden" name="is_active" id="is_active_val" value="true">
+            <div class="inline-flex bg-slate-50 border border-slate-200 rounded-md p-1">
+              <button type="button" id="btn_active" onclick="setActive(true)"
+                      class="px-6 py-1.5 text-sm font-medium bg-blue-600 text-white rounded">사용</button>
+              <button type="button" id="btn_inactive" onclick="setActive(false)"
+                      class="px-6 py-1.5 text-sm text-slate-600 rounded hover:bg-white">미사용</button>
+            </div>
+          </div>
 
-        {# 사용 코드 수 (자동 고정) #}
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1.5">사용 코드 수</label>
-          <input type="text" value="-건" disabled
-                 class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
-        </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">최근 수정일</label>
+            <input type="text" id="now_datetime" disabled
+                   class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
+          </div>
 
-        {# 빈 칸 #}
-        <div></div>
+          <!-- Row 4: 수정자 | 사용 유형 수 -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">수정자</label>
+            <input type="text" value="{{ current_user_name }}" disabled
+                   class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
+          </div>
 
-        {# 설명 - 전체 너비 #}
-        <div class="col-span-2">
-          <label class="block text-sm font-medium text-slate-700 mb-1.5">설명</label>
-          <textarea rows="3" maxlength="100"
-                    class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 resize-none">유해가스 기반 위험 유형을 묶는 상위 분류 그룹입니다.</textarea>
-          <div class="text-right text-xs text-slate-400 mt-1">0 / 100자</div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">사용 유형 수</label>
+            <input type="text" value="-건" disabled
+                   class="w-full px-3.5 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-md text-slate-500 cursor-not-allowed" />
+          </div>
+
+          <!-- Row 5: 설명 (full width) -->
+          <div class="col-span-2">
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">설명</label>
+            <textarea name="description" rows="3" maxlength="100" placeholder="이 위험 분류 그룹의 용도를 입력하세요."
+                      class="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-400 resize-none"
+                      oninput="document.getElementById('desc_count').textContent=this.value.length"></textarea>
+            <p class="text-right text-xs text-slate-400 mt-1"><span id="desc_count">0</span>/100자</p>
+          </div>
+
         </div>
       </div>
-    </div>
 
-    {# 3. 모달 푸터 #}
-    <div class="flex items-center justify-center gap-2 px-8 py-5 border-t border-slate-100">
-      <a href="{% url 'risk_list' %}" class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">
-        취소
-      </a>
-      <a href="{% url 'risk_list' %}" class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-        등록
-      </a>
-    </div>
+      <div class="flex items-center justify-center gap-2 px-8 py-5 border-t border-slate-100">
+        <a href="{% url 'risk_list' %}" class="px-7 py-2.5 border border-slate-200 rounded-md text-sm text-slate-700 hover:bg-slate-50">취소</a>
+        <button type="submit" class="px-7 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">등록</button>
+      </div>
+    </form>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_script %}
+{{ block.super }}
+<script>
+  const el = document.getElementById('now_datetime');
+  if (el) {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    el.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  }
+
+  function setActive(isActive) {
+    document.getElementById('is_active_val').value = isActive ? 'true' : 'false';
+    document.getElementById('btn_active').className   = 'px-6 py-1.5 text-sm rounded ' + (isActive ? 'font-medium bg-blue-600 text-white' : 'text-slate-600 hover:bg-white');
+    document.getElementById('btn_inactive').className = 'px-6 py-1.5 text-sm rounded ' + (isActive ? 'text-slate-600 hover:bg-white' : 'font-medium bg-blue-600 text-white');
+  }
+
+  const selectedScopes = new Set();
+  function toggleScope(btn, val) {
+    if (selectedScopes.has(val)) {
+      selectedScopes.delete(val);
+      btn.className = 'scope-btn px-4 py-2 text-sm border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50';
+    } else {
+      selectedScopes.add(val);
+      btn.className = 'scope-btn px-4 py-2 text-sm border border-blue-400 rounded-md bg-blue-50 text-blue-700 font-medium';
+    }
+    document.getElementById('scope_hidden').value = Array.from(selectedScopes).join(',');
+  }
+</script>
 {% endblock %}
